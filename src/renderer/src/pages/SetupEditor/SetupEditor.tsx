@@ -1,0 +1,119 @@
+import { useEffect, useRef } from 'react'
+import type Konva from 'konva'
+import { APP_SETTINGS_KEYS } from '@shared/types/entities'
+import { useNavigationStore } from '@renderer/state/navigationStore'
+import { useSetupStore } from '@renderer/state/setupStore'
+import { useLayoutStore } from '@renderer/state/layoutStore'
+import { useCatalogStore } from '@renderer/state/catalogStore'
+import InstrumentPalette from './palette/InstrumentPalette'
+import LayoutStage from './canvas/LayoutStage'
+import SetupSheetTable from './table/SetupSheetTable'
+import AddSourceControl from './table/AddSourceControl'
+import SetupToolbar from './SetupToolbar'
+
+const AUTOSAVE_DELAY_MS = 1000
+
+export default function SetupEditor(): JSX.Element {
+  const buildingId = useNavigationStore((s) => s.buildingId)
+  const studioId = useNavigationStore((s) => s.studioId)
+  const setupId = useNavigationStore((s) => s.setupId)
+  const goToHome = useNavigationStore((s) => s.goToHome)
+  const mode = useNavigationStore((s) => s.editorMode)
+  const setMode = useNavigationStore((s) => s.setEditorMode)
+
+  const startNewSetup = useSetupStore((s) => s.startNewSetup)
+  const loadFromSetup = useSetupStore((s) => s.loadFromSetup)
+  const loadLayoutBlocks = useLayoutStore((s) => s.loadForSetup)
+  const loadCatalog = useCatalogStore((s) => s.loadForStudio)
+
+  const items = useSetupStore((s) => s.items)
+  const name = useSetupStore((s) => s.name)
+  const sessionDate = useSetupStore((s) => s.sessionDate)
+  const engineer = useSetupStore((s) => s.engineer)
+  const artist = useSetupStore((s) => s.artist)
+  const isDirty = useSetupStore((s) => s.isDirty)
+  const save = useSetupStore((s) => s.save)
+
+  const layoutBlocks = useLayoutStore((s) => s.blocks)
+  const layoutIsDirty = useLayoutStore((s) => s.isDirty)
+  const saveLayout = useLayoutStore((s) => s.save)
+
+  const stageRef = useRef<Konva.Stage>(null)
+
+  useEffect(() => {
+    if (!studioId) return
+    loadCatalog(studioId, buildingId, setupId)
+    loadLayoutBlocks(setupId)
+
+    if (setupId) {
+      window.api.setups.getWithItems(setupId).then((setup) => {
+        if (setup) loadFromSetup(setup)
+      })
+    } else {
+      window.api.settings.get(APP_SETTINGS_KEYS.defaultEngineerName).then((defaultEngineer) => {
+        startNewSetup(
+          studioId,
+          'Untitled Setup',
+          new Date().toISOString().slice(0, 10),
+          null,
+          defaultEngineer || null
+        )
+      })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [studioId, buildingId, setupId])
+
+  // Debounced autosave: any dirty change (re)starts a short timer that saves once things
+  // settle, instead of hammering a full items-table replace on every keystroke/drag. Table
+  // Mode's setupStore and Layout Mode's layoutStore are fully independent, but both flush on
+  // the same timer for simplicity — each only actually writes if its own isDirty is set.
+  useEffect(() => {
+    if (!isDirty && !layoutIsDirty) return
+    const timer = setTimeout(() => {
+      if (isDirty) save()
+      if (layoutIsDirty) saveLayout()
+    }, AUTOSAVE_DELAY_MS)
+    return () => clearTimeout(timer)
+  }, [items, name, sessionDate, engineer, artist, isDirty, save, layoutBlocks, layoutIsDirty, saveLayout])
+
+  // Flush any pending edit immediately when leaving the editor, so a quick navigation away
+  // right after typing/dragging doesn't lose the last second of work.
+  useEffect(() => {
+    return () => {
+      const setupState = useSetupStore.getState()
+      if (setupState.isDirty) setupState.save()
+      const layoutState = useLayoutStore.getState()
+      if (layoutState.isDirty) layoutState.save()
+    }
+  }, [])
+
+  if (!studioId) {
+    return (
+      <div className="page">
+        <div className="empty-state">No studio selected.</div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="page" style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: 0 }}>
+      <div className="nav-crumbs" style={{ padding: '10px 16px 0' }}>
+        <button onClick={goToHome}>Home</button> / Setup Editor
+      </div>
+      <SetupToolbar stageRef={stageRef} mode={mode} onToggleMode={setMode} />
+      {mode === 'table' ? (
+        <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+          <AddSourceControl />
+          <SetupSheetTable />
+        </div>
+      ) : (
+        <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
+          <InstrumentPalette />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <LayoutStage studioId={studioId} stageRef={stageRef} />
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

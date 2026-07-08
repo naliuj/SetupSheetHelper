@@ -1,0 +1,219 @@
+import { useSortable } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import type { SetupItemDraft } from '@shared/types/setup'
+import type { Mic, OutboardGear } from '@shared/types/entities'
+import type { UnresolvedGearHint } from '@renderer/state/setupStore'
+import ManufacturerPickerDropdown from '@renderer/components/ManufacturerPickerDropdown'
+import { applyMicPoolNotesTag } from '@renderer/state/micPoolNotesTag'
+import { useBufferedField } from './useBufferedField'
+
+const POOL_LABELS: Record<Mic['poolType'], string> = {
+  studio: 'This Studio',
+  setup: 'This Session',
+  building: 'Building Office',
+  faculty_reserve: 'Faculty Reserve',
+  personal: 'Personal Gear Locker'
+}
+const POOL_ORDER = [
+  POOL_LABELS.studio,
+  POOL_LABELS.setup,
+  POOL_LABELS.building,
+  POOL_LABELS.personal,
+  POOL_LABELS.faculty_reserve
+]
+
+interface Props {
+  item: SetupItemDraft
+  mics: Mic[]
+  outboardGear: OutboardGear[]
+  isTemporary: boolean
+  selected: boolean
+  conflict: boolean
+  unresolvedGearHint: UnresolvedGearHint | undefined
+  onClearUnresolvedGearHint: (field: 'mic' | 'outboard') => void
+  micUsageCounts: Map<number, number>
+  outboardUsageCounts: Map<number, number>
+  onGutterClick: (e: React.MouseEvent) => void
+  onChange: (patch: Partial<SetupItemDraft>) => void
+  onDelete: () => void
+}
+
+export default function SetupSheetRow({
+  item,
+  mics,
+  outboardGear,
+  isTemporary,
+  selected,
+  conflict,
+  unresolvedGearHint,
+  onClearUnresolvedGearHint,
+  micUsageCounts,
+  outboardUsageCounts,
+  onGutterClick,
+  onChange,
+  onDelete
+}: Props): JSX.Element {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id })
+  const rowStyle = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+    background: selected ? 'var(--color-surface-alt)' : undefined
+  }
+  function handleMicChange(micId: number | null): void {
+    const mic = micId != null ? mics.find((m) => m.id === micId) ?? null : null
+    const nextNotes = applyMicPoolNotesTag(item.notes ?? '', mic?.poolType ?? null)
+    onChange({ micId, notes: nextNotes })
+    onClearUnresolvedGearHint('mic')
+  }
+
+  function handleOutboardChange(outboardId: number | null): void {
+    const gear = outboardId != null ? outboardGear.find((g) => g.id === outboardId) ?? null : null
+    const nextNotes = applyMicPoolNotesTag(item.notes ?? '', gear?.poolType ?? null)
+    onChange({ outboardId, notes: nextNotes })
+    onClearUnresolvedGearHint('outboard')
+  }
+
+  const sourceName = useBufferedField(item.sourceName, (v) => onChange({ sourceName: v }))
+  const micText = useBufferedField(item.micText ?? '', (v) => onChange({ micText: v }))
+  const outboardText = useBufferedField(item.outboardText ?? '', (v) => onChange({ outboardText: v }))
+  const channel = useBufferedField(String(item.channel ?? ''), (v) =>
+    onChange({ channel: v ? Number(v) : null })
+  )
+  const tieLine = useBufferedField(String(item.tieLine ?? ''), (v) =>
+    onChange({ tieLine: v ? Number(v) : null })
+  )
+  const cueBox = useBufferedField(String(item.cueBox ?? ''), (v) =>
+    onChange({ cueBox: v ? Number(v) : null })
+  )
+  const notes = useBufferedField(item.notes ?? '', (v) => onChange({ notes: v }))
+
+  return (
+    <tr ref={setNodeRef} style={rowStyle}>
+      <td onClick={onGutterClick} style={{ cursor: 'pointer', userSelect: 'none' }}>
+        <span
+          className="drag-handle"
+          {...attributes}
+          {...listeners}
+          onClick={(e) => e.stopPropagation()}
+          style={{ cursor: 'grab' }}
+        >
+          ⠿
+        </span>
+      </td>
+      <td>
+        <input
+          value={sourceName.value}
+          placeholder="Source name"
+          onChange={(e) => sourceName.onChange(e.target.value)}
+          onBlur={sourceName.onBlur}
+          onClick={(e) => e.stopPropagation()}
+        />
+      </td>
+      <td onClick={(e) => e.stopPropagation()}>
+        {isTemporary ? (
+          <input
+            value={micText.value}
+            placeholder="Mic"
+            onChange={(e) => micText.onChange(e.target.value)}
+            onBlur={micText.onBlur}
+            onClick={(e) => e.stopPropagation()}
+          />
+        ) : (
+          <ManufacturerPickerDropdown
+            items={mics}
+            usageCounts={micUsageCounts}
+            getQuantity={(m) => m.quantity}
+            selectedId={item.micId}
+            onSelect={handleMicChange}
+            outerGroupBy={(m) => POOL_LABELS[m.poolType]}
+            outerGroupOrder={POOL_ORDER}
+          />
+        )}
+        {unresolvedGearHint?.mic && (
+          <div className="warning-badge">⚠ Preset expected: {unresolvedGearHint.mic}</div>
+        )}
+      </td>
+      <td onClick={(e) => e.stopPropagation()}>
+        {isTemporary ? (
+          <input
+            value={outboardText.value}
+            placeholder="Outboard"
+            onChange={(e) => outboardText.onChange(e.target.value)}
+            onBlur={outboardText.onBlur}
+            onClick={(e) => e.stopPropagation()}
+          />
+        ) : (
+          <ManufacturerPickerDropdown
+            items={outboardGear}
+            usageCounts={outboardUsageCounts}
+            getQuantity={(g) => g.quantity}
+            selectedId={item.outboardId}
+            onSelect={handleOutboardChange}
+            outerGroupBy={(g) => POOL_LABELS[g.poolType]}
+            outerGroupOrder={POOL_ORDER}
+            stripManufacturerInTrigger
+          />
+        )}
+        {unresolvedGearHint?.outboard && (
+          <div className="warning-badge">⚠ Preset expected: {unresolvedGearHint.outboard}</div>
+        )}
+      </td>
+      <td>
+        <input
+          type="number"
+          value={channel.value}
+          onChange={(e) => channel.onChange(e.target.value)}
+          onBlur={channel.onBlur}
+          onClick={(e) => e.stopPropagation()}
+        />
+      </td>
+      <td>
+        <input
+          type="number"
+          value={tieLine.value}
+          onChange={(e) => tieLine.onChange(e.target.value)}
+          onBlur={tieLine.onBlur}
+          onClick={(e) => e.stopPropagation()}
+        />
+        {conflict && <div className="warning-badge">⚠ duplicate tie line</div>}
+      </td>
+      <td>
+        <input
+          type="number"
+          value={cueBox.value}
+          onChange={(e) => cueBox.onChange(e.target.value)}
+          onBlur={cueBox.onBlur}
+          onClick={(e) => e.stopPropagation()}
+        />
+      </td>
+      <td style={{ textAlign: 'center' }}>
+        <input
+          type="checkbox"
+          checked={item.polarityFlip}
+          onChange={(e) => onChange({ polarityFlip: e.target.checked })}
+          onClick={(e) => e.stopPropagation()}
+        />
+      </td>
+      <td>
+        <input
+          value={notes.value}
+          onChange={(e) => notes.onChange(e.target.value)}
+          onBlur={notes.onBlur}
+          onClick={(e) => e.stopPropagation()}
+        />
+      </td>
+      <td>
+        <button
+          className="btn small danger"
+          onClick={(e) => {
+            e.stopPropagation()
+            onDelete()
+          }}
+        >
+          ✕
+        </button>
+      </td>
+    </tr>
+  )
+}

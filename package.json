@@ -1,0 +1,61 @@
+{
+  "name": "setup-sheet-helper",
+  "version": "0.1.0",
+  "description": "Studio session setup sheet planner",
+  "main": "./out/main/index.js",
+  "author": "",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "postinstall": "electron-rebuild -f -w better-sqlite3",
+    "backfill:manufacturers": "node scripts/backfill_manufacturers.cjs",
+    "seed:export": "node scripts/export_berklee_seed_data.cjs",
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "build:unpack": "npm run build && electron-builder --dir",
+    "build:mac": "npm run build && electron-builder --mac",
+    "build:win": "npm run build && electron-builder --win",
+    "build:linux": "npm run build && electron-builder --linux",
+    "typecheck:node": "tsc --noEmit -p tsconfig.node.json",
+    "typecheck:web": "tsc --noEmit -p tsconfig.web.json",
+    "typecheck": "npm run typecheck:node && npm run typecheck:web"
+  },
+  "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
+    "better-sqlite3": "^12.11.1",
+    "konva": "^9.3.16",
+    "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^4.7.76",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "react-konva": "^19.2.5",
+    "zod": "^3.23.8",
+    "zustand": "^5.0.14"
+  },
+  "devDependencies": {
+    "@electron/rebuild": "^3.7.2",
+    "@types/better-sqlite3": "^7.6.11",
+    "@types/node": "^20.14.9",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^4.3.4",
+    "electron": "^33.4.11",
+    "electron-builder": "26.13.1",
+    "electron-vite": "^2.3.0",
+    "typescript": "^5.5.3",
+    "vite": "^5.4.11"
+  },
+  "build": {
+    "extraResources": [
+      {
+        "from": "resources/layouts",
+        "to": "layouts"
+      }
+    ],
+    "mac": {
+      "identity": null
+    }
+  }
+}

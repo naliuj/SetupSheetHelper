@@ -1,0 +1,1221 @@
+{
+  "source": "https://college.berklee.edu/mpe/our-studios",
+  "generatedAt": "2026-07-08T01:48:06.566Z",
+  "note": "Snapshot of studio-pool mic quantities after backfill_mic_quantity_berklee.cjs + fix_studio2_radial_jdi_quantity.cjs. Restore with scripts/restore_mic_quantities_from_backup.cjs.",
+  "studios": {
+    "Studio 1": [
+      {
+        "manufacturer": "AEA",
+        "name": "R84",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "AKG",
+        "name": "C414 B-XL II",
+        "quantity": 6
+      },
+      {
+        "manufacturer": "AKG",
+        "name": "C451B",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "AKG",
+        "name": "D-112",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Audio Technica",
+        "name": "AT4041",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Audio Technica",
+        "name": "AT4060",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Audio Technica",
+        "name": "AT5047",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Audix",
+        "name": "D6",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Avalon",
+        "name": "U5 DI",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Beyerdynamic",
+        "name": "M160",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Beyerdynamic",
+        "name": "M201",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Beyerdynamic",
+        "name": "M88",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Brauner",
+        "name": "VMA Tube Microphone",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Coles",
+        "name": "4038 Ribbon",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Countryman",
+        "name": "Type 85",
+        "quantity": 3
+      },
+      {
+        "manufacturer": "DPA",
+        "name": "4006C Omni",
+        "quantity": 6
+      },
+      {
+        "manufacturer": "DPA",
+        "name": "4011C Cardioid",
+        "quantity": 6
+      },
+      {
+        "manufacturer": "Electro-Voice",
+        "name": "RE-20",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Neumann",
+        "name": "KM184",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Neumann",
+        "name": "M-149 Tube",
+        "quantity": 3
+      },
+      {
+        "manufacturer": "Neumann",
+        "name": "TLM-170R",
+        "quantity": 6
+      },
+      {
+        "manufacturer": "Neumann",
+        "name": "U47 FET",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Neumann",
+        "name": "U87",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Radial",
+        "name": "JDI Passive DI Box",
+        "quantity": 6
+      },
+      {
+        "manufacturer": "Royer",
+        "name": "R-121",
+        "quantity": 8
+      },
+      {
+        "manufacturer": "Royer",
+        "name": "R-122",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Royer",
+        "name": "SF-24",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Sanken",
+        "name": "CO-100 Omni",
+        "quantity": 4
+      },
+      {
+        "manufacturer": "Schoeps",
+        "name": "CMC6 Mk2",
+        "quantity": 4
+      },
+      {
+        "manufacturer": "Schoeps",
+        "name": "CMC6 Mk4",
+        "quantity": 4
+      },
+      {
+        "manufacturer": "Sennheiser",
+        "name": "MD421",
+        "quantity": 4
+      },
+      {
+        "manufacturer": "Sennheiser",
+        "name": "MKH40",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Sennheiser",
+        "name": "e902",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Shure",
+        "name": "Beta 52",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Shure",
+        "name": "KSM44",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Shure",
+        "name": "SM-57",
+        "quantity": 8
+      },
+      {
+        "manufacturer": "Shure",
+        "name": "SM-58",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Shure",
+        "name": "SM-7B",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Soyuz",
+        "name": "013 FET",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Yamaha",
+        "name": "SKRM-100 Subkick",
+        "quantity": 1
+      }
+    ],
+    "Studio 2": [
+      {
+        "manufacturer": "AEA",
+        "name": "R84",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "AKG",
+        "name": "451B",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "AKG",
+        "name": "C414B-XLII",
+        "quantity": 5
+      },
+      {
+        "manufacturer": "AKG",
+        "name": "D-112",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Audio Technica",
+        "name": "AT-4040",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Audio Technica",
+        "name": "AT-4050",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Audio Technica",
+        "name": "AT-5047",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Audio Technica",
+        "name": "ATM250",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Audio Technica",
+        "name": "ATM710",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Audix",
+        "name": "D6",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Avalon",
+        "name": "U5",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Beyerdynamic",
+        "name": "M160",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Beyerdynamic",
+        "name": "M201",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Brauner",
+        "name": "VMA Tube",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Coles",
+        "name": "4038",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Countryman",
+        "name": "Type 85",
+        "quantity": 3
+      },
+      {
+        "manufacturer": "DPA",
+        "name": "4006C Omni",
+        "quantity": 4
+      },
+      {
+        "manufacturer": "DPA",
+        "name": "4011C Cardioid",
+        "quantity": 4
+      },
+      {
+        "manufacturer": "Electro-Voice",
+        "name": "RE-20",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Neumann",
+        "name": "KM184",
+        "quantity": 4
+      },
+      {
+        "manufacturer": "Neumann",
+        "name": "M-149 Tube",
+        "quantity": 3
+      },
+      {
+        "manufacturer": "Neumann",
+        "name": "TLM170R",
+        "quantity": 4
+      },
+      {
+        "manufacturer": "Neumann",
+        "name": "U47 FET",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Neumann",
+        "name": "U87 AI",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Radial",
+        "name": "JDI Passive",
+        "quantity": 4
+      },
+      {
+        "manufacturer": "Royer",
+        "name": "R-121",
+        "quantity": 6
+      },
+      {
+        "manufacturer": "Royer",
+        "name": "R-122",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Royer",
+        "name": "SF-24",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Sanken",
+        "name": "CO-100 Omni",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Schoeps",
+        "name": "CMC6 Mk2",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Schoeps",
+        "name": "CMC6 Mk4",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Sennheiser",
+        "name": "MD421",
+        "quantity": 4
+      },
+      {
+        "manufacturer": "Sennheiser",
+        "name": "e902",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Shure",
+        "name": "Beta 52",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Shure",
+        "name": "KSM44",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Shure",
+        "name": "SM-57",
+        "quantity": 8
+      },
+      {
+        "manufacturer": "Shure",
+        "name": "SM-58",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Shure",
+        "name": "SM-7B",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Soyuz",
+        "name": "013 FET",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Yamaha",
+        "name": "SKRM-100 Subkick",
+        "quantity": 1
+      }
+    ],
+    "Studio 3": [
+      {
+        "manufacturer": "AKG",
+        "name": "C414B-XLII",
+        "quantity": 4
+      },
+      {
+        "manufacturer": "AKG",
+        "name": "C451B",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Audio Technica",
+        "name": "AT-4050",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Audix",
+        "name": "D6",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Avalon",
+        "name": "U5",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Beyerdynamic",
+        "name": "M160",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Brauner",
+        "name": "VMA Tube",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Coles",
+        "name": "4038",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Countryman",
+        "name": "Type 85",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "DPA",
+        "name": "4006C Omni",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "DPA",
+        "name": "4011C Cardioid",
+        "quantity": 4
+      },
+      {
+        "manufacturer": "Electro-Voice",
+        "name": "RE-20",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Neumann",
+        "name": "KM184",
+        "quantity": 4
+      },
+      {
+        "manufacturer": "Neumann",
+        "name": "M-149 Tube",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Neumann",
+        "name": "U47 FET",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Neumann",
+        "name": "U87",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Radial",
+        "name": "JDI Passive",
+        "quantity": 4
+      },
+      {
+        "manufacturer": "Royer",
+        "name": "R-121",
+        "quantity": 6
+      },
+      {
+        "manufacturer": "Royer",
+        "name": "SF-24",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Sanken",
+        "name": "CO-100 Omni",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Schoeps",
+        "name": "CMC6 MK4 Cardioid",
+        "quantity": 4
+      },
+      {
+        "manufacturer": "Sennheiser",
+        "name": "MD421",
+        "quantity": 4
+      },
+      {
+        "manufacturer": "Sennheiser",
+        "name": "e902",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Shure",
+        "name": "Beta 52",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Shure",
+        "name": "KSM44",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Shure",
+        "name": "SM-57",
+        "quantity": 7
+      },
+      {
+        "manufacturer": "Shure",
+        "name": "SM-58",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Shure",
+        "name": "SM-7B",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Soyuz",
+        "name": "013 FET",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Yamaha",
+        "name": "SKRM-100 Subkick",
+        "quantity": 1
+      }
+    ],
+    "Studio A": [
+      {
+        "manufacturer": "ADK",
+        "name": "Custom Vienna 12AU",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "AKG",
+        "name": "C414 XL",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "AKG",
+        "name": "C414-XLS",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "AKG",
+        "name": "C451 EB",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "AKG",
+        "name": "C460B with CK 1",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "AKG",
+        "name": "C460B with CK 61-ULS",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "AKG",
+        "name": "C535 EB",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "AKG",
+        "name": "D-112",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Audio Technica",
+        "name": "AE-2500",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Audio Technica",
+        "name": "AT-3032",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Audio Technica",
+        "name": "AT-4050CM5",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Audix",
+        "name": "ADX-51",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Audix",
+        "name": "CX-212",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Audix",
+        "name": "D6",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Avalon",
+        "name": "U5 DI",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "B&K",
+        "name": "4007",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "B&K",
+        "name": "4011",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Countryman",
+        "name": "Type 85",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Crown",
+        "name": "PZM 6-LPB",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Earthworks",
+        "name": "TC-30k",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Electro-Voice",
+        "name": "RE-15",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Electro-Voice",
+        "name": "RE-20",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Electro-Voice",
+        "name": "RE-55",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Jensen",
+        "name": "JDI",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Neumann",
+        "name": "U47 FET",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Neumann",
+        "name": "U89",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Royer",
+        "name": "R-121",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Sennheiser",
+        "name": "MD421",
+        "quantity": 4
+      },
+      {
+        "manufacturer": "Sennheiser",
+        "name": "MD441",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Sennheiser",
+        "name": "e902",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Shure",
+        "name": "Beta 52",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Shure",
+        "name": "Beta 57A",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Shure",
+        "name": "KSM27",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Shure",
+        "name": "KSM44",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Shure",
+        "name": "SM-57",
+        "quantity": 4
+      },
+      {
+        "manufacturer": "Shure",
+        "name": "SM-58",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Shure",
+        "name": "SM-7B",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Shure",
+        "name": "SM-81",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Soyuz",
+        "name": "0131 FET",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Warm",
+        "name": "WA-84",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Yamaha",
+        "name": "SKRM-100 Subkick",
+        "quantity": 1
+      }
+    ],
+    "Studio A76": [
+      {
+        "manufacturer": "AKG",
+        "name": "D-112",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Beyerdynamic",
+        "name": "M88",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Countryman",
+        "name": "Type 85",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Electro-Voice",
+        "name": "RE-20",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Neumann",
+        "name": "KMS 105",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Rode",
+        "name": "Broadcaster",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Shure",
+        "name": "Beta 52",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Shure",
+        "name": "Beta 56A",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Shure",
+        "name": "KSM-141",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Shure",
+        "name": "KSM-32",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Shure",
+        "name": "SM-57",
+        "quantity": 3
+      },
+      {
+        "manufacturer": "Shure",
+        "name": "SM-58",
+        "quantity": 3
+      },
+      {
+        "manufacturer": "Shure",
+        "name": "SM-7B",
+        "quantity": 1
+      }
+    ],
+    "Studio B": [
+      {
+        "manufacturer": "ADK",
+        "name": "Berlin 47",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "AKG",
+        "name": "C414 XL-II",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "AKG",
+        "name": "C414EB",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "AKG",
+        "name": "C451 EB",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "AKG",
+        "name": "C535EB",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "AKG",
+        "name": "D-112",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Audio Technica",
+        "name": "AE-2500",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Audio Technica",
+        "name": "AT-4050cM5",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Audio Technica",
+        "name": "ATM-87R",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Audio Technica",
+        "name": "ATM-89R",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Audix",
+        "name": "ADX-51",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Audix",
+        "name": "D6",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Avalon",
+        "name": "U5",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "B&K",
+        "name": "4007",
+        "quantity": 4
+      },
+      {
+        "manufacturer": "Countryman",
+        "name": "Type 85",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Crowley and Tripp",
+        "name": "Naked Eye",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "DPA",
+        "name": "4007",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "DPA",
+        "name": "4011",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Electro-Voice",
+        "name": "Cardinal",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Electro-Voice",
+        "name": "ND-408",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Electro-Voice",
+        "name": "RE-20",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Jensen",
+        "name": "JDI",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Neumann",
+        "name": "TLM 170 R",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Neumann",
+        "name": "U47 FET",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Neumann",
+        "name": "U89",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Royer",
+        "name": "R-121",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Sennheiser",
+        "name": "MD 421",
+        "quantity": 3
+      },
+      {
+        "manufacturer": "Sennheiser",
+        "name": "MD 441",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Sennheiser",
+        "name": "e902",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Shure",
+        "name": "Beta 52",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Shure",
+        "name": "KSM 27",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Shure",
+        "name": "KSM 44",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Shure",
+        "name": "SM-57",
+        "quantity": 4
+      },
+      {
+        "manufacturer": "Shure",
+        "name": "SM-58",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Shure",
+        "name": "SM-7B",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Soyuz",
+        "name": "013 FET",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Warm",
+        "name": "WA-84",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Yamaha",
+        "name": "SKRM-100 Subkick",
+        "quantity": 1
+      }
+    ],
+    "Studio E": [
+      {
+        "manufacturer": "AKG",
+        "name": "414B-ULS",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "AKG",
+        "name": "C414-XLS",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "AKG",
+        "name": "C451",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "AKG",
+        "name": "C535EB",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "AKG",
+        "name": "D-112",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Audio Technica",
+        "name": "3032",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Audio Technica",
+        "name": "AE-2500",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Audix",
+        "name": "CX-212",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Audix",
+        "name": "D6",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Audix",
+        "name": "SCX-ONE",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Countryman",
+        "name": "Type 85",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Earthworks",
+        "name": "TC40",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Electro-Voice",
+        "name": "EV-308",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Electro-Voice",
+        "name": "RE-16",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Electro-Voice",
+        "name": "RE-20",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Electro-Voice",
+        "name": "RE-55",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Groove Tubes",
+        "name": "GT55",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Jensen",
+        "name": "JDI",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "MXL",
+        "name": "V69",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Neumann",
+        "name": "KMS 105",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Neumann",
+        "name": "U47 FET",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Royer",
+        "name": "R-121",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Sennheiser",
+        "name": "E902",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Sennheiser",
+        "name": "MD421",
+        "quantity": 3
+      },
+      {
+        "manufacturer": "Sennheiser",
+        "name": "MD441",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Shure",
+        "name": "Beta 52A",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Shure",
+        "name": "Beta 57A",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Shure",
+        "name": "Beta 91",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Shure",
+        "name": "Beta 98",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Shure",
+        "name": "KSM 141",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Shure",
+        "name": "KSM 27",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Shure",
+        "name": "KSM 44",
+        "quantity": 4
+      },
+      {
+        "manufacturer": "Shure",
+        "name": "SM-57",
+        "quantity": 3
+      },
+      {
+        "manufacturer": "Shure",
+        "name": "SM-58",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Shure",
+        "name": "SM-7B",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Sony",
+        "name": "ECM-23F",
+        "quantity": 1
+      },
+      {
+        "manufacturer": "Soyuz",
+        "name": "013",
+        "quantity": 2
+      },
+      {
+        "manufacturer": "Warm",
+        "name": "WA-84",
+        "quantity": 1
+      }
+    ]
+  }
+}
