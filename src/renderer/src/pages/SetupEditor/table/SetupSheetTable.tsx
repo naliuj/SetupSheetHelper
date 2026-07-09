@@ -1,10 +1,18 @@
+import { useMemo } from 'react'
 import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { useSetupStore } from '@renderer/state/setupStore'
 import { useCatalogStore } from '@renderer/state/catalogStore'
+import { useGearCatalogueSuggestions } from '@renderer/state/useGearCatalogueSuggestions'
 import { computeTieLineConflicts } from '@renderer/state/tieLineConflicts'
 import { computeUsageCounts } from '@renderer/state/usageCounts'
 import SetupSheetRow from './SetupSheetRow'
+
+function toLabels(items: { name: string; manufacturer: string | null }[]): string[] {
+  const set = new Set<string>()
+  for (const item of items) set.add(item.manufacturer ? `${item.manufacturer} ${item.name}` : item.name)
+  return [...set].sort((a, b) => a.localeCompare(b))
+}
 
 export default function SetupSheetTable(): JSX.Element {
   const items = useSetupStore((s) => s.items)
@@ -39,6 +47,14 @@ export default function SetupSheetTable(): JSX.Element {
   const outboardGear = useCatalogStore((s) => s.outboardGear)
   const preamps = useCatalogStore((s) => s.preamps)
   const isTemporary = useCatalogStore((s) => s.isTemporary)
+
+  // Quick Setup's free-text mic/outboard/preamp fields have no studio catalogue to pick
+  // from, so they get autocomplete suggestions from every known model across every studio
+  // instead — same source data Personal Gear/Faculty Reserve/Session Gear's forms use.
+  const gearSuggestions = useGearCatalogueSuggestions()
+  const micSuggestions = useMemo(() => toLabels(gearSuggestions.mics), [gearSuggestions.mics])
+  const outboardSuggestions = useMemo(() => toLabels(gearSuggestions.outboard), [gearSuggestions.outboard])
+  const preampSuggestions = useMemo(() => toLabels(gearSuggestions.preamps), [gearSuggestions.preamps])
 
   const conflicts = computeTieLineConflicts(items)
   const micUsageCounts = computeUsageCounts(items, 'micId')
@@ -82,6 +98,9 @@ export default function SetupSheetTable(): JSX.Element {
                     outboardGear={outboardGear}
                     preamps={preamps}
                     isTemporary={isTemporary}
+                    micSuggestions={micSuggestions}
+                    outboardSuggestions={outboardSuggestions}
+                    preampSuggestions={preampSuggestions}
                     selected={selectedItemIds.has(item.id)}
                     conflict={item.tieLine != null && conflicts.has(item.tieLine)}
                     unresolvedGearHint={unresolvedGearHints.get(item.id)}

@@ -29,6 +29,7 @@ export function installAppMenu(mainWindow: BrowserWindow): void {
         { label: 'Undo', accelerator: 'CmdOrCtrl+Z', click: () => send('undo') },
         { label: 'Redo', accelerator: 'CmdOrCtrl+Shift+Z', click: () => send('redo') },
         { type: 'separator' },
+        { label: 'Select All', accelerator: 'CmdOrCtrl+A', click: () => send('select-all') },
         { label: 'Add Source', accelerator: 'CmdOrCtrl+N', click: () => send('add-source') },
         { label: 'Delete Selected Rows', accelerator: 'CmdOrCtrl+Backspace', click: () => send('delete-row') },
         { label: 'Sequential Numbering…', accelerator: 'CmdOrCtrl+Shift+N', click: () => send('sequential-numbering') },

@@ -34,6 +34,9 @@ interface Props {
   outboardGear: OutboardGear[]
   preamps: Preamp[]
   isTemporary: boolean
+  micSuggestions: string[]
+  outboardSuggestions: string[]
+  preampSuggestions: string[]
   selected: boolean
   conflict: boolean
   unresolvedGearHint: UnresolvedGearHint | undefined
@@ -52,6 +55,9 @@ export default function SetupSheetRow({
   outboardGear,
   preamps,
   isTemporary,
+  micSuggestions,
+  outboardSuggestions,
+  preampSuggestions,
   selected,
   conflict,
   unresolvedGearHint,
@@ -131,13 +137,21 @@ export default function SetupSheetRow({
       </td>
       <td onClick={(e) => e.stopPropagation()}>
         {isTemporary ? (
-          <input
-            value={micText.value}
-            placeholder="Mic"
-            onChange={(e) => micText.onChange(e.target.value)}
-            onBlur={micText.onBlur}
-            onClick={(e) => e.stopPropagation()}
-          />
+          <>
+            <input
+              value={micText.value}
+              placeholder="Mic"
+              onChange={(e) => micText.onChange(e.target.value)}
+              onBlur={micText.onBlur}
+              onClick={(e) => e.stopPropagation()}
+              list={`mic-suggestions-${item.id}`}
+            />
+            <datalist id={`mic-suggestions-${item.id}`}>
+              {micSuggestions.map((s) => (
+                <option key={s} value={s} />
+              ))}
+            </datalist>
+          </>
         ) : (
           <ManufacturerPickerDropdown
             items={mics}
@@ -155,13 +169,21 @@ export default function SetupSheetRow({
       </td>
       <td onClick={(e) => e.stopPropagation()}>
         {isTemporary ? (
-          <input
-            value={outboardText.value}
-            placeholder="Outboard"
-            onChange={(e) => outboardText.onChange(e.target.value)}
-            onBlur={outboardText.onBlur}
-            onClick={(e) => e.stopPropagation()}
-          />
+          <>
+            <input
+              value={outboardText.value}
+              placeholder="Outboard"
+              onChange={(e) => outboardText.onChange(e.target.value)}
+              onBlur={outboardText.onBlur}
+              onClick={(e) => e.stopPropagation()}
+              list={`outboard-suggestions-${item.id}`}
+            />
+            <datalist id={`outboard-suggestions-${item.id}`}>
+              {outboardSuggestions.map((s) => (
+                <option key={s} value={s} />
+              ))}
+            </datalist>
+          </>
         ) : (
           <ManufacturerPickerDropdown
             items={outboardGear}
@@ -189,13 +211,21 @@ export default function SetupSheetRow({
       </td>
       <td onClick={(e) => e.stopPropagation()}>
         {isTemporary ? (
-          <input
-            value={preampText.value}
-            placeholder="Preamp"
-            onChange={(e) => preampText.onChange(e.target.value)}
-            onBlur={preampText.onBlur}
-            onClick={(e) => e.stopPropagation()}
-          />
+          <>
+            <input
+              value={preampText.value}
+              placeholder="Preamp"
+              onChange={(e) => preampText.onChange(e.target.value)}
+              onBlur={preampText.onBlur}
+              onClick={(e) => e.stopPropagation()}
+              list={`preamp-suggestions-${item.id}`}
+            />
+            <datalist id={`preamp-suggestions-${item.id}`}>
+              {preampSuggestions.map((s) => (
+                <option key={s} value={s} />
+              ))}
+            </datalist>
+          </>
         ) : (
           <ManufacturerPickerDropdown
             items={preamps}

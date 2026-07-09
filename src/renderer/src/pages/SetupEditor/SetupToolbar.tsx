@@ -126,6 +126,24 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode, onOpenSetti
     }
   }
 
+  // Cmd/Ctrl+A is claimed by our own menu item (same reasoning as handleUndoRedo above) — a
+  // focused text field would otherwise lose native "select all text in this field" behavior,
+  // so replicate it explicitly before falling back to selecting every row in Table Mode.
+  function handleSelectAll(): void {
+    const active = document.activeElement
+    if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement) {
+      active.select()
+      return
+    }
+    if ((active as HTMLElement)?.isContentEditable) {
+      document.execCommand('selectAll')
+      return
+    }
+    if (mode === 'table') {
+      useSetupStore.getState().selectAll()
+    }
+  }
+
   // Layout Mode requires a room layout file to be assigned to the studio first — leaving
   // Layout Mode is always allowed, but entering it checks for one and, if missing, opens a
   // blocking prompt instead of switching.
@@ -162,6 +180,9 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode, onOpenSetti
           break
         case 'add-source':
           addItem(GENERIC_INSTRUMENT_TYPE, { sourceName: 'Untitled Source' })
+          break
+        case 'select-all':
+          handleSelectAll()
           break
         case 'delete-row':
           if (selectedItemIds.size > 0) removeItems([...selectedItemIds])

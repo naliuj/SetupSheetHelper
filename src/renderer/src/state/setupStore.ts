@@ -91,6 +91,7 @@ interface SetupState {
   selectItem(id: number | string | null): void
   selectRangeTo(id: number | string): void
   toggleItem(id: number | string): void
+  selectAll(): void
   applySequentialNumbering(field: 'channel' | 'tieLine' | 'cueBox', start: number): void
   setSequentialNumberingOpen(open: boolean): void
   setSaveChannelPresetOpen(open: boolean): void
@@ -215,6 +216,12 @@ export const useSetupStore = create<SetupState>()(
 
   selectItem: (id) =>
     set({ selectedItemIds: id != null ? new Set([id]) : new Set(), selectionAnchorId: id }),
+
+  selectAll: () =>
+    set((state) => ({
+      selectedItemIds: new Set(state.items.map((item) => item.id)),
+      selectionAnchorId: null
+    })),
 
   // Ctrl/cmd-click: adds/removes exactly one row from the selection without disturbing the
   // rest, enabling non-contiguous selections alongside shift-click's contiguous ranges.

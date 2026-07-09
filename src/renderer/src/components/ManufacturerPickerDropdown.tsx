@@ -123,6 +123,10 @@ export default function ManufacturerPickerDropdown<T extends PickerItem>({
 }: Props<T>): JSX.Element {
   const [open, setOpen] = useState(false)
   const [hoverPath, setHoverPath] = useState<string[]>([])
+  // Which level of the tree Up/Down/Enter currently act on — distinct from how many levels
+  // are visually cascading open (hoverPath can show a deeper level's items without keyboard
+  // nav having "entered" it yet, e.g. after Left backs out of it but it's still showing).
+  const [activeDepth, setActiveDepth] = useState(0)
   const [search, setSearch] = useState('')
   const triggerRef = useRef<HTMLButtonElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -151,7 +155,15 @@ export default function ManufacturerPickerDropdown<T extends PickerItem>({
       close()
     }
     function handleKeyDown(e: KeyboardEvent): void {
-      if (e.key === 'Escape') close()
+      if (e.key === 'Escape') {
+        close()
+        return
+      }
+      if (searchResults) {
+        handleSearchKeyDown(e)
+      } else {
+        handleTreeKeyDown(e)
+      }
     }
 
     document.addEventListener('mousedown', handleMouseDown)
@@ -160,11 +172,16 @@ export default function ManufacturerPickerDropdown<T extends PickerItem>({
       document.removeEventListener('mousedown', handleMouseDown)
       document.removeEventListener('keydown', handleKeyDown)
     }
-  }, [open])
+    // handleKeyDown reads hoverPath/searchResults (derived from search) directly from this
+    // closure rather than a ref, so the listener must be re-created whenever they change —
+    // otherwise arrow-key presses after the first would act on a stale hoverPath.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, hoverPath, activeDepth, search])
 
   function close(): void {
     setOpen(false)
     setHoverPath([])
+    setActiveDepth(0)
     setSearch('')
   }
 
@@ -177,6 +194,103 @@ export default function ManufacturerPickerDropdown<T extends PickerItem>({
 
   function setHoverAtDepth(depth: number, key: string): void {
     setHoverPath((prev) => [...prev.slice(0, depth), key])
+  }
+
+  // The nodes list keyboard nav is currently cycling through — resolved by walking hoverPath
+  // down exactly `depth` steps from the root, independent of how much further hoverPath
+  // itself cascades (that's just visual — see activeDepth's comment above).
+  function nodesAtDepth(depth: number): MenuNode<T>[] {
+    let nodes = tree
+    for (let d = 0; d < depth; d++) {
+      const found = nodes.find((n) => n.key === hoverPath[d])
+      if (!found?.children) return []
+      nodes = found.children
+    }
+    return nodes
+  }
+
+  function handleTreeKeyDown(e: KeyboardEvent): void {
+    if (!open) return
+    const nodes = nodesAtDepth(activeDepth)
+
+    if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+      if (nodes.length === 0) return
+      e.preventDefault()
+      const currentIndex = nodes.findIndex((n) => n.key === hoverPath[activeDepth])
+      let nextIndex: number
+      if (currentIndex === -1) {
+        nextIndex = e.key === 'ArrowDown' ? 0 : nodes.length - 1
+      } else {
+        nextIndex = e.key === 'ArrowDown' ? currentIndex + 1 : currentIndex - 1
+        if (nextIndex < 0) nextIndex = nodes.length - 1
+        if (nextIndex >= nodes.length) nextIndex = 0
+      }
+      setHoverAtDepth(activeDepth, nodes[nextIndex].key)
+      return
+    }
+
+    if (e.key === 'ArrowRight') {
+      e.preventDefault()
+      const currentNode = nodes.find((n) => n.key === hoverPath[activeDepth])
+      if (!currentNode) {
+        if (nodes.length > 0) setHoverAtDepth(activeDepth, nodes[0].key)
+        return
+      }
+      if (currentNode.children && currentNode.children.length > 0) {
+        const firstChild = currentNode.children[0]
+        setHoverPath((prev) => [...prev.slice(0, activeDepth + 1), firstChild.key])
+        setActiveDepth(activeDepth + 1)
+      }
+      return
+    }
+
+    if (e.key === 'ArrowLeft') {
+      e.preventDefault()
+      if (activeDepth > 0) {
+        setHoverPath((prev) => prev.slice(0, activeDepth))
+        setActiveDepth(activeDepth - 1)
+      }
+      return
+    }
+
+    if (e.key === 'Enter') {
+      const currentNode = nodes.find((n) => n.key === hoverPath[activeDepth])
+      if (!currentNode) return
+      e.preventDefault()
+      if (currentNode.item) {
+        handleLeafClick(currentNode.item)
+      } else if (currentNode.children && currentNode.children.length > 0) {
+        const firstChild = currentNode.children[0]
+        setHoverPath((prev) => [...prev.slice(0, activeDepth + 1), firstChild.key])
+        setActiveDepth(activeDepth + 1)
+      }
+    }
+  }
+
+  function handleSearchKeyDown(e: KeyboardEvent): void {
+    if (!searchResults || searchResults.length === 0) return
+    if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown' && e.key !== 'Enter') return
+    e.preventDefault()
+
+    const keys = searchResults.map((item) => `search-${item.id}`)
+    const currentIndex = keys.indexOf(hoverPath[0])
+
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      let nextIndex: number
+      if (currentIndex === -1) {
+        nextIndex = e.key === 'ArrowDown' ? 0 : keys.length - 1
+      } else {
+        nextIndex = e.key === 'ArrowDown' ? currentIndex + 1 : currentIndex - 1
+        if (nextIndex < 0) nextIndex = keys.length - 1
+        if (nextIndex >= keys.length) nextIndex = 0
+      }
+      setHoverPath([keys[nextIndex]])
+      return
+    }
+
+    const targetIndex = currentIndex === -1 ? 0 : currentIndex
+    const item = searchResults[targetIndex]
+    if (item) handleLeafClick(item)
   }
 
   function renderSearchRow(): React.ReactNode {
@@ -194,7 +308,7 @@ export default function ManufacturerPickerDropdown<T extends PickerItem>({
     )
   }
 
-  function renderItemRow(item: T, key: string): React.ReactNode {
+  function renderItemRow(item: T, key: string, isHighlighted = false): React.ReactNode {
     const used = computeUsedByOthers(usageCounts, selectedId, item.id)
     const quantity = getQuantity(item)
     const atCapacity = used >= quantity
@@ -203,7 +317,7 @@ export default function ManufacturerPickerDropdown<T extends PickerItem>({
     return (
       <div
         key={key}
-        className={`picker-menu-row ${atCapacity ? 'disabled' : ''} ${isSelected ? 'selected' : ''}`}
+        className={`picker-menu-row ${isHighlighted ? 'hovered' : ''} ${atCapacity ? 'disabled' : ''} ${isSelected ? 'selected' : ''}`}
         onClick={() => {
           if (!atCapacity) handleLeafClick(item)
         }}
@@ -234,7 +348,7 @@ export default function ManufacturerPickerDropdown<T extends PickerItem>({
             No matches
           </div>
         ) : (
-          searchResults!.map((item) => renderItemRow(item, `search-${item.id}`))
+          searchResults!.map((item) => renderItemRow(item, `search-${item.id}`, hoverPath[0] === `search-${item.id}`))
         )}
       </div>
     )
@@ -267,7 +381,10 @@ export default function ManufacturerPickerDropdown<T extends PickerItem>({
                 else rowRefs.current.delete(`${depth}:${node.key}`)
               }}
               className={`picker-menu-row ${isHovered ? 'hovered' : ''} ${atCapacity ? 'disabled' : ''} ${isSelected ? 'selected' : ''}`}
-              onMouseEnter={() => setHoverAtDepth(depth, node.key)}
+              onMouseEnter={() => {
+                setHoverAtDepth(depth, node.key)
+                setActiveDepth(depth)
+              }}
               onClick={() => {
                 if (isLeaf && !atCapacity) handleLeafClick(node.item!)
               }}

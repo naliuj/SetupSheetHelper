@@ -274,6 +274,7 @@ export type MenuAction =
   | 'export-pdf'
   | 'toggle-mode'
   | 'add-source'
+  | 'select-all'
   | 'delete-row'
   | 'sequential-numbering'
   | 'open-setup-settings'

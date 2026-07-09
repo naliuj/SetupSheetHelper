@@ -16,8 +16,7 @@ export default function AddSourceControl(): JSX.Element {
   const [loadPresetOpen, setLoadPresetOpen] = useState(false)
 
   function handleAdd(): void {
-    if (!sourceName.trim()) return
-    addItem(GENERIC_INSTRUMENT_TYPE, { sourceName: sourceName.trim() })
+    addItem(GENERIC_INSTRUMENT_TYPE, { sourceName: sourceName.trim() || 'Untitled Source' })
     setSourceName('')
   }
 
