@@ -3,11 +3,12 @@ import type { ChannelPresetItemInput } from '@shared/types/channelPreset'
 import { useSetupStore } from '@renderer/state/setupStore'
 import { useCatalogStore } from '@renderer/state/catalogStore'
 
-type IncludeField = 'mic' | 'outboard' | 'channel' | 'tieLine' | 'cueBox' | 'polarity' | 'notes'
+type IncludeField = 'mic' | 'outboard' | 'preamp' | 'channel' | 'tieLine' | 'cueBox' | 'polarity' | 'notes'
 
 const FIELD_LABELS: Record<IncludeField, string> = {
   mic: 'Mic',
   outboard: 'Outboard',
+  preamp: 'Preamp',
   channel: 'Channel',
   tieLine: 'Tie Line',
   cueBox: 'Cue Box',
@@ -18,6 +19,7 @@ const FIELD_LABELS: Record<IncludeField, string> = {
 const DEFAULT_INCLUDED: Record<IncludeField, boolean> = {
   mic: true,
   outboard: true,
+  preamp: true,
   channel: false,
   tieLine: false,
   cueBox: false,
@@ -34,6 +36,7 @@ export default function SaveChannelPresetModal({ onClose }: { onClose: () => voi
   const selectedItemIds = useSetupStore((s) => s.selectedItemIds)
   const mics = useCatalogStore((s) => s.mics)
   const outboardGear = useCatalogStore((s) => s.outboardGear)
+  const preamps = useCatalogStore((s) => s.preamps)
 
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
@@ -54,6 +57,8 @@ export default function SaveChannelPresetModal({ onClose }: { onClose: () => voi
         const mic = included.mic && item.micId != null ? mics.find((m) => m.id === item.micId) : null
         const outboard =
           included.outboard && item.outboardId != null ? outboardGear.find((g) => g.id === item.outboardId) : null
+        const preamp =
+          included.preamp && item.preampId != null ? preamps.find((p) => p.id === item.preampId) : null
         return {
           instrumentType: item.instrumentType,
           sourceName: item.sourceName,
@@ -61,6 +66,8 @@ export default function SaveChannelPresetModal({ onClose }: { onClose: () => voi
           micManufacturer: mic?.manufacturer ?? null,
           outboardName: outboard?.name ?? null,
           outboardManufacturer: outboard?.manufacturer ?? null,
+          preampName: preamp?.name ?? null,
+          preampManufacturer: preamp?.manufacturer ?? null,
           channel: included.channel ? item.channel : null,
           tieLine: included.tieLine ? item.tieLine : null,
           cueBox: included.cueBox ? item.cueBox : null,

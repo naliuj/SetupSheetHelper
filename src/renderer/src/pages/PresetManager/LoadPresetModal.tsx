@@ -7,6 +7,7 @@ import { resolveChannelPresetItems } from '@renderer/state/channelPresetResoluti
 export default function LoadPresetModal({ onClose }: { onClose: () => void }): JSX.Element {
   const mics = useCatalogStore((s) => s.mics)
   const outboardGear = useCatalogStore((s) => s.outboardGear)
+  const preamps = useCatalogStore((s) => s.preamps)
   const applyChannelPreset = useSetupStore((s) => s.applyChannelPreset)
 
   const [presets, setPresets] = useState<ChannelPreset[]>([])
@@ -23,7 +24,7 @@ export default function LoadPresetModal({ onClose }: { onClose: () => void }): J
     if (!selectedId) return
     const preset = await window.api.presets.getWithItems(selectedId)
     if (!preset) return
-    const resolved = resolveChannelPresetItems(preset.items, mics, outboardGear)
+    const resolved = resolveChannelPresetItems(preset.items, mics, outboardGear, preamps)
     applyChannelPreset(resolved)
     onClose()
   }

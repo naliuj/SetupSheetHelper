@@ -5,6 +5,7 @@ import type { SetupItemDraft, SetupWithItems } from '@shared/types/setup'
 export interface UnresolvedGearHint {
   mic?: string
   outboard?: string
+  preamp?: string
 }
 
 /** A Channel Preset item after its mic/outboard name+manufacturer has been matched against
@@ -20,6 +21,8 @@ export interface ResolvedChannelPresetItem {
   micName: string | null
   outboardId: number | null
   outboardName: string | null
+  preampId: number | null
+  preampName: string | null
   channel: number | null
   tieLine: number | null
   cueBox: number | null
@@ -27,6 +30,7 @@ export interface ResolvedChannelPresetItem {
   notes: string | null
   unresolvedMicName?: string
   unresolvedOutboardName?: string
+  unresolvedPreampName?: string
 }
 
 function newDraftId(): string {
@@ -90,7 +94,7 @@ interface SetupState {
   applySequentialNumbering(field: 'channel' | 'tieLine' | 'cueBox', start: number): void
   setSequentialNumberingOpen(open: boolean): void
   setSaveChannelPresetOpen(open: boolean): void
-  clearUnresolvedGearHint(id: number | string, field: 'mic' | 'outboard'): void
+  clearUnresolvedGearHint(id: number | string, field: 'mic' | 'outboard' | 'preamp'): void
   applyChannelPreset(items: ResolvedChannelPresetItem[]): void
   save(): Promise<void>
 }
@@ -297,13 +301,17 @@ export const useSetupStore = create<SetupState>()(
           cueBox: item.cueBox,
           outboardId: item.outboardId,
           outboardText: item.outboardName,
-          preampId: null,
-          preampText: null,
+          preampId: item.preampId,
+          preampText: item.preampName,
           polarityFlip: item.polarityFlip ?? false,
           notes: item.notes
         })
-        if (item.unresolvedMicName || item.unresolvedOutboardName) {
-          hints.set(id, { mic: item.unresolvedMicName, outboard: item.unresolvedOutboardName })
+        if (item.unresolvedMicName || item.unresolvedOutboardName || item.unresolvedPreampName) {
+          hints.set(id, {
+            mic: item.unresolvedMicName,
+            outboard: item.unresolvedOutboardName,
+            preamp: item.unresolvedPreampName
+          })
         }
       }
       return { items: [...state.items, ...newItems], unresolvedGearHints: hints, isDirty: true }
@@ -337,12 +345,26 @@ export const useSetupStore = create<SetupState>()(
         )
       }
 
+      const itemsBeforeSave = state.items
       const saved = await window.api.setups.saveItems(
         setupId,
-        state.items.map((item) => ({ ...item }))
+        itemsBeforeSave.map((item) => ({ ...item }))
       )
 
-      set({ setupId, items: saved, isDirty: false, isSaving: false })
+      // saveItems assigns each row's sort_order from its array index and returns rows
+      // ordered by sort_order, so saved[i] is itemsBeforeSave[i] with its real DB id — new
+      // rows swap a temporary draft id for one assigned by the database. Remap any pending
+      // unresolvedGearHints (set by applyChannelPreset) onto the new ids so the hint survives
+      // this save instead of pointing at an id nothing has anymore.
+      const currentHints = get().unresolvedGearHints
+      const remappedHints = new Map<number | string, UnresolvedGearHint>()
+      itemsBeforeSave.forEach((oldItem, index) => {
+        const hint = currentHints.get(oldItem.id)
+        const newItem = saved[index]
+        if (hint && newItem) remappedHints.set(newItem.id, hint)
+      })
+
+      set({ setupId, items: saved, unresolvedGearHints: remappedHints, isDirty: false, isSaving: false })
     } catch (err) {
       set({ isSaving: false })
       throw err

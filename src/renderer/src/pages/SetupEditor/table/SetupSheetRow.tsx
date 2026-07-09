@@ -37,7 +37,7 @@ interface Props {
   selected: boolean
   conflict: boolean
   unresolvedGearHint: UnresolvedGearHint | undefined
-  onClearUnresolvedGearHint: (field: 'mic' | 'outboard') => void
+  onClearUnresolvedGearHint: (field: 'mic' | 'outboard' | 'preamp') => void
   micUsageCounts: Map<number, number>
   outboardUsageCounts: Map<number, number>
   preampUsageCounts: Map<number, number>
@@ -89,6 +89,7 @@ export default function SetupSheetRow({
   // unlike mic/outboard selection there's no notes side effect to apply here.
   function handlePreampChange(preampId: number | null): void {
     onChange({ preampId })
+    onClearUnresolvedGearHint('preamp')
   }
 
   const sourceName = useBufferedField(item.sourceName, (v) => onChange({ sourceName: v }))
@@ -206,6 +207,9 @@ export default function SetupSheetRow({
             outerGroupOrder={PREAMP_POOL_ORDER}
             stripManufacturerInTrigger
           />
+        )}
+        {unresolvedGearHint?.preamp && (
+          <div className="warning-badge">⚠ Preset expected: {unresolvedGearHint.preamp}</div>
         )}
       </td>
       <td>

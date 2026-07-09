@@ -9,6 +9,8 @@ function toInput(item: ChannelPresetItem): ChannelPresetItemInput {
     micManufacturer: item.micManufacturer,
     outboardName: item.outboardName,
     outboardManufacturer: item.outboardManufacturer,
+    preampName: item.preampName,
+    preampManufacturer: item.preampManufacturer,
     channel: item.channel,
     tieLine: item.tieLine,
     cueBox: item.cueBox,

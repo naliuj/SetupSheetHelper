@@ -8,7 +8,18 @@ import type Database from 'better-sqlite3'
  *  studios — a raw mic_id/outboard_id FK would only resolve within the studio it was
  *  captured from) rather than the old system's free-text mic name only, no-outboard shape. */
 export function run(db: Database.Database): void {
-  db.exec('ALTER TABLE setup_items ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0')
+  // 001_init.sql was later amended to define sort_order and the channel_presets/
+  // channel_preset_items tables inline for brand-new installs, so a fresh install already has
+  // all of this by the time migration 5 runs. SQLite has no ALTER TABLE ... ADD COLUMN IF NOT
+  // EXISTS, so that one needs an explicit column check; CREATE TABLE/INDEX support IF NOT
+  // EXISTS directly. Either way this keeps migration 5 idempotent for both fresh installs and
+  // real upgrades from an older schema.
+  const hasSortOrder = (db.prepare('PRAGMA table_info(setup_items)').all() as { name: string }[]).some(
+    (col) => col.name === 'sort_order'
+  )
+  if (!hasSortOrder) {
+    db.exec('ALTER TABLE setup_items ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0')
+  }
 
   // Backfill sort_order from existing row order (previously implicit via id) so current
   // setups don't all collapse to sort_order=0 and lose their visual order on next load.
@@ -28,7 +39,7 @@ export function run(db: Database.Database): void {
   db.exec('DROP TABLE IF EXISTS presets')
 
   db.exec(`
-    CREATE TABLE channel_presets (
+    CREATE TABLE IF NOT EXISTS channel_presets (
       id           INTEGER PRIMARY KEY AUTOINCREMENT,
       name         TEXT NOT NULL UNIQUE,
       description  TEXT,
@@ -37,7 +48,7 @@ export function run(db: Database.Database): void {
     )
   `)
   db.exec(`
-    CREATE TABLE channel_preset_items (
+    CREATE TABLE IF NOT EXISTS channel_preset_items (
       id                    INTEGER PRIMARY KEY AUTOINCREMENT,
       preset_id             INTEGER NOT NULL REFERENCES channel_presets(id) ON DELETE CASCADE,
       sort_order            INTEGER NOT NULL DEFAULT 0,
@@ -54,5 +65,5 @@ export function run(db: Database.Database): void {
       notes                 TEXT
     )
   `)
-  db.exec('CREATE INDEX idx_channel_preset_items_preset ON channel_preset_items(preset_id)')
+  db.exec('CREATE INDEX IF NOT EXISTS idx_channel_preset_items_preset ON channel_preset_items(preset_id)')
 }

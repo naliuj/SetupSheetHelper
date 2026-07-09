@@ -26,6 +26,8 @@ interface ChannelPresetItemRow {
   mic_manufacturer: string | null
   outboard_name: string | null
   outboard_manufacturer: string | null
+  preamp_name: string | null
+  preamp_manufacturer: string | null
   channel: number | null
   tie_line: number | null
   cue_box: number | null
@@ -54,6 +56,8 @@ function mapItem(row: ChannelPresetItemRow): ChannelPresetItem {
     micManufacturer: row.mic_manufacturer,
     outboardName: row.outboard_name,
     outboardManufacturer: row.outboard_manufacturer,
+    preampName: row.preamp_name,
+    preampManufacturer: row.preamp_manufacturer,
     channel: row.channel,
     tieLine: row.tie_line,
     cueBox: row.cue_box,
@@ -79,8 +83,8 @@ export function getChannelPresetWithItems(id: number): ChannelPresetWithItems | 
 function insertItems(db: Database.Database, presetId: number, items: ChannelPresetItemInput[]): void {
   const insert = db.prepare(
     `INSERT INTO channel_preset_items
-      (preset_id, sort_order, instrument_type, source_name, mic_name, mic_manufacturer, outboard_name, outboard_manufacturer, channel, tie_line, cue_box, polarity_flip, notes)
-     VALUES (@presetId, @sortOrder, @instrumentType, @sourceName, @micName, @micManufacturer, @outboardName, @outboardManufacturer, @channel, @tieLine, @cueBox, @polarityFlip, @notes)`
+      (preset_id, sort_order, instrument_type, source_name, mic_name, mic_manufacturer, outboard_name, outboard_manufacturer, preamp_name, preamp_manufacturer, channel, tie_line, cue_box, polarity_flip, notes)
+     VALUES (@presetId, @sortOrder, @instrumentType, @sourceName, @micName, @micManufacturer, @outboardName, @outboardManufacturer, @preampName, @preampManufacturer, @channel, @tieLine, @cueBox, @polarityFlip, @notes)`
   )
   items.forEach((item, index) => {
     insert.run({
@@ -92,6 +96,8 @@ function insertItems(db: Database.Database, presetId: number, items: ChannelPres
       micManufacturer: item.micManufacturer,
       outboardName: item.outboardName,
       outboardManufacturer: item.outboardManufacturer,
+      preampName: item.preampName,
+      preampManufacturer: item.preampManufacturer,
       channel: item.channel,
       tieLine: item.tieLine,
       cueBox: item.cueBox,

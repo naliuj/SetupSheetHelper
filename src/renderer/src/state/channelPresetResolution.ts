@@ -1,4 +1,4 @@
-import type { Mic, OutboardGear } from '@shared/types/entities'
+import type { Mic, OutboardGear, Preamp } from '@shared/types/entities'
 import type { ChannelPresetItem } from '@shared/types/channelPreset'
 import type { ResolvedChannelPresetItem } from './setupStore'
 
@@ -24,11 +24,13 @@ function findMatch<T extends { name: string; manufacturer: string | null }>(
 export function resolveChannelPresetItems(
   presetItems: ChannelPresetItem[],
   mics: Mic[],
-  outboardGear: OutboardGear[]
+  outboardGear: OutboardGear[],
+  preamps: Preamp[]
 ): ResolvedChannelPresetItem[] {
   return presetItems.map((item) => {
     const mic = item.micName ? findMatch(mics, item.micName, item.micManufacturer) : null
     const outboard = item.outboardName ? findMatch(outboardGear, item.outboardName, item.outboardManufacturer) : null
+    const preamp = item.preampName ? findMatch(preamps, item.preampName, item.preampManufacturer) : null
     return {
       instrumentType: item.instrumentType,
       sourceName: item.sourceName,
@@ -36,13 +38,16 @@ export function resolveChannelPresetItems(
       micName: item.micName,
       outboardId: outboard?.id ?? null,
       outboardName: item.outboardName,
+      preampId: preamp?.id ?? null,
+      preampName: item.preampName,
       channel: item.channel,
       tieLine: item.tieLine,
       cueBox: item.cueBox,
       polarityFlip: item.polarityFlip,
       notes: item.notes,
       unresolvedMicName: item.micName && !mic ? item.micName : undefined,
-      unresolvedOutboardName: item.outboardName && !outboard ? item.outboardName : undefined
+      unresolvedOutboardName: item.outboardName && !outboard ? item.outboardName : undefined,
+      unresolvedPreampName: item.preampName && !preamp ? item.preampName : undefined
     }
   })
 }

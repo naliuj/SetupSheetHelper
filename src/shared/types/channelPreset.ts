@@ -12,6 +12,8 @@ export interface ChannelPresetItem {
   micManufacturer: string | null
   outboardName: string | null
   outboardManufacturer: string | null
+  preampName: string | null
+  preampManufacturer: string | null
   channel: number | null
   tieLine: number | null
   cueBox: number | null
@@ -38,6 +40,8 @@ export interface ChannelPresetItemInput {
   micManufacturer: string | null
   outboardName: string | null
   outboardManufacturer: string | null
+  preampName: string | null
+  preampManufacturer: string | null
   channel: number | null
   tieLine: number | null
   cueBox: number | null
