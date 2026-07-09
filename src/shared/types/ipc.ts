@@ -243,6 +243,8 @@ export type MenuAction =
   | 'delete-row'
   | 'sequential-numbering'
   | 'open-session-gear'
+  | 'undo'
+  | 'redo'
 
 /** Renderer-facing API surface, exposed on window.api via contextBridge. */
 export interface RendererApi {

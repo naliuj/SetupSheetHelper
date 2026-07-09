@@ -26,8 +26,8 @@ export function installAppMenu(mainWindow: BrowserWindow): void {
     {
       label: 'Edit',
       submenu: [
-        { role: 'undo' },
-        { role: 'redo' },
+        { label: 'Undo', accelerator: 'CmdOrCtrl+Z', click: () => send('undo') },
+        { label: 'Redo', accelerator: 'CmdOrCtrl+Shift+Z', click: () => send('redo') },
         { type: 'separator' },
         { label: 'Add Source', accelerator: 'CmdOrCtrl+N', click: () => send('add-source') },
         { label: 'Delete Selected Rows', accelerator: 'CmdOrCtrl+Backspace', click: () => send('delete-row') },

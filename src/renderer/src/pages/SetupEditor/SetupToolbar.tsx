@@ -103,12 +103,33 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode }: Props): J
     await window.api.setups.saveAsTemplate({ setupId, name: templateName, folderId })
   }
 
+  // Cmd/Ctrl+Z(+Shift) is claimed by our own Undo/Redo menu items (see below), so a focused
+  // text field no longer gets native in-field text undo for free the way it would under
+  // Electron's `role: 'undo'` — replicate it explicitly via execCommand before falling back
+  // to the app-level history, so an in-progress edit still undoes character-by-character.
+  function handleUndoRedo(direction: 'undo' | 'redo'): void {
+    const active = document.activeElement
+    const isTextEditable =
+      active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement || (active as HTMLElement)?.isContentEditable
+    if (isTextEditable) {
+      document.execCommand(direction)
+      return
+    }
+    if (mode === 'table') {
+      useSetupStore.temporal.getState()[direction]()
+      useSetupStore.setState({ isDirty: true })
+    } else {
+      useLayoutStore.temporal.getState()[direction]()
+      useLayoutStore.setState({ isDirty: true })
+    }
+  }
+
   // These actions live in the native File/Edit menus (Save Setup / Save as Studio / Export
-  // PDF / Toggle Mode / Add Source / Delete Selected Row / Open Session Gear) instead of
-  // toolbar buttons — this listener only exists while a setup is open, so the menu items are
-  // harmless no-ops from any other screen. Re-subscribes on `mode`/`selectedItemIds` change so
-  // the toggle and delete cases always act on current state, not a stale value captured at
-  // mount.
+  // PDF / Toggle Mode / Add Source / Delete Selected Row / Open Session Gear / Undo / Redo)
+  // instead of toolbar buttons — this listener only exists while a setup is open, so the menu
+  // items are harmless no-ops from any other screen. Re-subscribes on `mode`/`selectedItemIds`
+  // change so the toggle and delete cases always act on current state, not a stale value
+  // captured at mount.
   useEffect(() => {
     return window.api.menu.onAction((action: MenuAction) => {
       switch (action) {
@@ -135,6 +156,12 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode }: Props): J
           break
         case 'open-session-gear':
           setGearLockerOpen(true)
+          break
+        case 'undo':
+          handleUndoRedo('undo')
+          break
+        case 'redo':
+          handleUndoRedo('redo')
           break
       }
     })

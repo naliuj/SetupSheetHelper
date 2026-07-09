@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { temporal } from 'zundo'
 import type { SetupItemDraft, SetupWithItems } from '@shared/types/setup'
 
 export interface UnresolvedGearHint {
@@ -90,8 +91,10 @@ interface SetupState {
   save(): Promise<void>
 }
 
-export const useSetupStore = create<SetupState>((set, get) => ({
-  setupId: null,
+export const useSetupStore = create<SetupState>()(
+  temporal(
+    (set, get) => ({
+      setupId: null,
   studioId: null,
   name: 'Untitled Setup',
   sessionDate: null,
@@ -107,7 +110,8 @@ export const useSetupStore = create<SetupState>((set, get) => ({
   isDirty: false,
   isSaving: false,
 
-  startNewSetup: (studioId, name, sessionDate, folderId = null, engineer = null, artist = null) =>
+  startNewSetup: (studioId, name, sessionDate, folderId = null, engineer = null, artist = null) => {
+    useSetupStore.temporal.getState().clear()
     set({
       setupId: null,
       studioId,
@@ -121,9 +125,11 @@ export const useSetupStore = create<SetupState>((set, get) => ({
       selectionAnchorId: null,
       unresolvedGearHints: new Map(),
       isDirty: false
-    }),
+    })
+  },
 
-  loadFromSetup: (setup) =>
+  loadFromSetup: (setup) => {
+    useSetupStore.temporal.getState().clear()
     set({
       setupId: setup.id,
       studioId: setup.studioId,
@@ -137,7 +143,8 @@ export const useSetupStore = create<SetupState>((set, get) => ({
       selectionAnchorId: null,
       unresolvedGearHints: new Map(),
       isDirty: false
-    }),
+    })
+  },
 
   setName: (name) => set({ name, isDirty: true }),
   setSessionDate: (sessionDate) => set({ sessionDate, isDirty: true }),
@@ -321,4 +328,16 @@ export const useSetupStore = create<SetupState>((set, get) => ({
       throw err
     }
   }
-}))
+    }),
+    {
+      partialize: (state) => ({
+        items: state.items,
+        name: state.name,
+        sessionDate: state.sessionDate,
+        engineer: state.engineer,
+        artist: state.artist
+      }),
+      limit: 100
+    }
+  )
+)
