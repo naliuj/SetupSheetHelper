@@ -13,10 +13,11 @@ const api: RendererApi = {
     listCustom: () => ipcRenderer.invoke(IPC.studios.listCustom),
     get: (id) => ipcRenderer.invoke(IPC.studios.get, id),
     create: (buildingId, name) => ipcRenderer.invoke(IPC.studios.create, buildingId, name),
-    createCustom: (name, folderId) => ipcRenderer.invoke(IPC.studios.createCustom, name, folderId),
+    createCustom: (name, folderId, hasConsole) =>
+      ipcRenderer.invoke(IPC.studios.createCustom, name, folderId, hasConsole),
     createTemporary: () => ipcRenderer.invoke(IPC.studios.createTemporary),
-    updateCustomDetails: (id, name, folderId) =>
-      ipcRenderer.invoke(IPC.studios.updateCustomDetails, id, name, folderId),
+    updateCustomDetails: (id, name, folderId, hasConsole) =>
+      ipcRenderer.invoke(IPC.studios.updateCustomDetails, id, name, folderId, hasConsole),
     rename: (id, name) => ipcRenderer.invoke(IPC.studios.rename, id, name),
     remove: (id) => ipcRenderer.invoke(IPC.studios.remove, id),
     exportToFile: (studioIds) => ipcRenderer.invoke(IPC.studios.exportToFile, studioIds),
@@ -51,6 +52,15 @@ const api: RendererApi = {
     listAllWithStudio: () => ipcRenderer.invoke(IPC.outboard.listAllWithStudio),
     upsert: (input) => ipcRenderer.invoke(IPC.outboard.upsert, input),
     remove: (id) => ipcRenderer.invoke(IPC.outboard.remove, id)
+  },
+  preamps: {
+    listByStudio: (studioId) => ipcRenderer.invoke(IPC.preamps.listByStudio, studioId),
+    listAvailableForStudio: (studioId, setupId) =>
+      ipcRenderer.invoke(IPC.preamps.listAvailableForStudio, studioId, setupId),
+    listSetupGear: (setupId) => ipcRenderer.invoke(IPC.preamps.listSetupGear, setupId),
+    listAll: () => ipcRenderer.invoke(IPC.preamps.listAll),
+    upsert: (input) => ipcRenderer.invoke(IPC.preamps.upsert, input),
+    remove: (id) => ipcRenderer.invoke(IPC.preamps.remove, id)
   },
   layoutFile: {
     getForStudio: (studioId) => ipcRenderer.invoke(IPC.layoutFile.getForStudio, studioId),

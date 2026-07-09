@@ -37,11 +37,13 @@ export default function SetupSheetTable(): JSX.Element {
 
   const mics = useCatalogStore((s) => s.mics)
   const outboardGear = useCatalogStore((s) => s.outboardGear)
+  const preamps = useCatalogStore((s) => s.preamps)
   const isTemporary = useCatalogStore((s) => s.isTemporary)
 
   const conflicts = computeTieLineConflicts(items)
   const micUsageCounts = computeUsageCounts(items, 'micId')
   const outboardUsageCounts = computeUsageCounts(items, 'outboardId')
+  const preampUsageCounts = computeUsageCounts(items, 'preampId')
 
   return (
     <div style={{ padding: 12 }}>
@@ -61,6 +63,7 @@ export default function SetupSheetTable(): JSX.Element {
               <th>Mic</th>
               <th>Outboard</th>
               <th>Channel</th>
+              <th>Preamp</th>
               <th>Tie Line</th>
               <th>Cue Box</th>
               <th>Polarity</th>
@@ -77,6 +80,7 @@ export default function SetupSheetTable(): JSX.Element {
                     item={item}
                     mics={mics}
                     outboardGear={outboardGear}
+                    preamps={preamps}
                     isTemporary={isTemporary}
                     selected={selectedItemIds.has(item.id)}
                     conflict={item.tieLine != null && conflicts.has(item.tieLine)}
@@ -84,6 +88,7 @@ export default function SetupSheetTable(): JSX.Element {
                     onClearUnresolvedGearHint={(field) => clearUnresolvedGearHint(item.id, field)}
                     micUsageCounts={micUsageCounts}
                     outboardUsageCounts={outboardUsageCounts}
+                    preampUsageCounts={preampUsageCounts}
                     onGutterClick={(e) => handleGutterClick(e, item.id)}
                     onChange={(patch) => updateItemFields(item.id, patch)}
                     onDelete={() => removeItem(item.id)}

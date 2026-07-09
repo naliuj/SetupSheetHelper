@@ -6,6 +6,8 @@ import type {
   OutboardGear,
   OutboardGearWithStudio,
   OutboardPoolType,
+  Preamp,
+  PreampPoolType,
   RoomLayoutFile,
   Studio
 } from './entities'
@@ -59,6 +61,14 @@ export const IPC = {
     listAllWithStudio: 'outboard:listAllWithStudio',
     upsert: 'outboard:upsert',
     remove: 'outboard:remove'
+  },
+  preamps: {
+    listByStudio: 'preamps:listByStudio',
+    listAvailableForStudio: 'preamps:listAvailableForStudio',
+    listSetupGear: 'preamps:listSetupGear',
+    listAll: 'preamps:listAll',
+    upsert: 'preamps:upsert',
+    remove: 'preamps:remove'
   },
   layoutFile: {
     getForStudio: 'layoutFile:getForStudio',
@@ -133,6 +143,19 @@ export interface OutboardUpsertInput {
   sortOrder?: number
 }
 
+export interface PreampUpsertInput {
+  id?: number
+  poolType: PreampPoolType
+  studioId: number | null
+  setupId: number | null
+  name: string
+  manufacturer: string | null
+  category: string | null
+  notes: string | null
+  channels?: number
+  sortOrder?: number
+}
+
 export interface SetupItemInput {
   id: number | string
   instrumentType: string
@@ -144,6 +167,8 @@ export interface SetupItemInput {
   cueBox: number | null
   outboardId: number | null
   outboardText: string | null
+  preampId: number | null
+  preampText: string | null
   polarityFlip: boolean
   notes: string | null
 }
@@ -168,10 +193,19 @@ export interface ExportedStudioGear {
   quantity: number
 }
 
+export interface ExportedPreamp {
+  name: string
+  manufacturer: string | null
+  category: string | null
+  channels: number
+}
+
 export interface ExportedStudio {
   name: string
+  hasConsole: boolean
   mics: ExportedStudioGear[]
   outboardGear: ExportedStudioGear[]
+  preamps: ExportedPreamp[]
 }
 
 export interface StudioExportFile {
@@ -259,9 +293,9 @@ export interface RendererApi {
     listCustom(): Promise<Studio[]>
     get(id: number): Promise<Studio | null>
     create(buildingId: number, name: string): Promise<Studio>
-    createCustom(name: string, folderId: number | null): Promise<Studio>
+    createCustom(name: string, folderId: number | null, hasConsole: boolean): Promise<Studio>
     createTemporary(): Promise<Studio>
-    updateCustomDetails(id: number, name: string, folderId: number | null): Promise<Studio>
+    updateCustomDetails(id: number, name: string, folderId: number | null, hasConsole: boolean): Promise<Studio>
     rename(id: number, name: string): Promise<void>
     remove(id: number): Promise<void>
     exportToFile(studioIds: number[]): Promise<ExportStudiosResult>
@@ -301,6 +335,14 @@ export interface RendererApi {
     listAll(): Promise<OutboardGear[]>
     listAllWithStudio(): Promise<OutboardGearWithStudio[]>
     upsert(input: OutboardUpsertInput): Promise<OutboardGear>
+    remove(id: number): Promise<void>
+  }
+  preamps: {
+    listByStudio(studioId: number): Promise<Preamp[]>
+    listAvailableForStudio(studioId: number, setupId?: number | null): Promise<Preamp[]>
+    listSetupGear(setupId: number): Promise<Preamp[]>
+    listAll(): Promise<Preamp[]>
+    upsert(input: PreampUpsertInput): Promise<Preamp>
     remove(id: number): Promise<void>
   }
   layoutFile: {

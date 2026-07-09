@@ -1,7 +1,7 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import type { SetupItemDraft } from '@shared/types/setup'
-import type { Mic, OutboardGear } from '@shared/types/entities'
+import type { Mic, OutboardGear, Preamp } from '@shared/types/entities'
 import type { UnresolvedGearHint } from '@renderer/state/setupStore'
 import ManufacturerPickerDropdown from '@renderer/components/ManufacturerPickerDropdown'
 import { applyMicPoolNotesTag } from '@renderer/state/micPoolNotesTag'
@@ -22,10 +22,17 @@ const POOL_ORDER = [
   POOL_LABELS.faculty_reserve
 ]
 
+const PREAMP_POOL_LABELS: Record<Preamp['poolType'], string> = {
+  studio: 'This Studio',
+  setup: 'This Session'
+}
+const PREAMP_POOL_ORDER = [PREAMP_POOL_LABELS.studio, PREAMP_POOL_LABELS.setup]
+
 interface Props {
   item: SetupItemDraft
   mics: Mic[]
   outboardGear: OutboardGear[]
+  preamps: Preamp[]
   isTemporary: boolean
   selected: boolean
   conflict: boolean
@@ -33,6 +40,7 @@ interface Props {
   onClearUnresolvedGearHint: (field: 'mic' | 'outboard') => void
   micUsageCounts: Map<number, number>
   outboardUsageCounts: Map<number, number>
+  preampUsageCounts: Map<number, number>
   onGutterClick: (e: React.MouseEvent) => void
   onChange: (patch: Partial<SetupItemDraft>) => void
   onDelete: () => void
@@ -42,6 +50,7 @@ export default function SetupSheetRow({
   item,
   mics,
   outboardGear,
+  preamps,
   isTemporary,
   selected,
   conflict,
@@ -49,6 +58,7 @@ export default function SetupSheetRow({
   onClearUnresolvedGearHint,
   micUsageCounts,
   outboardUsageCounts,
+  preampUsageCounts,
   onGutterClick,
   onChange,
   onDelete
@@ -74,9 +84,17 @@ export default function SetupSheetRow({
     onClearUnresolvedGearHint('outboard')
   }
 
+  // Preamps only ever come from the studio/session pools, neither of which ever produces a
+  // notes tag (applyMicPoolNotesTag only tags building/faculty_reserve/personal pools) — so
+  // unlike mic/outboard selection there's no notes side effect to apply here.
+  function handlePreampChange(preampId: number | null): void {
+    onChange({ preampId })
+  }
+
   const sourceName = useBufferedField(item.sourceName, (v) => onChange({ sourceName: v }))
   const micText = useBufferedField(item.micText ?? '', (v) => onChange({ micText: v }))
   const outboardText = useBufferedField(item.outboardText ?? '', (v) => onChange({ outboardText: v }))
+  const preampText = useBufferedField(item.preampText ?? '', (v) => onChange({ preampText: v }))
   const channel = useBufferedField(String(item.channel ?? ''), (v) =>
     onChange({ channel: v ? Number(v) : null })
   )
@@ -167,6 +185,28 @@ export default function SetupSheetRow({
           onBlur={channel.onBlur}
           onClick={(e) => e.stopPropagation()}
         />
+      </td>
+      <td onClick={(e) => e.stopPropagation()}>
+        {isTemporary ? (
+          <input
+            value={preampText.value}
+            placeholder="Preamp"
+            onChange={(e) => preampText.onChange(e.target.value)}
+            onBlur={preampText.onBlur}
+            onClick={(e) => e.stopPropagation()}
+          />
+        ) : (
+          <ManufacturerPickerDropdown
+            items={preamps}
+            usageCounts={preampUsageCounts}
+            getQuantity={(p) => p.channels}
+            selectedId={item.preampId}
+            onSelect={handlePreampChange}
+            outerGroupBy={(p) => PREAMP_POOL_LABELS[p.poolType]}
+            outerGroupOrder={PREAMP_POOL_ORDER}
+            stripManufacturerInTrigger
+          />
+        )}
       </td>
       <td>
         <input

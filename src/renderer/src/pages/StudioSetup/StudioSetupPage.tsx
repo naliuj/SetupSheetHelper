@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { Mic, MicWithStudio, OutboardGear, OutboardGearWithStudio } from '@shared/types/entities'
+import type { Mic, MicWithStudio, OutboardGear, OutboardGearWithStudio, Preamp } from '@shared/types/entities'
 import { guessManufacturer, MANUFACTURER_PREFIXES } from '@shared/constants/manufacturers'
 import { stripManufacturerPrefix } from '@shared/utils/manufacturerPrefix'
 import { useNavigationStore } from '@renderer/state/navigationStore'
@@ -17,6 +17,15 @@ interface PendingItem {
   manufacturer: string | null
   category: string | null
   quantity: number
+}
+
+interface PendingPreampItem {
+  key: string
+  existingId?: number
+  name: string
+  manufacturer: string | null
+  category: string | null
+  channels: number
 }
 
 function tempKey(): string {
@@ -38,11 +47,13 @@ function dedupeByNameAndManufacturer<T extends { name: string; manufacturer: str
 }
 
 interface ManualEntryFormProps {
-  onAdd: (name: string, manufacturer: string | null, quantity: number) => void
+  onAdd: (name: string, manufacturer: string | null, count: number) => void
   namePlaceholder: string
   formId: string
   manufacturerSuggestions: string[]
   catalogueItems: { name: string; manufacturer: string | null }[]
+  /** "Quantity" for mics/outboard, "Channels" for preamps. Defaults to "Quantity". */
+  countLabel?: string
 }
 
 function ManualEntryForm({
@@ -50,7 +61,8 @@ function ManualEntryForm({
   namePlaceholder,
   formId,
   manufacturerSuggestions,
-  catalogueItems
+  catalogueItems,
+  countLabel = 'Quantity'
 }: ManualEntryFormProps): JSX.Element {
   const [name, setName] = useState('')
   const [manufacturer, setManufacturer] = useState('')
@@ -104,7 +116,7 @@ function ManualEntryForm({
         type="number"
         min={1}
         style={{ width: 70 }}
-        title="Quantity"
+        title={countLabel}
         value={quantity}
         onChange={(e) => setQuantity(e.target.value)}
         onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
@@ -123,18 +135,25 @@ export default function StudioSetupPage(): JSX.Element {
   const isEditing = studioSetupId != null
 
   const [name, setName] = useState('Untitled Studio')
+  // Real Berklee studios always have a console (assumed, no toggle shown for them — this page
+  // only ever edits custom studios). Off means the studio patches through standalone preamps
+  // instead, unlocking the Preamps section below.
+  const [hasConsole, setHasConsole] = useState(true)
   const [pendingMics, setPendingMics] = useState<PendingItem[]>([])
   const [pendingOutboard, setPendingOutboard] = useState<PendingItem[]>([])
+  const [pendingPreamps, setPendingPreamps] = useState<PendingPreampItem[]>([])
   const [removedMicIds, setRemovedMicIds] = useState<Set<number>>(new Set())
   const [removedOutboardIds, setRemovedOutboardIds] = useState<Set<number>>(new Set())
+  const [removedPreampIds, setRemovedPreampIds] = useState<Set<number>>(new Set())
   // allMics/allOutboard (studio-tagged) feed the "Import Gear from Another Studio" modal;
-  // micCatalogueSource/outboardCatalogueSource are the comprehensive every-pool lists (studio
-  // lockers, building pools, faculty reserve, personal, setup-scoped) feeding the "Add from
-  // Catalogue" dropdowns — origin deliberately doesn't matter there.
+  // micCatalogueSource/outboardCatalogueSource/preampCatalogueSource are the comprehensive
+  // every-pool lists feeding the "Add from Catalogue" dropdowns — origin deliberately doesn't
+  // matter there.
   const [allMics, setAllMics] = useState<MicWithStudio[]>([])
   const [allOutboard, setAllOutboard] = useState<OutboardGearWithStudio[]>([])
   const [micCatalogueSource, setMicCatalogueSource] = useState<Mic[]>([])
   const [outboardCatalogueSource, setOutboardCatalogueSource] = useState<OutboardGear[]>([])
+  const [preampCatalogueSource, setPreampCatalogueSource] = useState<Preamp[]>([])
   const [saving, setSaving] = useState(false)
   const [importModalOpen, setImportModalOpen] = useState(false)
   // Set the first time a brand-new studio gets a row created early — purely so the Room Layout
@@ -149,26 +168,30 @@ export default function StudioSetupPage(): JSX.Element {
 
   const catalogueMics = dedupeByNameAndManufacturer(micCatalogueSource)
   const catalogueOutboard = dedupeByNameAndManufacturer(outboardCatalogueSource)
+  const cataloguePreamps = dedupeByNameAndManufacturer(preampCatalogueSource)
 
   const catalogueManufacturers = useMemo(() => {
     const set = new Set<string>()
     for (const m of micCatalogueSource) if (m.manufacturer) set.add(m.manufacturer.trim())
     for (const o of outboardCatalogueSource) if (o.manufacturer) set.add(o.manufacturer.trim())
+    for (const p of preampCatalogueSource) if (p.manufacturer) set.add(p.manufacturer.trim())
     for (const p of MANUFACTURER_PREFIXES) set.add(p)
     return [...set].sort((a, b) => a.localeCompare(b))
-  }, [micCatalogueSource, outboardCatalogueSource])
+  }, [micCatalogueSource, outboardCatalogueSource, preampCatalogueSource])
 
   useEffect(() => {
     window.api.mics.listAllWithStudio().then(setAllMics)
     window.api.outboard.listAllWithStudio().then(setAllOutboard)
     window.api.mics.listAll().then(setMicCatalogueSource)
     window.api.outboard.listAll().then(setOutboardCatalogueSource)
+    window.api.preamps.listAll().then(setPreampCatalogueSource)
     setCreatedStudioId(null)
 
     if (studioSetupId != null) {
       window.api.studios.get(studioSetupId).then((studio) => {
         if (!studio) return
         setName(studio.name)
+        setHasConsole(studio.hasConsole)
         setSelection(studio.folderId != null ? String(studio.folderId) : NO_FOLDER_VALUE)
       })
       window.api.mics.listStudioMics(studioSetupId).then((mics) =>
@@ -195,10 +218,24 @@ export default function StudioSetupPage(): JSX.Element {
           }))
         )
       )
+      window.api.preamps.listByStudio(studioSetupId).then((preamps) =>
+        setPendingPreamps(
+          preamps.map((p) => ({
+            key: `existing-preamp-${p.id}`,
+            existingId: p.id,
+            name: p.name,
+            manufacturer: p.manufacturer,
+            category: p.category,
+            channels: p.channels
+          }))
+        )
+      )
     } else {
       setName('Untitled Studio')
+      setHasConsole(true)
       setPendingMics([])
       setPendingOutboard([])
+      setPendingPreamps([])
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [studioSetupId])
@@ -233,6 +270,21 @@ export default function StudioSetupPage(): JSX.Element {
     ])
   }
 
+  function addPreamp(id: number | null): void {
+    const source = preampCatalogueSource.find((p) => p.id === id)
+    if (!source) return
+    setPendingPreamps((prev) => [
+      ...prev,
+      {
+        key: tempKey(),
+        name: source.name,
+        manufacturer: source.manufacturer,
+        category: source.category,
+        channels: source.channels
+      }
+    ])
+  }
+
   function handleImportGear(micIds: number[], outboardIds: number[]): void {
     for (const id of micIds) addMic(id)
     for (const id of outboardIds) addOutboard(id)
@@ -246,6 +298,10 @@ export default function StudioSetupPage(): JSX.Element {
     setPendingOutboard((prev) => [...prev, { key: tempKey(), name: itemName, manufacturer, category: null, quantity }])
   }
 
+  function addManualPreamp(itemName: string, manufacturer: string | null, channels: number): void {
+    setPendingPreamps((prev) => [...prev, { key: tempKey(), name: itemName, manufacturer, category: null, channels }])
+  }
+
   function removeMic(item: PendingItem): void {
     setPendingMics((prev) => prev.filter((m) => m.key !== item.key))
     if (item.existingId != null) setRemovedMicIds((prev) => new Set(prev).add(item.existingId!))
@@ -256,12 +312,21 @@ export default function StudioSetupPage(): JSX.Element {
     if (item.existingId != null) setRemovedOutboardIds((prev) => new Set(prev).add(item.existingId!))
   }
 
+  function removePreamp(item: PendingPreampItem): void {
+    setPendingPreamps((prev) => prev.filter((p) => p.key !== item.key))
+    if (item.existingId != null) setRemovedPreampIds((prev) => new Set(prev).add(item.existingId!))
+  }
+
   function updateMic(key: string, patch: Partial<PendingItem>): void {
     setPendingMics((prev) => prev.map((m) => (m.key === key ? { ...m, ...patch } : m)))
   }
 
   function updateOutboard(key: string, patch: Partial<PendingItem>): void {
     setPendingOutboard((prev) => prev.map((o) => (o.key === key ? { ...o, ...patch } : o)))
+  }
+
+  function updatePreamp(key: string, patch: Partial<PendingPreampItem>): void {
+    setPendingPreamps((prev) => prev.map((p) => (p.key === key ? { ...p, ...patch } : p)))
   }
 
   // Creates the studio row early if it doesn't exist yet, so the Room Layout button has a real
@@ -272,7 +337,7 @@ export default function StudioSetupPage(): JSX.Element {
     if (activeStudioId) return activeStudioId
     if (!name.trim()) return null
     const folderId = await resolveFolderId()
-    const created = await window.api.studios.createCustom(name.trim(), folderId)
+    const created = await window.api.studios.createCustom(name.trim(), folderId, hasConsole)
     setCreatedStudioId(created.id)
     return created.id
   }
@@ -303,11 +368,12 @@ export default function StudioSetupPage(): JSX.Element {
       const folderId = await resolveFolderId()
 
       const studioId = activeStudioId
-        ? (await window.api.studios.updateCustomDetails(activeStudioId, name.trim(), folderId)).id
-        : (await window.api.studios.createCustom(name.trim(), folderId)).id
+        ? (await window.api.studios.updateCustomDetails(activeStudioId, name.trim(), folderId, hasConsole)).id
+        : (await window.api.studios.createCustom(name.trim(), folderId, hasConsole)).id
 
       for (const id of removedMicIds) await window.api.mics.remove(id)
       for (const id of removedOutboardIds) await window.api.outboard.remove(id)
+      for (const id of removedPreampIds) await window.api.preamps.remove(id)
 
       for (const item of pendingMics) {
         await window.api.mics.upsert({
@@ -335,6 +401,19 @@ export default function StudioSetupPage(): JSX.Element {
           category: item.category,
           notes: null,
           quantity: item.quantity
+        })
+      }
+      for (const item of pendingPreamps) {
+        await window.api.preamps.upsert({
+          id: item.existingId,
+          poolType: 'studio',
+          studioId,
+          setupId: null,
+          name: item.name,
+          manufacturer: item.manufacturer,
+          category: item.category,
+          notes: null,
+          channels: item.channels
         })
       }
 
@@ -393,6 +472,16 @@ export default function StudioSetupPage(): JSX.Element {
         <button className="btn" style={{ marginBottom: 16 }} onClick={() => setImportModalOpen(true)}>
           Import Gear from Another Studio…
         </button>
+
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+          <input type="checkbox" checked={hasConsole} onChange={(e) => setHasConsole(e.target.checked)} />
+          This studio has a console
+        </label>
+        {!hasConsole && (
+          <p className="card-sub" style={{ marginTop: -12, marginBottom: 16 }}>
+            No console — the setup sheet's Preamp column will pull from this studio's Preamps locker below instead.
+          </p>
+        )}
 
         <div className="section-title" style={{ marginTop: 0 }}>
           Room Layout
@@ -528,6 +617,69 @@ export default function StudioSetupPage(): JSX.Element {
               ))}
             </tbody>
           </table>
+        )}
+
+        {!hasConsole && (
+          <>
+            <div className="section-title">Preamps</div>
+            <ManufacturerPickerDropdown
+              items={cataloguePreamps}
+              usageCounts={new Map()}
+              getQuantity={(p) => p.channels}
+              selectedId={null}
+              onSelect={addPreamp}
+              placeholder="+ Add Preamp from Catalogue"
+              showUsage={false}
+            />
+            <ManualEntryForm
+              onAdd={addManualPreamp}
+              namePlaceholder="Preamp name (e.g. 8-channel)"
+              formId="preamp"
+              manufacturerSuggestions={catalogueManufacturers}
+              catalogueItems={cataloguePreamps}
+              countLabel="Channels"
+            />
+            {pendingPreamps.length > 0 && (
+              <table className="data-table" style={{ marginTop: 8 }}>
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Manufacturer</th>
+                    <th>Channels</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pendingPreamps.map((item) => (
+                    <tr key={item.key}>
+                      <td>
+                        <input value={item.name} onChange={(e) => updatePreamp(item.key, { name: e.target.value })} />
+                      </td>
+                      <td>
+                        <input
+                          value={item.manufacturer ?? ''}
+                          onChange={(e) => updatePreamp(item.key, { manufacturer: e.target.value || null })}
+                        />
+                      </td>
+                      <td style={{ maxWidth: 70 }}>
+                        <input
+                          type="number"
+                          min={1}
+                          value={item.channels}
+                          onChange={(e) => updatePreamp(item.key, { channels: Math.max(1, Number(e.target.value)) })}
+                        />
+                      </td>
+                      <td>
+                        <button className="btn small danger" onClick={() => removePreamp(item)}>
+                          ✕
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </>
         )}
       </div>
       {importModalOpen && (

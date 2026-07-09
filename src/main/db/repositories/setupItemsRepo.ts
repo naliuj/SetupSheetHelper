@@ -14,6 +14,8 @@ interface SetupItemRow {
   cue_box: number | null
   outboard_id: number | null
   outboard_text: string | null
+  preamp_id: number | null
+  preamp_text: string | null
   polarity_flip: number
   notes: string | null
   sort_order: number
@@ -32,6 +34,8 @@ function mapRow(row: SetupItemRow): SetupItem {
     cueBox: row.cue_box,
     outboardId: row.outboard_id,
     outboardText: row.outboard_text,
+    preampId: row.preamp_id,
+    preampText: row.preamp_text,
     polarityFlip: row.polarity_flip === 1,
     notes: row.notes
   }
@@ -57,14 +61,15 @@ export function replaceItemsForSetup(setupId: number, items: SetupItemInput[]): 
   const db = getDb()
   const insert = db.prepare(
     `INSERT INTO setup_items
-      (setup_id, instrument_type, source_name, mic_id, mic_text, channel, tie_line, cue_box, outboard_id, outboard_text, polarity_flip, notes, sort_order)
-     VALUES (@setupId, @instrumentType, @sourceName, @micId, @micText, @channel, @tieLine, @cueBox, @outboardId, @outboardText, @polarityFlip, @notes, @sortOrder)`
+      (setup_id, instrument_type, source_name, mic_id, mic_text, channel, tie_line, cue_box, outboard_id, outboard_text, preamp_id, preamp_text, polarity_flip, notes, sort_order)
+     VALUES (@setupId, @instrumentType, @sourceName, @micId, @micText, @channel, @tieLine, @cueBox, @outboardId, @outboardText, @preampId, @preampText, @polarityFlip, @notes, @sortOrder)`
   )
   const update = db.prepare(
     `UPDATE setup_items SET
       instrument_type = @instrumentType, source_name = @sourceName, mic_id = @micId, mic_text = @micText,
       channel = @channel, tie_line = @tieLine, cue_box = @cueBox, outboard_id = @outboardId,
-      outboard_text = @outboardText, polarity_flip = @polarityFlip, notes = @notes, sort_order = @sortOrder,
+      outboard_text = @outboardText, preamp_id = @preampId, preamp_text = @preampText,
+      polarity_flip = @polarityFlip, notes = @notes, sort_order = @sortOrder,
       updated_at = datetime('now')
      WHERE id = @id AND setup_id = @setupId`
   )
@@ -90,6 +95,8 @@ export function replaceItemsForSetup(setupId: number, items: SetupItemInput[]): 
         cueBox: item.cueBox,
         outboardId: item.outboardId,
         outboardText: item.outboardText,
+        preampId: item.preampId,
+        preampText: item.preampText,
         polarityFlip: item.polarityFlip ? 1 : 0,
         notes: item.notes,
         sortOrder: index
@@ -118,7 +125,7 @@ export function replaceItemsForSetup(setupId: number, items: SetupItemInput[]): 
  * placed on a room layout — Layout Mode is fully independent of the setup-sheet structure).
  *
  * When `blankRoomSpecificFields` is set (saving a setup AS a template), the specific mic,
- * outboard, channel, tie line, cue box, and notes are dropped — those are tied to one
+ * outboard, preamp, channel, tie line, cue box, and notes are dropped — those are tied to one
  * room's actual gear/patching on one day, not to the reusable structure of the template.
  * Only instrument type and source name (e.g. "Kick In", "Snare Top") carry over.
  * Instantiating a template back into a setup copies it as-is (already blank on those fields).
@@ -132,8 +139,8 @@ export function copyItemsToSetup(
   const items = listItemsBySetup(sourceSetupId)
   const insert = db.prepare(
     `INSERT INTO setup_items
-      (setup_id, instrument_type, source_name, mic_id, mic_text, channel, tie_line, cue_box, outboard_id, outboard_text, polarity_flip, notes)
-     VALUES (@setupId, @instrumentType, @sourceName, @micId, @micText, @channel, @tieLine, @cueBox, @outboardId, @outboardText, @polarityFlip, @notes)`
+      (setup_id, instrument_type, source_name, mic_id, mic_text, channel, tie_line, cue_box, outboard_id, outboard_text, preamp_id, preamp_text, polarity_flip, notes)
+     VALUES (@setupId, @instrumentType, @sourceName, @micId, @micText, @channel, @tieLine, @cueBox, @outboardId, @outboardText, @preampId, @preampText, @polarityFlip, @notes)`
   )
 
   const copy = db.transaction(() => {
@@ -149,6 +156,8 @@ export function copyItemsToSetup(
         cueBox: options.blankRoomSpecificFields ? null : item.cueBox,
         outboardId: options.blankRoomSpecificFields ? null : item.outboardId,
         outboardText: options.blankRoomSpecificFields ? null : item.outboardText,
+        preampId: options.blankRoomSpecificFields ? null : item.preampId,
+        preampText: options.blankRoomSpecificFields ? null : item.preampText,
         polarityFlip: options.blankRoomSpecificFields ? 0 : item.polarityFlip ? 1 : 0,
         notes: options.blankRoomSpecificFields ? null : item.notes
       })

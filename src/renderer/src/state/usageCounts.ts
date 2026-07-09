@@ -1,9 +1,9 @@
 import type { SetupItemDraft } from '@shared/types/setup'
 
-/** Counts how many setup items reference each id for a given field (e.g. micId, outboardId). */
+/** Counts how many setup items reference each id for a given field (e.g. micId, outboardId, preampId). */
 export function computeUsageCounts(
   items: SetupItemDraft[],
-  key: 'micId' | 'outboardId'
+  key: 'micId' | 'outboardId' | 'preampId'
 ): Map<number, number> {
   const counts = new Map<number, number>()
   for (const item of items) {

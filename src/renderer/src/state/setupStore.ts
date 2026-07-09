@@ -174,6 +174,8 @@ export const useSetupStore = create<SetupState>()(
       cueBox: null,
       outboardId: null,
       outboardText: null,
+      preampId: null,
+      preampText: null,
       polarityFlip: false,
       notes: defaults.notes ?? null
     }
@@ -295,6 +297,8 @@ export const useSetupStore = create<SetupState>()(
           cueBox: item.cueBox,
           outboardId: item.outboardId,
           outboardText: item.outboardName,
+          preampId: null,
+          preampText: null,
           polarityFlip: item.polarityFlip ?? false,
           notes: item.notes
         })

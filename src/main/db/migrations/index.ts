@@ -6,6 +6,7 @@ import { run as outboardBuildingFacultyPools } from './004_outboard_building_fac
 import { run as channelPresets } from './005_channel_presets'
 import { run as renameLayoutFiles } from './006_rename_layout_files'
 import { run as setupFacultyReserve } from './007_setup_faculty_reserve'
+import { run as consoleAndPreamps } from './008_console_and_preamps'
 
 export interface SqlMigration {
   version: number
@@ -26,5 +27,6 @@ export const MIGRATIONS: Migration[] = [
   { version: 4, run: outboardBuildingFacultyPools },
   { version: 5, run: channelPresets },
   { version: 6, run: renameLayoutFiles },
-  { version: 7, run: setupFacultyReserve }
+  { version: 7, run: setupFacultyReserve },
+  { version: 8, run: consoleAndPreamps }
 ]

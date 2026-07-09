@@ -25,6 +25,8 @@ export interface SetupItem {
   cueBox: number | null
   outboardId: number | null
   outboardText: string | null
+  preampId: number | null
+  preampText: string | null
   polarityFlip: boolean
   notes: string | null
 }

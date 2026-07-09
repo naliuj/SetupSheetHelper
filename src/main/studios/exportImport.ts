@@ -9,8 +9,9 @@ import type {
 import * as studiosRepo from '../db/repositories/studiosRepo'
 import { listStudioMics, upsertMic } from '../db/repositories/micsRepo'
 import { listOutboardByStudio, upsertOutboard } from '../db/repositories/outboardRepo'
+import { listPreampsByStudio, upsertPreamp } from '../db/repositories/preampRepo'
 
-const EXPORT_VERSION = 1
+const EXPORT_VERSION = 2
 
 export async function exportStudiosToFile(studioIds: number[]): Promise<ExportStudiosResult> {
   const studios: ExportedStudio[] = studioIds.flatMap((id) => {
@@ -19,6 +20,7 @@ export async function exportStudiosToFile(studioIds: number[]): Promise<ExportSt
     return [
       {
         name: studio.name,
+        hasConsole: studio.hasConsole,
         mics: listStudioMics(id).map((mic) => ({
           name: mic.name,
           manufacturer: mic.manufacturer,
@@ -30,6 +32,12 @@ export async function exportStudiosToFile(studioIds: number[]): Promise<ExportSt
           manufacturer: gear.manufacturer,
           category: gear.category,
           quantity: gear.quantity
+        })),
+        preamps: listPreampsByStudio(id).map((preamp) => ({
+          name: preamp.name,
+          manufacturer: preamp.manufacturer,
+          category: preamp.category,
+          channels: preamp.channels
         }))
       }
     ]
@@ -68,10 +76,12 @@ export async function pickAndParseImportFile(): Promise<PickImportFileResult> {
   }
 }
 
-/** Imported studios always land as new, ungrouped Custom Studios — building IDs aren't portable across installations. */
+/** Imported studios always land as new, ungrouped Custom Studios — building IDs aren't portable
+ *  across installations. hasConsole/preamps default safely for older (v1) export files that
+ *  predate this feature — hasConsole true (matches the DB column's own default), preamps []. */
 export function importStudios(studios: ExportedStudio[]): void {
   for (const studio of studios) {
-    const created = studiosRepo.createCustomStudio(studio.name, null)
+    const created = studiosRepo.createCustomStudio(studio.name, null, studio.hasConsole ?? true)
     for (const mic of studio.mics) {
       upsertMic({
         poolType: 'studio',
@@ -96,6 +106,18 @@ export function importStudios(studios: ExportedStudio[]): void {
         category: gear.category,
         notes: null,
         quantity: gear.quantity
+      })
+    }
+    for (const preamp of studio.preamps ?? []) {
+      upsertPreamp({
+        poolType: 'studio',
+        studioId: created.id,
+        setupId: null,
+        name: preamp.name,
+        manufacturer: preamp.manufacturer,
+        category: preamp.category,
+        notes: null,
+        channels: preamp.channels
       })
     }
   }

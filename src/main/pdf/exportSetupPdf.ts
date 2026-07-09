@@ -6,6 +6,7 @@ import { getSetupWithItems } from '../db/repositories/setupsRepo'
 import { getLayoutFileForStudio } from '../db/repositories/roomLayoutFileRepo'
 import { getMicById } from '../db/repositories/micsRepo'
 import { getOutboardById } from '../db/repositories/outboardRepo'
+import { getPreampById } from '../db/repositories/preampRepo'
 import { stripManufacturerPrefix } from '@shared/utils/manufacturerPrefix'
 
 const PAGE_WIDTH = 612 // US Letter, portrait, points
@@ -15,14 +16,15 @@ const ROW_HEIGHT = 22
 const HEADER_HEIGHT = 24
 
 const COLUMNS = [
-  { key: 'sourceName', label: 'Source Name', width: 90 },
-  { key: 'mic', label: 'Microphone', width: 90 },
-  { key: 'outboard', label: 'Outboard', width: 90 },
-  { key: 'channel', label: 'Channel', width: 45 },
-  { key: 'tieLine', label: 'Tie Line', width: 55 },
-  { key: 'cueBox', label: 'Cue Box', width: 55 },
-  { key: 'polarity', label: 'Polarity', width: 55 },
-  { key: 'notes', label: 'Notes', width: 60 }
+  { key: 'sourceName', label: 'Source Name', width: 80 },
+  { key: 'mic', label: 'Microphone', width: 80 },
+  { key: 'outboard', label: 'Outboard', width: 75 },
+  { key: 'channel', label: 'Channel', width: 40 },
+  { key: 'preamp', label: 'Preamp', width: 55 },
+  { key: 'tieLine', label: 'Tie Line', width: 45 },
+  { key: 'cueBox', label: 'Cue Box', width: 45 },
+  { key: 'polarity', label: 'Polarity', width: 50 },
+  { key: 'notes', label: 'Notes', width: 70 }
 ] as const
 
 function findTieLineConflicts(items: { tieLine: number | null }[]): Set<number> {
@@ -101,6 +103,7 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
 
       const mic = item.micId != null ? getMicById(item.micId) : null
       const outboard = item.outboardId != null ? getOutboardById(item.outboardId) : null
+      const preamp = item.preampId != null ? getPreampById(item.preampId) : null
       const isConflict = item.tieLine != null && conflicts.has(item.tieLine)
 
       const values: Record<(typeof COLUMNS)[number]['key'], string> = {
@@ -108,6 +111,7 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
         mic: mic ? mic.name : item.micText ?? '',
         outboard: outboard ? stripManufacturerPrefix(outboard.name, outboard.manufacturer ?? '') : item.outboardText ?? '',
         channel: item.channel != null ? String(item.channel) : '',
+        preamp: preamp ? stripManufacturerPrefix(preamp.name, preamp.manufacturer ?? '') : item.preampText ?? '',
         tieLine: item.tieLine != null ? `${isConflict ? '⚠ ' : ''}${item.tieLine}` : '',
         cueBox: item.cueBox != null ? String(item.cueBox) : '',
         polarity: item.polarityFlip ? 'Yes' : '',

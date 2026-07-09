@@ -1,12 +1,14 @@
 import { create } from 'zustand'
-import type { Mic, OutboardGear } from '@shared/types/entities'
+import type { Mic, OutboardGear, Preamp } from '@shared/types/entities'
 
 interface CatalogState {
   studioId: number | null
   buildingId: number | null
   isTemporary: boolean
+  hasConsole: boolean
   mics: Mic[]
   outboardGear: OutboardGear[]
+  preamps: Preamp[]
   loading: boolean
 
   loadForStudio(
@@ -21,17 +23,27 @@ export const useCatalogStore = create<CatalogState>((set) => ({
   studioId: null,
   buildingId: null,
   isTemporary: false,
+  hasConsole: true,
   mics: [],
   outboardGear: [],
+  preamps: [],
   loading: false,
 
   loadForStudio: async (studioId, buildingId, setupId, facultyReserveEnabled) => {
     set({ loading: true, studioId, buildingId })
-    const [studio, mics, outboardGear] = await Promise.all([
+    const [studio, mics, outboardGear, preamps] = await Promise.all([
       window.api.studios.get(studioId),
       window.api.mics.listAvailableForStudio(studioId, setupId, facultyReserveEnabled),
-      window.api.outboard.listAvailableForStudio(studioId, setupId, facultyReserveEnabled)
+      window.api.outboard.listAvailableForStudio(studioId, setupId, facultyReserveEnabled),
+      window.api.preamps.listAvailableForStudio(studioId, setupId)
     ])
-    set({ mics, outboardGear, isTemporary: studio?.isTemporary ?? false, loading: false })
+    set({
+      mics,
+      outboardGear,
+      preamps,
+      isTemporary: studio?.isTemporary ?? false,
+      hasConsole: studio?.hasConsole ?? true,
+      loading: false
+    })
   }
 }))

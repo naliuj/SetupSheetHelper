@@ -1,7 +1,8 @@
 import { ipcMain } from 'electron'
-import { IPC, type MicUpsertInput, type OutboardUpsertInput } from '@shared/types/ipc'
+import { IPC, type MicUpsertInput, type OutboardUpsertInput, type PreampUpsertInput } from '@shared/types/ipc'
 import * as micsRepo from '../db/repositories/micsRepo'
 import * as outboardRepo from '../db/repositories/outboardRepo'
+import * as preampRepo from '../db/repositories/preampRepo'
 import * as settingsRepo from '../db/repositories/settingsRepo'
 
 export function registerCatalogHandlers(): void {
@@ -34,6 +35,15 @@ export function registerCatalogHandlers(): void {
   ipcMain.handle(IPC.outboard.listAllWithStudio, () => outboardRepo.listAllOutboardWithStudio())
   ipcMain.handle(IPC.outboard.upsert, (_e, input: OutboardUpsertInput) => outboardRepo.upsertOutboard(input))
   ipcMain.handle(IPC.outboard.remove, (_e, id: number) => outboardRepo.removeOutboard(id))
+
+  ipcMain.handle(IPC.preamps.listByStudio, (_e, studioId: number) => preampRepo.listPreampsByStudio(studioId))
+  ipcMain.handle(IPC.preamps.listAvailableForStudio, (_e, studioId: number, setupId?: number | null) =>
+    preampRepo.listAvailableForStudio(studioId, setupId)
+  )
+  ipcMain.handle(IPC.preamps.listSetupGear, (_e, setupId: number) => preampRepo.listSetupGear(setupId))
+  ipcMain.handle(IPC.preamps.listAll, () => preampRepo.listAllPreamps())
+  ipcMain.handle(IPC.preamps.upsert, (_e, input: PreampUpsertInput) => preampRepo.upsertPreamp(input))
+  ipcMain.handle(IPC.preamps.remove, (_e, id: number) => preampRepo.removePreamp(id))
 
   ipcMain.handle(IPC.settings.get, (_e, key: string) => settingsRepo.getSetting(key))
   ipcMain.handle(IPC.settings.set, (_e, key: string, value: string) => settingsRepo.setSetting(key, value))

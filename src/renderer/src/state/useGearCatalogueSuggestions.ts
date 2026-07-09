@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { Mic, OutboardGear } from '@shared/types/entities'
+import type { Mic, OutboardGear, Preamp } from '@shared/types/entities'
 import { MANUFACTURER_PREFIXES } from '@shared/constants/manufacturers'
 
 interface GearCatalogueSuggestions {
   manufacturers: string[]
   mics: Mic[]
   outboard: OutboardGear[]
+  preamps: Preamp[]
 }
 
 /** Fetches every mic/outboard item across every pool (studio lockers, building pools, faculty
@@ -19,19 +20,22 @@ interface GearCatalogueSuggestions {
 export function useGearCatalogueSuggestions(): GearCatalogueSuggestions {
   const [mics, setMics] = useState<Mic[]>([])
   const [outboard, setOutboard] = useState<OutboardGear[]>([])
+  const [preamps, setPreamps] = useState<Preamp[]>([])
 
   useEffect(() => {
     window.api.mics.listAll().then(setMics)
     window.api.outboard.listAll().then(setOutboard)
+    window.api.preamps.listAll().then(setPreamps)
   }, [])
 
   const manufacturers = useMemo(() => {
     const set = new Set<string>()
     for (const m of mics) if (m.manufacturer) set.add(m.manufacturer.trim())
     for (const o of outboard) if (o.manufacturer) set.add(o.manufacturer.trim())
+    for (const p of preamps) if (p.manufacturer) set.add(p.manufacturer.trim())
     for (const p of MANUFACTURER_PREFIXES) set.add(p)
     return [...set].sort((a, b) => a.localeCompare(b))
-  }, [mics, outboard])
+  }, [mics, outboard, preamps])
 
-  return { manufacturers, mics, outboard }
+  return { manufacturers, mics, outboard, preamps }
 }
