@@ -242,7 +242,7 @@ export type MenuAction =
   | 'add-source'
   | 'delete-row'
   | 'sequential-numbering'
-  | 'open-session-gear'
+  | 'open-setup-settings'
   | 'undo'
   | 'redo'
 
@@ -259,14 +259,9 @@ export interface RendererApi {
     listCustom(): Promise<Studio[]>
     get(id: number): Promise<Studio | null>
     create(buildingId: number, name: string): Promise<Studio>
-    createCustom(name: string, folderId: number | null, facultyReserveEnabled: boolean): Promise<Studio>
+    createCustom(name: string, folderId: number | null): Promise<Studio>
     createTemporary(): Promise<Studio>
-    updateCustomDetails(
-      id: number,
-      name: string,
-      folderId: number | null,
-      facultyReserveEnabled: boolean
-    ): Promise<Studio>
+    updateCustomDetails(id: number, name: string, folderId: number | null): Promise<Studio>
     rename(id: number, name: string): Promise<void>
     remove(id: number): Promise<void>
     exportToFile(studioIds: number[]): Promise<ExportStudiosResult>
@@ -277,7 +272,11 @@ export interface RendererApi {
     getDeleteImpact(id: number): Promise<StudioDeleteImpact>
   }
   mics: {
-    listAvailableForStudio(studioId: number, setupId?: number | null): Promise<Mic[]>
+    listAvailableForStudio(
+      studioId: number,
+      setupId?: number | null,
+      facultyReserveEnabledForSetup?: boolean
+    ): Promise<Mic[]>
     listStudioMics(studioId: number): Promise<Mic[]>
     listBuildingPool(buildingId: number): Promise<Mic[]>
     listFacultyReserve(): Promise<Mic[]>
@@ -290,7 +289,11 @@ export interface RendererApi {
   }
   outboard: {
     listByStudio(studioId: number): Promise<OutboardGear[]>
-    listAvailableForStudio(studioId: number, setupId?: number | null): Promise<OutboardGear[]>
+    listAvailableForStudio(
+      studioId: number,
+      setupId?: number | null,
+      facultyReserveEnabledForSetup?: boolean
+    ): Promise<OutboardGear[]>
     listBuildingPool(buildingId: number): Promise<OutboardGear[]>
     listFacultyReserve(): Promise<OutboardGear[]>
     listPersonalOutboard(): Promise<OutboardGear[]>
@@ -321,14 +324,16 @@ export interface RendererApi {
       sessionDate: string | null,
       folderId: number | null,
       engineer: string | null,
-      artist: string | null
+      artist: string | null,
+      facultyReserveEnabled: boolean
     ): Promise<Setup>
     rename(
       id: number,
       name: string,
       sessionDate: string | null,
       engineer: string | null,
-      artist: string | null
+      artist: string | null,
+      facultyReserveEnabled: boolean
     ): Promise<void>
     saveItems(setupId: number, items: SetupItemInput[]): Promise<SetupItem[]>
     remove(id: number): Promise<void>

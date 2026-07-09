@@ -9,7 +9,12 @@ interface CatalogState {
   outboardGear: OutboardGear[]
   loading: boolean
 
-  loadForStudio(studioId: number, buildingId: number | null, setupId?: number | null): Promise<void>
+  loadForStudio(
+    studioId: number,
+    buildingId: number | null,
+    setupId?: number | null,
+    facultyReserveEnabled?: boolean
+  ): Promise<void>
 }
 
 export const useCatalogStore = create<CatalogState>((set) => ({
@@ -20,12 +25,12 @@ export const useCatalogStore = create<CatalogState>((set) => ({
   outboardGear: [],
   loading: false,
 
-  loadForStudio: async (studioId, buildingId, setupId) => {
+  loadForStudio: async (studioId, buildingId, setupId, facultyReserveEnabled) => {
     set({ loading: true, studioId, buildingId })
     const [studio, mics, outboardGear] = await Promise.all([
       window.api.studios.get(studioId),
-      window.api.mics.listAvailableForStudio(studioId, setupId),
-      window.api.outboard.listAvailableForStudio(studioId, setupId)
+      window.api.mics.listAvailableForStudio(studioId, setupId, facultyReserveEnabled),
+      window.api.outboard.listAvailableForStudio(studioId, setupId, facultyReserveEnabled)
     ])
     set({ mics, outboardGear, isTemporary: studio?.isTemporary ?? false, loading: false })
   }

@@ -61,7 +61,8 @@ export default function BuildingStudioPicker(): JSX.Element {
       details.sessionDate,
       details.folderId,
       details.engineer,
-      details.artist
+      details.artist,
+      false
     )
     goToSetup(buildingId, selectedStudio.id, setup.id)
   }

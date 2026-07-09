@@ -12,9 +12,6 @@ export interface Studio {
   isTemporary: boolean
   sortOrder: number
   createdAt: string
-  /** Custom (non-Berklee) studios only: opts a studio without a building into seeing Faculty
-   *  Reserve gear, which otherwise only appears for real Berklee studios (buildingId != null). */
-  facultyReserveEnabled: boolean
 }
 
 export interface RoomLayoutFile {
@@ -70,7 +67,6 @@ export interface OutboardGearWithStudio extends OutboardGear {
 }
 
 export const APP_SETTINGS_KEYS = {
-  facultyReserveEnabled: 'faculty_reserve_enabled',
   defaultEngineerName: 'default_engineer_name',
   defaultPdfExportInclude: 'default_pdf_export_include'
 } as const

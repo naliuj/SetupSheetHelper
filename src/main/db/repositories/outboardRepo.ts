@@ -2,8 +2,6 @@ import type { OutboardGear, OutboardGearWithStudio, OutboardPoolType } from '@sh
 import type { OutboardUpsertInput } from '@shared/types/ipc'
 import { getDb } from '../index'
 import { getStudio } from './studiosRepo'
-import { getSetting } from './settingsRepo'
-import { APP_SETTINGS_KEYS } from '@shared/types/entities'
 
 interface OutboardRow {
   id: number
@@ -74,13 +72,15 @@ export function listSetupGear(setupId: number): OutboardGear[] {
 
 /** Union of a studio's own outboard gear, its building's shared pool, the user's personal gear
  *  locker (always included), the current setup's own borrowed-gear locker (if a setupId is
- *  given), and (only if enabled in app settings) the global faculty reserve — mirrors
+ *  given), and the global faculty reserve if this setup has opted in — mirrors
  *  micsRepo.listAvailableForStudio exactly. */
-export function listAvailableForStudio(studioId: number, setupId?: number | null): OutboardGear[] {
+export function listAvailableForStudio(
+  studioId: number,
+  setupId?: number | null,
+  facultyReserveEnabledForSetup?: boolean
+): OutboardGear[] {
   const studio = getStudio(studioId)
   if (!studio) return []
-
-  const facultyReserveEnabled = getSetting(APP_SETTINGS_KEYS.facultyReserveEnabled) === '1'
 
   const gear = [
     ...listOutboardByStudio(studioId),
@@ -88,7 +88,7 @@ export function listAvailableForStudio(studioId: number, setupId?: number | null
     ...listPersonalOutboard(),
     ...(setupId != null ? listSetupGear(setupId) : [])
   ]
-  if (facultyReserveEnabled && (studio.buildingId != null || studio.facultyReserveEnabled)) {
+  if (facultyReserveEnabledForSetup) {
     gear.push(...listFacultyReserve())
   }
   return gear

@@ -60,6 +60,9 @@ export interface Setup {
   sortOrder: number
   createdAt: string
   updatedAt: string
+  /** Off by default — students don't have access to faculty reserve gear. The sole gate for
+   *  whether this setup can see it, regardless of which studio it belongs to. */
+  facultyReserveEnabled: boolean
 }
 
 export interface SetupWithItems extends Setup {

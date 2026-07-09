@@ -18,16 +18,12 @@ export function registerStudioHandlers(): void {
   ipcMain.handle(IPC.studios.create, (_e, buildingId: number, name: string) =>
     studiosRepo.createStudio(buildingId, name)
   )
-  ipcMain.handle(
-    IPC.studios.createCustom,
-    (_e, name: string, folderId: number | null, facultyReserveEnabled: boolean) =>
-      studiosRepo.createCustomStudio(name, folderId, facultyReserveEnabled)
+  ipcMain.handle(IPC.studios.createCustom, (_e, name: string, folderId: number | null) =>
+    studiosRepo.createCustomStudio(name, folderId)
   )
   ipcMain.handle(IPC.studios.createTemporary, () => studiosRepo.createTemporaryStudio())
-  ipcMain.handle(
-    IPC.studios.updateCustomDetails,
-    (_e, id: number, name: string, folderId: number | null, facultyReserveEnabled: boolean) =>
-      studiosRepo.updateCustomStudio(id, name, folderId, facultyReserveEnabled)
+  ipcMain.handle(IPC.studios.updateCustomDetails, (_e, id: number, name: string, folderId: number | null) =>
+    studiosRepo.updateCustomStudio(id, name, folderId)
   )
   ipcMain.handle(IPC.studios.rename, (_e, id: number, name: string) => studiosRepo.renameStudio(id, name))
   ipcMain.handle(IPC.studios.remove, (_e, id: number) => studiosRepo.removeStudioCascade(id))

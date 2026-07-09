@@ -123,7 +123,6 @@ export default function StudioSetupPage(): JSX.Element {
   const isEditing = studioSetupId != null
 
   const [name, setName] = useState('Untitled Studio')
-  const [facultyReserveEnabled, setFacultyReserveEnabled] = useState(false)
   const [pendingMics, setPendingMics] = useState<PendingItem[]>([])
   const [pendingOutboard, setPendingOutboard] = useState<PendingItem[]>([])
   const [removedMicIds, setRemovedMicIds] = useState<Set<number>>(new Set())
@@ -170,7 +169,6 @@ export default function StudioSetupPage(): JSX.Element {
       window.api.studios.get(studioSetupId).then((studio) => {
         if (!studio) return
         setName(studio.name)
-        setFacultyReserveEnabled(studio.facultyReserveEnabled)
         setSelection(studio.folderId != null ? String(studio.folderId) : NO_FOLDER_VALUE)
       })
       window.api.mics.listStudioMics(studioSetupId).then((mics) =>
@@ -199,7 +197,6 @@ export default function StudioSetupPage(): JSX.Element {
       )
     } else {
       setName('Untitled Studio')
-      setFacultyReserveEnabled(false)
       setPendingMics([])
       setPendingOutboard([])
     }
@@ -275,7 +272,7 @@ export default function StudioSetupPage(): JSX.Element {
     if (activeStudioId) return activeStudioId
     if (!name.trim()) return null
     const folderId = await resolveFolderId()
-    const created = await window.api.studios.createCustom(name.trim(), folderId, facultyReserveEnabled)
+    const created = await window.api.studios.createCustom(name.trim(), folderId)
     setCreatedStudioId(created.id)
     return created.id
   }
@@ -306,9 +303,8 @@ export default function StudioSetupPage(): JSX.Element {
       const folderId = await resolveFolderId()
 
       const studioId = activeStudioId
-        ? (await window.api.studios.updateCustomDetails(activeStudioId, name.trim(), folderId, facultyReserveEnabled))
-            .id
-        : (await window.api.studios.createCustom(name.trim(), folderId, facultyReserveEnabled)).id
+        ? (await window.api.studios.updateCustomDetails(activeStudioId, name.trim(), folderId)).id
+        : (await window.api.studios.createCustom(name.trim(), folderId)).id
 
       for (const id of removedMicIds) await window.api.mics.remove(id)
       for (const id of removedOutboardIds) await window.api.outboard.remove(id)
@@ -394,15 +390,6 @@ export default function StudioSetupPage(): JSX.Element {
       </div>
 
       <div style={{ flex: 1, overflow: 'auto', padding: 16 }}>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-          <input
-            type="checkbox"
-            checked={facultyReserveEnabled}
-            onChange={(e) => setFacultyReserveEnabled(e.target.checked)}
-          />
-          Show faculty reserve mics for this studio (normally Berklee-only)
-        </label>
-
         <button className="btn" style={{ marginBottom: 16 }} onClick={() => setImportModalOpen(true)}>
           Import Gear from Another Studio…
         </button>

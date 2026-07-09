@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { Mic, MicWithStudio, OutboardGear, OutboardGearWithStudio } from '@shared/types/entities'
+import type { Mic, OutboardGear } from '@shared/types/entities'
 import { guessManufacturer } from '@shared/constants/manufacturers'
 import { stripManufacturerPrefix } from '@shared/utils/manufacturerPrefix'
 import { useGearCatalogueSuggestions } from '@renderer/state/useGearCatalogueSuggestions'
@@ -10,7 +10,7 @@ function PersonalMicsSection({
   catalogueMics
 }: {
   manufacturerSuggestions: string[]
-  catalogueMics: MicWithStudio[]
+  catalogueMics: Mic[]
 }): JSX.Element {
   const [mics, setMics] = useState<Mic[]>([])
   const [name, setName] = useState('')
@@ -152,7 +152,7 @@ function PersonalOutboardSection({
   catalogueOutboard
 }: {
   manufacturerSuggestions: string[]
-  catalogueOutboard: OutboardGearWithStudio[]
+  catalogueOutboard: OutboardGear[]
 }): JSX.Element {
   const [gear, setGear] = useState<OutboardGear[]>([])
   const [name, setName] = useState('')

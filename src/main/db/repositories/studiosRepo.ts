@@ -8,7 +8,6 @@ interface StudioRow {
   folder_id: number | null
   name: string
   is_temporary: number
-  faculty_reserve_enabled: number
   sort_order: number
   created_at: string
 }
@@ -21,8 +20,7 @@ function mapRow(row: StudioRow): Studio {
     name: row.name,
     isTemporary: row.is_temporary === 1,
     sortOrder: row.sort_order,
-    createdAt: row.created_at,
-    facultyReserveEnabled: row.faculty_reserve_enabled === 1
+    createdAt: row.created_at
   }
 }
 
@@ -55,14 +53,10 @@ export function createStudio(buildingId: number, name: string): Studio {
 }
 
 /** Creates a custom studio with no building — organized (optionally) by folder instead. */
-export function createCustomStudio(
-  name: string,
-  folderId: number | null = null,
-  facultyReserveEnabled = false
-): Studio {
+export function createCustomStudio(name: string, folderId: number | null = null): Studio {
   const info = getDb()
-    .prepare('INSERT INTO studios (building_id, folder_id, name, faculty_reserve_enabled) VALUES (NULL, ?, ?, ?)')
-    .run(folderId, name, facultyReserveEnabled ? 1 : 0)
+    .prepare('INSERT INTO studios (building_id, folder_id, name) VALUES (NULL, ?, ?)')
+    .run(folderId, name)
   const row = getDb().prepare('SELECT * FROM studios WHERE id = ?').get(info.lastInsertRowid) as StudioRow
   return mapRow(row)
 }
@@ -80,21 +74,11 @@ export function renameStudio(id: number, name: string): void {
   getDb().prepare('UPDATE studios SET name = ? WHERE id = ?').run(name, id)
 }
 
-/** Updates a custom studio's name, folder, and Faculty Reserve override together — used by the
- *  full-window studio setup page. */
-export function updateCustomStudio(
-  id: number,
-  name: string,
-  folderId: number | null,
-  facultyReserveEnabled: boolean
-): Studio {
+/** Updates a custom studio's name and folder together — used by the full-window studio setup
+ *  page. */
+export function updateCustomStudio(id: number, name: string, folderId: number | null): Studio {
   const db = getDb()
-  db.prepare('UPDATE studios SET name = ?, folder_id = ?, faculty_reserve_enabled = ? WHERE id = ?').run(
-    name,
-    folderId,
-    facultyReserveEnabled ? 1 : 0,
-    id
-  )
+  db.prepare('UPDATE studios SET name = ?, folder_id = ? WHERE id = ?').run(name, folderId, id)
   const row = db.prepare('SELECT * FROM studios WHERE id = ?').get(id) as StudioRow
   return mapRow(row)
 }

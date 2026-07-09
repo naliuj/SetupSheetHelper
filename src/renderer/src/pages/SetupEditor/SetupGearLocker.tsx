@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { Mic, MicWithStudio, OutboardGear, OutboardGearWithStudio } from '@shared/types/entities'
+import type { Mic, OutboardGear } from '@shared/types/entities'
 import { guessManufacturer } from '@shared/constants/manufacturers'
 import { stripManufacturerPrefix } from '@shared/utils/manufacturerPrefix'
 import { useGearCatalogueSuggestions } from '@renderer/state/useGearCatalogueSuggestions'
@@ -12,7 +12,7 @@ function SessionMicsSection({
 }: {
   setupId: number
   manufacturerSuggestions: string[]
-  catalogueMics: MicWithStudio[]
+  catalogueMics: Mic[]
 }): JSX.Element {
   const [mics, setMics] = useState<Mic[]>([])
   const [name, setName] = useState('')
@@ -161,7 +161,7 @@ function SessionOutboardSection({
 }: {
   setupId: number
   manufacturerSuggestions: string[]
-  catalogueOutboard: OutboardGearWithStudio[]
+  catalogueOutboard: OutboardGear[]
 }): JSX.Element {
   const [gear, setGear] = useState<OutboardGear[]>([])
   const [name, setName] = useState('')
@@ -303,34 +303,22 @@ function SessionOutboardSection({
 
 interface Props {
   setupId: number
-  onClose: () => void
 }
 
 /** Gear specific to this one session (e.g. borrowed items) — not saved to the studio's
- *  permanent locker and not visible in any other setup. */
-export default function SetupGearLocker({ setupId, onClose }: Props): JSX.Element {
+ *  permanent locker and not visible in any other setup. Embedded as the "Session Gear" tab of
+ *  SetupSettingsPage, which supplies the shared page shell. */
+export default function SetupGearLocker({ setupId }: Props): JSX.Element {
   const { manufacturers, mics, outboard } = useGearCatalogueSuggestions()
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 640 }}>
-        <h2 style={{ marginTop: 0 }}>Session Gear</h2>
-        <p className="card-sub" style={{ marginTop: 0 }}>
-          Gear for this session only — e.g. borrowed mics or outboard. Not saved to the studio's locker and won't
-          show up in any other setup.
-        </p>
-        <SessionMicsSection setupId={setupId} manufacturerSuggestions={manufacturers} catalogueMics={mics} />
-        <SessionOutboardSection
-          setupId={setupId}
-          manufacturerSuggestions={manufacturers}
-          catalogueOutboard={outboard}
-        />
-        <div className="modal-actions">
-          <button className="btn primary" onClick={onClose}>
-            Done
-          </button>
-        </div>
-      </div>
+    <div>
+      <p className="card-sub" style={{ marginTop: 0 }}>
+        Gear for this session only — e.g. borrowed mics or outboard. Not saved to the studio's locker and won't show
+        up in any other setup.
+      </p>
+      <SessionMicsSection setupId={setupId} manufacturerSuggestions={manufacturers} catalogueMics={mics} />
+      <SessionOutboardSection setupId={setupId} manufacturerSuggestions={manufacturers} catalogueOutboard={outboard} />
     </div>
   )
 }

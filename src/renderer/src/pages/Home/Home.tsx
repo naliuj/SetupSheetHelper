@@ -86,7 +86,8 @@ export default function Home(): JSX.Element {
       details.sessionDate,
       details.folderId,
       details.engineer,
-      details.artist
+      details.artist,
+      false
     )
     goToSetup(pendingSelection.buildingId, pendingSelection.studioId, setup.id)
     setPendingSelection(null)

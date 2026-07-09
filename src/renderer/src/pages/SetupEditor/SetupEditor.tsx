@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type Konva from 'konva'
 import { APP_SETTINGS_KEYS } from '@shared/types/entities'
 import { useNavigationStore } from '@renderer/state/navigationStore'
@@ -10,6 +10,7 @@ import LayoutStage from './canvas/LayoutStage'
 import SetupSheetTable from './table/SetupSheetTable'
 import AddSourceControl from './table/AddSourceControl'
 import SetupToolbar from './SetupToolbar'
+import SetupSettingsPage from './SetupSettingsPage'
 
 const AUTOSAVE_DELAY_MS = 1000
 
@@ -21,6 +22,8 @@ export default function SetupEditor(): JSX.Element {
   const mode = useNavigationStore((s) => s.editorMode)
   const setMode = useNavigationStore((s) => s.setEditorMode)
 
+  const [settingsOpen, setSettingsOpen] = useState(false)
+
   const startNewSetup = useSetupStore((s) => s.startNewSetup)
   const loadFromSetup = useSetupStore((s) => s.loadFromSetup)
   const loadLayoutBlocks = useLayoutStore((s) => s.loadForSetup)
@@ -31,6 +34,7 @@ export default function SetupEditor(): JSX.Element {
   const sessionDate = useSetupStore((s) => s.sessionDate)
   const engineer = useSetupStore((s) => s.engineer)
   const artist = useSetupStore((s) => s.artist)
+  const facultyReserveEnabled = useSetupStore((s) => s.facultyReserveEnabled)
   const isDirty = useSetupStore((s) => s.isDirty)
   const save = useSetupStore((s) => s.save)
 
@@ -42,7 +46,6 @@ export default function SetupEditor(): JSX.Element {
 
   useEffect(() => {
     if (!studioId) return
-    loadCatalog(studioId, buildingId, setupId)
     loadLayoutBlocks(setupId)
 
     if (setupId) {
@@ -63,6 +66,16 @@ export default function SetupEditor(): JSX.Element {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [studioId, buildingId, setupId])
 
+  // Separate from the load effect above: re-runs whenever facultyReserveEnabled changes (not
+  // just on studio/setup switch), so toggling the Setup Settings checkbox reflects in the "Add
+  // from Catalogue" dropdowns immediately — no save required first. Also naturally re-fires
+  // once loadFromSetup (above) populates the real persisted value shortly after mount, since
+  // it starts as the store's default before that resolves.
+  useEffect(() => {
+    if (!studioId) return
+    loadCatalog(studioId, buildingId, setupId, facultyReserveEnabled)
+  }, [studioId, buildingId, setupId, facultyReserveEnabled, loadCatalog])
+
   // Debounced autosave: any dirty change (re)starts a short timer that saves once things
   // settle, instead of hammering a full items-table replace on every keystroke/drag. Table
   // Mode's setupStore and Layout Mode's layoutStore are fully independent, but both flush on
@@ -74,7 +87,19 @@ export default function SetupEditor(): JSX.Element {
       if (layoutIsDirty) saveLayout()
     }, AUTOSAVE_DELAY_MS)
     return () => clearTimeout(timer)
-  }, [items, name, sessionDate, engineer, artist, isDirty, save, layoutBlocks, layoutIsDirty, saveLayout])
+  }, [
+    items,
+    name,
+    sessionDate,
+    engineer,
+    artist,
+    facultyReserveEnabled,
+    isDirty,
+    save,
+    layoutBlocks,
+    layoutIsDirty,
+    saveLayout
+  ])
 
   // Flush any pending edit immediately when leaving the editor, so a quick navigation away
   // right after typing/dragging doesn't lose the last second of work.
@@ -95,12 +120,21 @@ export default function SetupEditor(): JSX.Element {
     )
   }
 
+  if (settingsOpen && setupId) {
+    return <SetupSettingsPage setupId={setupId} onBack={() => setSettingsOpen(false)} />
+  }
+
   return (
     <div className="page" style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: 0 }}>
       <div className="nav-crumbs" style={{ padding: '10px 16px 0' }}>
         <button onClick={goToHome}>Home</button> / Setup Editor
       </div>
-      <SetupToolbar stageRef={stageRef} mode={mode} onToggleMode={setMode} />
+      <SetupToolbar
+        stageRef={stageRef}
+        mode={mode}
+        onToggleMode={setMode}
+        onOpenSettings={() => setSettingsOpen(true)}
+      />
       {mode === 'table' ? (
         <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
           <AddSourceControl />

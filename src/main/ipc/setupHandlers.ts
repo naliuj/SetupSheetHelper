@@ -16,8 +16,20 @@ export function registerSetupHandlers(): void {
       sessionDate: string | null,
       folderId: number | null,
       engineer: string | null,
-      artist: string | null
-    ) => setupsRepo.createSetup(studioId, name, sessionDate, 'setup', null, folderId, engineer, artist)
+      artist: string | null,
+      facultyReserveEnabled: boolean
+    ) =>
+      setupsRepo.createSetup(
+        studioId,
+        name,
+        sessionDate,
+        'setup',
+        null,
+        folderId,
+        engineer,
+        artist,
+        facultyReserveEnabled
+      )
   )
   ipcMain.handle(
     IPC.setups.rename,
@@ -27,8 +39,9 @@ export function registerSetupHandlers(): void {
       name: string,
       sessionDate: string | null,
       engineer: string | null,
-      artist: string | null
-    ) => setupsRepo.renameSetup(id, name, sessionDate, engineer, artist)
+      artist: string | null,
+      facultyReserveEnabled: boolean
+    ) => setupsRepo.renameSetup(id, name, sessionDate, engineer, artist, facultyReserveEnabled)
   )
   ipcMain.handle(IPC.setups.saveItems, (_e, setupId: number, items: SetupItemInput[]) => {
     const saved = setupItemsRepo.replaceItemsForSetup(setupId, items)

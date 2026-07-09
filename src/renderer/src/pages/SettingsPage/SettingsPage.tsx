@@ -22,28 +22,17 @@ export default function SettingsPage(): JSX.Element {
   const goToHome = useNavigationStore((s) => s.goToHome)
   const closeSettings = useNavigationStore((s) => s.closeSettings)
   const [activeTab, setActiveTab] = useState<Tab>('general')
-  const [enabled, setEnabled] = useState(false)
   const [defaultEngineerName, setDefaultEngineerName] = useState('')
   const [loaded, setLoaded] = useState(false)
   const [subview, setSubview] = useState<Subview>({ kind: 'main' })
   const [importMessage, setImportMessage] = useState<string | null>(null)
 
   useEffect(() => {
-    Promise.all([
-      window.api.settings.get(APP_SETTINGS_KEYS.facultyReserveEnabled),
-      window.api.settings.get(APP_SETTINGS_KEYS.defaultEngineerName)
-    ]).then(([facultyReserveValue, engineerValue]) => {
-      setEnabled(facultyReserveValue === '1')
+    window.api.settings.get(APP_SETTINGS_KEYS.defaultEngineerName).then((engineerValue) => {
       setDefaultEngineerName(engineerValue ?? '')
       setLoaded(true)
     })
   }, [])
-
-  async function toggle(): Promise<void> {
-    const next = !enabled
-    setEnabled(next)
-    await window.api.settings.set(APP_SETTINGS_KEYS.facultyReserveEnabled, next ? '1' : '0')
-  }
 
   async function handleDefaultEngineerNameBlur(): Promise<void> {
     await window.api.settings.set(APP_SETTINGS_KEYS.defaultEngineerName, defaultEngineerName.trim())
@@ -121,17 +110,7 @@ export default function SettingsPage(): JSX.Element {
 
       {activeTab === 'general' && (
         <div className="panel">
-          <label style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <input type="checkbox" checked={enabled} onChange={toggle} />
-            Show Faculty Reserve mics in the mic picker
-          </label>
-          <p className="card-sub" style={{ marginTop: 8 }}>
-            Off by default — students shouldn't see or request faculty reserve mics. Enable this only when a
-            faculty or staff member is planning the session. Even when on, Faculty Reserve only shows up for
-            Berklee studios by default — other studios can opt in individually from their studio's setup page.
-          </p>
-
-          <div style={{ marginTop: 20 }}>
+          <div>
             <label style={{ display: 'block', marginBottom: 4 }}>Default engineer name</label>
             <input
               value={defaultEngineerName}

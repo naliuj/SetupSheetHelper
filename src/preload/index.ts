@@ -13,11 +13,10 @@ const api: RendererApi = {
     listCustom: () => ipcRenderer.invoke(IPC.studios.listCustom),
     get: (id) => ipcRenderer.invoke(IPC.studios.get, id),
     create: (buildingId, name) => ipcRenderer.invoke(IPC.studios.create, buildingId, name),
-    createCustom: (name, folderId, facultyReserveEnabled) =>
-      ipcRenderer.invoke(IPC.studios.createCustom, name, folderId, facultyReserveEnabled),
+    createCustom: (name, folderId) => ipcRenderer.invoke(IPC.studios.createCustom, name, folderId),
     createTemporary: () => ipcRenderer.invoke(IPC.studios.createTemporary),
-    updateCustomDetails: (id, name, folderId, facultyReserveEnabled) =>
-      ipcRenderer.invoke(IPC.studios.updateCustomDetails, id, name, folderId, facultyReserveEnabled),
+    updateCustomDetails: (id, name, folderId) =>
+      ipcRenderer.invoke(IPC.studios.updateCustomDetails, id, name, folderId),
     rename: (id, name) => ipcRenderer.invoke(IPC.studios.rename, id, name),
     remove: (id) => ipcRenderer.invoke(IPC.studios.remove, id),
     exportToFile: (studioIds) => ipcRenderer.invoke(IPC.studios.exportToFile, studioIds),
@@ -28,8 +27,8 @@ const api: RendererApi = {
     getDeleteImpact: (id) => ipcRenderer.invoke(IPC.studios.getDeleteImpact, id)
   },
   mics: {
-    listAvailableForStudio: (studioId, setupId) =>
-      ipcRenderer.invoke(IPC.mics.listAvailableForStudio, studioId, setupId),
+    listAvailableForStudio: (studioId, setupId, facultyReserveEnabledForSetup) =>
+      ipcRenderer.invoke(IPC.mics.listAvailableForStudio, studioId, setupId, facultyReserveEnabledForSetup),
     listStudioMics: (studioId) => ipcRenderer.invoke(IPC.mics.listStudioMics, studioId),
     listBuildingPool: (buildingId) => ipcRenderer.invoke(IPC.mics.listBuildingPool, buildingId),
     listFacultyReserve: () => ipcRenderer.invoke(IPC.mics.listFacultyReserve),
@@ -42,8 +41,8 @@ const api: RendererApi = {
   },
   outboard: {
     listByStudio: (studioId) => ipcRenderer.invoke(IPC.outboard.listByStudio, studioId),
-    listAvailableForStudio: (studioId, setupId) =>
-      ipcRenderer.invoke(IPC.outboard.listAvailableForStudio, studioId, setupId),
+    listAvailableForStudio: (studioId, setupId, facultyReserveEnabledForSetup) =>
+      ipcRenderer.invoke(IPC.outboard.listAvailableForStudio, studioId, setupId, facultyReserveEnabledForSetup),
     listBuildingPool: (buildingId) => ipcRenderer.invoke(IPC.outboard.listBuildingPool, buildingId),
     listFacultyReserve: () => ipcRenderer.invoke(IPC.outboard.listFacultyReserve),
     listPersonalOutboard: () => ipcRenderer.invoke(IPC.outboard.listPersonalOutboard),
@@ -68,10 +67,19 @@ const api: RendererApi = {
     list: (studioId) => ipcRenderer.invoke(IPC.setups.list, studioId),
     listByKind: (filter) => ipcRenderer.invoke(IPC.setups.listByKind, filter),
     getWithItems: (id) => ipcRenderer.invoke(IPC.setups.getWithItems, id),
-    create: (studioId, name, sessionDate, folderId, engineer, artist) =>
-      ipcRenderer.invoke(IPC.setups.create, studioId, name, sessionDate, folderId, engineer, artist),
-    rename: (id, name, sessionDate, engineer, artist) =>
-      ipcRenderer.invoke(IPC.setups.rename, id, name, sessionDate, engineer, artist),
+    create: (studioId, name, sessionDate, folderId, engineer, artist, facultyReserveEnabled) =>
+      ipcRenderer.invoke(
+        IPC.setups.create,
+        studioId,
+        name,
+        sessionDate,
+        folderId,
+        engineer,
+        artist,
+        facultyReserveEnabled
+      ),
+    rename: (id, name, sessionDate, engineer, artist, facultyReserveEnabled) =>
+      ipcRenderer.invoke(IPC.setups.rename, id, name, sessionDate, engineer, artist, facultyReserveEnabled),
     saveItems: (setupId, items) => ipcRenderer.invoke(IPC.setups.saveItems, setupId, items),
     remove: (id) => ipcRenderer.invoke(IPC.setups.remove, id),
     instantiateFromTemplate: (templateId) => ipcRenderer.invoke(IPC.setups.instantiateFromTemplate, templateId),

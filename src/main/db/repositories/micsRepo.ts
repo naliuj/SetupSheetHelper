@@ -2,8 +2,6 @@ import type { Mic, MicPoolType, MicWithStudio } from '@shared/types/entities'
 import type { MicUpsertInput } from '@shared/types/ipc'
 import { getDb } from '../index'
 import { getStudio } from './studiosRepo'
-import { getSetting } from './settingsRepo'
-import { APP_SETTINGS_KEYS } from '@shared/types/entities'
 
 interface MicRow {
   id: number
@@ -75,17 +73,19 @@ export function listSetupGear(setupId: number): Mic[] {
 /**
  * Union of a studio's own locker, its building's shared pool, the user's personal gear
  * locker (always included), the current setup's own borrowed-gear locker (if a setupId is
- * given), and (only if enabled in app settings) the global faculty reserve — students
- * can't access the reserve, so it must stay opt-in rather than on by default. Even with the
- * global setting on, the reserve is Berklee-only by default (studio.buildingId != null);
- * a custom (buildingless) studio only sees it if it's individually opted in via
- * studio.facultyReserveEnabled.
+ * given), and the global faculty reserve if this setup has opted in — students can't access
+ * the reserve, so it must stay opt-in rather than on by default. facultyReserveEnabledForSetup
+ * is passed in live from the caller's current setupStore state, not looked up by setupId, so
+ * toggling the setup's checkbox reflects here immediately without needing a save first — there
+ * is no automatic grant for real Berklee studios; every setup opts in individually.
  */
-export function listAvailableForStudio(studioId: number, setupId?: number | null): Mic[] {
+export function listAvailableForStudio(
+  studioId: number,
+  setupId?: number | null,
+  facultyReserveEnabledForSetup?: boolean
+): Mic[] {
   const studio = getStudio(studioId)
   if (!studio) return []
-
-  const facultyReserveEnabled = getSetting(APP_SETTINGS_KEYS.facultyReserveEnabled) === '1'
 
   // Custom (buildingless) studios have no building-wide shared pool to union in.
   const mics = [
@@ -94,7 +94,7 @@ export function listAvailableForStudio(studioId: number, setupId?: number | null
     ...listPersonalPool(),
     ...(setupId != null ? listSetupGear(setupId) : [])
   ]
-  if (facultyReserveEnabled && (studio.buildingId != null || studio.facultyReserveEnabled)) {
+  if (facultyReserveEnabledForSetup) {
     mics.push(...listFacultyReserve())
   }
   return mics

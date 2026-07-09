@@ -48,6 +48,9 @@ interface SetupState {
   engineer: string | null
   artist: string | null
   folderId: number | null
+  /** Off by default — students don't have access to faculty reserve gear. The sole gate for
+   *  whether this setup can see it, regardless of which studio it belongs to. */
+  facultyReserveEnabled: boolean
   items: SetupItemDraft[]
   /** Contiguous row selection (click = single, shift-click = range from the anchor). */
   selectedItemIds: Set<number | string>
@@ -74,6 +77,7 @@ interface SetupState {
   setSessionDate(date: string | null): void
   setEngineer(engineer: string | null): void
   setArtist(artist: string | null): void
+  setFacultyReserveEnabled(enabled: boolean): void
   addItem(instrumentType: string, defaults?: NewItemDefaults): string
   addItemAt(instrumentType: string, defaults: NewItemDefaults): string
   updateItemFields(id: number | string, patch: Partial<SetupItemDraft>): void
@@ -101,6 +105,7 @@ export const useSetupStore = create<SetupState>()(
   engineer: null,
   artist: null,
   folderId: null,
+  facultyReserveEnabled: false,
   items: [],
   selectedItemIds: new Set<number | string>(),
   selectionAnchorId: null,
@@ -120,6 +125,7 @@ export const useSetupStore = create<SetupState>()(
       engineer,
       artist,
       folderId,
+      facultyReserveEnabled: false,
       items: [],
       selectedItemIds: new Set(),
       selectionAnchorId: null,
@@ -138,6 +144,7 @@ export const useSetupStore = create<SetupState>()(
       engineer: setup.engineer,
       artist: setup.artist,
       folderId: setup.folderId,
+      facultyReserveEnabled: setup.facultyReserveEnabled,
       items: setup.items,
       selectedItemIds: new Set(),
       selectionAnchorId: null,
@@ -150,6 +157,7 @@ export const useSetupStore = create<SetupState>()(
   setSessionDate: (sessionDate) => set({ sessionDate, isDirty: true }),
   setEngineer: (engineer) => set({ engineer, isDirty: true }),
   setArtist: (artist) => set({ artist, isDirty: true }),
+  setFacultyReserveEnabled: (facultyReserveEnabled) => set({ facultyReserveEnabled, isDirty: true }),
 
   addItem: (instrumentType, defaults) => get().addItemAt(instrumentType, defaults ?? {}),
 
@@ -310,11 +318,19 @@ export const useSetupStore = create<SetupState>()(
           state.sessionDate,
           state.folderId,
           state.engineer,
-          state.artist
+          state.artist,
+          state.facultyReserveEnabled
         )
         setupId = created.id
       } else {
-        await window.api.setups.rename(setupId, state.name, state.sessionDate, state.engineer, state.artist)
+        await window.api.setups.rename(
+          setupId,
+          state.name,
+          state.sessionDate,
+          state.engineer,
+          state.artist,
+          state.facultyReserveEnabled
+        )
       }
 
       const saved = await window.api.setups.saveItems(
@@ -335,7 +351,8 @@ export const useSetupStore = create<SetupState>()(
         name: state.name,
         sessionDate: state.sessionDate,
         engineer: state.engineer,
-        artist: state.artist
+        artist: state.artist,
+        facultyReserveEnabled: state.facultyReserveEnabled
       }),
       limit: 100
     }

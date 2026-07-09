@@ -7,7 +7,6 @@ import { useLayoutStore } from '@renderer/state/layoutStore'
 import type { EditorMode } from '@renderer/state/navigationStore'
 import { exportStageToDataUrl } from './canvas/konvaExport'
 import SaveAsTemplateModal from './SaveAsTemplateModal'
-import SetupGearLocker from './SetupGearLocker'
 import ExportOptionsModal from './ExportOptionsModal'
 import RequireLayoutFileModal from './RequireLayoutFileModal'
 import { useBufferedField } from './table/useBufferedField'
@@ -17,9 +16,10 @@ interface Props {
   stageRef: React.RefObject<Konva.Stage | null>
   mode: EditorMode
   onToggleMode: (mode: EditorMode) => void
+  onOpenSettings: () => void
 }
 
-export default function SetupToolbar({ stageRef, mode, onToggleMode }: Props): JSX.Element {
+export default function SetupToolbar({ stageRef, mode, onToggleMode, onOpenSettings }: Props): JSX.Element {
   const setupId = useSetupStore((s) => s.setupId)
   const studioId = useSetupStore((s) => s.studioId)
   const name = useSetupStore((s) => s.name)
@@ -41,7 +41,6 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode }: Props): J
   const [exporting, setExporting] = useState(false)
   const [exportMessage, setExportMessage] = useState<string | null>(null)
   const [templateModalOpen, setTemplateModalOpen] = useState(false)
-  const [gearLockerOpen, setGearLockerOpen] = useState(false)
   const [exportModalOpen, setExportModalOpen] = useState(false)
   const [defaultExportInclude, setDefaultExportInclude] = useState<PdfExportInclude>('both')
   const [layoutGateOpen, setLayoutGateOpen] = useState(false)
@@ -141,7 +140,7 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode }: Props): J
   }
 
   // These actions live in the native File/Edit menus (Save Setup / Save as Studio / Export
-  // PDF / Toggle Mode / Add Source / Delete Selected Row / Open Session Gear / Undo / Redo)
+  // PDF / Toggle Mode / Add Source / Delete Selected Row / Setup Settings / Undo / Redo)
   // instead of toolbar buttons — this listener only exists while a setup is open, so the menu
   // items are harmless no-ops from any other screen. Re-subscribes on `mode`/`selectedItemIds`/
   // `studioId` change so the toggle and delete cases always act on current state, not a stale
@@ -170,8 +169,8 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode }: Props): J
         case 'sequential-numbering':
           if (mode === 'table') setSequentialNumberingOpen(true)
           break
-        case 'open-session-gear':
-          setGearLockerOpen(true)
+        case 'open-setup-settings':
+          onOpenSettings()
           break
         case 'undo':
           handleUndoRedo('undo')
@@ -182,7 +181,7 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode }: Props): J
       }
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, selectedItemIds, studioId])
+  }, [mode, selectedItemIds, studioId, onOpenSettings])
 
   return (
     <div className="top-bar" style={{ borderTop: '1px solid var(--color-border)' }}>
@@ -245,8 +244,8 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode }: Props): J
       {isSaving && <span className="card-sub">Saving…</span>}
       {exporting && <span className="card-sub">Exporting…</span>}
       {setupId && (
-        <button className="btn" onClick={() => setGearLockerOpen(true)}>
-          Session Gear
+        <button className="btn" onClick={onOpenSettings}>
+          Setup Settings
         </button>
       )}
       <button className="btn" onClick={requestToggleMode}>
@@ -254,9 +253,6 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode }: Props): J
       </button>
       {templateModalOpen && (
         <SaveAsTemplateModal onClose={() => setTemplateModalOpen(false)} onSave={handleSaveAsTemplate} />
-      )}
-      {gearLockerOpen && setupId && (
-        <SetupGearLocker setupId={setupId} onClose={() => setGearLockerOpen(false)} />
       )}
       {exportModalOpen && (
         <ExportOptionsModal

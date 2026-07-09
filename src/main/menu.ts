@@ -33,7 +33,7 @@ export function installAppMenu(mainWindow: BrowserWindow): void {
         { label: 'Delete Selected Rows', accelerator: 'CmdOrCtrl+Backspace', click: () => send('delete-row') },
         { label: 'Sequential Numbering…', accelerator: 'CmdOrCtrl+Shift+N', click: () => send('sequential-numbering') },
         { type: 'separator' },
-        { label: 'Open Session Gear', accelerator: 'CmdOrCtrl+G', click: () => send('open-session-gear') }
+        { label: 'Setup Settings…', accelerator: 'CmdOrCtrl+G', click: () => send('open-setup-settings') }
       ]
     },
     { role: 'viewMenu' },

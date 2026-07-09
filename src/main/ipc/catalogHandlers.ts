@@ -5,8 +5,10 @@ import * as outboardRepo from '../db/repositories/outboardRepo'
 import * as settingsRepo from '../db/repositories/settingsRepo'
 
 export function registerCatalogHandlers(): void {
-  ipcMain.handle(IPC.mics.listAvailableForStudio, (_e, studioId: number, setupId?: number | null) =>
-    micsRepo.listAvailableForStudio(studioId, setupId)
+  ipcMain.handle(
+    IPC.mics.listAvailableForStudio,
+    (_e, studioId: number, setupId?: number | null, facultyReserveEnabledForSetup?: boolean) =>
+      micsRepo.listAvailableForStudio(studioId, setupId, facultyReserveEnabledForSetup)
   )
   ipcMain.handle(IPC.mics.listStudioMics, (_e, studioId: number) => micsRepo.listStudioMics(studioId))
   ipcMain.handle(IPC.mics.listBuildingPool, (_e, buildingId: number) => micsRepo.listBuildingPool(buildingId))
@@ -19,8 +21,10 @@ export function registerCatalogHandlers(): void {
   ipcMain.handle(IPC.mics.remove, (_e, id: number) => micsRepo.removeMic(id))
 
   ipcMain.handle(IPC.outboard.listByStudio, (_e, studioId: number) => outboardRepo.listOutboardByStudio(studioId))
-  ipcMain.handle(IPC.outboard.listAvailableForStudio, (_e, studioId: number, setupId?: number | null) =>
-    outboardRepo.listAvailableForStudio(studioId, setupId)
+  ipcMain.handle(
+    IPC.outboard.listAvailableForStudio,
+    (_e, studioId: number, setupId?: number | null, facultyReserveEnabledForSetup?: boolean) =>
+      outboardRepo.listAvailableForStudio(studioId, setupId, facultyReserveEnabledForSetup)
   )
   ipcMain.handle(IPC.outboard.listBuildingPool, (_e, buildingId: number) => outboardRepo.listBuildingPool(buildingId))
   ipcMain.handle(IPC.outboard.listFacultyReserve, () => outboardRepo.listFacultyReserve())

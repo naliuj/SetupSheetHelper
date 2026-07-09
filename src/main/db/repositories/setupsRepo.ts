@@ -16,6 +16,7 @@ interface SetupRow {
   sort_order: number
   created_at: string
   updated_at: string
+  faculty_reserve_enabled: number
 }
 
 function mapRow(row: SetupRow): Setup {
@@ -31,7 +32,8 @@ function mapRow(row: SetupRow): Setup {
     folderId: row.folder_id,
     sortOrder: row.sort_order,
     createdAt: row.created_at,
-    updatedAt: row.updated_at
+    updatedAt: row.updated_at,
+    facultyReserveEnabled: row.faculty_reserve_enabled === 1
   }
 }
 
@@ -85,14 +87,15 @@ export function createSetup(
   templateSource: TemplateSource | null = null,
   folderId: number | null = null,
   engineer: string | null = null,
-  artist: string | null = null
+  artist: string | null = null,
+  facultyReserveEnabled = false
 ): Setup {
   const db = getDb()
   const info = db
     .prepare(
-      'INSERT INTO setups (studio_id, name, session_date, kind, template_source, folder_id, engineer, artist) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+      'INSERT INTO setups (studio_id, name, session_date, kind, template_source, folder_id, engineer, artist, faculty_reserve_enabled) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
     )
-    .run(studioId, name, sessionDate, kind, templateSource, folderId, engineer, artist)
+    .run(studioId, name, sessionDate, kind, templateSource, folderId, engineer, artist, facultyReserveEnabled ? 1 : 0)
   const row = db.prepare('SELECT * FROM setups WHERE id = ?').get(info.lastInsertRowid) as SetupRow
   return mapRow(row)
 }
@@ -102,13 +105,14 @@ export function renameSetup(
   name: string,
   sessionDate: string | null,
   engineer: string | null = null,
-  artist: string | null = null
+  artist: string | null = null,
+  facultyReserveEnabled = false
 ): void {
   getDb()
     .prepare(
-      `UPDATE setups SET name = ?, session_date = ?, engineer = ?, artist = ?, updated_at = datetime('now') WHERE id = ?`
+      `UPDATE setups SET name = ?, session_date = ?, engineer = ?, artist = ?, faculty_reserve_enabled = ?, updated_at = datetime('now') WHERE id = ?`
     )
-    .run(name, sessionDate, engineer, artist, id)
+    .run(name, sessionDate, engineer, artist, facultyReserveEnabled ? 1 : 0, id)
 }
 
 export function touchSetup(id: number): void {
