@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-09T06:07:02.951Z",
+  "generatedAt": "2026-07-09T23:46:08.505Z",
   "source": "live DB export via scripts/export_berklee_seed_data.cjs",
   "buildings": [
     {
@@ -2690,6 +2690,292 @@
       "notes": null,
       "quantity": 3,
       "sortOrder": 0
+    },
+    {
+      "poolType": "building",
+      "buildingName": "150",
+      "studioName": null,
+      "name": "NT-2A",
+      "manufacturer": "Rode",
+      "category": null,
+      "notes": null,
+      "quantity": 1,
+      "sortOrder": 0
+    },
+    {
+      "poolType": "building",
+      "buildingName": "150",
+      "studioName": null,
+      "name": "OD5",
+      "manufacturer": "Austrian Audio",
+      "category": null,
+      "notes": null,
+      "quantity": 1,
+      "sortOrder": 1
+    },
+    {
+      "poolType": "building",
+      "buildingName": "150",
+      "studioName": null,
+      "name": "CC8-SC",
+      "manufacturer": "Austrian Audio",
+      "category": null,
+      "notes": null,
+      "quantity": 2,
+      "sortOrder": 2
+    },
+    {
+      "poolType": "building",
+      "buildingName": "150",
+      "studioName": null,
+      "name": "Starlight",
+      "manufacturer": "Aston",
+      "category": null,
+      "notes": null,
+      "quantity": 2,
+      "sortOrder": 3
+    },
+    {
+      "poolType": "building",
+      "buildingName": "150",
+      "studioName": null,
+      "name": "Origin",
+      "manufacturer": "Aston",
+      "category": null,
+      "notes": null,
+      "quantity": 1,
+      "sortOrder": 4
+    },
+    {
+      "poolType": "building",
+      "buildingName": "150",
+      "studioName": null,
+      "name": "KSM-27",
+      "manufacturer": "Shure",
+      "category": null,
+      "notes": null,
+      "quantity": 1,
+      "sortOrder": 5
+    },
+    {
+      "poolType": "building",
+      "buildingName": "150",
+      "studioName": null,
+      "name": "SM-57",
+      "manufacturer": "Shure",
+      "category": null,
+      "notes": null,
+      "quantity": 2,
+      "sortOrder": 6
+    },
+    {
+      "poolType": "building",
+      "buildingName": "150",
+      "studioName": null,
+      "name": "520DX",
+      "manufacturer": "Shure",
+      "category": null,
+      "notes": null,
+      "quantity": 1,
+      "sortOrder": 7
+    },
+    {
+      "poolType": "building",
+      "buildingName": "150",
+      "studioName": null,
+      "name": "NT-2000",
+      "manufacturer": "Rode",
+      "category": null,
+      "notes": null,
+      "quantity": 1,
+      "sortOrder": 8
+    },
+    {
+      "poolType": "building",
+      "buildingName": "150",
+      "studioName": null,
+      "name": "OC7",
+      "manufacturer": "Austrian Audio",
+      "category": null,
+      "notes": null,
+      "quantity": 1,
+      "sortOrder": 9
+    },
+    {
+      "poolType": "building",
+      "buildingName": "150",
+      "studioName": null,
+      "name": "CMC-6",
+      "manufacturer": "Peluso",
+      "category": null,
+      "notes": null,
+      "quantity": 2,
+      "sortOrder": 10
+    },
+    {
+      "poolType": "building",
+      "buildingName": "150",
+      "studioName": null,
+      "name": "Stealth",
+      "manufacturer": "Aston",
+      "category": null,
+      "notes": null,
+      "quantity": 1,
+      "sortOrder": 11
+    },
+    {
+      "poolType": "building",
+      "buildingName": "150",
+      "studioName": null,
+      "name": "SM-7B",
+      "manufacturer": "Shure",
+      "category": null,
+      "notes": null,
+      "quantity": 2,
+      "sortOrder": 12
+    },
+    {
+      "poolType": "building",
+      "buildingName": "150",
+      "studioName": null,
+      "name": "SM-58",
+      "manufacturer": "Shure",
+      "category": null,
+      "notes": null,
+      "quantity": 2,
+      "sortOrder": 13
+    },
+    {
+      "poolType": "building",
+      "buildingName": "150",
+      "studioName": null,
+      "name": "Beta-92A",
+      "manufacturer": "Shure",
+      "category": null,
+      "notes": null,
+      "quantity": 1,
+      "sortOrder": 14
+    },
+    {
+      "poolType": "building",
+      "buildingName": "150",
+      "studioName": null,
+      "name": "NTG-2",
+      "manufacturer": "Rode",
+      "category": null,
+      "notes": null,
+      "quantity": 2,
+      "sortOrder": 15
+    },
+    {
+      "poolType": "building",
+      "buildingName": "150",
+      "studioName": null,
+      "name": "M160",
+      "manufacturer": "Beyerdynamic",
+      "category": null,
+      "notes": null,
+      "quantity": 1,
+      "sortOrder": 16
+    },
+    {
+      "poolType": "building",
+      "buildingName": "150",
+      "studioName": null,
+      "name": "TC25",
+      "manufacturer": "Earthworks",
+      "category": null,
+      "notes": null,
+      "quantity": 1,
+      "sortOrder": 17
+    },
+    {
+      "poolType": "building",
+      "buildingName": "150",
+      "studioName": null,
+      "name": "Studio Vocalist",
+      "manufacturer": "Crowley & Trip",
+      "category": null,
+      "notes": null,
+      "quantity": 1,
+      "sortOrder": 18
+    },
+    {
+      "poolType": "building",
+      "buildingName": "150",
+      "studioName": null,
+      "name": "D6X",
+      "manufacturer": "Audix",
+      "category": null,
+      "notes": null,
+      "quantity": 1,
+      "sortOrder": 19
+    },
+    {
+      "poolType": "building",
+      "buildingName": "150",
+      "studioName": null,
+      "name": "AT-M87R",
+      "manufacturer": "Audio Technica",
+      "category": null,
+      "notes": null,
+      "quantity": 1,
+      "sortOrder": 20
+    },
+    {
+      "poolType": "building",
+      "buildingName": "150",
+      "studioName": null,
+      "name": "CM-7",
+      "manufacturer": "Wunder",
+      "category": null,
+      "notes": null,
+      "quantity": 1,
+      "sortOrder": 21
+    },
+    {
+      "poolType": "building",
+      "buildingName": "150",
+      "studioName": null,
+      "name": "CM-12",
+      "manufacturer": "Wunder",
+      "category": null,
+      "notes": null,
+      "quantity": 1,
+      "sortOrder": 22
+    },
+    {
+      "poolType": "building",
+      "buildingName": "150",
+      "studioName": null,
+      "name": "U87 AI",
+      "manufacturer": "Neumann",
+      "category": null,
+      "notes": null,
+      "quantity": 1,
+      "sortOrder": 23
+    },
+    {
+      "poolType": "building",
+      "buildingName": "150",
+      "studioName": null,
+      "name": "Cactus",
+      "manufacturer": "Blue",
+      "category": null,
+      "notes": null,
+      "quantity": 1,
+      "sortOrder": 24
+    },
+    {
+      "poolType": "building",
+      "buildingName": "150",
+      "studioName": null,
+      "name": "TM-1",
+      "manufacturer": "Pearlman",
+      "category": null,
+      "notes": null,
+      "quantity": 1,
+      "sortOrder": 25
     }
   ],
   "outboard": [
