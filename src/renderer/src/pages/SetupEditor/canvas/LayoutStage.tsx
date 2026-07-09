@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Stage, Layer, Transformer } from 'react-konva'
 import type Konva from 'konva'
 import { useLayoutStore } from '@renderer/state/layoutStore'
-import PdfBackgroundImage from './PdfBackgroundImage'
+import LayoutBackground from './LayoutBackground'
 import LayoutBlockIcon from './LayoutBlockIcon'
 import ContextMenu from './ContextMenu'
 import RenameBlockModal from './RenameBlockModal'
@@ -158,7 +158,7 @@ export default function LayoutStage({ studioId, stageRef }: Props): JSX.Element 
         onContextMenu={handleStageContextMenu}
       >
         <Layer>
-          <PdfBackgroundImage studioId={studioId} onSize={(width, height) => setImageSize({ width, height })} />
+          <LayoutBackground studioId={studioId} onSize={(width, height) => setImageSize({ width, height })} />
         </Layer>
         <Layer>
           {blocks.map((block) => (

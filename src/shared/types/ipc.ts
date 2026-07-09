@@ -6,7 +6,7 @@ import type {
   OutboardGear,
   OutboardGearWithStudio,
   OutboardPoolType,
-  RoomLayoutPdf,
+  RoomLayoutFile,
   Studio
 } from './entities'
 import type { ChannelPreset, ChannelPresetItemInput, ChannelPresetWithItems } from './channelPreset'
@@ -60,9 +60,9 @@ export const IPC = {
     upsert: 'outboard:upsert',
     remove: 'outboard:remove'
   },
-  layoutPdf: {
-    getForStudio: 'layoutPdf:getForStudio',
-    importForStudio: 'layoutPdf:importForStudio'
+  layoutFile: {
+    getForStudio: 'layoutFile:getForStudio',
+    importForStudio: 'layoutFile:importForStudio'
   },
   presets: {
     list: 'presets:list',
@@ -300,9 +300,9 @@ export interface RendererApi {
     upsert(input: OutboardUpsertInput): Promise<OutboardGear>
     remove(id: number): Promise<void>
   }
-  layoutPdf: {
-    getForStudio(studioId: number): Promise<RoomLayoutPdf | null>
-    importForStudio(studioId: number): Promise<RoomLayoutPdf | null>
+  layoutFile: {
+    getForStudio(studioId: number): Promise<RoomLayoutFile | null>
+    importForStudio(studioId: number): Promise<RoomLayoutFile | null>
   }
   presets: {
     list(): Promise<ChannelPreset[]>

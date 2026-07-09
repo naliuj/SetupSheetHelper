@@ -4,6 +4,7 @@ import { run as seedBerkleeData } from './002_seed_berklee_data'
 import { run as roomLayoutBlocks } from './003_room_layout_blocks'
 import { run as outboardBuildingFacultyPools } from './004_outboard_building_faculty_pools'
 import { run as channelPresets } from './005_channel_presets'
+import { run as renameLayoutFiles } from './006_rename_layout_files'
 
 export interface SqlMigration {
   version: number
@@ -22,5 +23,6 @@ export const MIGRATIONS: Migration[] = [
   { version: 2, run: seedBerkleeData },
   { version: 3, run: roomLayoutBlocks },
   { version: 4, run: outboardBuildingFacultyPools },
-  { version: 5, run: channelPresets }
+  { version: 5, run: channelPresets },
+  { version: 6, run: renameLayoutFiles }
 ]

@@ -43,7 +43,7 @@ function createWindow(): BrowserWindow {
 app.whenReady().then(() => {
   protocol.handle('app-file', (request) => {
     // Registered as a "standard" scheme, so the URL always has a (placeholder) host — see the
-    // matching renderer-side construction in PdfBackgroundImage.tsx. Parse properly rather than
+    // matching renderer-side construction in LayoutBackground.tsx. Parse properly rather than
     // string-slicing so the real absolute path (a single percent-encoded segment) round-trips
     // correctly regardless of what the host segment happens to be.
     const url = new URL(request.url)

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigationStore } from '@renderer/state/navigationStore'
 import MicLockerEditor from './MicLockerEditor'
 import OutboardEditor from './OutboardEditor'
-import LayoutPdfUploader from './LayoutPdfUploader'
+import LayoutFileUploader from './LayoutFileUploader'
 import BuildingGearPoolEditor from './BuildingGearPoolEditor'
 
 type Tab = 'mics' | 'outboard' | 'layout' | 'buildingPool'
@@ -24,7 +24,7 @@ export default function StudioAdminEditor(): JSX.Element {
   const tabs: { key: Tab; label: string }[] = [
     { key: 'mics', label: 'Mic Locker' },
     { key: 'outboard', label: 'Outboard Gear' },
-    { key: 'layout', label: 'Room Layout PDF' },
+    { key: 'layout', label: 'Room Layout' },
     { key: 'buildingPool', label: 'Building Shared Gear Pool' }
   ]
 
@@ -49,7 +49,7 @@ export default function StudioAdminEditor(): JSX.Element {
       <div className="panel" style={{ marginTop: 16 }}>
         {tab === 'mics' && <MicLockerEditor studioId={studioId} />}
         {tab === 'outboard' && <OutboardEditor studioId={studioId} />}
-        {tab === 'layout' && <LayoutPdfUploader studioId={studioId} />}
+        {tab === 'layout' && <LayoutFileUploader studioId={studioId} />}
         {tab === 'buildingPool' && <BuildingGearPoolEditor buildingId={buildingId} />}
       </div>
     </div>

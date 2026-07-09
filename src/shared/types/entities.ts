@@ -17,11 +17,13 @@ export interface Studio {
   facultyReserveEnabled: boolean
 }
 
-export interface RoomLayoutPdf {
+export interface RoomLayoutFile {
   id: number
   studioId: number
   filePath: string
   originalName: string | null
+  /** PDF-only — the page size in points from pdfjs. Null for image layouts and for PDFs whose
+   *  dimensions failed to parse; the live canvas measures its own rendered size regardless. */
   pageWidthPt: number | null
   pageHeightPt: number | null
   importedAt: string

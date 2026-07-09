@@ -53,9 +53,9 @@ const api: RendererApi = {
     upsert: (input) => ipcRenderer.invoke(IPC.outboard.upsert, input),
     remove: (id) => ipcRenderer.invoke(IPC.outboard.remove, id)
   },
-  layoutPdf: {
-    getForStudio: (studioId) => ipcRenderer.invoke(IPC.layoutPdf.getForStudio, studioId),
-    importForStudio: (studioId) => ipcRenderer.invoke(IPC.layoutPdf.importForStudio, studioId)
+  layoutFile: {
+    getForStudio: (studioId) => ipcRenderer.invoke(IPC.layoutFile.getForStudio, studioId),
+    importForStudio: (studioId) => ipcRenderer.invoke(IPC.layoutFile.importForStudio, studioId)
   },
   presets: {
     list: () => ipcRenderer.invoke(IPC.presets.list),

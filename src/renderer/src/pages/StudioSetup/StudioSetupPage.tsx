@@ -8,6 +8,7 @@ import { indentedFolderLabel } from '@renderer/state/folderTree'
 import { useModelSuggestions } from '@renderer/state/useModelSuggestions'
 import ManufacturerPickerDropdown from '@renderer/components/ManufacturerPickerDropdown'
 import ImportGearModal from './ImportGearModal'
+import LayoutFileUploader from '../StudioAdminEditor/LayoutFileUploader'
 
 interface PendingItem {
   key: string
@@ -137,6 +138,12 @@ export default function StudioSetupPage(): JSX.Element {
   const [outboardCatalogueSource, setOutboardCatalogueSource] = useState<OutboardGear[]>([])
   const [saving, setSaving] = useState(false)
   const [importModalOpen, setImportModalOpen] = useState(false)
+  // Set the first time a brand-new studio gets a row created early — purely so the Room Layout
+  // button has a studioId to attach the upload to before the user has clicked "Save Studio".
+  // Never set when editing an existing studio (studioSetupId already covers that case).
+  const [createdStudioId, setCreatedStudioId] = useState<number | null>(null)
+  const [creatingForLayout, setCreatingForLayout] = useState(false)
+  const activeStudioId = studioSetupId ?? createdStudioId
 
   const { folderOptions, selection, setSelection, newFolderName, setNewFolderName, resolveFolderId } =
     useFolderPicker()
@@ -157,6 +164,7 @@ export default function StudioSetupPage(): JSX.Element {
     window.api.outboard.listAllWithStudio().then(setAllOutboard)
     window.api.mics.listAll().then(setMicCatalogueSource)
     window.api.outboard.listAll().then(setOutboardCatalogueSource)
+    setCreatedStudioId(null)
 
     if (studioSetupId != null) {
       window.api.studios.get(studioSetupId).then((studio) => {
@@ -259,14 +267,46 @@ export default function StudioSetupPage(): JSX.Element {
     setPendingOutboard((prev) => prev.map((o) => (o.key === key ? { ...o, ...patch } : o)))
   }
 
+  // Creates the studio row early if it doesn't exist yet, so the Room Layout button has a real
+  // studioId to attach an upload to before the user has clicked "Save Studio". Returns null if
+  // there's no name yet to create with. Editing an existing studio always short-circuits to its
+  // real id; nothing is created twice.
+  async function ensureStudioExists(): Promise<number | null> {
+    if (activeStudioId) return activeStudioId
+    if (!name.trim()) return null
+    const folderId = await resolveFolderId()
+    const created = await window.api.studios.createCustom(name.trim(), folderId, facultyReserveEnabled)
+    setCreatedStudioId(created.id)
+    return created.id
+  }
+
+  async function handleUploadLayoutBeforeSave(): Promise<void> {
+    setCreatingForLayout(true)
+    try {
+      const id = await ensureStudioExists()
+      if (!id) return
+      await window.api.layoutFile.importForStudio(id)
+    } finally {
+      setCreatingForLayout(false)
+    }
+  }
+
+  // If a studio row was created early purely to back the Room Layout button and the user backs
+  // out without ever clicking "Save Studio", delete it — otherwise it'd linger as an empty,
+  // gearless studio. Editing an existing studio never hits this (createdStudioId stays null).
+  async function handleCancel(): Promise<void> {
+    if (createdStudioId) await window.api.studios.remove(createdStudioId)
+    goToHome()
+  }
+
   async function handleSave(): Promise<void> {
     if (!name.trim()) return
     setSaving(true)
     try {
       const folderId = await resolveFolderId()
 
-      const studioId = isEditing
-        ? (await window.api.studios.updateCustomDetails(studioSetupId!, name.trim(), folderId, facultyReserveEnabled))
+      const studioId = activeStudioId
+        ? (await window.api.studios.updateCustomDetails(activeStudioId, name.trim(), folderId, facultyReserveEnabled))
             .id
         : (await window.api.studios.createCustom(name.trim(), folderId, facultyReserveEnabled)).id
 
@@ -311,7 +351,7 @@ export default function StudioSetupPage(): JSX.Element {
   return (
     <div className="page" style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: 0 }}>
       <div className="nav-crumbs" style={{ padding: '10px 16px 0' }}>
-        <button onClick={goToHome}>Home</button> / {isEditing ? 'Edit Studio' : 'New Studio'}
+        <button onClick={handleCancel}>Home</button> / {isEditing ? 'Edit Studio' : 'New Studio'}
       </div>
 
       <div className="top-bar" style={{ borderTop: '1px solid var(--color-border)' }}>
@@ -345,7 +385,7 @@ export default function StudioSetupPage(): JSX.Element {
           />
         )}
         <div className="spacer" />
-        <button className="btn" onClick={goToHome}>
+        <button className="btn" onClick={handleCancel}>
           Cancel
         </button>
         <button className="btn primary" onClick={handleSave} disabled={saving || !name.trim()}>
@@ -368,8 +408,26 @@ export default function StudioSetupPage(): JSX.Element {
         </button>
 
         <div className="section-title" style={{ marginTop: 0 }}>
-          Mics
+          Room Layout
         </div>
+        {activeStudioId ? (
+          <LayoutFileUploader studioId={activeStudioId} />
+        ) : (
+          <div>
+            <div className="empty-state">No room layout uploaded for this studio yet.</div>
+            <div className="inline-form">
+              <button
+                className="btn primary"
+                onClick={handleUploadLayoutBeforeSave}
+                disabled={!name.trim() || creatingForLayout}
+              >
+                {creatingForLayout ? 'Uploading…' : 'Upload Layout File'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className="section-title">Mics</div>
         <ManufacturerPickerDropdown
           items={catalogueMics}
           usageCounts={new Map()}

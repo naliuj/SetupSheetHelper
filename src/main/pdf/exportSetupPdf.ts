@@ -3,7 +3,7 @@ import { dialog } from 'electron'
 import { writeFileSync } from 'node:fs'
 import type { ExportSetupPdfInput, ExportSetupPdfResult } from '@shared/types/ipc'
 import { getSetupWithItems } from '../db/repositories/setupsRepo'
-import { getLayoutPdfForStudio } from '../db/repositories/roomLayoutPdfRepo'
+import { getLayoutFileForStudio } from '../db/repositories/roomLayoutFileRepo'
 import { getMicById } from '../db/repositories/micsRepo'
 import { getOutboardById } from '../db/repositories/outboardRepo'
 import { stripManufacturerPrefix } from '@shared/utils/manufacturerPrefix'
@@ -38,7 +38,7 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
   const setup = getSetupWithItems(input.setupId)
   if (!setup) return { canceled: true }
 
-  const layout = getLayoutPdfForStudio(setup.studioId)
+  const layout = getLayoutFileForStudio(setup.studioId)
   const conflicts = findTieLineConflicts(setup.items)
 
   const pdfDoc = await PDFDocument.create()

@@ -9,6 +9,7 @@ import { exportStageToDataUrl } from './canvas/konvaExport'
 import SaveAsTemplateModal from './SaveAsTemplateModal'
 import SetupGearLocker from './SetupGearLocker'
 import ExportOptionsModal from './ExportOptionsModal'
+import RequireLayoutFileModal from './RequireLayoutFileModal'
 import { useBufferedField } from './table/useBufferedField'
 import { GENERIC_INSTRUMENT_TYPE } from './table/AddSourceControl'
 
@@ -20,6 +21,7 @@ interface Props {
 
 export default function SetupToolbar({ stageRef, mode, onToggleMode }: Props): JSX.Element {
   const setupId = useSetupStore((s) => s.setupId)
+  const studioId = useSetupStore((s) => s.studioId)
   const name = useSetupStore((s) => s.name)
   const sessionDate = useSetupStore((s) => s.sessionDate)
   const engineer = useSetupStore((s) => s.engineer)
@@ -42,6 +44,7 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode }: Props): J
   const [gearLockerOpen, setGearLockerOpen] = useState(false)
   const [exportModalOpen, setExportModalOpen] = useState(false)
   const [defaultExportInclude, setDefaultExportInclude] = useState<PdfExportInclude>('both')
+  const [layoutGateOpen, setLayoutGateOpen] = useState(false)
 
   const nameField = useBufferedField(name, setName)
   const sessionDateField = useBufferedField(sessionDate ?? '', (v) => setSessionDate(v || null))
@@ -124,12 +127,25 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode }: Props): J
     }
   }
 
+  // Layout Mode requires a room layout file to be assigned to the studio first — leaving
+  // Layout Mode is always allowed, but entering it checks for one and, if missing, opens a
+  // blocking prompt instead of switching.
+  async function requestToggleMode(): Promise<void> {
+    if (mode === 'layout') {
+      onToggleMode('table')
+      return
+    }
+    const layout = studioId ? await window.api.layoutFile.getForStudio(studioId) : null
+    if (layout) onToggleMode('layout')
+    else setLayoutGateOpen(true)
+  }
+
   // These actions live in the native File/Edit menus (Save Setup / Save as Studio / Export
   // PDF / Toggle Mode / Add Source / Delete Selected Row / Open Session Gear / Undo / Redo)
   // instead of toolbar buttons — this listener only exists while a setup is open, so the menu
-  // items are harmless no-ops from any other screen. Re-subscribes on `mode`/`selectedItemIds`
-  // change so the toggle and delete cases always act on current state, not a stale value
-  // captured at mount.
+  // items are harmless no-ops from any other screen. Re-subscribes on `mode`/`selectedItemIds`/
+  // `studioId` change so the toggle and delete cases always act on current state, not a stale
+  // value captured at mount.
   useEffect(() => {
     return window.api.menu.onAction((action: MenuAction) => {
       switch (action) {
@@ -143,7 +159,7 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode }: Props): J
           handleExport()
           break
         case 'toggle-mode':
-          onToggleMode(mode === 'table' ? 'layout' : 'table')
+          requestToggleMode()
           break
         case 'add-source':
           addItem(GENERIC_INSTRUMENT_TYPE, { sourceName: 'Untitled Source' })
@@ -166,7 +182,7 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode }: Props): J
       }
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, selectedItemIds])
+  }, [mode, selectedItemIds, studioId])
 
   return (
     <div className="top-bar" style={{ borderTop: '1px solid var(--color-border)' }}>
@@ -233,7 +249,7 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode }: Props): J
           Session Gear
         </button>
       )}
-      <button className="btn" onClick={() => onToggleMode(mode === 'table' ? 'layout' : 'table')}>
+      <button className="btn" onClick={requestToggleMode}>
         {mode === 'table' ? 'Layout Mode' : 'Table Mode'}
       </button>
       {templateModalOpen && (
@@ -247,6 +263,16 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode }: Props): J
           defaultInclude={defaultExportInclude}
           onClose={() => setExportModalOpen(false)}
           onExport={performExport}
+        />
+      )}
+      {layoutGateOpen && studioId && (
+        <RequireLayoutFileModal
+          studioId={studioId}
+          onUploaded={() => {
+            setLayoutGateOpen(false)
+            onToggleMode('layout')
+          }}
+          onCancel={() => setLayoutGateOpen(false)}
         />
       )}
     </div>
