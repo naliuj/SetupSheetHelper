@@ -94,6 +94,7 @@ interface SetupState {
     patch: Partial<Pick<SetupItemOutboardSlot, 'outboardId' | 'outboardText'>>
   ): void
   addOutboardColumn(): Promise<void>
+  removeOutboardColumn(): Promise<void>
   removeItem(id: number | string): void
   removeItems(ids: Array<number | string>): void
   reorderItems(orderedIds: Array<number | string>): void
@@ -237,6 +238,28 @@ export const useSetupStore = create<SetupState>()(
     const state = get()
     const nextCount = state.outboardColumnCount + 1
     set({ outboardColumnCount: nextCount })
+    if (state.setupId) {
+      await window.api.setups.setOutboardColumnCount(state.setupId, nextCount)
+    }
+  },
+
+  // Only ever removes the last (highest-index) column, clearing that slot's data from every
+  // item at the same time — avoids leaving orphaned slot data that could silently reappear if a
+  // column is added again later. Same immediate-persist-the-count/defer-the-rest split as
+  // addOutboardColumn; the cleared item data flows through the normal isDirty -> save() path.
+  removeOutboardColumn: async () => {
+    const state = get()
+    if (state.outboardColumnCount <= 1) return
+    const removedIndex = state.outboardColumnCount - 1
+    const nextCount = removedIndex
+    set({
+      outboardColumnCount: nextCount,
+      items: state.items.map((item) => ({
+        ...item,
+        outboards: item.outboards.filter((s) => s.slotIndex !== removedIndex)
+      })),
+      isDirty: true
+    })
     if (state.setupId) {
       await window.api.setups.setOutboardColumnCount(state.setupId, nextCount)
     }
