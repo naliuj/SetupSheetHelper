@@ -3,6 +3,7 @@ import type { Building, Studio } from '@shared/types/entities'
 import type { Folder, Setup } from '@shared/types/setup'
 import type { FolderDeleteImpact } from '@shared/types/ipc'
 import { useNavigationStore } from '@renderer/state/navigationStore'
+import { useBerkleeFeaturesStore } from '@renderer/state/berkleeFeaturesStore'
 import FolderGroupedGrid from '@renderer/components/FolderGroupedGrid'
 import NewSetupModal, { type NewSetupDetails } from '@renderer/components/NewSetupModal'
 import ManageItemsModal, { type ManagedItem } from '@renderer/components/ManageItemsModal'
@@ -22,6 +23,7 @@ type TemplateBrowse =
 export default function Home(): JSX.Element {
   const goToSetup = useNavigationStore((s) => s.goToSetup)
   const goToStudioSetup = useNavigationStore((s) => s.goToStudioSetup)
+  const berkleeFeaturesEnabled = useBerkleeFeaturesStore((s) => s.enabled)
 
   const [customStudios, setCustomStudios] = useState<Studio[]>([])
   const [customTemplates, setCustomTemplates] = useState<Setup[]>([])
@@ -248,7 +250,7 @@ export default function Home(): JSX.Element {
         </button>
       </div>
 
-      {templateBrowse.kind === 'berklee-root' && (
+      {templateBrowse.kind === 'berklee-root' && berkleeFeaturesEnabled && (
         <div>
           <div className="section-title" style={{ marginTop: 24 }}>
             {templateSectionTitle}
@@ -271,7 +273,7 @@ export default function Home(): JSX.Element {
         </div>
       )}
 
-      {templateBrowse.kind === 'berklee-building' && (
+      {templateBrowse.kind === 'berklee-building' && berkleeFeaturesEnabled && (
         <div>
           <div className="section-title" style={{ marginTop: 24 }}>
             {templateSectionTitle}
@@ -298,10 +300,12 @@ export default function Home(): JSX.Element {
           selectedFolderId={selectedCustomFolderId}
           onSelectFolder={setSelectedCustomFolderId}
           leadingTiles={
-            <button className="card clickable" onClick={() => setTemplateBrowse({ kind: 'berklee-root' })}>
-              <div className="card-title">📁 Berklee</div>
-              <div className="card-sub">Real Berklee studios</div>
-            </button>
+            berkleeFeaturesEnabled && (
+              <button className="card clickable" onClick={() => setTemplateBrowse({ kind: 'berklee-root' })}>
+                <div className="card-title">📁 Berklee</div>
+                <div className="card-sub">Real Berklee studios</div>
+              </button>
+            )
           }
           headerAction={
             <div style={{ display: 'flex', gap: 8 }}>

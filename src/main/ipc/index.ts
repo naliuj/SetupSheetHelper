@@ -7,6 +7,7 @@ import { registerExportHandlers } from './exportHandlers'
 import { registerFolderHandlers } from './folderHandlers'
 import { registerRoomLayoutBlockHandlers } from './roomLayoutBlockHandlers'
 import { registerPaletteHandlers } from './paletteHandlers'
+import { registerBerkleeHandlers } from './berkleeHandlers'
 
 export function registerAllIpcHandlers(): void {
   registerStudioHandlers()
@@ -18,4 +19,5 @@ export function registerAllIpcHandlers(): void {
   registerFolderHandlers()
   registerRoomLayoutBlockHandlers()
   registerPaletteHandlers()
+  registerBerkleeHandlers()
 }

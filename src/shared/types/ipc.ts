@@ -112,6 +112,10 @@ export const IPC = {
     get: 'settings:get',
     set: 'settings:set'
   },
+  berklee: {
+    enable: 'berklee:enable',
+    disable: 'berklee:disable'
+  },
   folders: {
     list: 'folders:list',
     create: 'folders:create',
@@ -432,6 +436,10 @@ export interface RendererApi {
   settings: {
     get(key: string): Promise<string | null>
     set(key: string, value: string): Promise<void>
+  }
+  berklee: {
+    enable(): Promise<void>
+    disable(): Promise<void>
   }
   folders: {
     list(): Promise<Folder[]>
