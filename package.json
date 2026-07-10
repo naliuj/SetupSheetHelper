@@ -8,7 +8,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "postinstall": "electron-rebuild -f -w better-sqlite3",
+    "postinstall": "patch-package && electron-rebuild -f -w better-sqlite3",
     "backfill:manufacturers": "node scripts/backfill_manufacturers.cjs",
     "seed:export": "node scripts/export_berklee_seed_data.cjs",
     "dev": "electron-vite dev",
@@ -17,6 +17,7 @@
     "build:mac": "npm run build && electron-builder --mac",
     "build:win": "npm run build && electron-builder --win",
     "build:linux": "npm run build && electron-builder --linux",
+    "release:mac": "npm run build && electron-builder --mac --publish always",
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json",
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json",
     "typecheck": "npm run typecheck:node && npm run typecheck:web"
@@ -26,6 +27,7 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "better-sqlite3": "^12.11.1",
+    "electron-updater": "^6.3.9",
     "konva": "^9.3.16",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^4.7.76",
@@ -46,6 +48,7 @@
     "electron": "^33.4.11",
     "electron-builder": "26.13.1",
     "electron-vite": "^2.3.0",
+    "patch-package": "^8.0.1",
     "typescript": "^5.5.3",
     "vite": "^5.4.11"
   },
@@ -58,7 +61,15 @@
       }
     ],
     "mac": {
-      "identity": null
+      "hardenedRuntime": true,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "notarize": true
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "naliuj",
+      "repo": "SetupSheetHelper"
     }
   }
 }

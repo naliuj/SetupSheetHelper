@@ -1,5 +1,6 @@
 import { Menu, type BrowserWindow, type MenuItemConstructorOptions } from 'electron'
 import { MENU_CHANNEL, type MenuAction } from '@shared/types/ipc'
+import { checkForUpdatesManually } from './autoUpdater'
 
 /** Builds the native application menu, wiring File-menu items through to the renderer via IPC. */
 export function installAppMenu(mainWindow: BrowserWindow): void {
@@ -9,8 +10,26 @@ export function installAppMenu(mainWindow: BrowserWindow): void {
     mainWindow.webContents.send(MENU_CHANNEL, action)
   }
 
+  // Reproduces Electron's default `role: 'appMenu'` template exactly, plus a "Check for
+  // Updates…" item in the conventional spot (right below About, above Services/Quit).
+  const appMenu: MenuItemConstructorOptions = {
+    label: 'Setup Sheet Helper',
+    submenu: [
+      { role: 'about' },
+      { label: 'Check for Updates…', click: () => checkForUpdatesManually(mainWindow) },
+      { type: 'separator' },
+      { role: 'services' },
+      { type: 'separator' },
+      { role: 'hide' },
+      { role: 'hideOthers' },
+      { role: 'unhide' },
+      { type: 'separator' },
+      { role: 'quit' }
+    ]
+  }
+
   const template: MenuItemConstructorOptions[] = [
-    ...(isMac ? [{ role: 'appMenu' } as const] : []),
+    ...(isMac ? [appMenu] : []),
     {
       label: 'File',
       submenu: [
