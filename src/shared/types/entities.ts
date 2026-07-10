@@ -91,5 +91,6 @@ export interface OutboardGearWithStudio extends OutboardGear {
 
 export const APP_SETTINGS_KEYS = {
   defaultEngineerName: 'default_engineer_name',
-  defaultPdfExportInclude: 'default_pdf_export_include'
+  defaultPdfExportInclude: 'default_pdf_export_include',
+  theme: 'theme'
 } as const

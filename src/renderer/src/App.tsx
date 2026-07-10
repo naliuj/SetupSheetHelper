@@ -1,4 +1,7 @@
+import { useEffect } from 'react'
+import { APP_SETTINGS_KEYS } from '@shared/types/entities'
 import { useNavigationStore } from './state/navigationStore'
+import { useThemeStore } from './state/themeStore'
 import Home from './pages/Home/Home'
 import SettingsPage from './pages/SettingsPage/SettingsPage'
 import SetupEditor from './pages/SetupEditor/SetupEditor'
@@ -8,6 +11,23 @@ export default function App(): JSX.Element {
   const view = useNavigationStore((s) => s.view)
   const goToHome = useNavigationStore((s) => s.goToHome)
   const goToSettings = useNavigationStore((s) => s.goToSettings)
+  const theme = useThemeStore((s) => s.theme)
+
+  // Load the persisted theme once at startup, before the user ever opens Settings. Hydrates
+  // via setState directly (not the persisting setTheme action) so loading doesn't write it
+  // right back to app_settings.
+  useEffect(() => {
+    window.api.settings.get(APP_SETTINGS_KEYS.theme).then((saved) => {
+      if (saved === 'light' || saved === 'dark') {
+        useThemeStore.setState({ theme: saved })
+      }
+    })
+  }, [])
+
+  // Keep the DOM attribute in sync with the store so global.css can key off it.
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme
+  }, [theme])
 
   return (
     <div className="app-shell">

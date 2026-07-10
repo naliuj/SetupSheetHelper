@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { APP_SETTINGS_KEYS } from '@shared/types/entities'
 import type { StudioExportFile } from '@shared/types/ipc'
 import { useNavigationStore } from '@renderer/state/navigationStore'
+import { useThemeStore } from '@renderer/state/themeStore'
 import FacultyReserveEditor from './FacultyReserveEditor'
 import PersonalGearEditor from './PersonalGearEditor'
 import StudioExportPage from './StudioExportPage'
@@ -9,18 +10,21 @@ import StudioImportPage from './StudioImportPage'
 import PresetManager from '../PresetManager/PresetManager'
 
 type Subview = { kind: 'main' } | { kind: 'export' } | { kind: 'import'; file: StudioExportFile } | { kind: 'presets' }
-type Tab = 'general' | 'personalGear' | 'facultyReserve' | 'backup'
+type Tab = 'general' | 'personalGear' | 'facultyReserve' | 'backup' | 'theme'
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'general', label: 'General' },
   { id: 'personalGear', label: 'Personal Gear Locker' },
   { id: 'facultyReserve', label: 'Faculty Reserve' },
-  { id: 'backup', label: 'Studio Backup' }
+  { id: 'backup', label: 'Studio Backup' },
+  { id: 'theme', label: 'Theme' }
 ]
 
 export default function SettingsPage(): JSX.Element {
   const goToHome = useNavigationStore((s) => s.goToHome)
   const closeSettings = useNavigationStore((s) => s.closeSettings)
+  const theme = useThemeStore((s) => s.theme)
+  const setTheme = useThemeStore((s) => s.setTheme)
   const [activeTab, setActiveTab] = useState<Tab>('general')
   const [defaultEngineerName, setDefaultEngineerName] = useState('')
   const [loaded, setLoaded] = useState(false)
@@ -157,6 +161,19 @@ export default function SettingsPage(): JSX.Element {
             </button>
           </div>
           {importMessage && <p className="card-sub">{importMessage}</p>}
+        </div>
+      )}
+
+      {activeTab === 'theme' && (
+        <div className="panel">
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <input
+              type="checkbox"
+              checked={theme === 'dark'}
+              onChange={(e) => setTheme(e.target.checked ? 'dark' : 'light')}
+            />
+            Dark Mode
+          </label>
         </div>
       )}
     </div>
