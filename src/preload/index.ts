@@ -13,11 +13,10 @@ const api: RendererApi = {
     listCustom: () => ipcRenderer.invoke(IPC.studios.listCustom),
     get: (id) => ipcRenderer.invoke(IPC.studios.get, id),
     create: (buildingId, name) => ipcRenderer.invoke(IPC.studios.create, buildingId, name),
-    createCustom: (name, folderId, hasConsole) =>
-      ipcRenderer.invoke(IPC.studios.createCustom, name, folderId, hasConsole),
+    createCustom: (name, folderId) => ipcRenderer.invoke(IPC.studios.createCustom, name, folderId),
     createTemporary: () => ipcRenderer.invoke(IPC.studios.createTemporary),
-    updateCustomDetails: (id, name, folderId, hasConsole) =>
-      ipcRenderer.invoke(IPC.studios.updateCustomDetails, id, name, folderId, hasConsole),
+    updateCustomDetails: (id, name, folderId) =>
+      ipcRenderer.invoke(IPC.studios.updateCustomDetails, id, name, folderId),
     rename: (id, name) => ipcRenderer.invoke(IPC.studios.rename, id, name),
     remove: (id) => ipcRenderer.invoke(IPC.studios.remove, id),
     exportToFile: (studioIds) => ipcRenderer.invoke(IPC.studios.exportToFile, studioIds),

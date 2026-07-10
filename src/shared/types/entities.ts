@@ -12,10 +12,6 @@ export interface Studio {
   isTemporary: boolean
   sortOrder: number
   createdAt: string
-  /** Real Berklee (building-bound) studios are always true. Custom studios choose at creation
-   *  — false means the studio patches through standalone preamps instead of a console, and
-   *  gets a Preamps locker instead of relying on the setup sheet's free-text Channel column. */
-  hasConsole: boolean
 }
 
 export interface RoomLayoutFile {
