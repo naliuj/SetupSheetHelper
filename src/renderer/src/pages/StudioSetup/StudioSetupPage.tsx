@@ -135,10 +135,6 @@ export default function StudioSetupPage(): JSX.Element {
   const isEditing = studioSetupId != null
 
   const [name, setName] = useState('Untitled Studio')
-  // Real Berklee studios always have a console (assumed, no toggle shown for them — this page
-  // only ever edits custom studios). Off means the studio patches through standalone preamps
-  // instead, unlocking the Preamps section below.
-  const [hasConsole, setHasConsole] = useState(true)
   const [pendingMics, setPendingMics] = useState<PendingItem[]>([])
   const [pendingOutboard, setPendingOutboard] = useState<PendingItem[]>([])
   const [pendingPreamps, setPendingPreamps] = useState<PendingPreampItem[]>([])
@@ -191,7 +187,6 @@ export default function StudioSetupPage(): JSX.Element {
       window.api.studios.get(studioSetupId).then((studio) => {
         if (!studio) return
         setName(studio.name)
-        setHasConsole(studio.hasConsole)
         setSelection(studio.folderId != null ? String(studio.folderId) : NO_FOLDER_VALUE)
       })
       window.api.mics.listStudioMics(studioSetupId).then((mics) =>
@@ -232,7 +227,6 @@ export default function StudioSetupPage(): JSX.Element {
       )
     } else {
       setName('Untitled Studio')
-      setHasConsole(true)
       setPendingMics([])
       setPendingOutboard([])
       setPendingPreamps([])
@@ -337,7 +331,7 @@ export default function StudioSetupPage(): JSX.Element {
     if (activeStudioId) return activeStudioId
     if (!name.trim()) return null
     const folderId = await resolveFolderId()
-    const created = await window.api.studios.createCustom(name.trim(), folderId, hasConsole)
+    const created = await window.api.studios.createCustom(name.trim(), folderId)
     setCreatedStudioId(created.id)
     return created.id
   }
@@ -368,8 +362,8 @@ export default function StudioSetupPage(): JSX.Element {
       const folderId = await resolveFolderId()
 
       const studioId = activeStudioId
-        ? (await window.api.studios.updateCustomDetails(activeStudioId, name.trim(), folderId, hasConsole)).id
-        : (await window.api.studios.createCustom(name.trim(), folderId, hasConsole)).id
+        ? (await window.api.studios.updateCustomDetails(activeStudioId, name.trim(), folderId)).id
+        : (await window.api.studios.createCustom(name.trim(), folderId)).id
 
       for (const id of removedMicIds) await window.api.mics.remove(id)
       for (const id of removedOutboardIds) await window.api.outboard.remove(id)
@@ -473,16 +467,6 @@ export default function StudioSetupPage(): JSX.Element {
         <button className="btn" style={{ marginBottom: 16 }} onClick={() => setImportModalOpen(true)}>
           Import Gear from Another Studio…
         </button>
-
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-          <input type="checkbox" checked={hasConsole} onChange={(e) => setHasConsole(e.target.checked)} />
-          This studio has a console
-        </label>
-        {!hasConsole && (
-          <p className="card-sub" style={{ marginTop: -12, marginBottom: 16 }}>
-            No console — the setup sheet's Preamp column will pull from this studio's Preamps locker below instead.
-          </p>
-        )}
 
         <div className="section-title" style={{ marginTop: 0 }}>
           Room Layout
@@ -620,67 +604,63 @@ export default function StudioSetupPage(): JSX.Element {
           </table>
         )}
 
-        {!hasConsole && (
-          <>
-            <div className="section-title">Preamps</div>
-            <ManufacturerPickerDropdown
-              items={cataloguePreamps}
-              usageCounts={new Map()}
-              getQuantity={(p) => p.channels}
-              selectedId={null}
-              onSelect={addPreamp}
-              placeholder="+ Add Preamp from Catalogue"
-              showUsage={false}
-            />
-            <ManualEntryForm
-              onAdd={addManualPreamp}
-              namePlaceholder="Preamp name (e.g. 8-channel)"
-              formId="preamp"
-              manufacturerSuggestions={catalogueManufacturers}
-              catalogueItems={cataloguePreamps}
-              countLabel="Channels"
-            />
-            {pendingPreamps.length > 0 && (
-              <table className="data-table" style={{ marginTop: 8 }}>
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>Manufacturer</th>
-                    <th>Channels</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pendingPreamps.map((item) => (
-                    <tr key={item.key}>
-                      <td>
-                        <input value={item.name} onChange={(e) => updatePreamp(item.key, { name: e.target.value })} />
-                      </td>
-                      <td>
-                        <input
-                          value={item.manufacturer ?? ''}
-                          onChange={(e) => updatePreamp(item.key, { manufacturer: e.target.value || null })}
-                        />
-                      </td>
-                      <td style={{ maxWidth: 70 }}>
-                        <input
-                          type="number"
-                          min={1}
-                          value={item.channels}
-                          onChange={(e) => updatePreamp(item.key, { channels: Math.max(1, Number(e.target.value)) })}
-                        />
-                      </td>
-                      <td>
-                        <button className="btn small danger" onClick={() => removePreamp(item)}>
-                          ✕
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </>
+        <div className="section-title">Preamps</div>
+        <ManufacturerPickerDropdown
+          items={cataloguePreamps}
+          usageCounts={new Map()}
+          getQuantity={(p) => p.channels}
+          selectedId={null}
+          onSelect={addPreamp}
+          placeholder="+ Add Preamp from Catalogue"
+          showUsage={false}
+        />
+        <ManualEntryForm
+          onAdd={addManualPreamp}
+          namePlaceholder="Preamp name (e.g. 8-channel)"
+          formId="preamp"
+          manufacturerSuggestions={catalogueManufacturers}
+          catalogueItems={cataloguePreamps}
+          countLabel="Channels"
+        />
+        {pendingPreamps.length > 0 && (
+          <table className="data-table" style={{ marginTop: 8 }}>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Manufacturer</th>
+                <th>Channels</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {pendingPreamps.map((item) => (
+                <tr key={item.key}>
+                  <td>
+                    <input value={item.name} onChange={(e) => updatePreamp(item.key, { name: e.target.value })} />
+                  </td>
+                  <td>
+                    <input
+                      value={item.manufacturer ?? ''}
+                      onChange={(e) => updatePreamp(item.key, { manufacturer: e.target.value || null })}
+                    />
+                  </td>
+                  <td style={{ maxWidth: 70 }}>
+                    <input
+                      type="number"
+                      min={1}
+                      value={item.channels}
+                      onChange={(e) => updatePreamp(item.key, { channels: Math.max(1, Number(e.target.value)) })}
+                    />
+                  </td>
+                  <td>
+                    <button className="btn small danger" onClick={() => removePreamp(item)}>
+                      ✕
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         )}
       </div>
       {importModalOpen && (

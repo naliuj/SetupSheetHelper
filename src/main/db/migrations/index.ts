@@ -11,6 +11,7 @@ import { run as channelPresetPreamps } from './009_channel_preset_preamps'
 import { run as preampPoolExpansion } from './010_preamp_pool_expansion'
 import { run as outboardSlots } from './011_outboard_slots'
 import { run as paletteItems } from './012_palette_items'
+import { run as removeHasConsole } from './013_remove_has_console'
 
 export interface SqlMigration {
   version: number
@@ -36,5 +37,6 @@ export const MIGRATIONS: Migration[] = [
   { version: 9, run: channelPresetPreamps },
   { version: 10, run: preampPoolExpansion },
   { version: 11, run: outboardSlots },
-  { version: 12, run: paletteItems }
+  { version: 12, run: paletteItems },
+  { version: 13, run: removeHasConsole }
 ]

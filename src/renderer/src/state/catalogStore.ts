@@ -5,7 +5,6 @@ interface CatalogState {
   studioId: number | null
   buildingId: number | null
   isTemporary: boolean
-  hasConsole: boolean
   mics: Mic[]
   outboardGear: OutboardGear[]
   preamps: Preamp[]
@@ -23,7 +22,6 @@ export const useCatalogStore = create<CatalogState>((set) => ({
   studioId: null,
   buildingId: null,
   isTemporary: false,
-  hasConsole: true,
   mics: [],
   outboardGear: [],
   preamps: [],
@@ -42,7 +40,6 @@ export const useCatalogStore = create<CatalogState>((set) => ({
       outboardGear,
       preamps,
       isTemporary: studio?.isTemporary ?? false,
-      hasConsole: studio?.hasConsole ?? true,
       loading: false
     })
   }

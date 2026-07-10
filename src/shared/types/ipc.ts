@@ -239,7 +239,6 @@ export interface ExportedPreamp {
 
 export interface ExportedStudio {
   name: string
-  hasConsole: boolean
   mics: ExportedStudioGear[]
   outboardGear: ExportedStudioGear[]
   preamps: ExportedPreamp[]
@@ -331,9 +330,9 @@ export interface RendererApi {
     listCustom(): Promise<Studio[]>
     get(id: number): Promise<Studio | null>
     create(buildingId: number, name: string): Promise<Studio>
-    createCustom(name: string, folderId: number | null, hasConsole: boolean): Promise<Studio>
+    createCustom(name: string, folderId: number | null): Promise<Studio>
     createTemporary(): Promise<Studio>
-    updateCustomDetails(id: number, name: string, folderId: number | null, hasConsole: boolean): Promise<Studio>
+    updateCustomDetails(id: number, name: string, folderId: number | null): Promise<Studio>
     rename(id: number, name: string): Promise<void>
     remove(id: number): Promise<void>
     exportToFile(studioIds: number[]): Promise<ExportStudiosResult>

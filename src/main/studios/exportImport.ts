@@ -20,7 +20,6 @@ export async function exportStudiosToFile(studioIds: number[]): Promise<ExportSt
     return [
       {
         name: studio.name,
-        hasConsole: studio.hasConsole,
         mics: listStudioMics(id).map((mic) => ({
           name: mic.name,
           manufacturer: mic.manufacturer,
@@ -77,11 +76,10 @@ export async function pickAndParseImportFile(): Promise<PickImportFileResult> {
 }
 
 /** Imported studios always land as new, ungrouped Custom Studios — building IDs aren't portable
- *  across installations. hasConsole/preamps default safely for older (v1) export files that
- *  predate this feature — hasConsole true (matches the DB column's own default), preamps []. */
+ *  across installations. preamps defaults safely (empty) for older export files that predate it. */
 export function importStudios(studios: ExportedStudio[]): void {
   for (const studio of studios) {
-    const created = studiosRepo.createCustomStudio(studio.name, null, studio.hasConsole ?? true)
+    const created = studiosRepo.createCustomStudio(studio.name, null)
     for (const mic of studio.mics) {
       upsertMic({
         poolType: 'studio',

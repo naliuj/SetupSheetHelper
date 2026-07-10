@@ -18,6 +18,7 @@ export default function SetupSheetTable(): JSX.Element {
   const items = useSetupStore((s) => s.items)
   const outboardColumnCount = useSetupStore((s) => s.outboardColumnCount)
   const addOutboardColumn = useSetupStore((s) => s.addOutboardColumn)
+  const removeOutboardColumn = useSetupStore((s) => s.removeOutboardColumn)
   const updateItemOutboardSlot = useSetupStore((s) => s.updateItemOutboardSlot)
   const selectedItemIds = useSetupStore((s) => s.selectedItemIds)
   const selectItem = useSetupStore((s) => s.selectItem)
@@ -71,9 +72,18 @@ export default function SetupSheetTable(): JSX.Element {
         style={{ marginTop: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
       >
         <span>Setup Sheet</span>
-        <button className="btn small" onClick={addOutboardColumn}>
-          + Add Outboard Column
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            className="btn small"
+            onClick={removeOutboardColumn}
+            disabled={outboardColumnCount <= 1}
+          >
+            − Remove Outboard Column
+          </button>
+          <button className="btn small" onClick={addOutboardColumn}>
+            + Add Outboard Column
+          </button>
+        </div>
       </div>
       {items.length === 0 ? (
         <div className="empty-state">
