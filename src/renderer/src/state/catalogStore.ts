@@ -35,7 +35,7 @@ export const useCatalogStore = create<CatalogState>((set) => ({
       window.api.studios.get(studioId),
       window.api.mics.listAvailableForStudio(studioId, setupId, facultyReserveEnabled),
       window.api.outboard.listAvailableForStudio(studioId, setupId, facultyReserveEnabled),
-      window.api.preamps.listAvailableForStudio(studioId, setupId)
+      window.api.preamps.listAvailableForStudio(studioId, setupId, facultyReserveEnabled)
     ])
     set({
       mics,

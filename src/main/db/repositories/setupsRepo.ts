@@ -17,6 +17,7 @@ interface SetupRow {
   created_at: string
   updated_at: string
   faculty_reserve_enabled: number
+  outboard_column_count: number
 }
 
 function mapRow(row: SetupRow): Setup {
@@ -33,7 +34,8 @@ function mapRow(row: SetupRow): Setup {
     sortOrder: row.sort_order,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
-    facultyReserveEnabled: row.faculty_reserve_enabled === 1
+    facultyReserveEnabled: row.faculty_reserve_enabled === 1,
+    outboardColumnCount: row.outboard_column_count
   }
 }
 
@@ -117,6 +119,12 @@ export function renameSetup(
 
 export function touchSetup(id: number): void {
   getDb().prepare(`UPDATE setups SET updated_at = datetime('now') WHERE id = ?`).run(id)
+}
+
+/** "+ Add Outboard Column" bumps this sheet-wide — every row conceptually gains one more
+ *  outboard slot, though rows only actually get a setup_item_outboards row once filled in. */
+export function setOutboardColumnCount(id: number, count: number): void {
+  getDb().prepare('UPDATE setups SET outboard_column_count = ? WHERE id = ?').run(count, id)
 }
 
 export function removeSetup(id: number): void {

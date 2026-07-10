@@ -1,11 +1,13 @@
 import type { Preamp, PreampPoolType } from '@shared/types/entities'
 import type { PreampUpsertInput } from '@shared/types/ipc'
 import { getDb } from '../index'
+import { getStudio } from './studiosRepo'
 
 interface PreampRow {
   id: number
   pool_type: PreampPoolType
   studio_id: number | null
+  building_id: number | null
   setup_id: number | null
   name: string
   manufacturer: string | null
@@ -20,6 +22,7 @@ function mapRow(row: PreampRow): Preamp {
     id: row.id,
     poolType: row.pool_type,
     studioId: row.studio_id,
+    buildingId: row.building_id,
     setupId: row.setup_id,
     name: row.name,
     manufacturer: row.manufacturer,
@@ -37,6 +40,28 @@ export function listPreampsByStudio(studioId: number): Preamp[] {
   return rows.map(mapRow)
 }
 
+export function listBuildingPreamps(buildingId: number): Preamp[] {
+  const rows = getDb()
+    .prepare("SELECT * FROM preamps WHERE pool_type = 'building' AND building_id = ? ORDER BY sort_order, name")
+    .all(buildingId) as PreampRow[]
+  return rows.map(mapRow)
+}
+
+export function listFacultyReservePreamps(): Preamp[] {
+  const rows = getDb()
+    .prepare("SELECT * FROM preamps WHERE pool_type = 'faculty_reserve' ORDER BY sort_order, name")
+    .all() as PreampRow[]
+  return rows.map(mapRow)
+}
+
+/** The user's own global "Personal Gear Locker" — always visible, mirrors mics/outboard's personal pool. */
+export function listPersonalPreamps(): Preamp[] {
+  const rows = getDb()
+    .prepare("SELECT * FROM preamps WHERE pool_type = 'personal' ORDER BY sort_order, name")
+    .all() as PreampRow[]
+  return rows.map(mapRow)
+}
+
 /** Preamps scoped to one specific setup/session (e.g. a borrowed unit) — never visible in any other setup. */
 export function listSetupGear(setupId: number): Preamp[] {
   const rows = getDb()
@@ -45,11 +70,28 @@ export function listSetupGear(setupId: number): Preamp[] {
   return rows.map(mapRow)
 }
 
-/** Union of a studio's own preamp locker and the current setup's own borrowed-gear locker (if
- *  a setupId is given). No building/personal/faculty-reserve pools for preamps — a much
- *  narrower version of micsRepo/outboardRepo's listAvailableForStudio. */
-export function listAvailableForStudio(studioId: number, setupId?: number | null): Preamp[] {
-  return [...listPreampsByStudio(studioId), ...(setupId != null ? listSetupGear(setupId) : [])]
+/** Union of a studio's own preamp locker, its building's shared pool, the user's personal gear
+ *  locker (always included), the current setup's own borrowed-gear locker (if a setupId is
+ *  given), and the global faculty reserve if this setup has opted in — mirrors
+ *  outboardRepo.listAvailableForStudio exactly, now that preamps share the same 5-pool system. */
+export function listAvailableForStudio(
+  studioId: number,
+  setupId?: number | null,
+  facultyReserveEnabledForSetup?: boolean
+): Preamp[] {
+  const studio = getStudio(studioId)
+  if (!studio) return []
+
+  const preamps = [
+    ...listPreampsByStudio(studioId),
+    ...(studio.buildingId != null ? listBuildingPreamps(studio.buildingId) : []),
+    ...listPersonalPreamps(),
+    ...(setupId != null ? listSetupGear(setupId) : [])
+  ]
+  if (facultyReserveEnabledForSetup) {
+    preamps.push(...listFacultyReservePreamps())
+  }
+  return preamps
 }
 
 export function getPreampById(id: number): Preamp | null {
@@ -61,10 +103,11 @@ export function upsertPreamp(input: PreampUpsertInput): Preamp {
   const db = getDb()
   if (input.id) {
     db.prepare(
-      'UPDATE preamps SET pool_type = ?, studio_id = ?, setup_id = ?, name = ?, manufacturer = ?, category = ?, notes = ?, channels = ?, sort_order = ? WHERE id = ?'
+      'UPDATE preamps SET pool_type = ?, studio_id = ?, building_id = ?, setup_id = ?, name = ?, manufacturer = ?, category = ?, notes = ?, channels = ?, sort_order = ? WHERE id = ?'
     ).run(
       input.poolType,
       input.studioId,
+      input.buildingId,
       input.setupId,
       input.name,
       input.manufacturer,
@@ -80,11 +123,12 @@ export function upsertPreamp(input: PreampUpsertInput): Preamp {
 
   const info = db
     .prepare(
-      'INSERT INTO preamps (pool_type, studio_id, setup_id, name, manufacturer, category, notes, channels, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      'INSERT INTO preamps (pool_type, studio_id, building_id, setup_id, name, manufacturer, category, notes, channels, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
     )
     .run(
       input.poolType,
       input.studioId,
+      input.buildingId,
       input.setupId,
       input.name,
       input.manufacturer,

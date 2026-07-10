@@ -5,7 +5,7 @@ import { useSetupStore } from '@renderer/state/setupStore'
 import { useCatalogStore } from '@renderer/state/catalogStore'
 import { useGearCatalogueSuggestions } from '@renderer/state/useGearCatalogueSuggestions'
 import { computeTieLineConflicts } from '@renderer/state/tieLineConflicts'
-import { computeUsageCounts } from '@renderer/state/usageCounts'
+import { computeUsageCounts, computeOutboardUsageCounts } from '@renderer/state/usageCounts'
 import SetupSheetRow from './SetupSheetRow'
 
 function toLabels(items: { name: string; manufacturer: string | null }[]): string[] {
@@ -16,6 +16,9 @@ function toLabels(items: { name: string; manufacturer: string | null }[]): strin
 
 export default function SetupSheetTable(): JSX.Element {
   const items = useSetupStore((s) => s.items)
+  const outboardColumnCount = useSetupStore((s) => s.outboardColumnCount)
+  const addOutboardColumn = useSetupStore((s) => s.addOutboardColumn)
+  const updateItemOutboardSlot = useSetupStore((s) => s.updateItemOutboardSlot)
   const selectedItemIds = useSetupStore((s) => s.selectedItemIds)
   const selectItem = useSetupStore((s) => s.selectItem)
   const selectRangeTo = useSetupStore((s) => s.selectRangeTo)
@@ -58,13 +61,19 @@ export default function SetupSheetTable(): JSX.Element {
 
   const conflicts = computeTieLineConflicts(items)
   const micUsageCounts = computeUsageCounts(items, 'micId')
-  const outboardUsageCounts = computeUsageCounts(items, 'outboardId')
+  const outboardUsageCounts = computeOutboardUsageCounts(items)
   const preampUsageCounts = computeUsageCounts(items, 'preampId')
 
   return (
     <div style={{ padding: 12 }}>
-      <div className="section-title" style={{ marginTop: 0 }}>
-        Setup Sheet
+      <div
+        className="section-title"
+        style={{ marginTop: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+      >
+        <span>Setup Sheet</span>
+        <button className="btn small" onClick={addOutboardColumn}>
+          + Add Outboard Column
+        </button>
       </div>
       {items.length === 0 ? (
         <div className="empty-state">
@@ -77,7 +86,9 @@ export default function SetupSheetTable(): JSX.Element {
               <th></th>
               <th>Source Name</th>
               <th>Mic</th>
-              <th>Outboard</th>
+              {Array.from({ length: outboardColumnCount }, (_, i) => (
+                <th key={i}>{i === 0 ? 'Outboard' : `Outboard ${i + 1}`}</th>
+              ))}
               <th>Channel</th>
               <th>Preamp</th>
               <th>Tie Line</th>
@@ -97,6 +108,7 @@ export default function SetupSheetTable(): JSX.Element {
                     mics={mics}
                     outboardGear={outboardGear}
                     preamps={preamps}
+                    outboardColumnCount={outboardColumnCount}
                     isTemporary={isTemporary}
                     micSuggestions={micSuggestions}
                     outboardSuggestions={outboardSuggestions}
@@ -110,6 +122,7 @@ export default function SetupSheetTable(): JSX.Element {
                     preampUsageCounts={preampUsageCounts}
                     onGutterClick={(e) => handleGutterClick(e, item.id)}
                     onChange={(patch) => updateItemFields(item.id, patch)}
+                    onOutboardSlotChange={(slotIndex, patch) => updateItemOutboardSlot(item.id, slotIndex, patch)}
                     onDelete={() => removeItem(item.id)}
                   />
                 ))}

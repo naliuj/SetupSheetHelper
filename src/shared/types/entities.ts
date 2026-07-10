@@ -61,16 +61,18 @@ export interface OutboardGear {
   sortOrder: number
 }
 
-/** Console-less studios' standalone preamps — only a studio locker and a session-scoped
- *  borrowed-gear pool make sense here, unlike mics/outboard's full 5-pool system. `channels`
- *  plays the same role `quantity` plays for mics/outboard: how many times this exact unit can
- *  be picked across a setup's rows before it's "full". */
-export type PreampPoolType = 'studio' | 'setup'
+/** Console-less studios' standalone preamps — full 5-pool system matching mics/outboard exactly
+ *  (studio locker, session-scoped borrowed gear, building office stock, personal gear, and
+ *  Berklee-only faculty reserve). `channels` plays the same role `quantity` plays for
+ *  mics/outboard: how many times this exact unit can be picked across a setup's rows before
+ *  it's "full". */
+export type PreampPoolType = 'studio' | 'building' | 'faculty_reserve' | 'personal' | 'setup'
 
 export interface Preamp {
   id: number
   poolType: PreampPoolType
   studioId: number | null
+  buildingId: number | null
   setupId: number | null
   name: string
   manufacturer: string | null

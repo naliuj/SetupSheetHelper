@@ -55,8 +55,11 @@ const api: RendererApi = {
   },
   preamps: {
     listByStudio: (studioId) => ipcRenderer.invoke(IPC.preamps.listByStudio, studioId),
-    listAvailableForStudio: (studioId, setupId) =>
-      ipcRenderer.invoke(IPC.preamps.listAvailableForStudio, studioId, setupId),
+    listAvailableForStudio: (studioId, setupId, facultyReserveEnabledForSetup) =>
+      ipcRenderer.invoke(IPC.preamps.listAvailableForStudio, studioId, setupId, facultyReserveEnabledForSetup),
+    listBuildingPreamps: (buildingId) => ipcRenderer.invoke(IPC.preamps.listBuildingPreamps, buildingId),
+    listFacultyReservePreamps: () => ipcRenderer.invoke(IPC.preamps.listFacultyReservePreamps),
+    listPersonalPreamps: () => ipcRenderer.invoke(IPC.preamps.listPersonalPreamps),
     listSetupGear: (setupId) => ipcRenderer.invoke(IPC.preamps.listSetupGear, setupId),
     listAll: () => ipcRenderer.invoke(IPC.preamps.listAll),
     upsert: (input) => ipcRenderer.invoke(IPC.preamps.upsert, input),
@@ -91,6 +94,8 @@ const api: RendererApi = {
     rename: (id, name, sessionDate, engineer, artist, facultyReserveEnabled) =>
       ipcRenderer.invoke(IPC.setups.rename, id, name, sessionDate, engineer, artist, facultyReserveEnabled),
     saveItems: (setupId, items) => ipcRenderer.invoke(IPC.setups.saveItems, setupId, items),
+    setOutboardColumnCount: (setupId, count) =>
+      ipcRenderer.invoke(IPC.setups.setOutboardColumnCount, setupId, count),
     remove: (id) => ipcRenderer.invoke(IPC.setups.remove, id),
     instantiateFromTemplate: (templateId) => ipcRenderer.invoke(IPC.setups.instantiateFromTemplate, templateId),
     saveAsTemplate: (input) => ipcRenderer.invoke(IPC.setups.saveAsTemplate, input),
@@ -122,6 +127,14 @@ const api: RendererApi = {
   roomLayoutBlocks: {
     listBySetup: (setupId) => ipcRenderer.invoke(IPC.roomLayoutBlocks.listBySetup, setupId),
     saveForSetup: (setupId, blocks) => ipcRenderer.invoke(IPC.roomLayoutBlocks.saveForSetup, setupId, blocks)
+  },
+  palette: {
+    listVisible: () => ipcRenderer.invoke(IPC.palette.listVisible),
+    listAll: () => ipcRenderer.invoke(IPC.palette.listAll),
+    createCustom: (input) => ipcRenderer.invoke(IPC.palette.createCustom, input),
+    update: (id, patch) => ipcRenderer.invoke(IPC.palette.update, id, patch),
+    removeCustom: (id) => ipcRenderer.invoke(IPC.palette.removeCustom, id),
+    reorder: (ids) => ipcRenderer.invoke(IPC.palette.reorder, ids)
   }
 }
 

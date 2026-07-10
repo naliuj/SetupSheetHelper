@@ -12,7 +12,17 @@ import type {
   Studio
 } from './entities'
 import type { ChannelPreset, ChannelPresetItemInput, ChannelPresetWithItems } from './channelPreset'
-import type { Folder, RoomLayoutBlock, Setup, SetupItem, SetupKind, SetupWithItems, TemplateSource } from './setup'
+import type { PaletteItem } from './palette'
+import type {
+  Folder,
+  RoomLayoutBlock,
+  Setup,
+  SetupItem,
+  SetupItemOutboardSlot,
+  SetupKind,
+  SetupWithItems,
+  TemplateSource
+} from './setup'
 
 export const IPC = {
   buildings: {
@@ -65,6 +75,9 @@ export const IPC = {
   preamps: {
     listByStudio: 'preamps:listByStudio',
     listAvailableForStudio: 'preamps:listAvailableForStudio',
+    listBuildingPreamps: 'preamps:listBuildingPreamps',
+    listFacultyReservePreamps: 'preamps:listFacultyReservePreamps',
+    listPersonalPreamps: 'preamps:listPersonalPreamps',
     listSetupGear: 'preamps:listSetupGear',
     listAll: 'preamps:listAll',
     upsert: 'preamps:upsert',
@@ -88,6 +101,7 @@ export const IPC = {
     create: 'setups:create',
     rename: 'setups:rename',
     saveItems: 'setups:saveItems',
+    setOutboardColumnCount: 'setups:setOutboardColumnCount',
     remove: 'setups:remove',
     instantiateFromTemplate: 'setups:instantiateFromTemplate',
     saveAsTemplate: 'setups:saveAsTemplate',
@@ -112,6 +126,14 @@ export const IPC = {
   roomLayoutBlocks: {
     listBySetup: 'roomLayoutBlocks:listBySetup',
     saveForSetup: 'roomLayoutBlocks:saveForSetup'
+  },
+  palette: {
+    listVisible: 'palette:listVisible',
+    listAll: 'palette:listAll',
+    createCustom: 'palette:createCustom',
+    update: 'palette:update',
+    removeCustom: 'palette:removeCustom',
+    reorder: 'palette:reorder'
   }
 } as const
 
@@ -147,6 +169,7 @@ export interface PreampUpsertInput {
   id?: number
   poolType: PreampPoolType
   studioId: number | null
+  buildingId: number | null
   setupId: number | null
   name: string
   manufacturer: string | null
@@ -154,6 +177,21 @@ export interface PreampUpsertInput {
   notes: string | null
   channels?: number
   sortOrder?: number
+}
+
+export interface PaletteItemCreateInput {
+  label: string
+  shape: 'rect' | 'circle'
+  color: string
+  category: string
+}
+
+export interface PaletteItemUpdateInput {
+  label?: string
+  shape?: 'rect' | 'circle'
+  color?: string
+  category?: string
+  isHidden?: boolean
 }
 
 export interface SetupItemInput {
@@ -165,8 +203,7 @@ export interface SetupItemInput {
   channel: number | null
   tieLine: number | null
   cueBox: number | null
-  outboardId: number | null
-  outboardText: string | null
+  outboards: SetupItemOutboardSlot[]
   preampId: number | null
   preampText: string | null
   polarityFlip: boolean
@@ -340,7 +377,14 @@ export interface RendererApi {
   }
   preamps: {
     listByStudio(studioId: number): Promise<Preamp[]>
-    listAvailableForStudio(studioId: number, setupId?: number | null): Promise<Preamp[]>
+    listAvailableForStudio(
+      studioId: number,
+      setupId?: number | null,
+      facultyReserveEnabledForSetup?: boolean
+    ): Promise<Preamp[]>
+    listBuildingPreamps(buildingId: number): Promise<Preamp[]>
+    listFacultyReservePreamps(): Promise<Preamp[]>
+    listPersonalPreamps(): Promise<Preamp[]>
     listSetupGear(setupId: number): Promise<Preamp[]>
     listAll(): Promise<Preamp[]>
     upsert(input: PreampUpsertInput): Promise<Preamp>
@@ -379,6 +423,7 @@ export interface RendererApi {
       facultyReserveEnabled: boolean
     ): Promise<void>
     saveItems(setupId: number, items: SetupItemInput[]): Promise<SetupItem[]>
+    setOutboardColumnCount(setupId: number, count: number): Promise<void>
     remove(id: number): Promise<void>
     instantiateFromTemplate(templateId: number): Promise<Setup>
     saveAsTemplate(input: SaveAsTemplateInput): Promise<Setup>
@@ -407,5 +452,13 @@ export interface RendererApi {
   roomLayoutBlocks: {
     listBySetup(setupId: number): Promise<RoomLayoutBlock[]>
     saveForSetup(setupId: number, blocks: RoomLayoutBlockInput[]): Promise<RoomLayoutBlock[]>
+  }
+  palette: {
+    listVisible(): Promise<PaletteItem[]>
+    listAll(): Promise<PaletteItem[]>
+    createCustom(input: PaletteItemCreateInput): Promise<PaletteItem>
+    update(id: number, patch: PaletteItemUpdateInput): Promise<PaletteItem>
+    removeCustom(id: number): Promise<void>
+    reorder(ids: number[]): Promise<void>
   }
 }

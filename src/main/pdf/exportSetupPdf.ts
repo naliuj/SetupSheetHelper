@@ -15,10 +15,12 @@ const MARGIN = 36
 const ROW_HEIGHT = 22
 const HEADER_HEIGHT = 24
 
-const COLUMNS = [
+const STATIC_COLUMNS_BEFORE_OUTBOARD = [
   { key: 'sourceName', label: 'Source Name', width: 80 },
-  { key: 'mic', label: 'Microphone', width: 80 },
-  { key: 'outboard', label: 'Outboard', width: 75 },
+  { key: 'mic', label: 'Microphone', width: 80 }
+] as const
+
+const STATIC_COLUMNS_AFTER_OUTBOARD = [
   { key: 'channel', label: 'Channel', width: 40 },
   { key: 'preamp', label: 'Preamp', width: 55 },
   { key: 'tieLine', label: 'Tie Line', width: 45 },
@@ -26,6 +28,27 @@ const COLUMNS = [
   { key: 'polarity', label: 'Polarity', width: 50 },
   { key: 'notes', label: 'Notes', width: 70 }
 ] as const
+
+interface RenderColumn {
+  key: string
+  label: string
+  width: number
+}
+
+function buildOutboardColumns(outboardColumnCount: number): RenderColumn[] {
+  return Array.from({ length: outboardColumnCount }, (_, i) => ({
+    key: `outboard_${i}`,
+    label: i === 0 ? 'Outboard' : `Outboard ${i + 1}`,
+    width: 75
+  }))
+}
+
+/** True if every row is blank for this column key — such a column is omitted entirely rather
+ *  than printing a useless blank strip (independently per column: outboard and preamp are
+ *  unrelated, and each outboard slot is checked on its own). */
+function isColumnEmpty(key: string, itemIds: number[], resolvedValues: Map<number, Record<string, string>>): boolean {
+  return itemIds.every((id) => !(resolvedValues.get(id)?.[key] ?? '').trim())
+}
 
 function findTieLineConflicts(items: { tieLine: number | null }[]): Set<number> {
   const counts = new Map<number, number>()
@@ -49,6 +72,46 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
 
   // Table page(s) — skipped entirely for a "room layout only" export.
   if (input.include !== 'layout') {
+    const outboardColumns = buildOutboardColumns(setup.outboardColumnCount)
+    const allColumns: RenderColumn[] = [
+      ...STATIC_COLUMNS_BEFORE_OUTBOARD,
+      ...outboardColumns,
+      ...STATIC_COLUMNS_AFTER_OUTBOARD
+    ]
+
+    const resolvedValues = new Map<number, Record<string, string>>()
+    for (const item of setup.items) {
+      const mic = item.micId != null ? getMicById(item.micId) : null
+      const preamp = item.preampId != null ? getPreampById(item.preampId) : null
+      const isConflict = item.tieLine != null && conflicts.has(item.tieLine)
+      const values: Record<string, string> = {
+        sourceName: item.sourceName || '',
+        mic: mic ? mic.name : item.micText ?? '',
+        channel: item.channel != null ? String(item.channel) : '',
+        preamp: preamp ? stripManufacturerPrefix(preamp.name, preamp.manufacturer ?? '') : item.preampText ?? '',
+        tieLine: item.tieLine != null ? `${isConflict ? '⚠ ' : ''}${item.tieLine}` : '',
+        cueBox: item.cueBox != null ? String(item.cueBox) : '',
+        polarity: item.polarityFlip ? 'Yes' : '',
+        notes: item.notes ?? ''
+      }
+      for (let i = 0; i < setup.outboardColumnCount; i++) {
+        const slot = item.outboards.find((s) => s.slotIndex === i)
+        const outboard = slot?.outboardId != null ? getOutboardById(slot.outboardId) : null
+        values[`outboard_${i}`] = outboard
+          ? stripManufacturerPrefix(outboard.name, outboard.manufacturer ?? '')
+          : slot?.outboardText ?? ''
+      }
+      resolvedValues.set(item.id, values)
+    }
+
+    // Preamp and every outboard slot are each independently omittable if blank across the
+    // whole sheet; every other column always shows.
+    const itemIds = setup.items.map((item) => item.id)
+    const omittableKeys = ['preamp', ...outboardColumns.map((col) => col.key)]
+    const visibleColumns = allColumns.filter(
+      (col) => !omittableKeys.includes(col.key) || !isColumnEmpty(col.key, itemIds, resolvedValues)
+    )
+
     let page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT])
     let cursorY = PAGE_HEIGHT - MARGIN
 
@@ -74,7 +137,7 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
 
     const drawHeaderRow = (): void => {
       let x = MARGIN
-      for (const col of COLUMNS) {
+      for (const col of visibleColumns) {
         page.drawText(col.label, { x, y: cursorY, size: 9, font: boldFont })
         x += col.width
       }
@@ -101,25 +164,10 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
         startNewPage()
       }
 
-      const mic = item.micId != null ? getMicById(item.micId) : null
-      const outboard = item.outboardId != null ? getOutboardById(item.outboardId) : null
-      const preamp = item.preampId != null ? getPreampById(item.preampId) : null
-      const isConflict = item.tieLine != null && conflicts.has(item.tieLine)
-
-      const values: Record<(typeof COLUMNS)[number]['key'], string> = {
-        sourceName: item.sourceName || '',
-        mic: mic ? mic.name : item.micText ?? '',
-        outboard: outboard ? stripManufacturerPrefix(outboard.name, outboard.manufacturer ?? '') : item.outboardText ?? '',
-        channel: item.channel != null ? String(item.channel) : '',
-        preamp: preamp ? stripManufacturerPrefix(preamp.name, preamp.manufacturer ?? '') : item.preampText ?? '',
-        tieLine: item.tieLine != null ? `${isConflict ? '⚠ ' : ''}${item.tieLine}` : '',
-        cueBox: item.cueBox != null ? String(item.cueBox) : '',
-        polarity: item.polarityFlip ? 'Yes' : '',
-        notes: item.notes ?? ''
-      }
+      const values = resolvedValues.get(item.id)!
 
       let x = MARGIN
-      for (const col of COLUMNS) {
+      for (const col of visibleColumns) {
         const text = values[col.key]
         page.drawText(text.length > 40 ? `${text.slice(0, 37)}...` : text, {
           x,

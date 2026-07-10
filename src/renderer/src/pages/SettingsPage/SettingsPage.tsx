@@ -5,19 +5,21 @@ import { useNavigationStore } from '@renderer/state/navigationStore'
 import { useThemeStore } from '@renderer/state/themeStore'
 import FacultyReserveEditor from './FacultyReserveEditor'
 import PersonalGearEditor from './PersonalGearEditor'
+import PaletteEditor from './PaletteEditor'
 import StudioExportPage from './StudioExportPage'
 import StudioImportPage from './StudioImportPage'
 import PresetManager from '../PresetManager/PresetManager'
 
 type Subview = { kind: 'main' } | { kind: 'export' } | { kind: 'import'; file: StudioExportFile } | { kind: 'presets' }
-type Tab = 'general' | 'personalGear' | 'facultyReserve' | 'backup' | 'theme'
+type Tab = 'general' | 'personalGear' | 'facultyReserve' | 'backup' | 'theme' | 'palette'
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'general', label: 'General' },
+  { id: 'theme', label: 'Theme' },
   { id: 'personalGear', label: 'Personal Gear Locker' },
   { id: 'facultyReserve', label: 'Faculty Reserve' },
-  { id: 'backup', label: 'Studio Backup' },
-  { id: 'theme', label: 'Theme' }
+  { id: 'palette', label: 'Layout Palette' },
+  { id: 'backup', label: 'Import/Export' }
 ]
 
 export default function SettingsPage(): JSX.Element {
@@ -174,6 +176,12 @@ export default function SettingsPage(): JSX.Element {
             />
             Dark Mode
           </label>
+        </div>
+      )}
+
+      {activeTab === 'palette' && (
+        <div className="panel">
+          <PaletteEditor />
         </div>
       )}
     </div>

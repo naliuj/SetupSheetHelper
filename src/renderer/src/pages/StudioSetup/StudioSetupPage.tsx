@@ -408,6 +408,7 @@ export default function StudioSetupPage(): JSX.Element {
           id: item.existingId,
           poolType: 'studio',
           studioId,
+          buildingId: null,
           setupId: null,
           name: item.name,
           manufacturer: item.manufacturer,

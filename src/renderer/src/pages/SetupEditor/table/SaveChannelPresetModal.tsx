@@ -55,8 +55,11 @@ export default function SaveChannelPresetModal({ onClose }: { onClose: () => voi
     try {
       const presetItems: ChannelPresetItemInput[] = targetItems.map((item) => {
         const mic = included.mic && item.micId != null ? mics.find((m) => m.id === item.micId) : null
+        // Presets stay single-outboard (a reusable "typical chain") — only the row's first
+        // outboard slot is ever captured, even if the row has more.
+        const slot0OutboardId = item.outboards.find((s) => s.slotIndex === 0)?.outboardId ?? null
         const outboard =
-          included.outboard && item.outboardId != null ? outboardGear.find((g) => g.id === item.outboardId) : null
+          included.outboard && slot0OutboardId != null ? outboardGear.find((g) => g.id === slot0OutboardId) : null
         const preamp =
           included.preamp && item.preampId != null ? preamps.find((p) => p.id === item.preampId) : null
         return {

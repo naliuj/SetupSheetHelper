@@ -13,6 +13,15 @@ export interface FolderTreeNode extends Folder {
   children: FolderTreeNode[]
 }
 
+/** One "Outboard" column's value for a row — a setup can have any number of these columns
+ *  (see Setup.outboardColumnCount), and a given row may simply not have a slot yet for an
+ *  index beyond what it's filled in (absent, not necessarily null-valued). */
+export interface SetupItemOutboardSlot {
+  slotIndex: number
+  outboardId: number | null
+  outboardText: string | null
+}
+
 export interface SetupItem {
   id: number
   setupId: number
@@ -23,8 +32,7 @@ export interface SetupItem {
   channel: number | null
   tieLine: number | null
   cueBox: number | null
-  outboardId: number | null
-  outboardText: string | null
+  outboards: SetupItemOutboardSlot[]
   preampId: number | null
   preampText: string | null
   polarityFlip: boolean
@@ -65,6 +73,10 @@ export interface Setup {
   /** Off by default — students don't have access to faculty reserve gear. The sole gate for
    *  whether this setup can see it, regardless of which studio it belongs to. */
   facultyReserveEnabled: boolean
+  /** How many "Outboard" columns this setup's table currently has — every row conceptually has
+   *  this many slots (see SetupItemOutboardSlot), though a given row may not have filled in
+   *  every one yet. Defaults to 1; "+ Add Outboard Column" increments it. */
+  outboardColumnCount: number
 }
 
 export interface SetupWithItems extends Setup {

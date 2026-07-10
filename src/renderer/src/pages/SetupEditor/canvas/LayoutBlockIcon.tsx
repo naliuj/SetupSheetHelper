@@ -6,7 +6,8 @@ import type { RoomLayoutBlockDraft } from '@shared/types/setup'
 interface Props {
   block: RoomLayoutBlockDraft
   selected: boolean
-  onSelect: () => void
+  imageSize: { width: number; height: number }
+  onSelect: (additive: boolean) => void
   onDragEnd: (x: number, y: number) => void
   onContextMenu: (clientX: number, clientY: number) => void
 }
@@ -16,7 +17,7 @@ interface Props {
  *  uniform scale multiplier, so independent-axis resize (via the Transformer in
  *  LayoutStage.tsx) works naturally. */
 const LayoutBlockIcon = forwardRef<Konva.Group, Props>(function LayoutBlockIcon(
-  { block, selected, onSelect, onDragEnd, onContextMenu },
+  { block, selected, imageSize, onSelect, onDragEnd, onContextMenu },
   ref
 ) {
   const strokeColor = '#ffffff'
@@ -34,10 +35,30 @@ const LayoutBlockIcon = forwardRef<Konva.Group, Props>(function LayoutBlockIcon(
     onDragEnd(e.target.x(), e.target.y())
   }
 
+  // block.x/y is the shape's CENTER (children are drawn offset by -width/2/-height/2, or a
+  // circle radius, from the Group's origin) — clamp the center so the un-rotated bounding box
+  // stays within the room image, a close-enough approximation without needing full rotated-bbox
+  // math for this UX (a rotated block may visually poke out slightly at extreme angles).
+  function dragBoundFunc(pos: { x: number; y: number }): { x: number; y: number } {
+    const halfW = block.width / 2
+    const halfH = block.height / 2
+    return {
+      x: Math.max(halfW, Math.min(pos.x, imageSize.width - halfW)),
+      y: Math.max(halfH, Math.min(pos.y, imageSize.height - halfH))
+    }
+  }
+
+  // Cmd/Ctrl+click toggles this block in/out of a multi-selection instead of replacing it.
+  function handleClick(e: Konva.KonvaEventObject<MouseEvent>): void {
+    onSelect(e.evt.metaKey || e.evt.ctrlKey)
+  }
+
   function handleContextMenu(e: Konva.KonvaEventObject<PointerEvent>): void {
     e.evt.preventDefault()
     e.cancelBubble = true
-    onSelect()
+    // Right-clicking a block that's already part of the current selection leaves the
+    // selection intact; right-clicking an unselected block replaces the selection with it.
+    if (!selected) onSelect(false)
     onContextMenu(e.evt.clientX, e.evt.clientY)
   }
 
@@ -48,8 +69,9 @@ const LayoutBlockIcon = forwardRef<Konva.Group, Props>(function LayoutBlockIcon(
       y={block.y}
       rotation={block.rotation}
       draggable
-      onClick={onSelect}
-      onTap={onSelect}
+      dragBoundFunc={dragBoundFunc}
+      onClick={handleClick}
+      onTap={() => onSelect(false)}
       onDragEnd={handleDragEnd}
       onContextMenu={handleContextMenu}
     >
