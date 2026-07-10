@@ -3,6 +3,7 @@ import { APP_SETTINGS_KEYS } from '@shared/types/entities'
 import type { StudioExportFile } from '@shared/types/ipc'
 import { useNavigationStore } from '@renderer/state/navigationStore'
 import { useThemeStore } from '@renderer/state/themeStore'
+import { useBerkleeFeaturesStore } from '@renderer/state/berkleeFeaturesStore'
 import FacultyReserveEditor from './FacultyReserveEditor'
 import PersonalGearEditor from './PersonalGearEditor'
 import PaletteEditor from './PaletteEditor'
@@ -13,25 +14,34 @@ import PresetManager from '../PresetManager/PresetManager'
 type Subview = { kind: 'main' } | { kind: 'export' } | { kind: 'import'; file: StudioExportFile } | { kind: 'presets' }
 type Tab = 'general' | 'personalGear' | 'facultyReserve' | 'backup' | 'theme' | 'palette'
 
-const TABS: { id: Tab; label: string }[] = [
-  { id: 'general', label: 'General' },
-  { id: 'theme', label: 'Theme' },
-  { id: 'personalGear', label: 'Personal Gear Locker' },
-  { id: 'facultyReserve', label: 'Faculty Reserve' },
-  { id: 'palette', label: 'Layout Palette' },
-  { id: 'backup', label: 'Import/Export' }
-]
-
 export default function SettingsPage(): JSX.Element {
   const goToHome = useNavigationStore((s) => s.goToHome)
   const closeSettings = useNavigationStore((s) => s.closeSettings)
   const theme = useThemeStore((s) => s.theme)
   const setTheme = useThemeStore((s) => s.setTheme)
+  const berkleeFeaturesEnabled = useBerkleeFeaturesStore((s) => s.enabled)
+  const enableBerkleeFeatures = useBerkleeFeaturesStore((s) => s.enable)
+  const disableBerkleeFeatures = useBerkleeFeaturesStore((s) => s.disable)
   const [activeTab, setActiveTab] = useState<Tab>('general')
   const [defaultEngineerName, setDefaultEngineerName] = useState('')
   const [loaded, setLoaded] = useState(false)
   const [subview, setSubview] = useState<Subview>({ kind: 'main' })
   const [importMessage, setImportMessage] = useState<string | null>(null)
+
+  const TABS: { id: Tab; label: string }[] = [
+    { id: 'general', label: 'General' },
+    { id: 'theme', label: 'Theme' },
+    { id: 'personalGear', label: 'Personal Gear Locker' },
+    ...(berkleeFeaturesEnabled ? [{ id: 'facultyReserve' as const, label: 'Faculty Reserve' }] : []),
+    { id: 'palette', label: 'Layout Palette' },
+    { id: 'backup', label: 'Import/Export' }
+  ]
+
+  // If Berklee features get disabled while the Faculty Reserve tab is selected, fall back to
+  // General rather than leaving the page on a now-hidden tab with no matching button.
+  useEffect(() => {
+    if (!berkleeFeaturesEnabled && activeTab === 'facultyReserve') setActiveTab('general')
+  }, [berkleeFeaturesEnabled, activeTab])
 
   useEffect(() => {
     window.api.settings.get(APP_SETTINGS_KEYS.defaultEngineerName).then((engineerValue) => {
@@ -133,6 +143,21 @@ export default function SettingsPage(): JSX.Element {
               Manage Channel Presets…
             </button>
           </div>
+
+          <div style={{ marginTop: 20 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <input
+                type="checkbox"
+                checked={berkleeFeaturesEnabled === true}
+                onChange={(e) => (e.target.checked ? enableBerkleeFeatures() : disableBerkleeFeatures())}
+              />
+              Berklee Features
+            </label>
+            <p className="card-sub" style={{ marginTop: 4 }}>
+              Shows Berklee's real studios, gear lists, and faculty reserve pool. Turning this off just hides them —
+              nothing is deleted, and turning it back on brings everything right back.
+            </p>
+          </div>
         </div>
       )}
 
@@ -146,7 +171,7 @@ export default function SettingsPage(): JSX.Element {
         </div>
       )}
 
-      {activeTab === 'facultyReserve' && (
+      {activeTab === 'facultyReserve' && berkleeFeaturesEnabled && (
         <div className="panel">
           <FacultyReserveEditor />
         </div>

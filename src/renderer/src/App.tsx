@@ -3,16 +3,19 @@ import { APP_SETTINGS_KEYS } from '@shared/types/entities'
 import { useNavigationStore } from './state/navigationStore'
 import { useThemeStore } from './state/themeStore'
 import { usePaletteStore } from './state/paletteStore'
+import { useBerkleeFeaturesStore } from './state/berkleeFeaturesStore'
 import Home from './pages/Home/Home'
 import SettingsPage from './pages/SettingsPage/SettingsPage'
 import SetupEditor from './pages/SetupEditor/SetupEditor'
 import StudioSetupPage from './pages/StudioSetup/StudioSetupPage'
+import BerkleeOnboardingModal from './components/BerkleeOnboardingModal'
 
 export default function App(): JSX.Element {
   const view = useNavigationStore((s) => s.view)
   const goToHome = useNavigationStore((s) => s.goToHome)
   const goToSettings = useNavigationStore((s) => s.goToSettings)
   const theme = useThemeStore((s) => s.theme)
+  const onboardingPromptOpen = useBerkleeFeaturesStore((s) => s.onboardingPromptOpen)
 
   // Load the persisted theme once at startup, before the user ever opens Settings. Hydrates
   // via setState directly (not the persisting setTheme action) so loading doesn't write it
@@ -35,6 +38,12 @@ export default function App(): JSX.Element {
     usePaletteStore.getState().load()
   }, [])
 
+  // Load the Berklee-features setting once at startup — surfaces the onboarding prompt if it's
+  // never been answered (see berkleeFeaturesStore.load()).
+  useEffect(() => {
+    useBerkleeFeaturesStore.getState().load()
+  }, [])
+
   return (
     <div className="app-shell">
       <div className="top-bar">
@@ -51,6 +60,7 @@ export default function App(): JSX.Element {
       {view === 'setup' && <SetupEditor />}
       {view === 'studioSetup' && <StudioSetupPage />}
       {view === 'settings' && <SettingsPage />}
+      {onboardingPromptOpen && <BerkleeOnboardingModal />}
     </div>
   )
 }

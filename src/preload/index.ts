@@ -105,6 +105,10 @@ const api: RendererApi = {
     get: (key) => ipcRenderer.invoke(IPC.settings.get, key),
     set: (key, value) => ipcRenderer.invoke(IPC.settings.set, key, value)
   },
+  berklee: {
+    enable: () => ipcRenderer.invoke(IPC.berklee.enable),
+    disable: () => ipcRenderer.invoke(IPC.berklee.disable)
+  },
   folders: {
     list: () => ipcRenderer.invoke(IPC.folders.list),
     create: (name, parentFolderId) => ipcRenderer.invoke(IPC.folders.create, name, parentFolderId),

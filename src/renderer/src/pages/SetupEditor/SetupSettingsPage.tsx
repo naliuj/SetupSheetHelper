@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useSetupStore } from '@renderer/state/setupStore'
+import { useBerkleeFeaturesStore } from '@renderer/state/berkleeFeaturesStore'
 import SetupGearLocker from './SetupGearLocker'
 
 type Tab = 'gear' | 'general'
@@ -18,6 +19,7 @@ export default function SetupSettingsPage({ setupId, onBack }: Props): JSX.Eleme
   const [tab, setTab] = useState<Tab>('gear')
   const facultyReserveEnabled = useSetupStore((s) => s.facultyReserveEnabled)
   const setFacultyReserveEnabled = useSetupStore((s) => s.setFacultyReserveEnabled)
+  const berkleeFeaturesEnabled = useBerkleeFeaturesStore((s) => s.enabled)
 
   return (
     <div className="page">
@@ -39,7 +41,7 @@ export default function SetupSettingsPage({ setupId, onBack }: Props): JSX.Eleme
 
       <div className="panel" style={{ marginTop: 16 }}>
         {tab === 'gear' && <SetupGearLocker setupId={setupId} />}
-        {tab === 'general' && (
+        {tab === 'general' && berkleeFeaturesEnabled && (
           <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <input
               type="checkbox"
