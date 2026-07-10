@@ -1,6 +1,7 @@
 {
   "name": "setup-sheet-helper",
-  "version": "0.1.0",
+  "productName": "Setup Sheet Helper",
+  "version": "1.0.0",
   "description": "Studio session setup sheet planner",
   "main": "./out/main/index.js",
   "author": "",
@@ -49,6 +50,7 @@
     "vite": "^5.4.11"
   },
   "build": {
+    "artifactName": "${productName}-${version}-${arch}.${ext}",
     "extraResources": [
       {
         "from": "resources/layouts",
