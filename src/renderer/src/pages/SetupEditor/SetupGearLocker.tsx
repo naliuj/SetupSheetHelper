@@ -336,6 +336,7 @@ function SessionPreampsSection({
     await window.api.preamps.upsert({
       poolType: 'setup',
       studioId: null,
+      buildingId: null,
       setupId,
       name: finalName,
       manufacturer: trimmedManufacturer,

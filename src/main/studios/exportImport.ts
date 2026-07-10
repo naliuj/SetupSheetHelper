@@ -112,6 +112,7 @@ export function importStudios(studios: ExportedStudio[]): void {
       upsertPreamp({
         poolType: 'studio',
         studioId: created.id,
+        buildingId: null,
         setupId: null,
         name: preamp.name,
         manufacturer: preamp.manufacturer,

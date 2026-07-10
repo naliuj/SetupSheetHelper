@@ -1,0 +1,32 @@
+diff --git a/node_modules/app-builder-lib/out/codeSign/macCodeSign.js b/node_modules/app-builder-lib/out/codeSign/macCodeSign.js
+index 9a69042..3ace864 100644
+--- a/node_modules/app-builder-lib/out/codeSign/macCodeSign.js
++++ b/node_modules/app-builder-lib/out/codeSign/macCodeSign.js
+@@ -255,7 +255,7 @@ async function parseIdentity(line) {
+     const firstQuoteIndex = line.indexOf('"');
+     const name = line.substring(firstQuoteIndex + 1, line.lastIndexOf('"'));
+     const hash = line.substring(0, firstQuoteIndex - 1);
+-    const { Identity: IdentityClass } = await (0, dynamicImport_1.dynamicImport)("@electron/osx-sign/dist/cjs/util-identities");
++    const { Identity: IdentityClass } = await (0, dynamicImport_1.dynamicImport)("@electron/osx-sign/dist/cjs/util-identities.js");
+     return new IdentityClass(name, hash);
+ }
+ function findIdentity(certType, qualifier, keychain) {
+diff --git a/node_modules/app-builder-lib/out/mac/MacTargetHelper.js b/node_modules/app-builder-lib/out/mac/MacTargetHelper.js
+index 796e85c..db9560b 100644
+--- a/node_modules/app-builder-lib/out/mac/MacTargetHelper.js
++++ b/node_modules/app-builder-lib/out/mac/MacTargetHelper.js
+@@ -38,12 +38,12 @@ class MacTargetHelper {
+             }
+             const noIdentity = !config.sign && identity == null;
+             if (qualifier === "-") {
+-                const { Identity: IdentityClass } = await (0, dynamicImport_1.dynamicImport)("@electron/osx-sign/dist/cjs/util-identities");
++                const { Identity: IdentityClass } = await (0, dynamicImport_1.dynamicImport)("@electron/osx-sign/dist/cjs/util-identities.js");
+                 identity = new IdentityClass("-", undefined);
+             }
+             else if (noIdentity && fallBackToAdhoc) {
+                 builder_util_1.log.warn(null, "falling back to ad-hoc signature for macOS application code signing");
+-                const { Identity: IdentityClass } = await (0, dynamicImport_1.dynamicImport)("@electron/osx-sign/dist/cjs/util-identities");
++                const { Identity: IdentityClass } = await (0, dynamicImport_1.dynamicImport)("@electron/osx-sign/dist/cjs/util-identities.js");
+                 identity = new IdentityClass("-", undefined);
+             }
+             else if (noIdentity) {

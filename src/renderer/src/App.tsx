@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { APP_SETTINGS_KEYS } from '@shared/types/entities'
 import { useNavigationStore } from './state/navigationStore'
 import { useThemeStore } from './state/themeStore'
+import { usePaletteStore } from './state/paletteStore'
 import Home from './pages/Home/Home'
 import SettingsPage from './pages/SettingsPage/SettingsPage'
 import SetupEditor from './pages/SetupEditor/SetupEditor'
@@ -28,6 +29,11 @@ export default function App(): JSX.Element {
   useEffect(() => {
     document.documentElement.dataset.theme = theme
   }, [theme])
+
+  // Load the global Layout Mode palette once at startup — shared across every studio/setup.
+  useEffect(() => {
+    usePaletteStore.getState().load()
+  }, [])
 
   return (
     <div className="app-shell">

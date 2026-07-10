@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { registerAllIpcHandlers } from './ipc'
 import { installAppMenu } from './menu'
+import { initAutoUpdater } from './autoUpdater'
 
 // Registered before app ready so the scheme is treated as secure/standard,
 // letting pdfjs-dist fetch() the layout PDF bytes in the renderer without
@@ -54,6 +55,7 @@ app.whenReady().then(() => {
   registerAllIpcHandlers()
   const mainWindow = createWindow()
   installAppMenu(mainWindow)
+  initAutoUpdater(mainWindow)
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

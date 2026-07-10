@@ -1,33 +1,37 @@
 import { useMemo, useState } from 'react'
-import { INSTRUMENT_TYPES, type InstrumentTypeDef } from '@shared/constants/instrumentTypes'
+import type { PaletteItem } from '@shared/types/palette'
 import { staggeredPosition } from '@shared/utils/staggeredGrid'
 import { useLayoutStore } from '@renderer/state/layoutStore'
+import { usePaletteStore } from '@renderer/state/paletteStore'
+import { useNavigationStore } from '@renderer/state/navigationStore'
 import CustomBlockModal from './CustomBlockModal'
 
 export default function InstrumentPalette(): JSX.Element {
   const blocks = useLayoutStore((s) => s.blocks)
   const addBlock = useLayoutStore((s) => s.addBlock)
+  const paletteItems = usePaletteStore((s) => s.items)
+  const goToSettings = useNavigationStore((s) => s.goToSettings)
   const [search, setSearch] = useState('')
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
   const [modalOpen, setModalOpen] = useState(false)
 
   const categories = useMemo(() => {
     const set = new Set<string>()
-    for (const item of INSTRUMENT_TYPES) set.add(item.category)
+    for (const item of paletteItems) set.add(item.category)
     return [...set].sort((a, b) => a.localeCompare(b))
-  }, [])
+  }, [paletteItems])
 
   const query = search.trim().toLowerCase()
   const grouped = useMemo(() => {
-    const map = new Map<string, InstrumentTypeDef[]>()
-    for (const item of INSTRUMENT_TYPES) {
+    const map = new Map<string, PaletteItem[]>()
+    for (const item of paletteItems) {
       if (query && !item.label.toLowerCase().includes(query)) continue
       const list = map.get(item.category) ?? []
       list.push(item)
       map.set(item.category, list)
     }
     return categories.filter((c) => map.has(c)).map((c) => ({ category: c, items: map.get(c)! }))
-  }, [categories, query])
+  }, [categories, query, paletteItems])
 
   function toggleCategory(category: string): void {
     setCollapsed((prev) => {
@@ -58,8 +62,11 @@ export default function InstrumentPalette(): JSX.Element {
       </div>
       <p className="card-sub">Drag onto the layout — optional, purely visual</p>
 
-      <button className="btn small" style={{ width: '100%', marginBottom: 10 }} onClick={() => setModalOpen(true)}>
+      <button className="btn small" style={{ width: '100%', marginBottom: 6 }} onClick={() => setModalOpen(true)}>
         + Add Custom Block
+      </button>
+      <button className="btn small" style={{ width: '100%', marginBottom: 10 }} onClick={goToSettings}>
+        Manage Palette…
       </button>
 
       <input

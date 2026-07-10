@@ -1,4 +1,4 @@
-import type { SetupItem } from '@shared/types/setup'
+import type { SetupItem, SetupItemOutboardSlot } from '@shared/types/setup'
 import type { SetupItemInput } from '@shared/types/ipc'
 import { getDb } from '../index'
 
@@ -12,8 +12,6 @@ interface SetupItemRow {
   channel: number | null
   tie_line: number | null
   cue_box: number | null
-  outboard_id: number | null
-  outboard_text: string | null
   preamp_id: number | null
   preamp_text: string | null
   polarity_flip: number
@@ -21,7 +19,14 @@ interface SetupItemRow {
   sort_order: number
 }
 
-function mapRow(row: SetupItemRow): SetupItem {
+interface SetupItemOutboardRow {
+  setup_item_id: number
+  slot_index: number
+  outboard_id: number | null
+  outboard_text: string | null
+}
+
+function mapRow(row: SetupItemRow, outboards: SetupItemOutboardSlot[]): SetupItem {
   return {
     id: row.id,
     setupId: row.setup_id,
@@ -32,8 +37,7 @@ function mapRow(row: SetupItemRow): SetupItem {
     channel: row.channel,
     tieLine: row.tie_line,
     cueBox: row.cue_box,
-    outboardId: row.outboard_id,
-    outboardText: row.outboard_text,
+    outboards,
     preampId: row.preamp_id,
     preampText: row.preamp_text,
     polarityFlip: row.polarity_flip === 1,
@@ -41,11 +45,36 @@ function mapRow(row: SetupItemRow): SetupItem {
   }
 }
 
+/** Groups every outboard slot row for a set of setup_item ids, keyed by setup_item_id. */
+function loadOutboardsByItemId(itemIds: number[]): Map<number, SetupItemOutboardSlot[]> {
+  const map = new Map<number, SetupItemOutboardSlot[]>()
+  if (itemIds.length === 0) return map
+  const placeholders = itemIds.map(() => '?').join(',')
+  const rows = getDb()
+    .prepare(
+      `SELECT setup_item_id, slot_index, outboard_id, outboard_text FROM setup_item_outboards
+       WHERE setup_item_id IN (${placeholders}) ORDER BY slot_index`
+    )
+    .all(...itemIds) as SetupItemOutboardRow[]
+  for (const row of rows) {
+    const slot: SetupItemOutboardSlot = {
+      slotIndex: row.slot_index,
+      outboardId: row.outboard_id,
+      outboardText: row.outboard_text
+    }
+    const list = map.get(row.setup_item_id) ?? []
+    list.push(slot)
+    map.set(row.setup_item_id, list)
+  }
+  return map
+}
+
 export function listItemsBySetup(setupId: number): SetupItem[] {
   const rows = getDb()
     .prepare('SELECT * FROM setup_items WHERE setup_id = ? ORDER BY sort_order, id')
     .all(setupId) as SetupItemRow[]
-  return rows.map(mapRow)
+  const outboardsByItemId = loadOutboardsByItemId(rows.map((r) => r.id))
+  return rows.map((row) => mapRow(row, outboardsByItemId.get(row.id) ?? []))
 }
 
 /**
@@ -56,24 +85,41 @@ export function listItemsBySetup(setupId: number): SetupItem[] {
  * remount of every row (and dropping whatever input had focus) each time autosave fired.
  * New items (client-generated string id, never saved before) are INSERTed. Items no longer
  * present in the incoming set (removed client-side) are deleted.
+ *
+ * Each item's outboard slots are replaced wholesale (delete-then-reinsert) in the same
+ * transaction — much simpler than diffing slot-by-slot, and slots have no independent
+ * identity/history worth preserving across saves the way the item row's own id does.
  */
 export function replaceItemsForSetup(setupId: number, items: SetupItemInput[]): SetupItem[] {
   const db = getDb()
   const insert = db.prepare(
     `INSERT INTO setup_items
-      (setup_id, instrument_type, source_name, mic_id, mic_text, channel, tie_line, cue_box, outboard_id, outboard_text, preamp_id, preamp_text, polarity_flip, notes, sort_order)
-     VALUES (@setupId, @instrumentType, @sourceName, @micId, @micText, @channel, @tieLine, @cueBox, @outboardId, @outboardText, @preampId, @preampText, @polarityFlip, @notes, @sortOrder)`
+      (setup_id, instrument_type, source_name, mic_id, mic_text, channel, tie_line, cue_box, preamp_id, preamp_text, polarity_flip, notes, sort_order)
+     VALUES (@setupId, @instrumentType, @sourceName, @micId, @micText, @channel, @tieLine, @cueBox, @preampId, @preampText, @polarityFlip, @notes, @sortOrder)`
   )
   const update = db.prepare(
     `UPDATE setup_items SET
       instrument_type = @instrumentType, source_name = @sourceName, mic_id = @micId, mic_text = @micText,
-      channel = @channel, tie_line = @tieLine, cue_box = @cueBox, outboard_id = @outboardId,
-      outboard_text = @outboardText, preamp_id = @preampId, preamp_text = @preampText,
+      channel = @channel, tie_line = @tieLine, cue_box = @cueBox,
+      preamp_id = @preampId, preamp_text = @preampText,
       polarity_flip = @polarityFlip, notes = @notes, sort_order = @sortOrder,
       updated_at = datetime('now')
      WHERE id = @id AND setup_id = @setupId`
   )
   const deleteStmt = db.prepare('DELETE FROM setup_items WHERE id = ?')
+  const deleteOutboards = db.prepare('DELETE FROM setup_item_outboards WHERE setup_item_id = ?')
+  const insertOutboard = db.prepare(
+    `INSERT INTO setup_item_outboards (setup_item_id, slot_index, outboard_id, outboard_text)
+     VALUES (?, ?, ?, ?)`
+  )
+
+  function saveOutboards(itemId: number, outboards: SetupItemOutboardSlot[]): void {
+    deleteOutboards.run(itemId)
+    for (const slot of outboards) {
+      if (slot.outboardId == null && !slot.outboardText) continue
+      insertOutboard.run(itemId, slot.slotIndex, slot.outboardId, slot.outboardText)
+    }
+  }
 
   const replace = db.transaction(() => {
     const existingIds = new Set(
@@ -93,21 +139,23 @@ export function replaceItemsForSetup(setupId: number, items: SetupItemInput[]): 
         channel: item.channel,
         tieLine: item.tieLine,
         cueBox: item.cueBox,
-        outboardId: item.outboardId,
-        outboardText: item.outboardText,
         preampId: item.preampId,
         preampText: item.preampText,
         polarityFlip: item.polarityFlip ? 1 : 0,
         notes: item.notes,
         sortOrder: index
       }
+      let itemId: number
       if (typeof item.id === 'number' && existingIds.has(item.id)) {
         update.run({ ...params, id: item.id })
+        itemId = item.id
         keepIds.add(item.id)
       } else {
         const info = insert.run(params)
-        keepIds.add(Number(info.lastInsertRowid))
+        itemId = Number(info.lastInsertRowid)
+        keepIds.add(itemId)
       }
+      saveOutboards(itemId, item.outboards)
     })
 
     for (const id of existingIds) {
@@ -139,13 +187,17 @@ export function copyItemsToSetup(
   const items = listItemsBySetup(sourceSetupId)
   const insert = db.prepare(
     `INSERT INTO setup_items
-      (setup_id, instrument_type, source_name, mic_id, mic_text, channel, tie_line, cue_box, outboard_id, outboard_text, preamp_id, preamp_text, polarity_flip, notes)
-     VALUES (@setupId, @instrumentType, @sourceName, @micId, @micText, @channel, @tieLine, @cueBox, @outboardId, @outboardText, @preampId, @preampText, @polarityFlip, @notes)`
+      (setup_id, instrument_type, source_name, mic_id, mic_text, channel, tie_line, cue_box, preamp_id, preamp_text, polarity_flip, notes)
+     VALUES (@setupId, @instrumentType, @sourceName, @micId, @micText, @channel, @tieLine, @cueBox, @preampId, @preampText, @polarityFlip, @notes)`
+  )
+  const insertOutboard = db.prepare(
+    `INSERT INTO setup_item_outboards (setup_item_id, slot_index, outboard_id, outboard_text)
+     VALUES (?, ?, ?, ?)`
   )
 
   const copy = db.transaction(() => {
     items.forEach((item) => {
-      insert.run({
+      const info = insert.run({
         setupId: targetSetupId,
         instrumentType: item.instrumentType,
         sourceName: item.sourceName,
@@ -154,13 +206,18 @@ export function copyItemsToSetup(
         channel: options.blankRoomSpecificFields ? null : item.channel,
         tieLine: options.blankRoomSpecificFields ? null : item.tieLine,
         cueBox: options.blankRoomSpecificFields ? null : item.cueBox,
-        outboardId: options.blankRoomSpecificFields ? null : item.outboardId,
-        outboardText: options.blankRoomSpecificFields ? null : item.outboardText,
         preampId: options.blankRoomSpecificFields ? null : item.preampId,
         preampText: options.blankRoomSpecificFields ? null : item.preampText,
         polarityFlip: options.blankRoomSpecificFields ? 0 : item.polarityFlip ? 1 : 0,
         notes: options.blankRoomSpecificFields ? null : item.notes
       })
+      if (!options.blankRoomSpecificFields) {
+        const newItemId = Number(info.lastInsertRowid)
+        for (const slot of item.outboards) {
+          if (slot.outboardId == null && !slot.outboardText) continue
+          insertOutboard.run(newItemId, slot.slotIndex, slot.outboardId, slot.outboardText)
+        }
+      }
     })
   })
   copy()

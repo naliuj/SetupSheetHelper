@@ -6,6 +6,7 @@ import { registerLayoutFileHandlers } from './layoutFileHandlers'
 import { registerExportHandlers } from './exportHandlers'
 import { registerFolderHandlers } from './folderHandlers'
 import { registerRoomLayoutBlockHandlers } from './roomLayoutBlockHandlers'
+import { registerPaletteHandlers } from './paletteHandlers'
 
 export function registerAllIpcHandlers(): void {
   registerStudioHandlers()
@@ -16,4 +17,5 @@ export function registerAllIpcHandlers(): void {
   registerExportHandlers()
   registerFolderHandlers()
   registerRoomLayoutBlockHandlers()
+  registerPaletteHandlers()
 }

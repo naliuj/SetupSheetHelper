@@ -37,9 +37,16 @@ export function registerCatalogHandlers(): void {
   ipcMain.handle(IPC.outboard.remove, (_e, id: number) => outboardRepo.removeOutboard(id))
 
   ipcMain.handle(IPC.preamps.listByStudio, (_e, studioId: number) => preampRepo.listPreampsByStudio(studioId))
-  ipcMain.handle(IPC.preamps.listAvailableForStudio, (_e, studioId: number, setupId?: number | null) =>
-    preampRepo.listAvailableForStudio(studioId, setupId)
+  ipcMain.handle(
+    IPC.preamps.listAvailableForStudio,
+    (_e, studioId: number, setupId?: number | null, facultyReserveEnabledForSetup?: boolean) =>
+      preampRepo.listAvailableForStudio(studioId, setupId, facultyReserveEnabledForSetup)
   )
+  ipcMain.handle(IPC.preamps.listBuildingPreamps, (_e, buildingId: number) =>
+    preampRepo.listBuildingPreamps(buildingId)
+  )
+  ipcMain.handle(IPC.preamps.listFacultyReservePreamps, () => preampRepo.listFacultyReservePreamps())
+  ipcMain.handle(IPC.preamps.listPersonalPreamps, () => preampRepo.listPersonalPreamps())
   ipcMain.handle(IPC.preamps.listSetupGear, (_e, setupId: number) => preampRepo.listSetupGear(setupId))
   ipcMain.handle(IPC.preamps.listAll, () => preampRepo.listAllPreamps())
   ipcMain.handle(IPC.preamps.upsert, (_e, input: PreampUpsertInput) => preampRepo.upsertPreamp(input))

@@ -48,6 +48,9 @@ export function registerSetupHandlers(): void {
     setupsRepo.touchSetup(setupId)
     return saved
   })
+  ipcMain.handle(IPC.setups.setOutboardColumnCount, (_e, setupId: number, count: number) =>
+    setupsRepo.setOutboardColumnCount(setupId, count)
+  )
   ipcMain.handle(IPC.setups.remove, (_e, id: number) => setupsRepo.removeSetup(id))
   ipcMain.handle(IPC.setups.instantiateFromTemplate, (_e, templateId: number) =>
     setupsRepo.instantiateFromTemplate(templateId)

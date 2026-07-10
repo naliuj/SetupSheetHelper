@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { temporal } from 'zundo'
-import type { SetupItemDraft, SetupWithItems } from '@shared/types/setup'
+import type { SetupItemDraft, SetupItemOutboardSlot, SetupWithItems } from '@shared/types/setup'
 
 export interface UnresolvedGearHint {
   mic?: string
@@ -56,6 +56,9 @@ interface SetupState {
    *  whether this setup can see it, regardless of which studio it belongs to. */
   facultyReserveEnabled: boolean
   items: SetupItemDraft[]
+  /** How many "Outboard" columns the table currently shows — every row conceptually has this
+   *  many slots (see SetupItemOutboardSlot), though a row may not have filled in every one. */
+  outboardColumnCount: number
   /** Contiguous row selection (click = single, shift-click = range from the anchor). */
   selectedItemIds: Set<number | string>
   /** The last plain-clicked row — shift-click selects the range between it and the clicked row. */
@@ -85,6 +88,12 @@ interface SetupState {
   addItem(instrumentType: string, defaults?: NewItemDefaults): string
   addItemAt(instrumentType: string, defaults: NewItemDefaults): string
   updateItemFields(id: number | string, patch: Partial<SetupItemDraft>): void
+  updateItemOutboardSlot(
+    id: number | string,
+    slotIndex: number,
+    patch: Partial<Pick<SetupItemOutboardSlot, 'outboardId' | 'outboardText'>>
+  ): void
+  addOutboardColumn(): Promise<void>
   removeItem(id: number | string): void
   removeItems(ids: Array<number | string>): void
   reorderItems(orderedIds: Array<number | string>): void
@@ -112,6 +121,7 @@ export const useSetupStore = create<SetupState>()(
   folderId: null,
   facultyReserveEnabled: false,
   items: [],
+  outboardColumnCount: 1,
   selectedItemIds: new Set<number | string>(),
   selectionAnchorId: null,
   sequentialNumberingOpen: false,
@@ -132,6 +142,7 @@ export const useSetupStore = create<SetupState>()(
       folderId,
       facultyReserveEnabled: false,
       items: [],
+      outboardColumnCount: 1,
       selectedItemIds: new Set(),
       selectionAnchorId: null,
       unresolvedGearHints: new Map(),
@@ -151,6 +162,7 @@ export const useSetupStore = create<SetupState>()(
       folderId: setup.folderId,
       facultyReserveEnabled: setup.facultyReserveEnabled,
       items: setup.items,
+      outboardColumnCount: setup.outboardColumnCount,
       selectedItemIds: new Set(),
       selectionAnchorId: null,
       unresolvedGearHints: new Map(),
@@ -177,8 +189,7 @@ export const useSetupStore = create<SetupState>()(
       channel: defaults.channel ?? null,
       tieLine: null,
       cueBox: null,
-      outboardId: null,
-      outboardText: null,
+      outboards: [],
       preampId: null,
       preampText: null,
       polarityFlip: false,
@@ -198,6 +209,38 @@ export const useSetupStore = create<SetupState>()(
       items: state.items.map((item) => (item.id === id ? { ...item, ...patch } : item)),
       isDirty: true
     })),
+
+  updateItemOutboardSlot: (id, slotIndex, patch) =>
+    set((state) => ({
+      items: state.items.map((item) => {
+        if (item.id !== id) return item
+        const existing = item.outboards.find((s) => s.slotIndex === slotIndex)
+        const nextSlot: SetupItemOutboardSlot = {
+          slotIndex,
+          outboardId: existing?.outboardId ?? null,
+          outboardText: existing?.outboardText ?? null,
+          ...patch
+        }
+        const outboards = existing
+          ? item.outboards.map((s) => (s.slotIndex === slotIndex ? nextSlot : s))
+          : [...item.outboards, nextSlot]
+        return { ...item, outboards }
+      }),
+      isDirty: true
+    })),
+
+  // Increments the sheet-wide outboard column count and persists it immediately (not deferred
+  // to the next full save) — but a brand-new, never-saved setup has no id to persist against
+  // yet, so the increment only lives in local state here; save()'s "create new setup" branch
+  // pushes it at creation time in that case.
+  addOutboardColumn: async () => {
+    const state = get()
+    const nextCount = state.outboardColumnCount + 1
+    set({ outboardColumnCount: nextCount })
+    if (state.setupId) {
+      await window.api.setups.setOutboardColumnCount(state.setupId, nextCount)
+    }
+  },
 
   removeItem: (id) => get().removeItems([id]),
 
@@ -306,8 +349,12 @@ export const useSetupStore = create<SetupState>()(
           channel: item.channel != null ? Math.max(1, item.channel) : null,
           tieLine: item.tieLine != null ? Math.max(1, item.tieLine) : null,
           cueBox: item.cueBox != null ? Math.max(1, item.cueBox) : null,
-          outboardId: item.outboardId,
-          outboardText: item.outboardName,
+          // Channel Presets stay single-outboard (a reusable "typical chain," not a multi-slot
+          // capture) — the preset's one outboard value always lands in slot 0.
+          outboards:
+            item.outboardId != null || item.outboardName
+              ? [{ slotIndex: 0, outboardId: item.outboardId, outboardText: item.outboardName }]
+              : [],
           preampId: item.preampId,
           preampText: item.preampName,
           polarityFlip: item.polarityFlip ?? false,
@@ -341,6 +388,9 @@ export const useSetupStore = create<SetupState>()(
           state.facultyReserveEnabled
         )
         setupId = created.id
+        if (state.outboardColumnCount !== 1) {
+          await window.api.setups.setOutboardColumnCount(setupId, state.outboardColumnCount)
+        }
       } else {
         await window.api.setups.rename(
           setupId,
@@ -381,6 +431,7 @@ export const useSetupStore = create<SetupState>()(
     {
       partialize: (state) => ({
         items: state.items,
+        outboardColumnCount: state.outboardColumnCount,
         name: state.name,
         sessionDate: state.sessionDate,
         engineer: state.engineer,
