@@ -103,13 +103,13 @@ export default function SetupSheetRow({
   const outboardText = useBufferedField(item.outboardText ?? '', (v) => onChange({ outboardText: v }))
   const preampText = useBufferedField(item.preampText ?? '', (v) => onChange({ preampText: v }))
   const channel = useBufferedField(String(item.channel ?? ''), (v) =>
-    onChange({ channel: v ? Number(v) : null })
+    onChange({ channel: v ? Math.max(1, Number(v)) : null })
   )
   const tieLine = useBufferedField(String(item.tieLine ?? ''), (v) =>
-    onChange({ tieLine: v ? Number(v) : null })
+    onChange({ tieLine: v ? Math.max(1, Number(v)) : null })
   )
   const cueBox = useBufferedField(String(item.cueBox ?? ''), (v) =>
-    onChange({ cueBox: v ? Number(v) : null })
+    onChange({ cueBox: v ? Math.max(1, Number(v)) : null })
   )
   const notes = useBufferedField(item.notes ?? '', (v) => onChange({ notes: v }))
 
@@ -203,6 +203,7 @@ export default function SetupSheetRow({
       <td>
         <input
           type="number"
+          min={1}
           value={channel.value}
           onChange={(e) => channel.onChange(e.target.value)}
           onBlur={channel.onBlur}
@@ -245,6 +246,7 @@ export default function SetupSheetRow({
       <td>
         <input
           type="number"
+          min={1}
           value={tieLine.value}
           onChange={(e) => tieLine.onChange(e.target.value)}
           onBlur={tieLine.onBlur}
@@ -255,6 +257,7 @@ export default function SetupSheetRow({
       <td>
         <input
           type="number"
+          min={1}
           value={cueBox.value}
           onChange={(e) => cueBox.onChange(e.target.value)}
           onBlur={cueBox.onBlur}

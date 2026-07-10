@@ -264,7 +264,7 @@ export const useSetupStore = create<SetupState>()(
   applySequentialNumbering: (field, start) =>
     set((state) => {
       const targetAll = state.selectedItemIds.size === 0
-      let next = start
+      let next = Math.max(1, start)
       return {
         items: state.items.map((item) => {
           if (!targetAll && !state.selectedItemIds.has(item.id)) return item
@@ -303,9 +303,9 @@ export const useSetupStore = create<SetupState>()(
           sourceName: item.sourceName,
           micId: item.micId,
           micText: item.micName,
-          channel: item.channel,
-          tieLine: item.tieLine,
-          cueBox: item.cueBox,
+          channel: item.channel != null ? Math.max(1, item.channel) : null,
+          tieLine: item.tieLine != null ? Math.max(1, item.tieLine) : null,
+          cueBox: item.cueBox != null ? Math.max(1, item.cueBox) : null,
           outboardId: item.outboardId,
           outboardText: item.outboardName,
           preampId: item.preampId,

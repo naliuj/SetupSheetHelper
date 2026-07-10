@@ -22,7 +22,7 @@ export default function SequentialNumberingModal({ onClose }: { onClose: () => v
 
   const targetCount = selectedItemIds.size > 0 ? selectedItemIds.size : items.length
   const start = Number(startText)
-  const validStart = Number.isInteger(start) && startText.trim() !== ''
+  const validStart = Number.isInteger(start) && startText.trim() !== '' && start >= 1
   const preview =
     targetCount === 0
       ? 'No rows to number.'
@@ -52,6 +52,7 @@ export default function SequentialNumberingModal({ onClose }: { onClose: () => v
           Starting number
           <input
             type="number"
+            min={1}
             value={startText}
             onChange={(e) => setStartText(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleConfirm()}
