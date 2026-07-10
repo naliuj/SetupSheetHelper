@@ -71,16 +71,23 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode, onOpenSetti
       if (!currentSetupId) return
 
       // Skip flattening the canvas entirely for a sheet-only export — no need to pay for it.
+      // The layout stage now stays mounted (just visually hidden) even in Table Mode, so
+      // capturing it no longer requires switching modes first — but it can still be genuinely
+      // empty if this studio has no room layout file assigned at all, which is what actually
+      // needs checking here (stageRef.current itself is basically always populated now).
       let dataUrl: string | null = null
       if (include !== 'sheet' && stageRef.current) {
-        useLayoutStore.getState().selectBlock(null)
-        // let the deselect re-render (hides the resize/rotate handles) before flattening the stage
-        await new Promise((resolve) => setTimeout(resolve, 30))
-        dataUrl = exportStageToDataUrl(stageRef.current, 2)
+        const layout = studioId ? await window.api.layoutFile.getForStudio(studioId) : null
+        if (layout) {
+          useLayoutStore.getState().selectBlock(null)
+          // let the deselect re-render (hides the resize/rotate handles) before flattening the stage
+          await new Promise((resolve) => setTimeout(resolve, 30))
+          dataUrl = exportStageToDataUrl(stageRef.current, 2)
+        }
       }
 
       if (include === 'layout' && !dataUrl) {
-        setExportMessage('Switch to Layout Mode first — there\'s no room layout to export yet.')
+        setExportMessage('This studio has no room layout assigned yet — nothing to export.')
         return
       }
 

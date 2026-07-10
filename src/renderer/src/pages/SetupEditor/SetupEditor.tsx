@@ -135,19 +135,19 @@ export default function SetupEditor(): JSX.Element {
         onToggleMode={setMode}
         onOpenSettings={() => setSettingsOpen(true)}
       />
-      {mode === 'table' ? (
-        <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
-          <AddSourceControl />
-          <SetupSheetTable />
+      <div style={{ flex: 1, minHeight: 0, overflow: 'auto', display: mode === 'table' ? 'block' : 'none' }}>
+        <AddSourceControl />
+        <SetupSheetTable />
+      </div>
+      {/* Kept mounted (just hidden) in Table Mode, rather than unmounted, so its Konva stage
+          stays available for PDF export's "room layout" capture regardless of which mode the
+          editor is currently in — see performExport in SetupToolbar.tsx. */}
+      <div style={{ flex: 1, display: mode === 'table' ? 'none' : 'flex', minHeight: 0 }}>
+        <InstrumentPalette />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <LayoutStage studioId={studioId} stageRef={stageRef} />
         </div>
-      ) : (
-        <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
-          <InstrumentPalette />
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <LayoutStage studioId={studioId} stageRef={stageRef} />
-          </div>
-        </div>
-      )}
+      </div>
     </div>
   )
 }
