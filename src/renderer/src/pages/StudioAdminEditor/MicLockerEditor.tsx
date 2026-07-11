@@ -41,14 +41,26 @@ export default function MicLockerEditor({ studioId }: { studioId: number }): JSX
     reload()
   }
 
+  function patchMic(id: number, patch: Partial<Mic>): void {
+    setMics((prev) => prev.map((m) => (m.id === id ? { ...m, ...patch } : m)))
+  }
+
   async function updateQuantity(mic: Mic, newQuantity: number): Promise<void> {
-    await window.api.mics.upsert({ ...mic, quantity: Math.max(1, newQuantity) })
-    reload()
+    const quantity = Math.max(1, newQuantity)
+    patchMic(mic.id, { quantity })
+    await window.api.mics.upsert({ ...mic, quantity })
   }
 
   async function updateManufacturer(mic: Mic, newManufacturer: string): Promise<void> {
-    await window.api.mics.upsert({ ...mic, manufacturer: newManufacturer || null })
-    reload()
+    const manufacturer = newManufacturer || null
+    patchMic(mic.id, { manufacturer })
+    await window.api.mics.upsert({ ...mic, manufacturer })
+  }
+
+  async function updateName(mic: Mic, newName: string): Promise<void> {
+    if (!newName.trim()) return
+    patchMic(mic.id, { name: newName })
+    await window.api.mics.upsert({ ...mic, name: newName.trim() })
   }
 
   async function remove(id: number): Promise<void> {
@@ -62,8 +74,8 @@ export default function MicLockerEditor({ studioId }: { studioId: number }): JSX
       <table className="data-table">
         <thead>
           <tr>
-            <th>Name</th>
             <th>Manufacturer</th>
+            <th>Name</th>
             <th>Category</th>
             <th>Qty</th>
             <th></th>
@@ -72,12 +84,14 @@ export default function MicLockerEditor({ studioId }: { studioId: number }): JSX
         <tbody>
           {mics.map((m) => (
             <tr key={m.id}>
-              <td>{m.name}</td>
               <td>
                 <input
                   value={m.manufacturer ?? ''}
                   onChange={(e) => updateManufacturer(m, e.target.value)}
                 />
+              </td>
+              <td>
+                <input value={m.name} onChange={(e) => updateName(m, e.target.value)} />
               </td>
               <td>{m.category}</td>
               <td style={{ maxWidth: 70 }}>
@@ -101,15 +115,15 @@ export default function MicLockerEditor({ studioId }: { studioId: number }): JSX
 
       <div className="inline-form">
         <input
+          placeholder="Manufacturer"
+          value={manufacturer}
+          onChange={(e) => setManufacturer(e.target.value)}
+        />
+        <input
           placeholder="Mic name (e.g. Neumann U87)"
           value={name}
           onChange={(e) => setName(e.target.value)}
           onBlur={handleNameBlur}
-        />
-        <input
-          placeholder="Manufacturer"
-          value={manufacturer}
-          onChange={(e) => setManufacturer(e.target.value)}
         />
         <input
           placeholder="Category (optional)"

@@ -41,14 +41,26 @@ export default function OutboardEditor({ studioId }: { studioId: number }): JSX.
     reload()
   }
 
+  function patchGear(id: number, patch: Partial<OutboardGear>): void {
+    setGear((prev) => prev.map((g) => (g.id === id ? { ...g, ...patch } : g)))
+  }
+
   async function updateQuantity(item: OutboardGear, newQuantity: number): Promise<void> {
-    await window.api.outboard.upsert({ ...item, quantity: Math.max(1, newQuantity) })
-    reload()
+    const quantity = Math.max(1, newQuantity)
+    patchGear(item.id, { quantity })
+    await window.api.outboard.upsert({ ...item, quantity })
   }
 
   async function updateManufacturer(item: OutboardGear, newManufacturer: string): Promise<void> {
-    await window.api.outboard.upsert({ ...item, manufacturer: newManufacturer || null })
-    reload()
+    const manufacturer = newManufacturer || null
+    patchGear(item.id, { manufacturer })
+    await window.api.outboard.upsert({ ...item, manufacturer })
+  }
+
+  async function updateName(item: OutboardGear, newName: string): Promise<void> {
+    if (!newName.trim()) return
+    patchGear(item.id, { name: newName })
+    await window.api.outboard.upsert({ ...item, name: newName.trim() })
   }
 
   async function remove(id: number): Promise<void> {
@@ -61,8 +73,8 @@ export default function OutboardEditor({ studioId }: { studioId: number }): JSX.
       <table className="data-table">
         <thead>
           <tr>
-            <th>Name</th>
             <th>Manufacturer</th>
+            <th>Name</th>
             <th>Category</th>
             <th>Qty</th>
             <th></th>
@@ -71,12 +83,14 @@ export default function OutboardEditor({ studioId }: { studioId: number }): JSX.
         <tbody>
           {gear.map((g) => (
             <tr key={g.id}>
-              <td>{g.name}</td>
               <td>
                 <input
                   value={g.manufacturer ?? ''}
                   onChange={(e) => updateManufacturer(g, e.target.value)}
                 />
+              </td>
+              <td>
+                <input value={g.name} onChange={(e) => updateName(g, e.target.value)} />
               </td>
               <td>{g.category}</td>
               <td style={{ maxWidth: 70 }}>
@@ -99,13 +113,13 @@ export default function OutboardEditor({ studioId }: { studioId: number }): JSX.
       {gear.length === 0 && <div className="empty-state">No outboard gear yet.</div>}
 
       <div className="inline-form">
+        <input placeholder="Manufacturer" value={manufacturer} onChange={(e) => setManufacturer(e.target.value)} />
         <input
           placeholder="Gear name (e.g. 1176 Compressor)"
           value={name}
           onChange={(e) => setName(e.target.value)}
           onBlur={handleNameBlur}
         />
-        <input placeholder="Manufacturer" value={manufacturer} onChange={(e) => setManufacturer(e.target.value)} />
         <input placeholder="Category (optional)" value={category} onChange={(e) => setCategory(e.target.value)} />
         <input
           type="number"

@@ -509,8 +509,8 @@ export default function StudioSetupPage(): JSX.Element {
           <table className="data-table" style={{ marginTop: 8 }}>
             <thead>
               <tr>
-                <th>Name</th>
                 <th>Manufacturer</th>
+                <th>Name</th>
                 <th>Qty</th>
                 <th></th>
               </tr>
@@ -519,13 +519,13 @@ export default function StudioSetupPage(): JSX.Element {
               {pendingMics.map((item) => (
                 <tr key={item.key}>
                   <td>
-                    <input value={item.name} onChange={(e) => updateMic(item.key, { name: e.target.value })} />
-                  </td>
-                  <td>
                     <input
                       value={item.manufacturer ?? ''}
                       onChange={(e) => updateMic(item.key, { manufacturer: e.target.value || null })}
                     />
+                  </td>
+                  <td>
+                    <input value={item.name} onChange={(e) => updateMic(item.key, { name: e.target.value })} />
                   </td>
                   <td style={{ maxWidth: 70 }}>
                     <input
@@ -567,8 +567,8 @@ export default function StudioSetupPage(): JSX.Element {
           <table className="data-table" style={{ marginTop: 8 }}>
             <thead>
               <tr>
-                <th>Name</th>
                 <th>Manufacturer</th>
+                <th>Name</th>
                 <th>Qty</th>
                 <th></th>
               </tr>
@@ -577,13 +577,13 @@ export default function StudioSetupPage(): JSX.Element {
               {pendingOutboard.map((item) => (
                 <tr key={item.key}>
                   <td>
-                    <input value={item.name} onChange={(e) => updateOutboard(item.key, { name: e.target.value })} />
-                  </td>
-                  <td>
                     <input
                       value={item.manufacturer ?? ''}
                       onChange={(e) => updateOutboard(item.key, { manufacturer: e.target.value || null })}
                     />
+                  </td>
+                  <td>
+                    <input value={item.name} onChange={(e) => updateOutboard(item.key, { name: e.target.value })} />
                   </td>
                   <td style={{ maxWidth: 70 }}>
                     <input
@@ -626,8 +626,8 @@ export default function StudioSetupPage(): JSX.Element {
           <table className="data-table" style={{ marginTop: 8 }}>
             <thead>
               <tr>
-                <th>Name</th>
                 <th>Manufacturer</th>
+                <th>Name</th>
                 <th>Channels</th>
                 <th></th>
               </tr>
@@ -636,13 +636,13 @@ export default function StudioSetupPage(): JSX.Element {
               {pendingPreamps.map((item) => (
                 <tr key={item.key}>
                   <td>
-                    <input value={item.name} onChange={(e) => updatePreamp(item.key, { name: e.target.value })} />
-                  </td>
-                  <td>
                     <input
                       value={item.manufacturer ?? ''}
                       onChange={(e) => updatePreamp(item.key, { manufacturer: e.target.value || null })}
                     />
+                  </td>
+                  <td>
+                    <input value={item.name} onChange={(e) => updatePreamp(item.key, { name: e.target.value })} />
                   </td>
                   <td style={{ maxWidth: 70 }}>
                     <input

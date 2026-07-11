@@ -41,14 +41,26 @@ function BuildingMicsSection({ buildingId }: { buildingId: number }): JSX.Elemen
     reload()
   }
 
+  function patchMic(id: number, patch: Partial<Mic>): void {
+    setMics((prev) => prev.map((m) => (m.id === id ? { ...m, ...patch } : m)))
+  }
+
   async function updateQuantity(mic: Mic, newQuantity: number): Promise<void> {
-    await window.api.mics.upsert({ ...mic, quantity: Math.max(1, newQuantity) })
-    reload()
+    const quantity = Math.max(1, newQuantity)
+    patchMic(mic.id, { quantity })
+    await window.api.mics.upsert({ ...mic, quantity })
   }
 
   async function updateManufacturer(mic: Mic, newManufacturer: string): Promise<void> {
-    await window.api.mics.upsert({ ...mic, manufacturer: newManufacturer || null })
-    reload()
+    const manufacturer = newManufacturer || null
+    patchMic(mic.id, { manufacturer })
+    await window.api.mics.upsert({ ...mic, manufacturer })
+  }
+
+  async function updateName(mic: Mic, newName: string): Promise<void> {
+    if (!newName.trim()) return
+    patchMic(mic.id, { name: newName })
+    await window.api.mics.upsert({ ...mic, name: newName.trim() })
   }
 
   async function remove(id: number): Promise<void> {
@@ -64,8 +76,8 @@ function BuildingMicsSection({ buildingId }: { buildingId: number }): JSX.Elemen
       <table className="data-table">
         <thead>
           <tr>
-            <th>Name</th>
             <th>Manufacturer</th>
+            <th>Name</th>
             <th>Category</th>
             <th>Qty</th>
             <th></th>
@@ -74,9 +86,11 @@ function BuildingMicsSection({ buildingId }: { buildingId: number }): JSX.Elemen
         <tbody>
           {mics.map((m) => (
             <tr key={m.id}>
-              <td>{m.name}</td>
               <td>
                 <input value={m.manufacturer ?? ''} onChange={(e) => updateManufacturer(m, e.target.value)} />
+              </td>
+              <td>
+                <input value={m.name} onChange={(e) => updateName(m, e.target.value)} />
               </td>
               <td>{m.category}</td>
               <td style={{ maxWidth: 70 }}>
@@ -99,8 +113,8 @@ function BuildingMicsSection({ buildingId }: { buildingId: number }): JSX.Elemen
       {mics.length === 0 && <div className="empty-state">No shared mics for this building yet.</div>}
 
       <div className="inline-form">
-        <input placeholder="Mic name" value={name} onChange={(e) => setName(e.target.value)} onBlur={handleNameBlur} />
         <input placeholder="Manufacturer" value={manufacturer} onChange={(e) => setManufacturer(e.target.value)} />
+        <input placeholder="Mic name" value={name} onChange={(e) => setName(e.target.value)} onBlur={handleNameBlur} />
         <input placeholder="Category (optional)" value={category} onChange={(e) => setCategory(e.target.value)} />
         <input
           type="number"
@@ -158,14 +172,26 @@ function BuildingOutboardSection({ buildingId }: { buildingId: number }): JSX.El
     reload()
   }
 
+  function patchGear(id: number, patch: Partial<OutboardGear>): void {
+    setGear((prev) => prev.map((g) => (g.id === id ? { ...g, ...patch } : g)))
+  }
+
   async function updateQuantity(item: OutboardGear, newQuantity: number): Promise<void> {
-    await window.api.outboard.upsert({ ...item, quantity: Math.max(1, newQuantity) })
-    reload()
+    const quantity = Math.max(1, newQuantity)
+    patchGear(item.id, { quantity })
+    await window.api.outboard.upsert({ ...item, quantity })
   }
 
   async function updateManufacturer(item: OutboardGear, newManufacturer: string): Promise<void> {
-    await window.api.outboard.upsert({ ...item, manufacturer: newManufacturer || null })
-    reload()
+    const manufacturer = newManufacturer || null
+    patchGear(item.id, { manufacturer })
+    await window.api.outboard.upsert({ ...item, manufacturer })
+  }
+
+  async function updateName(item: OutboardGear, newName: string): Promise<void> {
+    if (!newName.trim()) return
+    patchGear(item.id, { name: newName })
+    await window.api.outboard.upsert({ ...item, name: newName.trim() })
   }
 
   async function remove(id: number): Promise<void> {
@@ -179,8 +205,8 @@ function BuildingOutboardSection({ buildingId }: { buildingId: number }): JSX.El
       <table className="data-table">
         <thead>
           <tr>
-            <th>Name</th>
             <th>Manufacturer</th>
+            <th>Name</th>
             <th>Category</th>
             <th>Qty</th>
             <th></th>
@@ -189,9 +215,11 @@ function BuildingOutboardSection({ buildingId }: { buildingId: number }): JSX.El
         <tbody>
           {gear.map((g) => (
             <tr key={g.id}>
-              <td>{g.name}</td>
               <td>
                 <input value={g.manufacturer ?? ''} onChange={(e) => updateManufacturer(g, e.target.value)} />
+              </td>
+              <td>
+                <input value={g.name} onChange={(e) => updateName(g, e.target.value)} />
               </td>
               <td>{g.category}</td>
               <td style={{ maxWidth: 70 }}>
@@ -214,13 +242,13 @@ function BuildingOutboardSection({ buildingId }: { buildingId: number }): JSX.El
       {gear.length === 0 && <div className="empty-state">No shared outboard gear for this building yet.</div>}
 
       <div className="inline-form">
+        <input placeholder="Manufacturer" value={manufacturer} onChange={(e) => setManufacturer(e.target.value)} />
         <input
           placeholder="Gear name (e.g. 1176 Compressor)"
           value={name}
           onChange={(e) => setName(e.target.value)}
           onBlur={handleNameBlur}
         />
-        <input placeholder="Manufacturer" value={manufacturer} onChange={(e) => setManufacturer(e.target.value)} />
         <input placeholder="Category (optional)" value={category} onChange={(e) => setCategory(e.target.value)} />
         <input
           type="number"
@@ -278,14 +306,26 @@ function BuildingPreampsSection({ buildingId }: { buildingId: number }): JSX.Ele
     reload()
   }
 
+  function patchPreamp(id: number, patch: Partial<Preamp>): void {
+    setPreamps((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)))
+  }
+
   async function updateChannels(preamp: Preamp, newChannels: number): Promise<void> {
-    await window.api.preamps.upsert({ ...preamp, channels: Math.max(1, newChannels) })
-    reload()
+    const channels = Math.max(1, newChannels)
+    patchPreamp(preamp.id, { channels })
+    await window.api.preamps.upsert({ ...preamp, channels })
   }
 
   async function updateManufacturer(preamp: Preamp, newManufacturer: string): Promise<void> {
-    await window.api.preamps.upsert({ ...preamp, manufacturer: newManufacturer || null })
-    reload()
+    const manufacturer = newManufacturer || null
+    patchPreamp(preamp.id, { manufacturer })
+    await window.api.preamps.upsert({ ...preamp, manufacturer })
+  }
+
+  async function updateName(preamp: Preamp, newName: string): Promise<void> {
+    if (!newName.trim()) return
+    patchPreamp(preamp.id, { name: newName })
+    await window.api.preamps.upsert({ ...preamp, name: newName.trim() })
   }
 
   async function remove(id: number): Promise<void> {
@@ -299,8 +339,8 @@ function BuildingPreampsSection({ buildingId }: { buildingId: number }): JSX.Ele
       <table className="data-table">
         <thead>
           <tr>
-            <th>Name</th>
             <th>Manufacturer</th>
+            <th>Name</th>
             <th>Category</th>
             <th>Channels</th>
             <th></th>
@@ -309,9 +349,11 @@ function BuildingPreampsSection({ buildingId }: { buildingId: number }): JSX.Ele
         <tbody>
           {preamps.map((p) => (
             <tr key={p.id}>
-              <td>{p.name}</td>
               <td>
                 <input value={p.manufacturer ?? ''} onChange={(e) => updateManufacturer(p, e.target.value)} />
+              </td>
+              <td>
+                <input value={p.name} onChange={(e) => updateName(p, e.target.value)} />
               </td>
               <td>{p.category}</td>
               <td style={{ maxWidth: 70 }}>
@@ -334,13 +376,13 @@ function BuildingPreampsSection({ buildingId }: { buildingId: number }): JSX.Ele
       {preamps.length === 0 && <div className="empty-state">No shared preamps for this building yet.</div>}
 
       <div className="inline-form">
+        <input placeholder="Manufacturer" value={manufacturer} onChange={(e) => setManufacturer(e.target.value)} />
         <input
           placeholder="Preamp name (e.g. 8-channel)"
           value={name}
           onChange={(e) => setName(e.target.value)}
           onBlur={handleNameBlur}
         />
-        <input placeholder="Manufacturer" value={manufacturer} onChange={(e) => setManufacturer(e.target.value)} />
         <input placeholder="Category (optional)" value={category} onChange={(e) => setCategory(e.target.value)} />
         <input
           type="number"

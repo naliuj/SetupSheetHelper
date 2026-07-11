@@ -41,14 +41,26 @@ export default function PreampLockerEditor({ studioId }: { studioId: number }): 
     reload()
   }
 
+  function patchPreamp(id: number, patch: Partial<Preamp>): void {
+    setPreamps((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)))
+  }
+
   async function updateChannels(preamp: Preamp, newChannels: number): Promise<void> {
-    await window.api.preamps.upsert({ ...preamp, channels: Math.max(1, newChannels) })
-    reload()
+    const channels = Math.max(1, newChannels)
+    patchPreamp(preamp.id, { channels })
+    await window.api.preamps.upsert({ ...preamp, channels })
   }
 
   async function updateManufacturer(preamp: Preamp, newManufacturer: string): Promise<void> {
-    await window.api.preamps.upsert({ ...preamp, manufacturer: newManufacturer || null })
-    reload()
+    const manufacturer = newManufacturer || null
+    patchPreamp(preamp.id, { manufacturer })
+    await window.api.preamps.upsert({ ...preamp, manufacturer })
+  }
+
+  async function updateName(preamp: Preamp, newName: string): Promise<void> {
+    if (!newName.trim()) return
+    patchPreamp(preamp.id, { name: newName })
+    await window.api.preamps.upsert({ ...preamp, name: newName.trim() })
   }
 
   async function remove(id: number): Promise<void> {
@@ -62,8 +74,8 @@ export default function PreampLockerEditor({ studioId }: { studioId: number }): 
       <table className="data-table">
         <thead>
           <tr>
-            <th>Name</th>
             <th>Manufacturer</th>
+            <th>Name</th>
             <th>Category</th>
             <th>Channels</th>
             <th></th>
@@ -72,9 +84,11 @@ export default function PreampLockerEditor({ studioId }: { studioId: number }): 
         <tbody>
           {preamps.map((p) => (
             <tr key={p.id}>
-              <td>{p.name}</td>
               <td>
                 <input value={p.manufacturer ?? ''} onChange={(e) => updateManufacturer(p, e.target.value)} />
+              </td>
+              <td>
+                <input value={p.name} onChange={(e) => updateName(p, e.target.value)} />
               </td>
               <td>{p.category}</td>
               <td style={{ maxWidth: 70 }}>
@@ -98,15 +112,15 @@ export default function PreampLockerEditor({ studioId }: { studioId: number }): 
 
       <div className="inline-form">
         <input
+          placeholder="Manufacturer"
+          value={manufacturer}
+          onChange={(e) => setManufacturer(e.target.value)}
+        />
+        <input
           placeholder="Preamp name (e.g. 8-channel)"
           value={name}
           onChange={(e) => setName(e.target.value)}
           onBlur={handleNameBlur}
-        />
-        <input
-          placeholder="Manufacturer"
-          value={manufacturer}
-          onChange={(e) => setManufacturer(e.target.value)}
         />
         <input
           placeholder="Category (optional)"
