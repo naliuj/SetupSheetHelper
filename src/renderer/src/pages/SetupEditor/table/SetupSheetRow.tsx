@@ -147,12 +147,17 @@ export default function SetupSheetRow({
   onDelete
 }: Props): JSX.Element {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id })
-  // A row's color is a soft translucent wash over the page background, so the row text stays
-  // legible in both themes. Selection is signaled by a crisp accent bar down the left edge
-  // (an inset box-shadow) rather than by tinting the whole row — that way a colored row keeps
-  // its own color intact when selected instead of clashing with the accent. Uncolored rows get
-  // a faint accent wash in addition to the bar so selection still reads on a plain row.
-  const colorTint = item.color ? `color-mix(in srgb, ${item.color} 32%, var(--color-bg))` : null
+  // A row's color is a wash over the page background. The mix strength comes from the themed
+  // --row-color-tint-percent (global.css) rather than a fixed number here: dark mode mixes toward
+  // a dark bg so a lighter wash keeps text legible, but light mode's bg is near-white, so the same
+  // low percentage would wash every color out much paler than its picker swatch — light mode uses
+  // full strength instead. Selection is signaled by a crisp accent bar down the left edge (an
+  // inset box-shadow) rather than by tinting the whole row — that way a colored row keeps its own
+  // color intact when selected instead of clashing with the accent. Uncolored rows get a faint
+  // accent wash in addition to the bar so selection still reads on a plain row.
+  const colorTint = item.color
+    ? `color-mix(in srgb, ${item.color} var(--row-color-tint-percent), var(--color-bg))`
+    : null
   const selectedBg = colorTint ?? 'color-mix(in srgb, var(--color-accent) 12%, var(--color-surface-alt))'
   const rowStyle = {
     transform: CSS.Transform.toString(transform),

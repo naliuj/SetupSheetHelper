@@ -39,7 +39,10 @@ export default function SwatchGrid({ value, onSelect, allowNone }: Props): JSX.E
                   padding: 0,
                   borderRadius: 'var(--radius)',
                   background: hex,
-                  border: selected ? '2px solid var(--color-text)' : '1px solid var(--color-border)',
+                  border: '1px solid var(--color-border)',
+                  // An offset ring (gap in --color-bg, then accent) reads on every swatch color,
+                  // including ones close to --color-text where a plain border would blend in.
+                  boxShadow: selected ? '0 0 0 1px var(--color-bg), 0 0 0 3px var(--color-accent)' : undefined,
                   cursor: 'pointer'
                 }}
               />
