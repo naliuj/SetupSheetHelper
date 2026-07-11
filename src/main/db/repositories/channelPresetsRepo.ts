@@ -12,6 +12,8 @@ interface ChannelPresetRow {
   id: number
   name: string
   description: string | null
+  folder_id: number | null
+  sort_order: number
   created_at: string
   updated_at: string
 }
@@ -40,6 +42,8 @@ function mapPreset(row: ChannelPresetRow): ChannelPreset {
     id: row.id,
     name: row.name,
     description: row.description,
+    folderId: row.folder_id,
+    sortOrder: row.sort_order,
     createdAt: row.created_at,
     updatedAt: row.updated_at
   }
@@ -67,7 +71,9 @@ function mapItem(row: ChannelPresetItemRow): ChannelPresetItem {
 }
 
 export function listChannelPresets(): ChannelPreset[] {
-  const rows = getDb().prepare('SELECT * FROM channel_presets ORDER BY name').all() as ChannelPresetRow[]
+  const rows = getDb()
+    .prepare('SELECT * FROM channel_presets ORDER BY sort_order, name')
+    .all() as ChannelPresetRow[]
   return rows.map(mapPreset)
 }
 
@@ -110,9 +116,11 @@ function insertItems(db: Database.Database, presetId: number, items: ChannelPres
 export function createChannelPreset(input: ChannelPresetCreateInput): ChannelPreset {
   const db = getDb()
   const create = db.transaction(() => {
+    // New presets append to the end of the (unfiled) list.
+    const maxSortOrder = (db.prepare('SELECT MAX(sort_order) m FROM channel_presets').get() as { m: number | null }).m
     const info = db
-      .prepare('INSERT INTO channel_presets (name, description) VALUES (?, ?)')
-      .run(input.name, input.description)
+      .prepare('INSERT INTO channel_presets (name, description, sort_order) VALUES (?, ?, ?)')
+      .run(input.name, input.description, (maxSortOrder ?? -1) + 1)
     const id = Number(info.lastInsertRowid)
     insertItems(db, id, input.items)
     return id
@@ -140,4 +148,32 @@ export function updateChannelPreset(id: number, input: ChannelPresetCreateInput)
 
 export function removeChannelPreset(id: number): void {
   getDb().prepare('DELETE FROM channel_presets WHERE id = ?').run(id)
+}
+
+/** Lightweight name/description edit — updates only those, without touching the captured items
+ *  (unlike updateChannelPreset, which does a full item replace). */
+export function renameChannelPreset(id: number, name: string, description: string | null): ChannelPreset {
+  const db = getDb()
+  db.prepare("UPDATE channel_presets SET name = ?, description = ?, updated_at = datetime('now') WHERE id = ?").run(
+    name,
+    description,
+    id
+  )
+  const row = db.prepare('SELECT * FROM channel_presets WHERE id = ?').get(id) as ChannelPresetRow
+  return mapPreset(row)
+}
+
+/** Lightweight reparent for drag-to-folder — doesn't touch name/updated_at. */
+export function movePresetToFolder(id: number, folderId: number | null): void {
+  getDb().prepare('UPDATE channel_presets SET folder_id = ? WHERE id = ?').run(folderId, id)
+}
+
+/** Batch reorder within a folder — assigns sequential sort_order in the given id order. */
+export function reorderPresets(ids: number[]): void {
+  const db = getDb()
+  const run = db.transaction(() => {
+    const stmt = db.prepare('UPDATE channel_presets SET sort_order = ? WHERE id = ?')
+    ids.forEach((id, index) => stmt.run(index, id))
+  })
+  run()
 }

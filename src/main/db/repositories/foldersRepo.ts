@@ -1,4 +1,5 @@
 import type { Folder } from '@shared/types/setup'
+import type { FolderDeleteImpact } from '@shared/types/ipc'
 import { getDb } from '../index'
 import { removeStudioCascade } from './studiosRepo'
 import { removeSetup } from './setupsRepo'
@@ -42,12 +43,6 @@ function collectDescendantFolderIds(db: ReturnType<typeof getDb>, id: number): n
   return result
 }
 
-export interface FolderDeleteImpact {
-  folderCount: number
-  studioCount: number
-  setupCount: number
-}
-
 /** Counts what a delete of this folder's subtree would affect, for the confirmation prompt. */
 export function getFolderDeleteImpact(id: number): FolderDeleteImpact {
   const db = getDb()
@@ -63,7 +58,13 @@ export function getFolderDeleteImpact(id: number): FolderDeleteImpact {
       c: number
     }
   ).c
-  return { folderCount: subtreeIds.length - 1, studioCount, setupCount }
+  return {
+    folderCount: subtreeIds.length - 1,
+    items: [
+      { noun: 'studio', count: studioCount },
+      { noun: 'setup', count: setupCount }
+    ]
+  }
 }
 
 /**

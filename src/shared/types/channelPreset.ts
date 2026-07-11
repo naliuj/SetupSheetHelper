@@ -25,6 +25,10 @@ export interface ChannelPreset {
   id: number
   name: string
   description: string | null
+  /** The preset-folder this is filed under (its own namespace, separate from setup/studio
+   *  folders); null means unfiled / root level. */
+  folderId: number | null
+  sortOrder: number
   createdAt: string
   updatedAt: string
 }

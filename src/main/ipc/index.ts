@@ -5,6 +5,7 @@ import { registerSetupHandlers } from './setupHandlers'
 import { registerLayoutFileHandlers } from './layoutFileHandlers'
 import { registerExportHandlers } from './exportHandlers'
 import { registerFolderHandlers } from './folderHandlers'
+import { registerPresetFolderHandlers } from './presetFolderHandlers'
 import { registerRoomLayoutBlockHandlers } from './roomLayoutBlockHandlers'
 import { registerPaletteHandlers } from './paletteHandlers'
 import { registerBerkleeHandlers } from './berkleeHandlers'
@@ -17,6 +18,7 @@ export function registerAllIpcHandlers(): void {
   registerLayoutFileHandlers()
   registerExportHandlers()
   registerFolderHandlers()
+  registerPresetFolderHandlers()
   registerRoomLayoutBlockHandlers()
   registerPaletteHandlers()
   registerBerkleeHandlers()

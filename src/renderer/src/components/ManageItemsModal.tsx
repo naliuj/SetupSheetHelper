@@ -37,6 +37,12 @@ interface Props {
   onGetFolderDeleteImpact: (id: number) => Promise<FolderDeleteImpact>
   onDeleteFolderRecursive: (id: number) => Promise<void>
   onDeleteFolderPromoteContents: (id: number) => Promise<void>
+  /** When provided, each item row shows an "Edit" button that calls this — the parent renders
+   *  its own editor. Omitted for callers (studios/setups) that edit elsewhere. */
+  onEditItem?: (item: ManagedItem) => void
+  /** Lets a parent-owned dialog (e.g. an edit modal layered on top) suppress this modal's own
+   *  Escape-to-close while it's open, so Escape only closes the topmost layer. */
+  disableEscapeClose?: boolean
   onClose: () => void
 }
 
@@ -71,7 +77,31 @@ function RootFolderRow({
   )
 }
 
-function SortableItemRow({ item, onDelete }: { item: ManagedItem; onDelete: () => void }): JSX.Element {
+function pluralize(count: number, noun: string): string {
+  return `${count} ${noun}${count === 1 ? '' : 's'}`
+}
+
+/** "2 subfolders, 3 studios, and 5 setups" — lists the subfolder count plus each non-zero item
+ *  category (studios/setups, or presets), so the confirmation reads naturally for any namespace. */
+function describeFolderImpact(impact: FolderDeleteImpact): string {
+  const parts: string[] = []
+  if (impact.folderCount > 0) parts.push(pluralize(impact.folderCount, 'subfolder'))
+  for (const { noun, count } of impact.items) if (count > 0) parts.push(pluralize(count, noun))
+  if (parts.length === 0) return 'This folder is empty.'
+  const joined =
+    parts.length === 1 ? parts[0] : `${parts.slice(0, -1).join(', ')}, and ${parts[parts.length - 1]}`
+  return `This folder contains ${joined}.`
+}
+
+function SortableItemRow({
+  item,
+  onDelete,
+  onEdit
+}: {
+  item: ManagedItem
+  onDelete: () => void
+  onEdit?: () => void
+}): JSX.Element {
   const dndId = `${item.kind}-${item.id}`
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: dndId })
   const style = {
@@ -85,6 +115,11 @@ function SortableItemRow({ item, onDelete }: { item: ManagedItem; onDelete: () =
         ⠿
       </span>
       <span className="manage-item-label">{item.label}</span>
+      {onEdit && (
+        <button className="btn small" onClick={onEdit}>
+          Edit
+        </button>
+      )}
       <button className="btn small danger" onClick={onDelete}>
         Delete
       </button>
@@ -104,6 +139,8 @@ export default function ManageItemsModal({
   onGetFolderDeleteImpact,
   onDeleteFolderRecursive,
   onDeleteFolderPromoteContents,
+  onEditItem,
+  disableEscapeClose,
   onClose
 }: Props): JSX.Element {
   const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null)
@@ -119,7 +156,7 @@ export default function ManageItemsModal({
   // modal — never two layers from a single keypress. (folderDialog and itemDialog are mutually
   // exclusive; only one confirm dialog is ever open at a time.)
   const anyDialogOpen = folderDialog !== null || itemDialog !== null
-  useEscapeToClose(onClose, !anyDialogOpen)
+  useEscapeToClose(onClose, !anyDialogOpen && !disableEscapeClose)
   useEscapeToClose(() => setFolderDialog(null), folderDialog !== null)
   useEscapeToClose(() => setItemDialog(null), itemDialog !== null)
 
@@ -264,6 +301,7 @@ export default function ManageItemsModal({
                             key={`${item.kind}-${item.id}`}
                             item={item}
                             onDelete={() => handleItemDelete(item)}
+                            onEdit={onEditItem ? () => onEditItem(item) : undefined}
                           />
                         ))}
                       </SortableContext>
@@ -310,12 +348,7 @@ export default function ManageItemsModal({
         <div className="modal-overlay" onClick={() => setFolderDialog(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 420 }}>
             <h2 style={{ marginTop: 0 }}>Delete "{folderDialog.name}"?</h2>
-            <p className="card-sub">
-              This folder contains {folderDialog.impact.folderCount} subfolder
-              {folderDialog.impact.folderCount === 1 ? '' : 's'}, {folderDialog.impact.studioCount} studio
-              {folderDialog.impact.studioCount === 1 ? '' : 's'}, and {folderDialog.impact.setupCount} setup
-              {folderDialog.impact.setupCount === 1 ? '' : 's'}/template{folderDialog.impact.setupCount === 1 ? '' : 's'}.
-            </p>
+            <p className="card-sub">{describeFolderImpact(folderDialog.impact)}</p>
             <div className="modal-actions" style={{ justifyContent: 'flex-start', flexWrap: 'wrap' }}>
               <button className="btn" onClick={() => setFolderDialog(null)}>
                 Cancel

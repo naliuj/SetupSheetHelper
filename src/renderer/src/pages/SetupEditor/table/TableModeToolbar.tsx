@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useSetupStore } from '@renderer/state/setupStore'
-import { useNavigationStore } from '@renderer/state/navigationStore'
 import Icon from '@renderer/components/Icon'
 import LoadPresetModal from '../../PresetManager/LoadPresetModal'
+import ManagePresetsModal from '../../PresetManager/ManagePresetsModal'
 import { GENERIC_INSTRUMENT_TYPE } from './tableConstants'
 
 /** Persistent Table Mode toolbar — creation and global controls only. Row-scoped actions (number,
@@ -12,11 +12,11 @@ export default function TableModeToolbar(): JSX.Element {
   const outboardColumnCount = useSetupStore((s) => s.outboardColumnCount)
   const addOutboardColumn = useSetupStore((s) => s.addOutboardColumn)
   const removeOutboardColumn = useSetupStore((s) => s.removeOutboardColumn)
-  const goToSettings = useNavigationStore((s) => s.goToSettings)
 
   const [sourceName, setSourceName] = useState('')
   const [presetsOpen, setPresetsOpen] = useState(false)
   const [loadPresetOpen, setLoadPresetOpen] = useState(false)
+  const [managePresetsOpen, setManagePresetsOpen] = useState(false)
   const presetsRef = useRef<HTMLDivElement>(null)
 
   function handleAdd(): void {
@@ -95,7 +95,7 @@ export default function TableModeToolbar(): JSX.Element {
               className="picker-menu-row"
               onClick={() => {
                 setPresetsOpen(false)
-                goToSettings()
+                setManagePresetsOpen(true)
               }}
             >
               Manage presets…
@@ -105,6 +105,7 @@ export default function TableModeToolbar(): JSX.Element {
       </div>
 
       {loadPresetOpen && <LoadPresetModal onClose={() => setLoadPresetOpen(false)} />}
+      {managePresetsOpen && <ManagePresetsModal onClose={() => setManagePresetsOpen(false)} />}
     </div>
   )
 }

@@ -92,7 +92,18 @@ export const IPC = {
     getWithItems: 'presets:getWithItems',
     create: 'presets:create',
     update: 'presets:update',
-    remove: 'presets:remove'
+    remove: 'presets:remove',
+    rename: 'presets:rename',
+    moveToFolder: 'presets:moveToFolder',
+    reorder: 'presets:reorder'
+  },
+  presetFolders: {
+    list: 'presetFolders:list',
+    create: 'presetFolders:create',
+    rename: 'presetFolders:rename',
+    getDeleteImpact: 'presetFolders:getDeleteImpact',
+    deleteRecursive: 'presetFolders:deleteRecursive',
+    deletePromoteContents: 'presetFolders:deletePromoteContents'
   },
   setups: {
     list: 'setups:list',
@@ -296,10 +307,12 @@ export interface SaveAsTemplateInput {
   folderId: number | null
 }
 
+/** What deleting a folder's subtree would remove, for the confirmation prompt. `items` lists the
+ *  non-folder contents by singular noun ("studio", "setup", "preset") so the same modal can serve
+ *  different item namespaces (studios/setups vs preset folders). */
 export interface FolderDeleteImpact {
   folderCount: number
-  studioCount: number
-  setupCount: number
+  items: { noun: string; count: number }[]
 }
 
 export interface StudioDeleteImpact {
@@ -408,6 +421,17 @@ export interface RendererApi {
     create(input: ChannelPresetCreateInput): Promise<ChannelPreset>
     update(id: number, input: ChannelPresetCreateInput): Promise<ChannelPreset>
     remove(id: number): Promise<void>
+    rename(id: number, name: string, description: string | null): Promise<ChannelPreset>
+    moveToFolder(id: number, folderId: number | null): Promise<void>
+    reorder(ids: number[]): Promise<void>
+  }
+  presetFolders: {
+    list(): Promise<Folder[]>
+    create(name: string, parentFolderId: number | null): Promise<Folder>
+    rename(id: number, name: string): Promise<void>
+    getDeleteImpact(id: number): Promise<FolderDeleteImpact>
+    deleteRecursive(id: number): Promise<void>
+    deletePromoteContents(id: number): Promise<void>
   }
   setups: {
     list(studioId?: number): Promise<Setup[]>

@@ -73,7 +73,18 @@ const api: RendererApi = {
     getWithItems: (id) => ipcRenderer.invoke(IPC.presets.getWithItems, id),
     create: (input) => ipcRenderer.invoke(IPC.presets.create, input),
     update: (id, input) => ipcRenderer.invoke(IPC.presets.update, id, input),
-    remove: (id) => ipcRenderer.invoke(IPC.presets.remove, id)
+    remove: (id) => ipcRenderer.invoke(IPC.presets.remove, id),
+    rename: (id, name, description) => ipcRenderer.invoke(IPC.presets.rename, id, name, description),
+    moveToFolder: (id, folderId) => ipcRenderer.invoke(IPC.presets.moveToFolder, id, folderId),
+    reorder: (ids) => ipcRenderer.invoke(IPC.presets.reorder, ids)
+  },
+  presetFolders: {
+    list: () => ipcRenderer.invoke(IPC.presetFolders.list),
+    create: (name, parentFolderId) => ipcRenderer.invoke(IPC.presetFolders.create, name, parentFolderId),
+    rename: (id, name) => ipcRenderer.invoke(IPC.presetFolders.rename, id, name),
+    getDeleteImpact: (id) => ipcRenderer.invoke(IPC.presetFolders.getDeleteImpact, id),
+    deleteRecursive: (id) => ipcRenderer.invoke(IPC.presetFolders.deleteRecursive, id),
+    deletePromoteContents: (id) => ipcRenderer.invoke(IPC.presetFolders.deletePromoteContents, id)
   },
   setups: {
     list: (studioId) => ipcRenderer.invoke(IPC.setups.list, studioId),

@@ -9,9 +9,9 @@ import PersonalGearEditor from './PersonalGearEditor'
 import PaletteEditor from './PaletteEditor'
 import StudioExportPage from './StudioExportPage'
 import StudioImportPage from './StudioImportPage'
-import PresetManager from '../PresetManager/PresetManager'
+import ManagePresetsModal from '../PresetManager/ManagePresetsModal'
 
-type Subview = { kind: 'main' } | { kind: 'export' } | { kind: 'import'; file: StudioExportFile } | { kind: 'presets' }
+type Subview = { kind: 'main' } | { kind: 'export' } | { kind: 'import'; file: StudioExportFile }
 type Tab = 'general' | 'personalGear' | 'facultyReserve' | 'backup' | 'theme' | 'palette'
 
 export default function SettingsPage(): JSX.Element {
@@ -26,6 +26,7 @@ export default function SettingsPage(): JSX.Element {
   const [defaultEngineerName, setDefaultEngineerName] = useState('')
   const [loaded, setLoaded] = useState(false)
   const [subview, setSubview] = useState<Subview>({ kind: 'main' })
+  const [managePresetsOpen, setManagePresetsOpen] = useState(false)
   const [importMessage, setImportMessage] = useState<string | null>(null)
 
   const TABS: { id: Tab; label: string }[] = [
@@ -75,12 +76,14 @@ export default function SettingsPage(): JSX.Element {
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent): void {
       if (e.key !== 'Escape') return
+      // The Manage-presets modal is layered on top and owns Escape while open — let it handle it.
+      if (managePresetsOpen) return
       if (subview.kind === 'main') closeSettings()
       else setSubview({ kind: 'main' })
     }
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [subview, closeSettings])
+  }, [subview, closeSettings, managePresetsOpen])
 
   if (!loaded) return <div className="page" />
 
@@ -95,9 +98,6 @@ export default function SettingsPage(): JSX.Element {
         onDone={() => setSubview({ kind: 'main' })}
       />
     )
-  }
-  if (subview.kind === 'presets') {
-    return <PresetManager onBack={() => setSubview({ kind: 'main' })} />
   }
 
   return (
@@ -139,7 +139,7 @@ export default function SettingsPage(): JSX.Element {
           </div>
 
           <div style={{ marginTop: 20 }}>
-            <button className="btn" onClick={() => setSubview({ kind: 'presets' })}>
+            <button className="btn" onClick={() => setManagePresetsOpen(true)}>
               Manage channel presets…
             </button>
           </div>
@@ -209,6 +209,8 @@ export default function SettingsPage(): JSX.Element {
           <PaletteEditor />
         </div>
       )}
+
+      {managePresetsOpen && <ManagePresetsModal onClose={() => setManagePresetsOpen(false)} />}
     </div>
   )
 }
