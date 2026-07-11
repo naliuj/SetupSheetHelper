@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useSetupStore } from '@renderer/state/setupStore'
 import Icon from '@renderer/components/Icon'
+import SwatchPicker from '@renderer/components/SwatchPicker'
 import SaveChannelPresetModal from './SaveChannelPresetModal'
 
 type NumberingField = 'channel' | 'tieLine' | 'cueBox'
@@ -16,7 +17,9 @@ const FIELD_LABELS: Record<NumberingField, string> = {
  *  silently fell back to all rows). */
 export default function SelectionActionBar(): JSX.Element | null {
   const selectedItemIds = useSetupStore((s) => s.selectedItemIds)
+  const items = useSetupStore((s) => s.items)
   const applySequentialNumbering = useSetupStore((s) => s.applySequentialNumbering)
+  const setItemsColor = useSetupStore((s) => s.setItemsColor)
   const removeItems = useSetupStore((s) => s.removeItems)
   const clearSelection = useSetupStore((s) => s.clearSelection)
   const numberingFocusTick = useSetupStore((s) => s.numberingFocusTick)
@@ -34,6 +37,10 @@ export default function SelectionActionBar(): JSX.Element | null {
   }, [numberingFocusTick])
 
   const count = selectedItemIds.size
+  // Reflect the selection's color in the swatch trigger only when every selected row shares one
+  // color; a mixed selection shows the empty "no color" trigger but still applies on pick.
+  const selectedColors = new Set(items.filter((i) => selectedItemIds.has(i.id)).map((i) => i.color))
+  const sharedColor = selectedColors.size === 1 ? ([...selectedColors][0] ?? null) : null
   const start = Number(startText)
   const validStart = Number.isInteger(start) && startText.trim() !== '' && start >= 1
 
@@ -88,6 +95,17 @@ export default function SelectionActionBar(): JSX.Element | null {
         <button className="btn small primary" onClick={handleApply} disabled={!validStart}>
           Apply
         </button>
+      </span>
+
+      <span style={{ width: 1, height: 20, background: 'var(--color-border)' }} />
+
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--color-text)' }}>
+        Color
+        <SwatchPicker
+          value={sharedColor}
+          onChange={(color) => setItemsColor([...selectedItemIds], color)}
+          allowNone
+        />
       </span>
 
       <span style={{ width: 1, height: 20, background: 'var(--color-border)' }} />

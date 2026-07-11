@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
+import SwatchGrid from '@renderer/components/SwatchGrid'
 
 interface Props {
   x: number
@@ -9,25 +10,36 @@ interface Props {
   onClose: () => void
 }
 
-/** A single native color-picker input, positioned at the context-menu click and opened
- *  immediately via a programmatic click — choosing "Change Color" should feel like one action,
- *  not two, so no extra swatch/confirm UI is needed beyond the OS picker itself. */
+/** The fixed-palette swatch grid shown at the context-menu click point, for recoloring a layout
+ *  block. Closes on outside click / Escape; picking a swatch applies it and closes. */
 export default function ChangeColorPopover({ x, y, initialColor, onChange, onClose }: Props): JSX.Element {
-  const inputRef = useRef<HTMLInputElement>(null)
+  const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    inputRef.current?.click()
-  }, [])
+    function onDocMouseDown(e: MouseEvent): void {
+      if (!ref.current?.contains(e.target as Node)) onClose()
+    }
+    function onKey(e: KeyboardEvent): void {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('mousedown', onDocMouseDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDocMouseDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [onClose])
 
   return createPortal(
-    <input
-      ref={inputRef}
-      type="color"
-      defaultValue={initialColor}
-      onChange={(e) => onChange(e.target.value)}
-      onBlur={onClose}
-      style={{ position: 'fixed', top: y, left: x, opacity: 0, width: 1, height: 1 }}
-    />,
+    <div ref={ref} className="picker-menu" style={{ position: 'fixed', top: y, left: x, padding: 8 }}>
+      <SwatchGrid
+        value={initialColor}
+        onSelect={(color) => {
+          if (color) onChange(color)
+          onClose()
+        }}
+      />
+    </div>,
     document.body
   )
 }

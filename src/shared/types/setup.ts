@@ -37,6 +37,8 @@ export interface SetupItem {
   preampText: string | null
   polarityFlip: boolean
   notes: string | null
+  /** Optional row tint (hex from the fixed swatch palette), for visually grouping rows. */
+  color: string | null
 }
 
 /** Layout Mode's canvas blocks — a purely spatial "where does everyone stand" visualization,

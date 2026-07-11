@@ -4,6 +4,8 @@ import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-
 import { CSS } from '@dnd-kit/utilities'
 import type { PaletteItem } from '@shared/types/palette'
 import { usePaletteStore } from '@renderer/state/paletteStore'
+import { DEFAULT_SWATCH } from '@shared/constants/swatches'
+import SwatchPicker from '@renderer/components/SwatchPicker'
 
 /** dnd id namespacing — item ids are raw numbers; category headers/section bodies are strings so
  *  the editor's drag handlers can tell which kind of thing is being dragged or dropped onto. */
@@ -35,11 +37,10 @@ function PaletteItemRow({ item }: { item: PaletteItem }): JSX.Element {
       <span className="drag-handle" {...attributes} {...listeners} style={{ cursor: 'grab' }}>
         ⠿
       </span>
-      <input
-        type="color"
+      <SwatchPicker
         className="palette-color"
         value={item.color}
-        onChange={(e) => update(item.id, { color: e.target.value })}
+        onChange={(color) => color && update(item.id, { color })}
       />
       <input
         className="palette-input"
@@ -90,7 +91,7 @@ export default function PaletteCategorySection({
   const [renaming, setRenaming] = useState(false)
   const [renameValue, setRenameValue] = useState(category)
   const [addLabel, setAddLabel] = useState('')
-  const [addColor, setAddColor] = useState('#6c7ba0')
+  const [addColor, setAddColor] = useState(DEFAULT_SWATCH)
   const [addShape, setAddShape] = useState<'rect' | 'circle'>('rect')
   const [adding, setAdding] = useState(false)
 
@@ -210,11 +211,10 @@ export default function PaletteCategorySection({
                 <option value="rect">Rectangle</option>
                 <option value="circle">Circle</option>
               </select>
-              <input
-                type="color"
+              <SwatchPicker
                 className="palette-color"
                 value={addColor}
-                onChange={(e) => setAddColor(e.target.value)}
+                onChange={(color) => setAddColor(color ?? DEFAULT_SWATCH)}
               />
               <button className="btn small primary" onClick={commitAdd}>
                 Add

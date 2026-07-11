@@ -59,6 +59,18 @@ function findTieLineConflicts(items: { tieLine: number | null }[]): Set<number> 
   return new Set([...counts.entries()].filter(([, count]) => count > 1).map(([tieLine]) => tieLine))
 }
 
+/** A row's swatch color mixed heavily toward white, so the printed tint stays pale enough to keep
+ *  black row text legible (and reasonable in grayscale). */
+function hexToPaleRgb(hex: string): ReturnType<typeof rgb> {
+  const n = hex.replace('#', '')
+  const full = n.length === 3 ? n.split('').map((c) => c + c).join('') : n
+  const r = parseInt(full.slice(0, 2), 16) / 255
+  const g = parseInt(full.slice(2, 4), 16) / 255
+  const b = parseInt(full.slice(4, 6), 16) / 255
+  const toward = (c: number): number => c * 0.22 + 0.78
+  return rgb(toward(r), toward(g), toward(b))
+}
+
 export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<ExportSetupPdfResult> {
   const setup = getSetupWithItems(input.setupId)
   if (!setup) return { canceled: true }
@@ -159,9 +171,21 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
     drawTitle()
     drawHeaderRow()
 
+    const tableWidth = visibleColumns.reduce((w, c) => w + c.width, 0)
+
     for (const item of setup.items) {
       if (cursorY < MARGIN + ROW_HEIGHT) {
         startNewPage()
+      }
+
+      if (input.coloredRows && item.color) {
+        page.drawRectangle({
+          x: MARGIN - 2,
+          y: cursorY - 5,
+          width: tableWidth + 4,
+          height: ROW_HEIGHT,
+          color: hexToPaleRgb(item.color)
+        })
       }
 
       const values = resolvedValues.get(item.id)!

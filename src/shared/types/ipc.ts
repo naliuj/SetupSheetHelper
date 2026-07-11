@@ -224,6 +224,7 @@ export interface SetupItemInput {
   preampText: string | null
   polarityFlip: boolean
   notes: string | null
+  color: string | null
 }
 
 export interface RoomLayoutBlockInput {
@@ -288,6 +289,9 @@ export interface ExportSetupPdfInput {
   setupId: number
   layoutImageDataUrl: string | null
   include: PdfExportInclude
+  /** When true, draw each row's color as a pale background tint on the setup sheet. Off by
+   *  default — colored rows can hurt legibility when printed in black and white. */
+  coloredRows: boolean
 }
 
 export interface ExportSetupPdfResult {

@@ -5,22 +5,23 @@ import { useEscapeToClose } from '@renderer/hooks/useEscapeToClose'
 interface Props {
   defaultInclude: PdfExportInclude
   onClose: () => void
-  onExport: (include: PdfExportInclude) => Promise<void>
+  onExport: (include: PdfExportInclude, coloredRows: boolean) => Promise<void>
 }
 
-/** Two independent checkboxes in the UI, mapped back to the existing PdfExportInclude union
- *  on export so the IPC contract and the remembered-preference setting stay unchanged. */
+/** Independent checkboxes in the UI, mapped back to the existing PdfExportInclude union on export
+ *  so the IPC contract and the remembered-preference setting stay unchanged. */
 export default function ExportOptionsModal({ defaultInclude, onClose, onExport }: Props): JSX.Element {
   useEscapeToClose(onClose)
   const [includeSheet, setIncludeSheet] = useState(defaultInclude !== 'layout')
   const [includeLayout, setIncludeLayout] = useState(defaultInclude !== 'sheet')
+  const [coloredRows, setColoredRows] = useState(false)
   const [exporting, setExporting] = useState(false)
 
   async function handleExport(): Promise<void> {
     const include: PdfExportInclude = includeSheet && includeLayout ? 'both' : includeSheet ? 'sheet' : 'layout'
     setExporting(true)
     try {
-      await onExport(include)
+      await onExport(include, coloredRows)
       onClose()
     } finally {
       setExporting(false)
@@ -40,6 +41,18 @@ export default function ExportOptionsModal({ defaultInclude, onClose, onExport }
           <input type="checkbox" checked={includeLayout} onChange={(e) => setIncludeLayout(e.target.checked)} />
           Room layout
         </label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+          <input
+            type="checkbox"
+            checked={coloredRows}
+            disabled={!includeSheet}
+            onChange={(e) => setColoredRows(e.target.checked)}
+          />
+          Colored rows
+        </label>
+        <p className="card-sub" style={{ margin: '0 0 8px 24px' }}>
+          Tints rows by their color. Leave off for black-and-white printing.
+        </p>
         <div className="modal-actions">
           <button className="btn" onClick={onClose}>
             Cancel

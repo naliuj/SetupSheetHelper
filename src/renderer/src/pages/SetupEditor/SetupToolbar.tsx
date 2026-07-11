@@ -64,7 +64,7 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode, onOpenSetti
     setExportModalOpen(true)
   }
 
-  async function performExport(include: PdfExportInclude): Promise<void> {
+  async function performExport(include: PdfExportInclude, coloredRows: boolean): Promise<void> {
     setExporting(true)
     setExportMessage(null)
     try {
@@ -97,7 +97,8 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode, onOpenSetti
       const result = await window.api.exportPdf.exportSetup({
         setupId: currentSetupId,
         layoutImageDataUrl: dataUrl,
-        include
+        include,
+        coloredRows
       })
       setExportMessage(result.canceled ? null : `Exported to ${result.filePath}`)
       if (!result.canceled) {

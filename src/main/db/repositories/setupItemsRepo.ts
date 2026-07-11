@@ -16,6 +16,7 @@ interface SetupItemRow {
   preamp_text: string | null
   polarity_flip: number
   notes: string | null
+  color: string | null
   sort_order: number
 }
 
@@ -41,7 +42,8 @@ function mapRow(row: SetupItemRow, outboards: SetupItemOutboardSlot[]): SetupIte
     preampId: row.preamp_id,
     preampText: row.preamp_text,
     polarityFlip: row.polarity_flip === 1,
-    notes: row.notes
+    notes: row.notes,
+    color: row.color
   }
 }
 
@@ -94,15 +96,15 @@ export function replaceItemsForSetup(setupId: number, items: SetupItemInput[]): 
   const db = getDb()
   const insert = db.prepare(
     `INSERT INTO setup_items
-      (setup_id, instrument_type, source_name, mic_id, mic_text, channel, tie_line, cue_box, preamp_id, preamp_text, polarity_flip, notes, sort_order)
-     VALUES (@setupId, @instrumentType, @sourceName, @micId, @micText, @channel, @tieLine, @cueBox, @preampId, @preampText, @polarityFlip, @notes, @sortOrder)`
+      (setup_id, instrument_type, source_name, mic_id, mic_text, channel, tie_line, cue_box, preamp_id, preamp_text, polarity_flip, notes, color, sort_order)
+     VALUES (@setupId, @instrumentType, @sourceName, @micId, @micText, @channel, @tieLine, @cueBox, @preampId, @preampText, @polarityFlip, @notes, @color, @sortOrder)`
   )
   const update = db.prepare(
     `UPDATE setup_items SET
       instrument_type = @instrumentType, source_name = @sourceName, mic_id = @micId, mic_text = @micText,
       channel = @channel, tie_line = @tieLine, cue_box = @cueBox,
       preamp_id = @preampId, preamp_text = @preampText,
-      polarity_flip = @polarityFlip, notes = @notes, sort_order = @sortOrder,
+      polarity_flip = @polarityFlip, notes = @notes, color = @color, sort_order = @sortOrder,
       updated_at = datetime('now')
      WHERE id = @id AND setup_id = @setupId`
   )
@@ -143,6 +145,7 @@ export function replaceItemsForSetup(setupId: number, items: SetupItemInput[]): 
         preampText: item.preampText,
         polarityFlip: item.polarityFlip ? 1 : 0,
         notes: item.notes,
+        color: item.color,
         sortOrder: index
       }
       let itemId: number
@@ -187,8 +190,8 @@ export function copyItemsToSetup(
   const items = listItemsBySetup(sourceSetupId)
   const insert = db.prepare(
     `INSERT INTO setup_items
-      (setup_id, instrument_type, source_name, mic_id, mic_text, channel, tie_line, cue_box, preamp_id, preamp_text, polarity_flip, notes)
-     VALUES (@setupId, @instrumentType, @sourceName, @micId, @micText, @channel, @tieLine, @cueBox, @preampId, @preampText, @polarityFlip, @notes)`
+      (setup_id, instrument_type, source_name, mic_id, mic_text, channel, tie_line, cue_box, preamp_id, preamp_text, polarity_flip, notes, color)
+     VALUES (@setupId, @instrumentType, @sourceName, @micId, @micText, @channel, @tieLine, @cueBox, @preampId, @preampText, @polarityFlip, @notes, @color)`
   )
   const insertOutboard = db.prepare(
     `INSERT INTO setup_item_outboards (setup_item_id, slot_index, outboard_id, outboard_text)
@@ -209,7 +212,8 @@ export function copyItemsToSetup(
         preampId: options.blankRoomSpecificFields ? null : item.preampId,
         preampText: options.blankRoomSpecificFields ? null : item.preampText,
         polarityFlip: options.blankRoomSpecificFields ? 0 : item.polarityFlip ? 1 : 0,
-        notes: options.blankRoomSpecificFields ? null : item.notes
+        notes: options.blankRoomSpecificFields ? null : item.notes,
+        color: options.blankRoomSpecificFields ? null : item.color
       })
       if (!options.blankRoomSpecificFields) {
         const newItemId = Number(info.lastInsertRowid)

@@ -4,6 +4,8 @@ import { SortableContext, arrayMove, verticalListSortingStrategy } from '@dnd-ki
 import type { PaletteItem } from '@shared/types/palette'
 import { usePaletteStore } from '@renderer/state/paletteStore'
 import { groupByCategory } from '@renderer/state/paletteGrouping'
+import { DEFAULT_SWATCH } from '@shared/constants/swatches'
+import SwatchPicker from '@renderer/components/SwatchPicker'
 import PaletteCategorySection, { catHeaderId } from './PaletteCategorySection'
 
 interface Group {
@@ -34,7 +36,7 @@ export default function PaletteEditor(): JSX.Element {
   const [addingCategory, setAddingCategory] = useState(false)
   const [newCatName, setNewCatName] = useState('')
   const [newCatLabel, setNewCatLabel] = useState('')
-  const [newCatColor, setNewCatColor] = useState('#6c7ba0')
+  const [newCatColor, setNewCatColor] = useState(DEFAULT_SWATCH)
   const [newCatShape, setNewCatShape] = useState<'rect' | 'circle'>('rect')
 
   useEffect(() => {
@@ -187,11 +189,10 @@ export default function PaletteEditor(): JSX.Element {
               <option value="rect">Rectangle</option>
               <option value="circle">Circle</option>
             </select>
-            <input
-              type="color"
+            <SwatchPicker
               className="palette-color"
               value={newCatColor}
-              onChange={(e) => setNewCatColor(e.target.value)}
+              onChange={(color) => setNewCatColor(color ?? DEFAULT_SWATCH)}
             />
             <button className="btn small primary" onClick={commitNewCategory}>
               Create

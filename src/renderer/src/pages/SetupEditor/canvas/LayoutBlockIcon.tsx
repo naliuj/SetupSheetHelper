@@ -2,6 +2,7 @@ import { forwardRef } from 'react'
 import { Circle, Group, Rect, Text } from 'react-konva'
 import type Konva from 'konva'
 import type { RoomLayoutBlockDraft } from '@shared/types/setup'
+import { readableTextColor } from '@shared/constants/swatches'
 
 interface Props {
   block: RoomLayoutBlockDraft
@@ -22,6 +23,8 @@ const LayoutBlockIcon = forwardRef<Konva.Group, Props>(function LayoutBlockIcon(
 ) {
   const strokeColor = '#ffffff'
   const strokeWidth = selected ? 3 : 0
+  const labelColor = readableTextColor(block.color)
+  const labelShadow = labelColor === '#ffffff' ? '#000000' : '#ffffff'
   // Fit the label inside the shape's bounds — a circle's usable box is its inscribed square,
   // a rect's is itself minus a small margin. Font size scales down for small blocks so short
   // labels ("DI") stay legible without overflowing tiny custom blocks.
@@ -110,8 +113,8 @@ const LayoutBlockIcon = forwardRef<Konva.Group, Props>(function LayoutBlockIcon(
         text={block.label}
         fontSize={fontSize}
         fontStyle="bold"
-        fill="#fff"
-        shadowColor="#000"
+        fill={labelColor}
+        shadowColor={labelShadow}
         shadowBlur={3}
         shadowOpacity={0.9}
         width={textWidth}

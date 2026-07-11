@@ -89,6 +89,7 @@ interface SetupState {
   addItem(instrumentType: string, defaults?: NewItemDefaults): string
   addItemAt(instrumentType: string, defaults: NewItemDefaults): string
   updateItemFields(id: number | string, patch: Partial<SetupItemDraft>): void
+  setItemsColor(ids: Array<number | string>, color: string | null): void
   updateItemOutboardSlot(
     id: number | string,
     slotIndex: number,
@@ -194,7 +195,8 @@ export const useSetupStore = create<SetupState>()(
       preampId: null,
       preampText: null,
       polarityFlip: false,
-      notes: defaults.notes ?? null
+      notes: defaults.notes ?? null,
+      color: null
     }
     // Deliberately doesn't select the new row — auto-selecting made the SelectionActionBar pop
     // up on every add even though the user hadn't selected anything themselves.
@@ -210,6 +212,17 @@ export const useSetupStore = create<SetupState>()(
       items: state.items.map((item) => (item.id === id ? { ...item, ...patch } : item)),
       isDirty: true
     })),
+
+  // Applies (or clears, with null) a row tint to every listed item at once — drives the
+  // selection bar's Color control. Goes through the same zundo-tracked set() so it's undoable.
+  setItemsColor: (ids, color) =>
+    set((state) => {
+      const idSet = new Set(ids)
+      return {
+        items: state.items.map((item) => (idSet.has(item.id) ? { ...item, color } : item)),
+        isDirty: true
+      }
+    }),
 
   updateItemOutboardSlot: (id, slotIndex, patch) =>
     set((state) => ({
@@ -382,7 +395,8 @@ export const useSetupStore = create<SetupState>()(
           preampId: item.preampId,
           preampText: item.preampName,
           polarityFlip: item.polarityFlip ?? false,
-          notes: item.notes
+          notes: item.notes,
+          color: null
         })
         if (item.unresolvedMicName || item.unresolvedOutboardName || item.unresolvedPreampName) {
           hints.set(id, {

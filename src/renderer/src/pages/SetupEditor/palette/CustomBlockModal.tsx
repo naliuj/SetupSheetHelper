@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import { useEscapeToClose } from '@renderer/hooks/useEscapeToClose'
+import { DEFAULT_SWATCH } from '@shared/constants/swatches'
+import SwatchPicker from '@renderer/components/SwatchPicker'
 
 interface Props {
   onClose: () => void
   onConfirm: (title: string, color: string) => void
 }
 
-const DEFAULT_COLOR = '#6c7ba0'
+const DEFAULT_COLOR = DEFAULT_SWATCH
 
 /** One-off custom block creation — title and color only, per design. Confirming places a
  *  single block directly on the canvas; nothing gets added to the palette/sidebar. */
@@ -36,10 +38,10 @@ export default function CustomBlockModal({ onClose, onConfirm }: Props): JSX.Ele
           style={{ width: '100%', marginBottom: 8 }}
           autoFocus
         />
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
           Color
-          <input type="color" value={color} onChange={(e) => setColor(e.target.value)} />
-        </label>
+          <SwatchPicker value={color} onChange={(c) => setColor(c ?? DEFAULT_COLOR)} />
+        </div>
         <div className="modal-actions">
           <button className="btn" onClick={onClose}>
             Cancel
