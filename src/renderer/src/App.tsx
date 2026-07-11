@@ -44,6 +44,14 @@ export default function App(): JSX.Element {
     useBerkleeFeaturesStore.getState().load()
   }, [])
 
+  // App-wide "Settings…" (Cmd+,) from the native menu. Handled here rather than in SetupToolbar
+  // so it works from any view, not just inside a setup.
+  useEffect(() => {
+    return window.api.menu.onAction((action) => {
+      if (action === 'open-settings') goToSettings()
+    })
+  }, [goToSettings])
+
   return (
     <div className="app-shell">
       <div className="top-bar">
