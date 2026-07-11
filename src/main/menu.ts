@@ -18,6 +18,8 @@ export function installAppMenu(mainWindow: BrowserWindow): void {
       { role: 'about' },
       { label: 'Check for Updates…', click: () => checkForUpdatesManually(mainWindow) },
       { type: 'separator' },
+      { label: 'Settings…', accelerator: 'CmdOrCtrl+,', click: () => send('open-settings') },
+      { type: 'separator' },
       { role: 'services' },
       { type: 'separator' },
       { role: 'hide' },
@@ -61,7 +63,12 @@ export function installAppMenu(mainWindow: BrowserWindow): void {
         { label: 'Zoom Out', accelerator: 'CmdOrCtrl+Shift+-', click: () => send('zoom-out') },
         { label: 'Reset View', accelerator: 'CmdOrCtrl+Shift+0', click: () => send('reset-view') },
         { type: 'separator' },
-        { label: 'Setup Settings…', accelerator: 'CmdOrCtrl+G', click: () => send('open-setup-settings') }
+        { label: 'Setup Settings…', accelerator: 'CmdOrCtrl+G', click: () => send('open-setup-settings') },
+        // On mac, app-wide Settings lives in the app menu (Cmd+,); on Windows/Linux there's no
+        // app menu, so surface it here alongside the setup-specific settings.
+        ...(isMac
+          ? []
+          : [{ label: 'Settings…', accelerator: 'CmdOrCtrl+,', click: () => send('open-settings') } as const])
       ]
     },
     { role: 'viewMenu' },

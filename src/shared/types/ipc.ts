@@ -340,6 +340,7 @@ export type MenuAction =
   | 'zoom-out'
   | 'reset-view'
   | 'open-setup-settings'
+  | 'open-settings'
   | 'undo'
   | 'redo'
 

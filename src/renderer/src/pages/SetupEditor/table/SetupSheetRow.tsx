@@ -148,17 +148,18 @@ export default function SetupSheetRow({
 }: Props): JSX.Element {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id })
   // A row's color is a soft translucent wash over the page background, so the row text stays
-  // legible in both themes. Selection layers an accent wash ON TOP of the color tint (rather
-  // than fully replacing it) so a still-selected row visibly confirms its new color right away,
-  // instead of only becoming visible once deselected.
-  const colorTint = item.color ? `color-mix(in srgb, ${item.color} 22%, var(--color-bg))` : null
+  // legible in both themes. Selection is signaled by a crisp accent bar down the left edge
+  // (an inset box-shadow) rather than by tinting the whole row — that way a colored row keeps
+  // its own color intact when selected instead of clashing with the accent. Uncolored rows get
+  // a faint accent wash in addition to the bar so selection still reads on a plain row.
+  const colorTint = item.color ? `color-mix(in srgb, ${item.color} 32%, var(--color-bg))` : null
+  const selectedBg = colorTint ?? 'color-mix(in srgb, var(--color-accent) 12%, var(--color-surface-alt))'
   const rowStyle = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.4 : 1,
-    background: selected
-      ? `color-mix(in srgb, var(--color-accent) 24%, ${colorTint ?? 'var(--color-surface-alt)'})`
-      : (colorTint ?? undefined)
+    background: selected ? selectedBg : (colorTint ?? undefined),
+    boxShadow: selected ? 'inset 3px 0 0 var(--color-accent)' : undefined
   }
   function handleMicChange(micId: number | null): void {
     const mic = micId != null ? mics.find((m) => m.id === micId) ?? null : null
