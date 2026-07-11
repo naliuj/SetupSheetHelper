@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-export type View = 'home' | 'picker' | 'admin' | 'setup' | 'studioSetup' | 'settings'
+export type View = 'home' | 'setup' | 'studioSetup' | 'settings'
 export type EditorMode = 'table' | 'layout'
 
 interface NavigationState {
@@ -18,9 +18,6 @@ interface NavigationState {
   editorMode: EditorMode
 
   goToHome(): void
-  goToPicker(): void
-  goToBuilding(buildingId: number): void
-  goToStudioAdmin(buildingId: number, studioId: number): void
   /** buildingId is null for custom (buildingless) studios. */
   goToSetup(buildingId: number | null, studioId: number, setupId: number | null): void
   goToStudioSetup(studioId: number | null): void
@@ -39,9 +36,6 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
   editorMode: 'table',
 
   goToHome: () => set({ view: 'home', setupId: null }),
-  goToPicker: () => set({ view: 'picker', studioId: null, setupId: null }),
-  goToBuilding: (buildingId) => set({ view: 'picker', buildingId, studioId: null, setupId: null }),
-  goToStudioAdmin: (buildingId, studioId) => set({ view: 'admin', buildingId, studioId, setupId: null }),
   goToSetup: (buildingId, studioId, setupId) => set({ view: 'setup', buildingId, studioId, setupId }),
   goToStudioSetup: (studioId) => set({ view: 'studioSetup', studioSetupId: studioId }),
   goToSettings: () => {

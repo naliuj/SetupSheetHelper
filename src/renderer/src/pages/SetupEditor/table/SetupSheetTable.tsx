@@ -90,25 +90,25 @@ export default function SetupSheetTable(): JSX.Element {
           No sources yet — use Add Source above, or switch to Layout Mode to drag instruments onto the room layout.
         </div>
       ) : (
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th></th>
-              <th>Source Name</th>
-              <th>Mic</th>
-              {Array.from({ length: outboardColumnCount }, (_, i) => (
-                <th key={i}>{i === 0 ? 'Outboard' : `Outboard ${i + 1}`}</th>
-              ))}
-              <th>Channel</th>
-              <th>Preamp</th>
-              <th>Tie Line</th>
-              <th>Cue Box</th>
-              <th>Polarity</th>
-              <th>Notes</th>
-              <th></th>
-            </tr>
-          </thead>
-          <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+        <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th></th>
+                <th>Source Name</th>
+                <th>Mic</th>
+                {Array.from({ length: outboardColumnCount }, (_, i) => (
+                  <th key={i}>{i === 0 ? 'Outboard' : `Outboard ${i + 1}`}</th>
+                ))}
+                <th>Channel</th>
+                <th>Preamp</th>
+                <th>Tie Line</th>
+                <th>Cue Box</th>
+                <th>Polarity</th>
+                <th>Notes</th>
+                <th></th>
+              </tr>
+            </thead>
             <SortableContext items={items.map((item) => item.id)} strategy={verticalListSortingStrategy}>
               <tbody>
                 {items.map((item) => (
@@ -138,8 +138,8 @@ export default function SetupSheetTable(): JSX.Element {
                 ))}
               </tbody>
             </SortableContext>
-          </DndContext>
-        </table>
+          </table>
+        </DndContext>
       )}
     </div>
   )

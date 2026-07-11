@@ -1,4 +1,4 @@
-import LayoutFileUploader from '../StudioAdminEditor/LayoutFileUploader'
+import LayoutFileUploader from '@renderer/components/LayoutFileUploader'
 
 interface Props {
   studioId: number
@@ -6,9 +6,8 @@ interface Props {
   onCancel: () => void
 }
 
-/** Blocks entering Layout Mode until the studio has a room layout assigned — reuses the same
- *  uploader as Studio Admin's "Room Layout" section, and proceeds into Layout Mode the moment
- *  a layout is successfully uploaded (no extra confirmation click). */
+/** Blocks entering Layout Mode until the studio has a room layout assigned, and proceeds into
+ *  Layout Mode the moment a layout is successfully uploaded (no extra confirmation click). */
 export default function RequireLayoutFileModal({ studioId, onUploaded, onCancel }: Props): JSX.Element {
   return (
     <div className="modal-overlay" onClick={onCancel}>

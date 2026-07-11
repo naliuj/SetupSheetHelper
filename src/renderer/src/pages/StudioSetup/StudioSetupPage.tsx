@@ -8,7 +8,7 @@ import { indentedFolderLabel } from '@renderer/state/folderTree'
 import { useModelSuggestions } from '@renderer/state/useModelSuggestions'
 import ManufacturerPickerDropdown from '@renderer/components/ManufacturerPickerDropdown'
 import ImportGearModal from './ImportGearModal'
-import LayoutFileUploader from '../StudioAdminEditor/LayoutFileUploader'
+import LayoutFileUploader from '@renderer/components/LayoutFileUploader'
 
 interface PendingItem {
   key: string
