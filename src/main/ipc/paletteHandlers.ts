@@ -13,4 +13,7 @@ export function registerPaletteHandlers(): void {
   )
   ipcMain.handle(IPC.palette.removeCustom, (_e, id: number) => paletteRepo.removeCustomPaletteItem(id))
   ipcMain.handle(IPC.palette.reorder, (_e, ids: number[]) => paletteRepo.reorderPaletteItems(ids))
+  ipcMain.handle(IPC.palette.renameCategory, (_e, oldName: string, newName: string) =>
+    paletteRepo.renameCategoryPaletteItems(oldName, newName)
+  )
 }

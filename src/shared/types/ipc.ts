@@ -137,7 +137,8 @@ export const IPC = {
     createCustom: 'palette:createCustom',
     update: 'palette:update',
     removeCustom: 'palette:removeCustom',
-    reorder: 'palette:reorder'
+    reorder: 'palette:reorder',
+    renameCategory: 'palette:renameCategory'
   }
 } as const
 
@@ -467,5 +468,8 @@ export interface RendererApi {
     update(id: number, patch: PaletteItemUpdateInput): Promise<PaletteItem>
     removeCustom(id: number): Promise<void>
     reorder(ids: number[]): Promise<void>
+    /** Rewrites the category on every item currently in `oldName` (renaming onto an existing
+     *  category name merges the two groups). */
+    renameCategory(oldName: string, newName: string): Promise<void>
   }
 }

@@ -14,6 +14,12 @@ interface PaletteState {
   ): Promise<void>
   removeCustom(id: number): Promise<void>
   reorder(ids: number[]): Promise<void>
+  /** Renames a category, rewriting the string on every item currently in it. */
+  renameCategory(oldName: string, newName: string): Promise<void>
+  /** Moves an item into `category` and persists the full new order in one optimistic step —
+   *  used when dragging an item into a different category section. `ids` is the full flat id
+   *  order after the move (kept contiguous per category by the caller). */
+  recategorize(id: number, category: string, ids: number[]): Promise<void>
 }
 
 /** Loaded once at app startup (App.tsx) — not per-setup, not per-studio. This is the one
@@ -61,5 +67,27 @@ export const usePaletteStore = create<PaletteState>((set, get) => ({
     })
     await window.api.palette.reorder(ids)
     await get().load()
+  },
+
+  renameCategory: async (oldName, newName) => {
+    await window.api.palette.renameCategory(oldName, newName)
+    await get().load()
+    await get().loadAll()
+  },
+
+  recategorize: async (id, category, ids) => {
+    // Optimistically apply both the new category and the new order so the section move doesn't
+    // flash — the item lands in its new group at its new position before the round-trip resolves.
+    set((state) => {
+      const byId = new Map(state.allItems.map((item) => [item.id, item]))
+      const moved = byId.get(id)
+      if (moved) byId.set(id, { ...moved, category })
+      const allItems = ids.map((i) => byId.get(i)).filter((item): item is PaletteItem => item != null)
+      return { allItems }
+    })
+    await window.api.palette.update(id, { category })
+    await window.api.palette.reorder(ids)
+    await get().load()
+    await get().loadAll()
   }
 }))

@@ -163,6 +163,48 @@ select {
   color: var(--color-text);
 }
 
+/* Compact controls for the grouped palette editor (rows + add forms). Kept off .inline-form so
+   the native color input renders as a small swatch instead of a stretched flex: 1 box. */
+.palette-input {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-size: 13px;
+}
+
+.palette-select {
+  padding: 5px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-size: 13px;
+}
+
+.palette-color {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  padding: 2px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-bg);
+  cursor: pointer;
+}
+
+.palette-color::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.palette-color::-webkit-color-swatch {
+  border: none;
+  border-radius: 4px;
+}
+
 .btn {
   padding: 8px 14px;
   border-radius: 6px;

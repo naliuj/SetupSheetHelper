@@ -86,6 +86,12 @@ export function removeCustomPaletteItem(id: number): void {
   getDb().prepare('DELETE FROM palette_items WHERE id = ? AND is_builtin = 0').run(id)
 }
 
+/** Renames a category by rewriting the (denormalized) category string on every item in it.
+ *  Renaming onto an existing category name merges the two groups. */
+export function renameCategoryPaletteItems(oldName: string, newName: string): void {
+  getDb().prepare('UPDATE palette_items SET category = ? WHERE category = ?').run(newName, oldName)
+}
+
 /** Persists a full drag-and-drop reorder — assigns sequential sort_order in the given id order. */
 export function reorderPaletteItems(ids: number[]): void {
   const db = getDb()

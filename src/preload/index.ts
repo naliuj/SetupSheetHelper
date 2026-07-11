@@ -137,7 +137,8 @@ const api: RendererApi = {
     createCustom: (input) => ipcRenderer.invoke(IPC.palette.createCustom, input),
     update: (id, patch) => ipcRenderer.invoke(IPC.palette.update, id, patch),
     removeCustom: (id) => ipcRenderer.invoke(IPC.palette.removeCustom, id),
-    reorder: (ids) => ipcRenderer.invoke(IPC.palette.reorder, ids)
+    reorder: (ids) => ipcRenderer.invoke(IPC.palette.reorder, ids),
+    renameCategory: (oldName, newName) => ipcRenderer.invoke(IPC.palette.renameCategory, oldName, newName)
   }
 }
 

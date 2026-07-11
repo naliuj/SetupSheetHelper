@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react'
-import type { PaletteItem } from '@shared/types/palette'
 import { staggeredPosition } from '@shared/utils/staggeredGrid'
 import { useLayoutStore } from '@renderer/state/layoutStore'
 import { usePaletteStore } from '@renderer/state/paletteStore'
+import { groupByCategory } from '@renderer/state/paletteGrouping'
 import { useNavigationStore } from '@renderer/state/navigationStore'
 import CustomBlockModal from './CustomBlockModal'
 
@@ -15,23 +15,13 @@ export default function InstrumentPalette(): JSX.Element {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
   const [modalOpen, setModalOpen] = useState(false)
 
-  const categories = useMemo(() => {
-    const set = new Set<string>()
-    for (const item of paletteItems) set.add(item.category)
-    return [...set].sort((a, b) => a.localeCompare(b))
-  }, [paletteItems])
-
+  // Categories follow the palette's custom order (first appearance in sortOrder), matching the
+  // Settings palette editor — not alphabetical. groupByCategory preserves that encounter order.
   const query = search.trim().toLowerCase()
   const grouped = useMemo(() => {
-    const map = new Map<string, PaletteItem[]>()
-    for (const item of paletteItems) {
-      if (query && !item.label.toLowerCase().includes(query)) continue
-      const list = map.get(item.category) ?? []
-      list.push(item)
-      map.set(item.category, list)
-    }
-    return categories.filter((c) => map.has(c)).map((c) => ({ category: c, items: map.get(c)! }))
-  }, [categories, query, paletteItems])
+    const filtered = query ? paletteItems.filter((item) => item.label.toLowerCase().includes(query)) : paletteItems
+    return groupByCategory(filtered)
+  }, [query, paletteItems])
 
   function toggleCategory(category: string): void {
     setCollapsed((prev) => {
