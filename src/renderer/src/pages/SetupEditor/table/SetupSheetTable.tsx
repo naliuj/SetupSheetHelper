@@ -36,6 +36,21 @@ export default function SetupSheetTable(): JSX.Element {
     const oldIndex = items.findIndex((item) => item.id === active.id)
     const newIndex = items.findIndex((item) => item.id === over.id)
     if (oldIndex === -1 || newIndex === -1) return
+
+    // Dragging a row that's part of a multi-selection moves the whole selected group together,
+    // as one block, instead of just the row whose handle was grabbed — mirrors LayoutStage's
+    // handleBlockDragEnd for a multi-selected group of canvas blocks.
+    if (selectedItemIds.size > 1 && selectedItemIds.has(active.id)) {
+      if (selectedItemIds.has(over.id)) return // dropped on another already-selected row — no-op
+      const selectedGroup = items.filter((item) => selectedItemIds.has(item.id))
+      const others = items.filter((item) => !selectedItemIds.has(item.id))
+      const overIndexInOthers = others.findIndex((item) => item.id === over.id)
+      const insertAt = newIndex > oldIndex ? overIndexInOthers + 1 : overIndexInOthers
+      const reordered = [...others.slice(0, insertAt), ...selectedGroup, ...others.slice(insertAt)]
+      reorderItems(reordered.map((item) => item.id))
+      return
+    }
+
     reorderItems(arrayMove(items, oldIndex, newIndex).map((item) => item.id))
   }
 

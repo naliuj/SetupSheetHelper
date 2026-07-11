@@ -196,11 +196,11 @@ export const useSetupStore = create<SetupState>()(
       polarityFlip: false,
       notes: defaults.notes ?? null
     }
+    // Deliberately doesn't select the new row — auto-selecting made the SelectionActionBar pop
+    // up on every add even though the user hadn't selected anything themselves.
     set((state) => ({
       items: [...state.items, draft],
-      isDirty: true,
-      selectedItemIds: new Set([id]),
-      selectionAnchorId: id
+      isDirty: true
     }))
     return id
   },

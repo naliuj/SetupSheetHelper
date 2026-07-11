@@ -39,13 +39,25 @@ const LayoutBlockIcon = forwardRef<Konva.Group, Props>(function LayoutBlockIcon(
   // circle radius, from the Group's origin) — clamp the center so the un-rotated bounding box
   // stays within the room image, a close-enough approximation without needing full rotated-bbox
   // math for this UX (a rotated block may visually poke out slightly at extreme angles).
-  function dragBoundFunc(pos: { x: number; y: number }): { x: number; y: number } {
+  //
+  // Konva calls dragBoundFunc with `pos` in ABSOLUTE (stage-pixel) coordinates, not the node's
+  // local/parent space — but the Stage here is scaled by finalScale (fitScale * zoomScale, see
+  // LayoutStage.tsx), while imageSize is the room image's raw, unscaled pixel size. Comparing
+  // pos directly against imageSize only happened to work at finalScale === 1; at any other zoom
+  // it silently over/under-clamps. Convert pos into the parent Layer's local (image-pixel) space
+  // via its absolute transform, clamp there against imageSize, then convert back — the standard
+  // Konva pattern for dragBoundFunc under a scaled ancestor.
+  function dragBoundFunc(this: Konva.Node, pos: { x: number; y: number }): { x: number; y: number } {
+    const parent = this.getParent()!
+    const toLocal = parent.getAbsoluteTransform().copy().invert()
+    const local = toLocal.point(pos)
     const halfW = block.width / 2
     const halfH = block.height / 2
-    return {
-      x: Math.max(halfW, Math.min(pos.x, imageSize.width - halfW)),
-      y: Math.max(halfH, Math.min(pos.y, imageSize.height - halfH))
+    const clampedLocal = {
+      x: Math.max(halfW, Math.min(local.x, imageSize.width - halfW)),
+      y: Math.max(halfH, Math.min(local.y, imageSize.height - halfH))
     }
+    return parent.getAbsoluteTransform().point(clampedLocal)
   }
 
   // Cmd/Ctrl+click toggles this block in/out of a multi-selection instead of replacing it.
