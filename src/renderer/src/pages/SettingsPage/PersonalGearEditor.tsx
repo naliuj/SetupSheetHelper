@@ -154,7 +154,7 @@ function PersonalMicsSection({
           onKeyDown={(e) => e.key === 'Enter' && add()}
         />
         <button className="btn primary" onClick={add}>
-          Add Mic
+          Add mic
         </button>
       </div>
     </div>
@@ -238,7 +238,7 @@ function PersonalOutboardSection({
 
   return (
     <div>
-      <div className="section-title">Outboard Gear</div>
+      <div className="section-title">Outboard gear</div>
       <table className="data-table">
         <thead>
           <tr>
@@ -313,7 +313,7 @@ function PersonalOutboardSection({
           onKeyDown={(e) => e.key === 'Enter' && add()}
         />
         <button className="btn primary" onClick={add}>
-          Add Gear
+          Add gear
         </button>
       </div>
     </div>
@@ -472,7 +472,7 @@ function PersonalPreampsSection({
           onKeyDown={(e) => e.key === 'Enter' && add()}
         />
         <button className="btn primary" onClick={add}>
-          Add Preamp
+          Add preamp
         </button>
       </div>
     </div>

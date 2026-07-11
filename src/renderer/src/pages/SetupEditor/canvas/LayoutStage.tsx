@@ -8,6 +8,7 @@ import ContextMenu from './ContextMenu'
 import RenameBlockModal from './RenameBlockModal'
 import ChangeColorPopover from './ChangeColorPopover'
 import CustomBlockModal from '../palette/CustomBlockModal'
+import Icon from '@renderer/components/Icon'
 
 interface Props {
   studioId: number
@@ -39,6 +40,8 @@ export default function LayoutStage({ studioId, stageRef }: Props): JSX.Element 
   const panX = useLayoutStore((s) => s.panX)
   const panY = useLayoutStore((s) => s.panY)
   const setZoomPan = useLayoutStore((s) => s.setZoomPan)
+  const zoomIn = useLayoutStore((s) => s.zoomIn)
+  const zoomOut = useLayoutStore((s) => s.zoomOut)
   const resetView = useLayoutStore((s) => s.resetView)
 
   const containerRef = useRef<HTMLDivElement>(null)
@@ -281,13 +284,48 @@ export default function LayoutStage({ studioId, stageRef }: Props): JSX.Element 
       onDragOver={(e) => e.preventDefault()}
       style={{ width: '100%', height: '100%', overflow: 'hidden', background: '#111417', position: 'relative' }}
     >
-      <button
-        className="btn small"
-        style={{ position: 'absolute', top: 8, right: 8, zIndex: 10 }}
-        onClick={resetView}
+      <div
+        style={{ position: 'absolute', top: 8, right: 8, zIndex: 10, display: 'flex', alignItems: 'center', gap: 4 }}
       >
-        Reset View
-      </button>
+        <button
+          className="btn small"
+          onClick={zoomOut}
+          disabled={zoomScale <= MIN_ZOOM}
+          aria-label="Zoom out"
+        >
+          <Icon name="minus" size={14} />
+        </button>
+        <span
+          style={{ minWidth: 44, textAlign: 'center', fontSize: 12, color: 'var(--color-text-dim)', userSelect: 'none' }}
+        >
+          {Math.round(zoomScale * 100)}%
+        </span>
+        <button
+          className="btn small"
+          onClick={zoomIn}
+          disabled={zoomScale >= MAX_ZOOM}
+          aria-label="Zoom in"
+        >
+          <Icon name="plus" size={14} />
+        </button>
+        <button className="btn small" onClick={resetView} style={{ marginLeft: 4 }}>
+          Reset view
+        </button>
+      </div>
+      <div
+        style={{
+          position: 'absolute',
+          bottom: 8,
+          left: 8,
+          zIndex: 10,
+          fontSize: 12,
+          color: 'var(--color-text-dim)',
+          userSelect: 'none',
+          pointerEvents: 'none'
+        }}
+      >
+        Scroll to zoom · Space-drag to pan · Drag to select
+      </div>
       <Stage
         ref={stageRef}
         width={containerSize.width}

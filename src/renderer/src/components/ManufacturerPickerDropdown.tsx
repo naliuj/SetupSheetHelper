@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { computeUsedByOthers } from '@renderer/state/usageCounts'
 import { stripManufacturerPrefix } from '@shared/utils/manufacturerPrefix'
+import Icon from '@renderer/components/Icon'
 
 export interface PickerItem {
   id: number
@@ -436,11 +437,14 @@ export default function ManufacturerPickerDropdown<T extends PickerItem>({
           }
         }}
       >
-        {selectedItem
-          ? stripManufacturerInTrigger && selectedItem.manufacturer
-            ? stripManufacturerPrefix(selectedItem.name, selectedItem.manufacturer)
-            : selectedItem.name
-          : placeholder}
+        <span className="picker-trigger-label">
+          {selectedItem
+            ? stripManufacturerInTrigger && selectedItem.manufacturer
+              ? stripManufacturerPrefix(selectedItem.name, selectedItem.manufacturer)
+              : selectedItem.name
+            : placeholder}
+        </span>
+        <Icon name="chevron-down" size={14} style={{ color: 'var(--color-text-dim)', flexShrink: 0 }} />
       </button>
       {open &&
         triggerRef.current &&

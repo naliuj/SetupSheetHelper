@@ -122,7 +122,7 @@ function ManualEntryForm({
         onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
       />
       <button className="btn" onClick={handleAdd} disabled={!name.trim()}>
-        + Add Manually
+        + Add manually
       </button>
     </div>
   )
@@ -152,7 +152,7 @@ export default function StudioSetupPage(): JSX.Element {
   const [preampCatalogueSource, setPreampCatalogueSource] = useState<Preamp[]>([])
   const [saving, setSaving] = useState(false)
   const [importModalOpen, setImportModalOpen] = useState(false)
-  // Set the first time a brand-new studio gets a row created early — purely so the Room Layout
+  // Set the first time a brand-new studio gets a row created early — purely so the Room layout
   // button has a studioId to attach the upload to before the user has clicked "Save Studio".
   // Never set when editing an existing studio (studioSetupId already covers that case).
   const [createdStudioId, setCreatedStudioId] = useState<number | null>(null)
@@ -323,7 +323,7 @@ export default function StudioSetupPage(): JSX.Element {
     setPendingPreamps((prev) => prev.map((p) => (p.key === key ? { ...p, ...patch } : p)))
   }
 
-  // Creates the studio row early if it doesn't exist yet, so the Room Layout button has a real
+  // Creates the studio row early if it doesn't exist yet, so the Room layout button has a real
   // studioId to attach an upload to before the user has clicked "Save Studio". Returns null if
   // there's no name yet to create with. Editing an existing studio always short-circuits to its
   // real id; nothing is created twice.
@@ -347,7 +347,7 @@ export default function StudioSetupPage(): JSX.Element {
     }
   }
 
-  // If a studio row was created early purely to back the Room Layout button and the user backs
+  // If a studio row was created early purely to back the Room layout button and the user backs
   // out without ever clicking "Save Studio", delete it — otherwise it'd linger as an empty,
   // gearless studio. Editing an existing studio never hits this (createdStudioId stays null).
   async function handleCancel(): Promise<void> {
@@ -459,17 +459,17 @@ export default function StudioSetupPage(): JSX.Element {
           Cancel
         </button>
         <button className="btn primary" onClick={handleSave} disabled={saving || !name.trim()}>
-          {saving ? 'Saving…' : 'Save Studio'}
+          {saving ? 'Saving…' : 'Save studio'}
         </button>
       </div>
 
       <div style={{ flex: 1, overflow: 'auto', padding: 16 }}>
         <button className="btn" style={{ marginBottom: 16 }} onClick={() => setImportModalOpen(true)}>
-          Import Gear from Another Studio…
+          Import gear from another studio…
         </button>
 
         <div className="section-title" style={{ marginTop: 0 }}>
-          Room Layout
+          Room layout
         </div>
         {activeStudioId ? (
           <LayoutFileUploader studioId={activeStudioId} />
@@ -546,7 +546,7 @@ export default function StudioSetupPage(): JSX.Element {
           </table>
         )}
 
-        <div className="section-title">Outboard Gear</div>
+        <div className="section-title">Outboard gear</div>
         <ManufacturerPickerDropdown
           items={catalogueOutboard}
           usageCounts={new Map()}

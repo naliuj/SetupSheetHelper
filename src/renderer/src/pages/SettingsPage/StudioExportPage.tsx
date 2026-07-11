@@ -65,10 +65,10 @@ export default function StudioExportPage({ onBack }: Props): JSX.Element {
       </div>
       <div className="inline-form" style={{ marginTop: 0 }}>
         <button className="btn small" onClick={() => setSelectedIds(new Set(studios.map((s) => s.id)))}>
-          Select All
+          Select all
         </button>
         <button className="btn small" onClick={() => setSelectedIds(new Set())}>
-          Deselect All
+          Deselect all
         </button>
       </div>
       {studios.length === 0 ? (
@@ -97,7 +97,7 @@ export default function StudioExportPage({ onBack }: Props): JSX.Element {
       {message && <p className="card-sub">{message}</p>}
       <div className="modal-actions">
         <button className="btn primary" onClick={handleExport} disabled={exporting || selectedIds.size === 0}>
-          {exporting ? 'Exporting…' : 'Export Selected'}
+          {exporting ? 'Exporting…' : 'Export selected'}
         </button>
       </div>
     </div>

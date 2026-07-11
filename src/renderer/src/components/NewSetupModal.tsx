@@ -51,7 +51,7 @@ export default function NewSetupModal({ onClose, onCreate }: Props): JSX.Element
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 380 }}>
-        <h2>New Setup</h2>
+        <h2>New setup</h2>
         <div className="inline-form" style={{ marginTop: 0 }}>
           <input
             placeholder="Setup name"
@@ -82,7 +82,7 @@ export default function NewSetupModal({ onClose, onCreate }: Props): JSX.Element
             Cancel
           </button>
           <button className="btn primary" onClick={handleCreate} disabled={creating || !name.trim()}>
-            {creating ? 'Creating…' : 'Create Setup'}
+            {creating ? 'Creating…' : 'Create setup'}
           </button>
         </div>
       </div>

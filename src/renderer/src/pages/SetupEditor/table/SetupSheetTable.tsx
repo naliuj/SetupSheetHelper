@@ -66,7 +66,7 @@ export default function SetupSheetTable(): JSX.Element {
   return (
     <div style={{ padding: 12 }}>
       <div className="section-title" style={{ marginTop: 0 }}>
-        Setup Sheet
+        Setup sheet
       </div>
       {items.length === 0 ? (
         <div className="empty-state">
@@ -78,15 +78,15 @@ export default function SetupSheetTable(): JSX.Element {
             <thead>
               <tr>
                 <th></th>
-                <th>Source Name</th>
+                <th>Source name</th>
                 <th>Mic</th>
                 {Array.from({ length: outboardColumnCount }, (_, i) => (
                   <th key={i}>{i === 0 ? 'Outboard' : `Outboard ${i + 1}`}</th>
                 ))}
                 <th>Channel</th>
                 <th>Preamp</th>
-                <th>Tie Line</th>
-                <th>Cue Box</th>
+                <th>Tie line</th>
+                <th>Cue box</th>
                 <th>Polarity</th>
                 <th>Notes</th>
                 <th></th>

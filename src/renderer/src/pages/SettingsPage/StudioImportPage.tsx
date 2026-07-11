@@ -42,10 +42,10 @@ export default function StudioImportPage({ file, onBack, onDone }: Props): JSX.E
       </div>
       <div className="inline-form" style={{ marginTop: 0 }}>
         <button className="btn small" onClick={() => setSelectedIndexes(new Set(file.studios.map((_, i) => i)))}>
-          Select All
+          Select all
         </button>
         <button className="btn small" onClick={() => setSelectedIndexes(new Set())}>
-          Deselect All
+          Deselect all
         </button>
       </div>
       <div className="panel" style={{ maxHeight: 320, overflow: 'auto' }}>

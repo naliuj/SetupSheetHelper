@@ -175,7 +175,7 @@ export default function ImportGearModal({
         onClick={(e) => e.stopPropagation()}
         style={{ width: 480, maxHeight: '80vh', overflow: 'auto' }}
       >
-        <h2 style={{ marginTop: 0 }}>Import Gear from Another Studio</h2>
+        <h2 style={{ marginTop: 0 }}>Import gear from another studio</h2>
 
         <div className="panel" style={{ maxHeight: 220, overflow: 'auto', marginBottom: 12 }}>
           {buildingGroups.map(({ building, studios }) => (
@@ -222,7 +222,7 @@ export default function ImportGearModal({
         {sourceStudioId != null && (
           <>
             <div className="section-title">
-              Mic Locker
+              Mic locker
               <span className="card-sub" style={{ float: 'right', fontWeight: 400 }}>
                 <button className="btn small" onClick={() => setSelectedMicIds(new Set(micsHere.map((m) => m.id)))}>
                   All
@@ -248,7 +248,7 @@ export default function ImportGearModal({
             )}
 
             <div className="section-title">
-              Outboard Gear
+              Outboard gear
               <span className="card-sub" style={{ float: 'right', fontWeight: 400 }}>
                 <button
                   className="btn small"
@@ -290,8 +290,15 @@ export default function ImportGearModal({
             className="btn primary"
             onClick={handleImport}
             disabled={sourceStudioId == null || (selectedMicIds.size === 0 && selectedOutboardIds.size === 0)}
+            title={
+              sourceStudioId == null
+                ? 'Choose a studio to import from'
+                : selectedMicIds.size === 0 && selectedOutboardIds.size === 0
+                  ? 'Select at least one item to import'
+                  : undefined
+            }
           >
-            Import Selected
+            Import selected
           </button>
         </div>
       </div>

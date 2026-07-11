@@ -55,7 +55,7 @@ export default function SaveAsTemplateModal({ onClose, onSave }: Props): JSX.Ele
             Cancel
           </button>
           <button className="btn primary" onClick={handleSave} disabled={saving || !name.trim()}>
-            {saving ? 'Saving…' : 'Save Studio'}
+            {saving ? 'Saving…' : 'Save studio'}
           </button>
         </div>
       </div>

@@ -34,13 +34,14 @@ export default function LoadPresetModal({ onClose }: { onClose: () => void }): J
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 400 }}>
-        <h2 style={{ marginTop: 0 }}>Load Channel Preset</h2>
+        <h2 style={{ marginTop: 0 }}>Load channel preset</h2>
 
         {presets.length === 0 ? (
           <div className="empty-state">No channel presets saved yet — save one from an open setup.</div>
         ) : (
           <>
             <select
+              autoFocus
               value={selectedId ?? ''}
               onChange={(e) => setSelectedId(Number(e.target.value))}
               style={{ width: '100%' }}

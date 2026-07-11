@@ -24,7 +24,7 @@ export default function CustomBlockModal({ onClose, onConfirm }: Props): JSX.Ele
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 320 }}>
-        <h2 style={{ marginTop: 0 }}>Add Custom Block</h2>
+        <h2 style={{ marginTop: 0 }}>Add custom block</h2>
         <p className="card-sub" style={{ marginTop: 0 }}>
           Placed directly on the layout — not added to the sidebar.
         </p>
@@ -45,7 +45,7 @@ export default function CustomBlockModal({ onClose, onConfirm }: Props): JSX.Ele
             Cancel
           </button>
           <button className="btn primary" onClick={handleConfirm} disabled={!title.trim()}>
-            Add Block
+            Add block
           </button>
         </div>
       </div>

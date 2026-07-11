@@ -195,7 +195,12 @@ export default function SetupSheetRow({
 
   return (
     <tr ref={setNodeRef} style={rowStyle}>
-      <td onClick={onGutterClick} style={{ cursor: 'pointer', userSelect: 'none' }}>
+      <td
+        className="gutter-cell"
+        onClick={onGutterClick}
+        title="Click to select · Shift-click for a range · Cmd/Ctrl-click to toggle"
+        style={{ cursor: 'pointer', userSelect: 'none' }}
+      >
         <span
           className="drag-handle"
           {...attributes}

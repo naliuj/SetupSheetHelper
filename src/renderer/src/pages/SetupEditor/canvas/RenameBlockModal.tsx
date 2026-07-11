@@ -20,7 +20,7 @@ export default function RenameBlockModal({ initialLabel, onClose, onConfirm }: P
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 320 }}>
-        <h2 style={{ marginTop: 0 }}>Rename Block</h2>
+        <h2 style={{ marginTop: 0 }}>Rename block</h2>
         <input
           value={label}
           onChange={(e) => setLabel(e.target.value)}

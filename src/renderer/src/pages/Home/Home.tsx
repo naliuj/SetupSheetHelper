@@ -129,7 +129,7 @@ export default function Home(): JSX.Element {
           <div className="card-sub">Studio</div>
         </button>
         <button className="btn small" style={{ marginTop: 6 }} onClick={() => goToStudioSetup(studio.id)}>
-          Edit Inventory
+          Edit inventory
         </button>
       </div>
     )
@@ -241,11 +241,11 @@ export default function Home(): JSX.Element {
       <h2 style={{ margin: 0 }}>Setup Sheet Helper</h2>
 
       <div className="section-title" style={{ marginTop: 24, display: 'flex', alignItems: 'center', gap: 12 }}>
-        <span>Quick Setup</span>
+        <span>Quick setup</span>
       </div>
       <div className="list-grid">
         <button className="card clickable" style={{ borderStyle: 'dashed' }} onClick={startQuickSetup}>
-          <div className="card-title">+ Quick Setup</div>
+          <div className="card-title">+ Quick setup</div>
           <div className="card-sub">No studio setup — free-text mic/outboard entry</div>
         </button>
       </div>
@@ -310,10 +310,10 @@ export default function Home(): JSX.Element {
           headerAction={
             <div style={{ display: 'flex', gap: 8 }}>
               <button className="btn small" onClick={() => goToStudioSetup(null)}>
-                + New Studio
+                + New studio
               </button>
               <button className="btn small" onClick={() => setManageMode('studios')}>
-                Manage Studios
+                Manage studios
               </button>
             </div>
           }
@@ -331,7 +331,7 @@ export default function Home(): JSX.Element {
         emptyMessage="No saved setups in this folder yet."
         headerAction={
           <button className="btn small" onClick={() => setManageMode('setups')}>
-            Manage Setups
+            Manage setups
           </button>
         }
       />
@@ -342,7 +342,7 @@ export default function Home(): JSX.Element {
 
       {manageMode === 'studios' && (
         <ManageItemsModal
-          title="Manage Studios"
+          title="Manage studios"
           items={manageStudioItems}
           folders={folders}
           onMoveToFolder={handleStudioItemMoveToFolder}
@@ -359,7 +359,7 @@ export default function Home(): JSX.Element {
 
       {manageMode === 'setups' && (
         <ManageItemsModal
-          title="Manage Setups"
+          title="Manage setups"
           items={manageSetupItems}
           folders={folders}
           onMoveToFolder={handleSetupItemMoveToFolder}

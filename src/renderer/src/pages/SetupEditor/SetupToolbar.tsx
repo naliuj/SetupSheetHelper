@@ -170,7 +170,7 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode, onOpenSetti
   }
 
   // These actions live in the native File/Edit menus (Save Setup / Save as Studio / Export
-  // PDF / Toggle Mode / Add Source / Delete Selection / Duplicate / Zoom / Setup Settings / Undo /
+  // PDF / Toggle Mode / Add Source / Delete Selection / Duplicate / Zoom / Setup settings / Undo /
   // Redo)
   // instead of toolbar buttons — this listener only exists while a setup is open, so the menu
   // items are harmless no-ops from any other screen. Re-subscribes on `mode`/`selectedItemIds`/
@@ -292,7 +292,7 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode, onOpenSetti
       {exporting && <span className="card-sub">Exporting…</span>}
       {setupId && (
         <button className="btn" onClick={onOpenSettings}>
-          Setup Settings
+          Setup settings
         </button>
       )}
       <button className="btn" onClick={requestToggleMode}>

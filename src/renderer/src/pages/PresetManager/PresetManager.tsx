@@ -78,7 +78,7 @@ export default function PresetManager({ onBack }: { onBack: () => void }): JSX.E
       <div className="nav-crumbs">
         <button onClick={onBack}>Settings</button> / Channel Presets
       </div>
-      <h2>Channel Presets</h2>
+      <h2>Channel presets</h2>
       <p className="card-sub">
         Reusable gear lists captured from a live setup's selected rows (or the whole sheet) — mic/outboard, channel
         numbers, and whichever other fields you chose to include when saving. Load one from Table Mode's "Load
@@ -111,7 +111,7 @@ export default function PresetManager({ onBack }: { onBack: () => void }): JSX.E
       {renaming && (
         <div className="modal-overlay" onClick={() => setRenaming(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 360 }}>
-            <h2 style={{ marginTop: 0 }}>Rename Preset</h2>
+            <h2 style={{ marginTop: 0 }}>Rename preset</h2>
             <input
               value={renameName}
               onChange={(e) => setRenameName(e.target.value)}

@@ -53,10 +53,10 @@ export default function InstrumentPalette(): JSX.Element {
       <p className="card-sub">Drag onto the layout — optional, purely visual</p>
 
       <button className="btn small" style={{ width: '100%', marginBottom: 6 }} onClick={() => setModalOpen(true)}>
-        + Add Custom Block
+        + Add custom block
       </button>
       <button className="btn small" style={{ width: '100%', marginBottom: 10 }} onClick={goToSettings}>
-        Manage Palette…
+        Manage palette…
       </button>
 
       <input

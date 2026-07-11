@@ -110,11 +110,18 @@ export default function ManageItemsModal({
   const [activeDndId, setActiveDndId] = useState<string | null>(null)
   const [folderDialog, setFolderDialog] = useState<FolderDialog | null>(null)
   const [dialogName, setDialogName] = useState('')
+  const [itemDialog, setItemDialog] = useState<{
+    item: ManagedItem
+    studioImpact: { setupCount: number; templateCount: number } | null
+  } | null>(null)
 
-  // Escape closes whichever layer is on top: the folder dialog if one's open, otherwise this
-  // modal — never both from a single keypress.
-  useEscapeToClose(onClose, folderDialog === null)
+  // Escape closes whichever layer is on top: a delete/folder dialog if one's open, otherwise this
+  // modal — never two layers from a single keypress. (folderDialog and itemDialog are mutually
+  // exclusive; only one confirm dialog is ever open at a time.)
+  const anyDialogOpen = folderDialog !== null || itemDialog !== null
+  useEscapeToClose(onClose, !anyDialogOpen)
   useEscapeToClose(() => setFolderDialog(null), folderDialog !== null)
+  useEscapeToClose(() => setItemDialog(null), itemDialog !== null)
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }))
   const tree = buildFolderTree(folders)
@@ -160,18 +167,14 @@ export default function ManageItemsModal({
   }
 
   async function handleItemDelete(item: ManagedItem): Promise<void> {
-    if (item.kind === 'studio') {
-      const impact = await window.api.studios.getDeleteImpact(item.id)
-      const total = impact.setupCount + impact.templateCount
-      const message =
-        total > 0
-          ? `Delete "${item.label}"? This will also delete ${impact.setupCount} setup${impact.setupCount === 1 ? '' : 's'} and ${impact.templateCount} template${impact.templateCount === 1 ? '' : 's'}.`
-          : `Delete "${item.label}"?`
-      if (!window.confirm(message)) return
-    } else if (!window.confirm(`Delete "${item.label}"? This cannot be undone.`)) {
-      return
-    }
-    await onDelete(item.kind, item)
+    const studioImpact = item.kind === 'studio' ? await window.api.studios.getDeleteImpact(item.id) : null
+    setItemDialog({ item, studioImpact })
+  }
+
+  async function confirmItemDelete(): Promise<void> {
+    if (!itemDialog) return
+    await onDelete(itemDialog.item.kind, itemDialog.item)
+    setItemDialog(null)
   }
 
   function openCreateDialog(parentId: number | null): void {
@@ -236,7 +239,7 @@ export default function ManageItemsModal({
                 />
               ))}
               <button className="btn small" style={{ marginTop: 8 }} onClick={() => openCreateDialog(null)}>
-                + New Folder
+                + New folder
               </button>
             </div>
             <div className="manage-list-pane">
@@ -318,10 +321,35 @@ export default function ManageItemsModal({
                 Cancel
               </button>
               <button className="btn" onClick={handleMoveContentsUp}>
-                Move Contents Up
+                Move contents up
               </button>
               <button className="btn danger" onClick={handleDeleteEverything}>
-                Delete Everything
+                Delete everything
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {itemDialog && (
+        <div className="modal-overlay" onClick={() => setItemDialog(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 420 }}>
+            <h2 style={{ marginTop: 0 }}>Delete "{itemDialog.item.label}"?</h2>
+            <p className="card-sub">
+              {itemDialog.studioImpact && itemDialog.studioImpact.setupCount + itemDialog.studioImpact.templateCount > 0
+                ? `This also deletes ${itemDialog.studioImpact.setupCount} setup${
+                    itemDialog.studioImpact.setupCount === 1 ? '' : 's'
+                  } and ${itemDialog.studioImpact.templateCount} template${
+                    itemDialog.studioImpact.templateCount === 1 ? '' : 's'
+                  } in this studio. This can't be undone.`
+                : "This can't be undone."}
+            </p>
+            <div className="modal-actions">
+              <button className="btn" onClick={() => setItemDialog(null)}>
+                Cancel
+              </button>
+              <button className="btn danger" onClick={confirmItemDelete}>
+                Delete
               </button>
             </div>
           </div>

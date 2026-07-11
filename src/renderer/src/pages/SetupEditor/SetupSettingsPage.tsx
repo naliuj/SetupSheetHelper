@@ -26,7 +26,7 @@ export default function SetupSettingsPage({ setupId, onBack }: Props): JSX.Eleme
       <div className="nav-crumbs">
         <button onClick={onBack}>Setup Editor</button> / Setup Settings
       </div>
-      <h2>Setup Settings</h2>
+      <h2>Setup settings</h2>
       <div className="inline-form" style={{ marginTop: 0 }}>
         {TABS.map((t) => (
           <button

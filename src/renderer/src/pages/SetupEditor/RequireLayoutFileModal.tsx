@@ -14,7 +14,7 @@ export default function RequireLayoutFileModal({ studioId, onUploaded, onCancel 
   return (
     <div className="modal-overlay" onClick={onCancel}>
       <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 380 }}>
-        <h2 style={{ marginTop: 0 }}>Room Layout Needed</h2>
+        <h2 style={{ marginTop: 0 }}>Room layout needed</h2>
         <p className="card-sub" style={{ marginTop: 0 }}>
           This studio doesn't have a room layout yet — upload one to use Layout Mode.
         </p>

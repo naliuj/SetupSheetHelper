@@ -140,7 +140,7 @@ export default function SettingsPage(): JSX.Element {
 
           <div style={{ marginTop: 20 }}>
             <button className="btn" onClick={() => setSubview({ kind: 'presets' })}>
-              Manage Channel Presets…
+              Manage channel presets…
             </button>
           </div>
 
@@ -151,7 +151,7 @@ export default function SettingsPage(): JSX.Element {
                 checked={berkleeFeaturesEnabled === true}
                 onChange={(e) => (e.target.checked ? enableBerkleeFeatures() : disableBerkleeFeatures())}
               />
-              Berklee Features
+              Berklee features
             </label>
             <p className="card-sub" style={{ marginTop: 4 }}>
               Shows Berklee's real studios, gear lists, and faculty reserve pool. Turning this off just hides them —
@@ -181,7 +181,7 @@ export default function SettingsPage(): JSX.Element {
         <div className="panel">
           <div className="inline-form" style={{ marginTop: 0 }}>
             <button className="btn" onClick={() => setSubview({ kind: 'export' })}>
-              Export Studios…
+              Export studios…
             </button>
             <button className="btn" onClick={handleImportClick}>
               Import Studios…
@@ -199,7 +199,7 @@ export default function SettingsPage(): JSX.Element {
               checked={theme === 'dark'}
               onChange={(e) => setTheme(e.target.checked ? 'dark' : 'light')}
             />
-            Dark Mode
+            Dark mode
           </label>
         </div>
       )}

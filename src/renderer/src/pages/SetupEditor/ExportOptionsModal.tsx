@@ -34,11 +34,11 @@ export default function ExportOptionsModal({ defaultInclude, onClose, onExport }
         <p className="card-sub" style={{ marginTop: 0 }}>What should the PDF include?</p>
         <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
           <input type="checkbox" checked={includeSheet} onChange={(e) => setIncludeSheet(e.target.checked)} />
-          Setup Sheet
+          Setup sheet
         </label>
         <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
           <input type="checkbox" checked={includeLayout} onChange={(e) => setIncludeLayout(e.target.checked)} />
-          Room Layout
+          Room layout
         </label>
         <div className="modal-actions">
           <button className="btn" onClick={onClose}>

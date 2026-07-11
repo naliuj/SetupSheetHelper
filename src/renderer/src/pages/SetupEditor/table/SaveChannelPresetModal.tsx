@@ -90,7 +90,7 @@ export default function SaveChannelPresetModal({ onClose }: { onClose: () => voi
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 380 }}>
-        <h2 style={{ marginTop: 0 }}>Save Channel Preset</h2>
+        <h2 style={{ marginTop: 0 }}>Save channel preset</h2>
         <p className="card-sub" style={{ marginTop: 0 }}>
           {selectedItemIds.size > 0
             ? `${targetItems.length} selected row${targetItems.length === 1 ? '' : 's'}`
@@ -127,8 +127,19 @@ export default function SaveChannelPresetModal({ onClose }: { onClose: () => voi
           <button className="btn" onClick={onClose}>
             Cancel
           </button>
-          <button className="btn primary" onClick={handleSave} disabled={saving || !name.trim() || targetItems.length === 0}>
-            {saving ? 'Saving…' : 'Save Preset'}
+          <button
+            className="btn primary"
+            onClick={handleSave}
+            disabled={saving || !name.trim() || targetItems.length === 0}
+            title={
+              targetItems.length === 0
+                ? 'Select at least one row to save'
+                : !name.trim()
+                  ? 'Enter a preset name'
+                  : undefined
+            }
+          >
+            {saving ? 'Saving…' : 'Save preset'}
           </button>
         </div>
       </div>
