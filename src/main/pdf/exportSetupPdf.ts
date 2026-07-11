@@ -1,51 +1,57 @@
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
 import { dialog } from 'electron'
 import { writeFileSync } from 'node:fs'
-import type { ExportSetupPdfInput, ExportSetupPdfResult } from '@shared/types/ipc'
+import type {
+  ExportSetupPdfInput,
+  ExportSetupPdfResult,
+  PdfExportDensity,
+  PdfExportOrientation
+} from '@shared/types/ipc'
 import { getSetupWithItems } from '../db/repositories/setupsRepo'
 import { getLayoutFileForStudio } from '../db/repositories/roomLayoutFileRepo'
 import { getMicById } from '../db/repositories/micsRepo'
 import { getOutboardById } from '../db/repositories/outboardRepo'
 import { getPreampById } from '../db/repositories/preampRepo'
 import { stripManufacturerPrefix } from '@shared/utils/manufacturerPrefix'
+import { fitColumns, wrapText, type ColumnSpec } from './pdfLayout'
 
-const PAGE_WIDTH = 612 // US Letter, portrait, points
-const PAGE_HEIGHT = 792
+// US Letter, points. Portrait is the short edge (612) horizontal; landscape swaps them.
+const LETTER_SHORT = 612
+const LETTER_LONG = 792
 const MARGIN = 36
-const ROW_HEIGHT = 22
-const HEADER_HEIGHT = 24
+const CELL_PAD = 2 // horizontal breathing room inside a cell, each side
 
-const STATIC_COLUMNS_BEFORE_OUTBOARD = [
-  { key: 'sourceName', label: 'Source Name', width: 80 },
-  { key: 'mic', label: 'Microphone', width: 80 }
-] as const
-
-const STATIC_COLUMNS_AFTER_OUTBOARD = [
-  { key: 'channel', label: 'Channel', width: 40 },
-  { key: 'preamp', label: 'Preamp', width: 55 },
-  { key: 'tieLine', label: 'Tie Line', width: 45 },
-  { key: 'cueBox', label: 'Cue Box', width: 45 },
-  { key: 'polarity', label: 'Polarity', width: 50 },
-  { key: 'notes', label: 'Notes', width: 70 }
-] as const
-
-interface RenderColumn {
-  key: string
-  label: string
-  width: number
+/** Font size + spacing that vary with the chosen density. Compact packs more rows per page;
+ *  normal stays larger and more legible. Sizes stay above a ~7pt legibility floor. */
+interface DensityConfig {
+  bodySize: number
+  headerSize: number
+  lineHeight: number
+  rowPadding: number // extra vertical space added to a row on top of its text lines
+}
+const DENSITY: Record<PdfExportDensity, DensityConfig> = {
+  normal: { bodySize: 9, headerSize: 9, lineHeight: 11, rowPadding: 6 },
+  compact: { bodySize: 7.5, headerSize: 8, lineHeight: 9, rowPadding: 4 }
 }
 
-function buildOutboardColumns(outboardColumnCount: number): RenderColumn[] {
-  return Array.from({ length: outboardColumnCount }, (_, i) => ({
-    key: `outboard_${i}`,
-    label: i === 0 ? 'Outboard' : `Outboard ${i + 1}`,
-    width: 75
-  }))
-}
+// The setup sheet's on-screen table has one column per outboard slot, but the PDF consolidates
+// them all into a single "Outboard" column (each row's gear joined into one wrapping cell) to keep
+// the export compact. Its width sits between a normal text column and the widest.
+const COLUMNS: ColumnSpec[] = [
+  { key: 'sourceName', label: 'Source Name', width: 80, minWidth: 60 },
+  { key: 'mic', label: 'Microphone', width: 80, minWidth: 60 },
+  { key: 'outboard', label: 'Outboard', width: 95, minWidth: 65 },
+  { key: 'channel', label: 'Channel', width: 40, minWidth: 34 },
+  { key: 'preamp', label: 'Preamp', width: 55, minWidth: 45 },
+  { key: 'tieLine', label: 'Tie Line', width: 45, minWidth: 38 },
+  { key: 'cueBox', label: 'Cue Box', width: 45, minWidth: 38 },
+  { key: 'polarity', label: 'Polarity', width: 50, minWidth: 42 },
+  { key: 'notes', label: 'Notes', width: 70, minWidth: 60 }
+]
 
 /** True if every row is blank for this column key — such a column is omitted entirely rather
- *  than printing a useless blank strip (independently per column: outboard and preamp are
- *  unrelated, and each outboard slot is checked on its own). */
+ *  than printing a useless blank strip (independently per column: outboard, preamp, cue box, and
+ *  polarity are unrelated and each checked on its own). */
 function isColumnEmpty(key: string, itemIds: number[], resolvedValues: Map<number, Record<string, string>>): boolean {
   return itemIds.every((id) => !(resolvedValues.get(id)?.[key] ?? '').trim())
 }
@@ -84,21 +90,34 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
 
   // Table page(s) — skipped entirely for a "room layout only" export.
   if (input.include !== 'layout') {
-    const outboardColumns = buildOutboardColumns(setup.outboardColumnCount)
-    const allColumns: RenderColumn[] = [
-      ...STATIC_COLUMNS_BEFORE_OUTBOARD,
-      ...outboardColumns,
-      ...STATIC_COLUMNS_AFTER_OUTBOARD
-    ]
+    const orientation: PdfExportOrientation = input.orientation
+    const pageWidth = orientation === 'landscape' ? LETTER_LONG : LETTER_SHORT
+    const pageHeight = orientation === 'landscape' ? LETTER_SHORT : LETTER_LONG
+    const usableWidth = pageWidth - 2 * MARGIN
+    const dens = DENSITY[input.density]
 
     const resolvedValues = new Map<number, Record<string, string>>()
     for (const item of setup.items) {
       const mic = item.micId != null ? getMicById(item.micId) : null
       const preamp = item.preampId != null ? getPreampById(item.preampId) : null
       const isConflict = item.tieLine != null && conflicts.has(item.tieLine)
+
+      // Consolidate every outboard slot into one comma-joined cell (empty slots skipped), in slot
+      // order — the wrapping cell keeps it readable no matter how many pieces of gear a row has.
+      const outboardParts: string[] = []
+      for (let i = 0; i < setup.outboardColumnCount; i++) {
+        const slot = item.outboards.find((s) => s.slotIndex === i)
+        const outboard = slot?.outboardId != null ? getOutboardById(slot.outboardId) : null
+        const text = outboard
+          ? stripManufacturerPrefix(outboard.name, outboard.manufacturer ?? '')
+          : slot?.outboardText ?? ''
+        if (text.trim()) outboardParts.push(text.trim())
+      }
+
       const values: Record<string, string> = {
         sourceName: item.sourceName || '',
         mic: mic ? mic.name : item.micText ?? '',
+        outboard: outboardParts.join(', '),
         channel: item.channel != null ? String(item.channel) : '',
         preamp: preamp ? stripManufacturerPrefix(preamp.name, preamp.manufacturer ?? '') : item.preampText ?? '',
         tieLine: item.tieLine != null ? `${isConflict ? '⚠ ' : ''}${item.tieLine}` : '',
@@ -106,26 +125,24 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
         polarity: item.polarityFlip ? 'Yes' : '',
         notes: item.notes ?? ''
       }
-      for (let i = 0; i < setup.outboardColumnCount; i++) {
-        const slot = item.outboards.find((s) => s.slotIndex === i)
-        const outboard = slot?.outboardId != null ? getOutboardById(slot.outboardId) : null
-        values[`outboard_${i}`] = outboard
-          ? stripManufacturerPrefix(outboard.name, outboard.manufacturer ?? '')
-          : slot?.outboardText ?? ''
-      }
       resolvedValues.set(item.id, values)
     }
 
-    // Preamp and every outboard slot are each independently omittable if blank across the
-    // whole sheet; every other column always shows.
+    // Outboard, Preamp, Tie Line, Cue Box, and Polarity are each independently omittable if blank
+    // across the whole sheet; every other column always shows.
     const itemIds = setup.items.map((item) => item.id)
-    const omittableKeys = ['preamp', ...outboardColumns.map((col) => col.key)]
-    const visibleColumns = allColumns.filter(
+    const omittableKeys = ['outboard', 'preamp', 'tieLine', 'cueBox', 'polarity']
+    const keptColumns = COLUMNS.filter(
       (col) => !omittableKeys.includes(col.key) || !isColumnEmpty(col.key, itemIds, resolvedValues)
     )
 
-    let page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT])
-    let cursorY = PAGE_HEIGHT - MARGIN
+    // Fit the kept columns to the page width — shrink an over-wide table, or hand slack to text
+    // columns on a narrow one — so nothing ever runs off the right edge.
+    const visibleColumns = fitColumns(keptColumns, usableWidth)
+    const headerHeight = dens.lineHeight + dens.rowPadding + 3
+
+    let page = pdfDoc.addPage([pageWidth, pageHeight])
+    let cursorY = pageHeight - MARGIN
 
     const drawTitle = (): void => {
       page.drawText(`${setup.name}${setup.sessionDate ? `  —  ${setup.sessionDate}` : ''}`, {
@@ -150,21 +167,21 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
     const drawHeaderRow = (): void => {
       let x = MARGIN
       for (const col of visibleColumns) {
-        page.drawText(col.label, { x, y: cursorY, size: 9, font: boldFont })
+        page.drawText(col.label, { x: x + CELL_PAD, y: cursorY, size: dens.headerSize, font: boldFont })
         x += col.width
       }
-      cursorY -= HEADER_HEIGHT
+      cursorY -= headerHeight
       page.drawLine({
-        start: { x: MARGIN, y: cursorY + 6 },
-        end: { x: PAGE_WIDTH - MARGIN, y: cursorY + 6 },
+        start: { x: MARGIN, y: cursorY + dens.rowPadding },
+        end: { x: pageWidth - MARGIN, y: cursorY + dens.rowPadding },
         thickness: 0.5,
         color: rgb(0.6, 0.6, 0.6)
       })
     }
 
     const startNewPage = (): void => {
-      page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT])
-      cursorY = PAGE_HEIGHT - MARGIN
+      page = pdfDoc.addPage([pageWidth, pageHeight])
+      cursorY = pageHeight - MARGIN
       drawHeaderRow()
     }
 
@@ -174,34 +191,48 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
     const tableWidth = visibleColumns.reduce((w, c) => w + c.width, 0)
 
     for (const item of setup.items) {
-      if (cursorY < MARGIN + ROW_HEIGHT) {
+      const values = resolvedValues.get(item.id)!
+
+      // Wrap every cell to its column width, then size the row to the tallest cell.
+      const wrappedByKey = new Map<string, string[]>()
+      let maxLines = 1
+      for (const col of visibleColumns) {
+        const lines = wrapText(values[col.key] ?? '', font, dens.bodySize, col.width - 2 * CELL_PAD)
+        wrappedByKey.set(col.key, lines)
+        if (lines.length > maxLines) maxLines = lines.length
+      }
+      const rowHeight = maxLines * dens.lineHeight + dens.rowPadding
+
+      // Page-break before drawing when this row won't fit (height-aware). A row taller than a whole
+      // page body is pathological; we still draw it from the top of a fresh page and let it run.
+      if (cursorY - rowHeight < MARGIN) {
         startNewPage()
       }
 
       if (input.coloredRows && item.color) {
         page.drawRectangle({
           x: MARGIN - 2,
-          y: cursorY - 5,
+          y: cursorY - rowHeight + dens.rowPadding,
           width: tableWidth + 4,
-          height: ROW_HEIGHT,
+          height: rowHeight,
           color: hexToPaleRgb(item.color)
         })
       }
 
-      const values = resolvedValues.get(item.id)!
-
       let x = MARGIN
       for (const col of visibleColumns) {
-        const text = values[col.key]
-        page.drawText(text.length > 40 ? `${text.slice(0, 37)}...` : text, {
-          x,
-          y: cursorY,
-          size: 9,
-          font
+        const lines = wrappedByKey.get(col.key)!
+        lines.forEach((line, i) => {
+          page.drawText(line, {
+            x: x + CELL_PAD,
+            y: cursorY - i * dens.lineHeight,
+            size: dens.bodySize,
+            font
+          })
         })
         x += col.width
       }
-      cursorY -= ROW_HEIGHT
+      cursorY -= rowHeight
     }
   }
 

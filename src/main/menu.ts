@@ -50,6 +50,13 @@ export function installAppMenu(mainWindow: BrowserWindow): void {
         { label: 'Undo', accelerator: 'CmdOrCtrl+Z', click: () => send('undo') },
         { label: 'Redo', accelerator: 'CmdOrCtrl+Shift+Z', click: () => send('redo') },
         { type: 'separator' },
+        // Standard clipboard roles. On macOS the OS routes Cmd+C/X/V through the app menu, so
+        // without these items the shortcuts never reach a focused text input (e.g. the Notes
+        // field) and copy/paste appears broken. The roles let Electron handle them natively.
+        { role: 'cut' },
+        { role: 'copy' },
+        { role: 'paste' },
+        { type: 'separator' },
         { label: 'Select All', accelerator: 'CmdOrCtrl+A', click: () => send('select-all') },
         { label: 'Add Source', accelerator: 'CmdOrCtrl+N', click: () => send('add-source') },
         { label: 'Delete Selection', accelerator: 'CmdOrCtrl+Backspace', click: () => send('delete-selection') },

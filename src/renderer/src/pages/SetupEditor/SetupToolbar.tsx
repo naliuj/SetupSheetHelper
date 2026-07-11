@@ -7,7 +7,7 @@ import { useLayoutStore } from '@renderer/state/layoutStore'
 import type { EditorMode } from '@renderer/state/navigationStore'
 import { exportStageToDataUrl } from './canvas/konvaExport'
 import SaveAsTemplateModal from './SaveAsTemplateModal'
-import ExportOptionsModal from './ExportOptionsModal'
+import ExportOptionsModal, { type ExportOptions } from './ExportOptionsModal'
 import RequireLayoutFileModal from './RequireLayoutFileModal'
 import { useBufferedField } from './table/useBufferedField'
 import { GENERIC_INSTRUMENT_TYPE } from './table/tableConstants'
@@ -64,7 +64,7 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode, onOpenSetti
     setExportModalOpen(true)
   }
 
-  async function performExport(include: PdfExportInclude, coloredRows: boolean): Promise<void> {
+  async function performExport({ include, coloredRows, orientation, density }: ExportOptions): Promise<void> {
     setExporting(true)
     setExportMessage(null)
     try {
@@ -98,7 +98,9 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode, onOpenSetti
         setupId: currentSetupId,
         layoutImageDataUrl: dataUrl,
         include,
-        coloredRows
+        coloredRows,
+        orientation,
+        density
       })
       setExportMessage(result.canceled ? null : `Exported to ${result.filePath}`)
       if (!result.canceled) {
