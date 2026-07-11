@@ -284,6 +284,8 @@ export interface ChannelPresetCreateInput {
 }
 
 export type PdfExportInclude = 'sheet' | 'layout' | 'both'
+export type PdfExportOrientation = 'portrait' | 'landscape'
+export type PdfExportDensity = 'normal' | 'compact'
 
 export interface ExportSetupPdfInput {
   setupId: number
@@ -292,6 +294,12 @@ export interface ExportSetupPdfInput {
   /** When true, draw each row's color as a pale background tint on the setup sheet. Off by
    *  default — colored rows can hurt legibility when printed in black and white. */
   coloredRows: boolean
+  /** Page orientation for the setup-sheet table. Landscape gives wide sheets (many outboard
+   *  columns) more horizontal room before columns have to shrink/wrap. */
+  orientation: PdfExportOrientation
+  /** Text density for the setup-sheet table. Compact uses a smaller font + tighter spacing to
+   *  fit more rows per page; normal keeps the larger, more legible size. */
+  density: PdfExportDensity
 }
 
 export interface ExportSetupPdfResult {
