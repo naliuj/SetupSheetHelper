@@ -147,11 +147,18 @@ export default function SetupSheetRow({
   onDelete
 }: Props): JSX.Element {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id })
+  // A row's color is a soft translucent wash over the page background, so the row text stays
+  // legible in both themes. Selection layers an accent wash ON TOP of the color tint (rather
+  // than fully replacing it) so a still-selected row visibly confirms its new color right away,
+  // instead of only becoming visible once deselected.
+  const colorTint = item.color ? `color-mix(in srgb, ${item.color} 22%, var(--color-bg))` : null
   const rowStyle = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.4 : 1,
-    background: selected ? 'var(--color-surface-alt)' : undefined
+    background: selected
+      ? `color-mix(in srgb, var(--color-accent) 24%, ${colorTint ?? 'var(--color-surface-alt)'})`
+      : (colorTint ?? undefined)
   }
   function handleMicChange(micId: number | null): void {
     const mic = micId != null ? mics.find((m) => m.id === micId) ?? null : null
@@ -205,7 +212,6 @@ export default function SetupSheetRow({
           className="drag-handle"
           {...attributes}
           {...listeners}
-          onClick={(e) => e.stopPropagation()}
           style={{ cursor: 'grab' }}
         >
           ⠿

@@ -13,6 +13,7 @@ import { run as outboardSlots } from './011_outboard_slots'
 import { run as paletteItems } from './012_palette_items'
 import { run as removeHasConsole } from './013_remove_has_console'
 import { run as presetFolders } from './014_preset_folders'
+import { run as rowColor } from './015_row_color'
 
 export interface SqlMigration {
   version: number
@@ -40,5 +41,6 @@ export const MIGRATIONS: Migration[] = [
   { version: 11, run: outboardSlots },
   { version: 12, run: paletteItems },
   { version: 13, run: removeHasConsole },
-  { version: 14, run: presetFolders }
+  { version: 14, run: presetFolders },
+  { version: 15, run: rowColor }
 ]

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { staggeredPosition } from '@shared/utils/staggeredGrid'
+import { readableTextColor } from '@shared/constants/swatches'
 import { useLayoutStore } from '@renderer/state/layoutStore'
 import { usePaletteStore } from '@renderer/state/paletteStore'
 import { groupByCategory } from '@renderer/state/paletteGrouping'
@@ -91,7 +92,7 @@ export default function InstrumentPalette(): JSX.Element {
                     marginBottom: 4,
                     cursor: 'grab',
                     background: item.color,
-                    color: '#fff',
+                    color: readableTextColor(item.color),
                     padding: '5px 8px',
                     fontSize: 12
                   }}
