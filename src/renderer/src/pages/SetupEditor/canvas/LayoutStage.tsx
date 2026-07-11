@@ -282,7 +282,7 @@ export default function LayoutStage({ studioId, stageRef }: Props): JSX.Element 
       ref={containerRef}
       onDrop={handleDrop}
       onDragOver={(e) => e.preventDefault()}
-      style={{ width: '100%', height: '100%', overflow: 'hidden', background: '#111417', position: 'relative' }}
+      style={{ width: '100%', height: '100%', overflow: 'hidden', background: 'var(--color-bg)', position: 'relative' }}
     >
       <div
         style={{ position: 'absolute', top: 8, right: 8, zIndex: 10, display: 'flex', alignItems: 'center', gap: 4 }}

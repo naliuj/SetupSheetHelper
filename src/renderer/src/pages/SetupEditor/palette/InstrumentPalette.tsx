@@ -87,7 +87,14 @@ export default function InstrumentPalette(): JSX.Element {
                     )
                   }
                   className="card"
-                  style={{ marginBottom: 6, cursor: 'grab', background: item.color, color: '#fff' }}
+                  style={{
+                    marginBottom: 4,
+                    cursor: 'grab',
+                    background: item.color,
+                    color: '#fff',
+                    padding: '5px 8px',
+                    fontSize: 12
+                  }}
                 >
                   {item.label}
                 </div>

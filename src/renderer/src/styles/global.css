@@ -1,26 +1,30 @@
 :root {
-  --color-bg: #1b1e24;
-  --color-surface: #262a33;
-  --color-surface-alt: #2f333e;
-  --color-border: #3a3f4b;
-  --color-text: #e8eaed;
-  --color-text-dim: #9aa5b1;
-  --color-accent: #4f7cac;
-  --color-warning: #f2a541;
-  --color-danger: #e6738f;
+  --color-bg: #14161a;
+  --color-surface: #1c1f25;
+  --color-surface-alt: #232830;
+  --color-border: #313742;
+  --color-text: #eef1f5;
+  --color-text-dim: #939ba7;
+  --color-accent: #3d9bff;
+  --color-on-accent: #04203f;
+  --color-warning: #f5b544;
+  --color-danger: #ff5d6c;
+  --radius: 2px;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 :root[data-theme='light'] {
-  --color-bg: #f5f6f8;
+  --color-bg: #f4f6f9;
   --color-surface: #ffffff;
-  --color-surface-alt: #ececef;
-  --color-border: #d5d8dd;
-  --color-text: #1c1e22;
-  --color-text-dim: #5a6270;
-  --color-accent: #3a6da3;
-  --color-warning: #b3701a;
-  --color-danger: #c23e5e;
+  --color-surface-alt: #eef1f5;
+  --color-border: #d3d9e0;
+  --color-text: #1a1d23;
+  --color-text-dim: #5c6672;
+  --color-accent: #1c66cf;
+  --color-on-accent: #ffffff;
+  --color-warning: #b8770f;
+  --color-danger: #d63a53;
+  --radius: 2px;
 }
 
 * {
@@ -52,7 +56,7 @@ textarea {
 
 select {
   padding: 8px 10px;
-  border-radius: 6px;
+  border-radius: var(--radius);
   border: 1px solid var(--color-border);
   background: var(--color-bg);
   color: var(--color-text);
@@ -106,7 +110,7 @@ select {
 .panel {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: 8px;
+  border-radius: var(--radius);
   padding: 16px;
 }
 
@@ -120,7 +124,7 @@ select {
 .card {
   background: var(--color-surface-alt);
   border: 1px solid var(--color-border);
-  border-radius: 8px;
+  border-radius: var(--radius);
   padding: 14px;
   text-align: left;
   color: var(--color-text);
@@ -157,7 +161,7 @@ select {
 .inline-form select {
   flex: 1;
   padding: 8px 10px;
-  border-radius: 6px;
+  border-radius: var(--radius);
   border: 1px solid var(--color-border);
   background: var(--color-bg);
   color: var(--color-text);
@@ -169,7 +173,7 @@ select {
   flex: 1;
   min-width: 0;
   padding: 5px 8px;
-  border-radius: 6px;
+  border-radius: var(--radius);
   border: 1px solid var(--color-border);
   background: var(--color-bg);
   color: var(--color-text);
@@ -178,7 +182,7 @@ select {
 
 .palette-select {
   padding: 5px 8px;
-  border-radius: 6px;
+  border-radius: var(--radius);
   border: 1px solid var(--color-border);
   background: var(--color-bg);
   color: var(--color-text);
@@ -191,7 +195,7 @@ select {
   flex: none;
   padding: 2px;
   border: 1px solid var(--color-border);
-  border-radius: 6px;
+  border-radius: var(--radius);
   background: var(--color-bg);
   cursor: pointer;
 }
@@ -202,12 +206,12 @@ select {
 
 .palette-color::-webkit-color-swatch {
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius);
 }
 
 .btn {
   padding: 8px 14px;
-  border-radius: 6px;
+  border-radius: var(--radius);
   border: 1px solid var(--color-border);
   background: var(--color-surface-alt);
   color: var(--color-text);
@@ -221,7 +225,7 @@ select {
 .btn.primary {
   background: var(--color-accent);
   border-color: var(--color-accent);
-  color: white;
+  color: var(--color-on-accent);
 }
 
 .btn.danger {
@@ -236,8 +240,6 @@ select {
 .section-title {
   font-size: 13px;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
   color: var(--color-text-dim);
   margin: 20px 0 8px;
 }
@@ -251,8 +253,6 @@ table.data-table {
 table.data-table th {
   text-align: left;
   font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
   color: var(--color-text-dim);
   border-bottom: 1px solid var(--color-border);
   padding: 6px 8px;
@@ -268,7 +268,7 @@ table.data-table td input,
 table.data-table td select {
   width: 100%;
   padding: 4px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius);
   border: 1px solid var(--color-border);
   background: var(--color-bg);
   color: var(--color-text);
@@ -298,7 +298,7 @@ table.data-table td select {
 .modal {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: 10px;
+  border-radius: var(--radius);
   padding: 20px;
   width: 640px;
   max-width: 90vw;
@@ -320,7 +320,7 @@ table.data-table td select {
   gap: 6px;
   text-align: left;
   padding: 4px 8px;
-  border-radius: 4px;
+  border-radius: var(--radius);
   border: 1px solid var(--color-border);
   background: var(--color-bg);
   color: var(--color-text);
@@ -342,8 +342,8 @@ table.data-table td select {
 .picker-menu {
   background: var(--color-surface-alt);
   border: 1px solid var(--color-border);
-  border-radius: 6px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  border-radius: var(--radius);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   overflow-y: auto;
   z-index: 1000;
   padding: 4px;
@@ -355,7 +355,7 @@ table.data-table td select {
   justify-content: space-between;
   gap: 8px;
   padding: 6px 8px;
-  border-radius: 4px;
+  border-radius: var(--radius);
   font-size: 13px;
   cursor: pointer;
   white-space: nowrap;
@@ -364,7 +364,7 @@ table.data-table td select {
 .picker-menu-row.hovered,
 .picker-menu-row:not(.disabled):hover {
   background: var(--color-accent);
-  color: white;
+  color: var(--color-on-accent);
 }
 
 .picker-menu-search {
@@ -375,7 +375,7 @@ table.data-table td select {
   box-sizing: border-box;
   margin-bottom: 4px;
   padding: 5px 8px;
-  border-radius: 4px;
+  border-radius: var(--radius);
   border: 1px solid var(--color-border);
   background: var(--color-bg);
   color: var(--color-text);
@@ -389,7 +389,7 @@ table.data-table td select {
 
 .picker-menu-row.hovered .picker-menu-row-hint,
 .picker-menu-row:not(.disabled):hover .picker-menu-row-hint {
-  color: rgba(255, 255, 255, 0.8);
+  color: color-mix(in srgb, var(--color-on-accent) 70%, transparent);
 }
 
 .picker-menu-row.selected {
@@ -408,7 +408,7 @@ table.data-table td select {
 }
 
 .picker-menu-row.hovered .picker-menu-row-suffix {
-  color: rgba(255, 255, 255, 0.8);
+  color: color-mix(in srgb, var(--color-on-accent) 70%, transparent);
 }
 
 .picker-menu-row-caret {
@@ -448,7 +448,7 @@ table.data-table td select {
   align-items: center;
   gap: 4px;
   padding: 4px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius);
   font-size: 13px;
   cursor: default;
 }
@@ -495,7 +495,7 @@ table.data-table td select {
   cursor: pointer;
   padding: 2px 4px;
   font-size: 12px;
-  border-radius: 3px;
+  border-radius: var(--radius);
 }
 
 .folder-tree-action:hover {
@@ -505,8 +505,6 @@ table.data-table td select {
 
 .manage-kind-heading {
   font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
   color: var(--color-text-dim);
   margin: 12px 0 6px;
 }
@@ -520,7 +518,7 @@ table.data-table td select {
   align-items: center;
   gap: 8px;
   padding: 6px 8px;
-  border-radius: 4px;
+  border-radius: var(--radius);
   border: 1px solid var(--color-border);
   background: var(--color-bg);
   margin-bottom: 4px;
