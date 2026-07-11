@@ -51,7 +51,7 @@ export function installAppMenu(mainWindow: BrowserWindow): void {
         { label: 'Select All', accelerator: 'CmdOrCtrl+A', click: () => send('select-all') },
         { label: 'Add Source', accelerator: 'CmdOrCtrl+N', click: () => send('add-source') },
         { label: 'Delete Selected Rows', accelerator: 'CmdOrCtrl+Backspace', click: () => send('delete-row') },
-        { label: 'Sequential Numbering…', accelerator: 'CmdOrCtrl+Shift+N', click: () => send('sequential-numbering') },
+        { label: 'Number Selected Rows…', accelerator: 'CmdOrCtrl+Shift+N', click: () => send('sequential-numbering') },
         { type: 'separator' },
         { label: 'Setup Settings…', accelerator: 'CmdOrCtrl+G', click: () => send('open-setup-settings') }
       ]

@@ -10,7 +10,7 @@ import SaveAsTemplateModal from './SaveAsTemplateModal'
 import ExportOptionsModal from './ExportOptionsModal'
 import RequireLayoutFileModal from './RequireLayoutFileModal'
 import { useBufferedField } from './table/useBufferedField'
-import { GENERIC_INSTRUMENT_TYPE } from './table/AddSourceControl'
+import { GENERIC_INSTRUMENT_TYPE } from './table/tableConstants'
 
 interface Props {
   stageRef: React.RefObject<Konva.Stage | null>
@@ -36,7 +36,7 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode, onOpenSetti
   const addItem = useSetupStore((s) => s.addItem)
   const selectedItemIds = useSetupStore((s) => s.selectedItemIds)
   const removeItems = useSetupStore((s) => s.removeItems)
-  const setSequentialNumberingOpen = useSetupStore((s) => s.setSequentialNumberingOpen)
+  const focusNumbering = useSetupStore((s) => s.focusNumbering)
 
   const [exporting, setExporting] = useState(false)
   const [exportMessage, setExportMessage] = useState<string | null>(null)
@@ -195,7 +195,7 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode, onOpenSetti
           if (selectedItemIds.size > 0) removeItems([...selectedItemIds])
           break
         case 'sequential-numbering':
-          if (mode === 'table') setSequentialNumberingOpen(true)
+          if (mode === 'table') focusNumbering()
           break
         case 'open-setup-settings':
           onOpenSettings()

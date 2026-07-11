@@ -63,8 +63,9 @@ interface SetupState {
   selectedItemIds: Set<number | string>
   /** The last plain-clicked row — shift-click selects the range between it and the clicked row. */
   selectionAnchorId: number | string | null
-  sequentialNumberingOpen: boolean
-  saveChannelPresetOpen: boolean
+  /** Bumped to ask the selection bar's inline numbering input to focus — lets the Cmd/Ctrl+Shift+N
+   *  menu item drive the inline control instead of opening a modal. */
+  numberingFocusTick: number
   /** Transient (not persisted) — set when a Channel Preset's captured mic/outboard couldn't be
    *  matched in the current studio's catalogue, cleared the moment the user picks a replacement. */
   unresolvedGearHints: Map<number | string, UnresolvedGearHint>
@@ -102,9 +103,9 @@ interface SetupState {
   selectRangeTo(id: number | string): void
   toggleItem(id: number | string): void
   selectAll(): void
+  clearSelection(): void
   applySequentialNumbering(field: 'channel' | 'tieLine' | 'cueBox', start: number): void
-  setSequentialNumberingOpen(open: boolean): void
-  setSaveChannelPresetOpen(open: boolean): void
+  focusNumbering(): void
   clearUnresolvedGearHint(id: number | string, field: 'mic' | 'outboard' | 'preamp'): void
   applyChannelPreset(items: ResolvedChannelPresetItem[]): void
   save(): Promise<void>
@@ -125,8 +126,7 @@ export const useSetupStore = create<SetupState>()(
   outboardColumnCount: 1,
   selectedItemIds: new Set<number | string>(),
   selectionAnchorId: null,
-  sequentialNumberingOpen: false,
-  saveChannelPresetOpen: false,
+  numberingFocusTick: 0,
   unresolvedGearHints: new Map(),
   isDirty: false,
   isSaving: false,
@@ -289,6 +289,8 @@ export const useSetupStore = create<SetupState>()(
       selectionAnchorId: null
     })),
 
+  clearSelection: () => set({ selectedItemIds: new Set(), selectionAnchorId: null }),
+
   // Ctrl/cmd-click: adds/removes exactly one row from the selection without disturbing the
   // rest, enabling non-contiguous selections alongside shift-click's contiguous ranges.
   toggleItem: (id) =>
@@ -340,8 +342,7 @@ export const useSetupStore = create<SetupState>()(
       }
     }),
 
-  setSequentialNumberingOpen: (open) => set({ sequentialNumberingOpen: open }),
-  setSaveChannelPresetOpen: (open) => set({ saveChannelPresetOpen: open }),
+  focusNumbering: () => set((state) => ({ numberingFocusTick: state.numberingFocusTick + 1 })),
 
   clearUnresolvedGearHint: (id, field) =>
     set((state) => {

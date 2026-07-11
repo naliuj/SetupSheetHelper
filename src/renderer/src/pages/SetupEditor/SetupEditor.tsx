@@ -8,7 +8,8 @@ import { useCatalogStore } from '@renderer/state/catalogStore'
 import InstrumentPalette from './palette/InstrumentPalette'
 import LayoutStage from './canvas/LayoutStage'
 import SetupSheetTable from './table/SetupSheetTable'
-import AddSourceControl from './table/AddSourceControl'
+import TableModeToolbar from './table/TableModeToolbar'
+import SelectionActionBar from './table/SelectionActionBar'
 import SetupToolbar from './SetupToolbar'
 import SetupSettingsPage from './SetupSettingsPage'
 
@@ -136,7 +137,8 @@ export default function SetupEditor(): JSX.Element {
         onOpenSettings={() => setSettingsOpen(true)}
       />
       <div style={{ flex: 1, minHeight: 0, overflow: 'auto', display: mode === 'table' ? 'block' : 'none' }}>
-        <AddSourceControl />
+        <TableModeToolbar />
+        <SelectionActionBar />
         <SetupSheetTable />
       </div>
       {/* Kept mounted (just hidden) in Table Mode, rather than unmounted, so its Konva stage
