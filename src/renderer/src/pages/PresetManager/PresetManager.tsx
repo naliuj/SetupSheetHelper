@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { ChannelPreset, ChannelPresetItem, ChannelPresetItemInput } from '@shared/types/channelPreset'
+import { useEscapeToClose } from '@renderer/hooks/useEscapeToClose'
 
 function toInput(item: ChannelPresetItem): ChannelPresetItemInput {
   return {
@@ -29,6 +30,8 @@ export default function PresetManager({ onBack }: { onBack: () => void }): JSX.E
   const [renaming, setRenaming] = useState<ChannelPreset | null>(null)
   const [renameName, setRenameName] = useState('')
   const [renameDescription, setRenameDescription] = useState('')
+
+  useEscapeToClose(() => setRenaming(null), renaming !== null)
 
   function reload(): void {
     window.api.presets.list().then(async (list) => {

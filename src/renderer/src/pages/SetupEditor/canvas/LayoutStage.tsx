@@ -29,7 +29,6 @@ export default function LayoutStage({ studioId, stageRef }: Props): JSX.Element 
   const updateBlockTransform = useLayoutStore((s) => s.updateBlockTransform)
   const renameBlock = useLayoutStore((s) => s.renameBlock)
   const updateBlockColor = useLayoutStore((s) => s.updateBlockColor)
-  const duplicateBlocks = useLayoutStore((s) => s.duplicateBlocks)
   const removeBlocks = useLayoutStore((s) => s.removeBlocks)
   const moveBlocksBy = useLayoutStore((s) => s.moveBlocksBy)
   const selectBlock = useLayoutStore((s) => s.selectBlock)
@@ -113,10 +112,11 @@ export default function LayoutStage({ studioId, stageRef }: Props): JSX.Element 
     updateBlockTransform(id, { width, height, rotation: node.rotation() })
   }
 
-  // Backspace/Delete removes every selected block, Cmd/Ctrl+D duplicates all of them together
-  // — both unless focus is in a text field. Space (tracked here too) toggles pan-drag mode for
-  // the canvas. All three need preventDefault(): Space scrolls the page, Cmd+D opens a browser
-  // bookmark dialog, Backspace can navigate back.
+  // Backspace/Delete removes every selected block, unless focus is in a text field. Space
+  // (tracked here too) toggles pan-drag mode for the canvas. Both need preventDefault(): Space
+  // scrolls the page, Backspace can navigate back. Duplicate (Cmd/Ctrl+D) is handled by the
+  // native Edit menu's "Duplicate" accelerator (SetupToolbar.tsx) instead of here, so a single
+  // keypress doesn't fire both this listener and the menu accelerator and duplicate twice.
   useEffect(() => {
     function isTextField(target: EventTarget | null): boolean {
       const el = target as HTMLElement | null
@@ -133,9 +133,6 @@ export default function LayoutStage({ studioId, stageRef }: Props): JSX.Element 
       if (e.key === 'Backspace' || e.key === 'Delete') {
         e.preventDefault()
         removeBlocks([...selectedBlockIds])
-      } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'd') {
-        e.preventDefault()
-        duplicateBlocks([...selectedBlockIds])
       }
     }
     function handleKeyUp(e: KeyboardEvent): void {
@@ -147,7 +144,7 @@ export default function LayoutStage({ studioId, stageRef }: Props): JSX.Element 
       window.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener('keyup', handleKeyUp)
     }
-  }, [selectedBlockIds, removeBlocks, duplicateBlocks])
+  }, [selectedBlockIds, removeBlocks])
 
   const renamingBlock = renamingBlockId != null ? blocks.find((b) => b.id === renamingBlockId) : null
 

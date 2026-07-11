@@ -1,4 +1,5 @@
 import LayoutFileUploader from '@renderer/components/LayoutFileUploader'
+import { useEscapeToClose } from '@renderer/hooks/useEscapeToClose'
 
 interface Props {
   studioId: number
@@ -9,6 +10,7 @@ interface Props {
 /** Blocks entering Layout Mode until the studio has a room layout assigned, and proceeds into
  *  Layout Mode the moment a layout is successfully uploaded (no extra confirmation click). */
 export default function RequireLayoutFileModal({ studioId, onUploaded, onCancel }: Props): JSX.Element {
+  useEscapeToClose(onCancel)
   return (
     <div className="modal-overlay" onClick={onCancel}>
       <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 380 }}>

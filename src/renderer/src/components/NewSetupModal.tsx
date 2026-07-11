@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useFolderPicker } from '@renderer/state/useFolderPicker'
 import FolderPickerFields from '@renderer/components/FolderPickerFields'
+import { useEscapeToClose } from '@renderer/hooks/useEscapeToClose'
 
 export interface NewSetupDetails {
   name: string
@@ -20,6 +21,7 @@ function today(): string {
 }
 
 export default function NewSetupModal({ onClose, onCreate }: Props): JSX.Element {
+  useEscapeToClose(onClose)
   const [name, setName] = useState('')
   const [sessionDate, setSessionDate] = useState(today())
   const [engineer, setEngineer] = useState('')

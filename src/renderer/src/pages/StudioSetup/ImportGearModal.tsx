@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { Building, MicWithStudio, OutboardGearWithStudio, Studio } from '@shared/types/entities'
 import type { Folder, FolderTreeNode as FolderTreeNodeType } from '@shared/types/setup'
 import { buildFolderTree } from '@renderer/state/folderTree'
+import { useEscapeToClose } from '@renderer/hooks/useEscapeToClose'
 
 interface Props {
   allMics: MicWithStudio[]
@@ -81,6 +82,7 @@ export default function ImportGearModal({
   onImport,
   onClose
 }: Props): JSX.Element {
+  useEscapeToClose(onClose)
   const [buildings, setBuildings] = useState<Building[]>([])
   const [buildingStudios, setBuildingStudios] = useState<Studio[]>([])
   const [customStudios, setCustomStudios] = useState<Studio[]>([])

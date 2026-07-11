@@ -15,6 +15,7 @@ import { CSS } from '@dnd-kit/utilities'
 import type { Folder } from '@shared/types/setup'
 import type { FolderDeleteImpact } from '@shared/types/ipc'
 import { buildFolderTree } from '@renderer/state/folderTree'
+import { useEscapeToClose } from '@renderer/hooks/useEscapeToClose'
 import FolderTreeNode from './FolderTreeNode'
 
 export interface ManagedItem {
@@ -109,6 +110,11 @@ export default function ManageItemsModal({
   const [activeDndId, setActiveDndId] = useState<string | null>(null)
   const [folderDialog, setFolderDialog] = useState<FolderDialog | null>(null)
   const [dialogName, setDialogName] = useState('')
+
+  // Escape closes whichever layer is on top: the folder dialog if one's open, otherwise this
+  // modal — never both from a single keypress.
+  useEscapeToClose(onClose, folderDialog === null)
+  useEscapeToClose(() => setFolderDialog(null), folderDialog !== null)
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }))
   const tree = buildFolderTree(folders)

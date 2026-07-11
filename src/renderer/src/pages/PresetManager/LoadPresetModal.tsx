@@ -3,8 +3,10 @@ import type { ChannelPreset } from '@shared/types/channelPreset'
 import { useCatalogStore } from '@renderer/state/catalogStore'
 import { useSetupStore } from '@renderer/state/setupStore'
 import { resolveChannelPresetItems } from '@renderer/state/channelPresetResolution'
+import { useEscapeToClose } from '@renderer/hooks/useEscapeToClose'
 
 export default function LoadPresetModal({ onClose }: { onClose: () => void }): JSX.Element {
+  useEscapeToClose(onClose)
   const mics = useCatalogStore((s) => s.mics)
   const outboardGear = useCatalogStore((s) => s.outboardGear)
   const preamps = useCatalogStore((s) => s.preamps)

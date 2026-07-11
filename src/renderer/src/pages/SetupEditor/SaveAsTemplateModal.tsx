@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useFolderPicker } from '@renderer/state/useFolderPicker'
 import FolderPickerFields from '@renderer/components/FolderPickerFields'
+import { useEscapeToClose } from '@renderer/hooks/useEscapeToClose'
 
 interface Props {
   onClose: () => void
@@ -8,6 +9,7 @@ interface Props {
 }
 
 export default function SaveAsTemplateModal({ onClose, onSave }: Props): JSX.Element {
+  useEscapeToClose(onClose)
   const [name, setName] = useState('')
   const [saving, setSaving] = useState(false)
   const { folderOptions, selection, setSelection, newFolderName, setNewFolderName, resolveFolderId } =

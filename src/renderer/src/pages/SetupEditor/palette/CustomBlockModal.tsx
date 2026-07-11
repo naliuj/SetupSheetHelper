@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useEscapeToClose } from '@renderer/hooks/useEscapeToClose'
 
 interface Props {
   onClose: () => void
@@ -10,6 +11,7 @@ const DEFAULT_COLOR = '#6c7ba0'
 /** One-off custom block creation — title and color only, per design. Confirming places a
  *  single block directly on the canvas; nothing gets added to the palette/sidebar. */
 export default function CustomBlockModal({ onClose, onConfirm }: Props): JSX.Element {
+  useEscapeToClose(onClose)
   const [title, setTitle] = useState('')
   const [color, setColor] = useState(DEFAULT_COLOR)
 

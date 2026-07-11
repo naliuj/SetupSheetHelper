@@ -50,8 +50,16 @@ export function installAppMenu(mainWindow: BrowserWindow): void {
         { type: 'separator' },
         { label: 'Select All', accelerator: 'CmdOrCtrl+A', click: () => send('select-all') },
         { label: 'Add Source', accelerator: 'CmdOrCtrl+N', click: () => send('add-source') },
-        { label: 'Delete Selected Rows', accelerator: 'CmdOrCtrl+Backspace', click: () => send('delete-row') },
+        { label: 'Delete Selection', accelerator: 'CmdOrCtrl+Backspace', click: () => send('delete-selection') },
+        { label: 'Duplicate', accelerator: 'CmdOrCtrl+D', click: () => send('duplicate-selection') },
         { label: 'Number Selected Rows…', accelerator: 'CmdOrCtrl+Shift+N', click: () => send('sequential-numbering') },
+        { type: 'separator' },
+        // Shift-modified so these don't collide with the built-in viewMenu role's page-zoom
+        // accelerators (CmdOrCtrl+Plus/Minus/0) — those zoom the whole window's rendering
+        // (an accessibility feature), not the Layout Mode canvas.
+        { label: 'Zoom In', accelerator: 'CmdOrCtrl+Shift+=', click: () => send('zoom-in') },
+        { label: 'Zoom Out', accelerator: 'CmdOrCtrl+Shift+-', click: () => send('zoom-out') },
+        { label: 'Reset View', accelerator: 'CmdOrCtrl+Shift+0', click: () => send('reset-view') },
         { type: 'separator' },
         { label: 'Setup Settings…', accelerator: 'CmdOrCtrl+G', click: () => send('open-setup-settings') }
       ]

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { ChannelPresetItemInput } from '@shared/types/channelPreset'
 import { useSetupStore } from '@renderer/state/setupStore'
 import { useCatalogStore } from '@renderer/state/catalogStore'
+import { useEscapeToClose } from '@renderer/hooks/useEscapeToClose'
 
 type IncludeField = 'mic' | 'outboard' | 'preamp' | 'channel' | 'tieLine' | 'cueBox' | 'polarity' | 'notes'
 
@@ -32,6 +33,7 @@ const DEFAULT_INCLUDED: Record<IncludeField, boolean> = {
  *  fields to include. Skipped fields are simply left out of the captured row (null), same as
  *  any other unset field. */
 export default function SaveChannelPresetModal({ onClose }: { onClose: () => void }): JSX.Element {
+  useEscapeToClose(onClose)
   const items = useSetupStore((s) => s.items)
   const selectedItemIds = useSetupStore((s) => s.selectedItemIds)
   const mics = useCatalogStore((s) => s.mics)

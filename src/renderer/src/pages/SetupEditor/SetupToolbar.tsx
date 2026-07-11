@@ -37,6 +37,9 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode, onOpenSetti
   const selectedItemIds = useSetupStore((s) => s.selectedItemIds)
   const removeItems = useSetupStore((s) => s.removeItems)
   const focusNumbering = useSetupStore((s) => s.focusNumbering)
+  const selectedBlockIds = useLayoutStore((s) => s.selectedBlockIds)
+  const removeBlocks = useLayoutStore((s) => s.removeBlocks)
+  const duplicateBlocks = useLayoutStore((s) => s.duplicateBlocks)
 
   const [exporting, setExporting] = useState(false)
   const [exportMessage, setExportMessage] = useState<string | null>(null)
@@ -148,6 +151,8 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode, onOpenSetti
     }
     if (mode === 'table') {
       useSetupStore.getState().selectAll()
+    } else if (mode === 'layout') {
+      useLayoutStore.getState().selectAllBlocks()
     }
   }
 
@@ -165,11 +170,12 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode, onOpenSetti
   }
 
   // These actions live in the native File/Edit menus (Save Setup / Save as Studio / Export
-  // PDF / Toggle Mode / Add Source / Delete Selected Row / Setup Settings / Undo / Redo)
+  // PDF / Toggle Mode / Add Source / Delete Selection / Duplicate / Zoom / Setup Settings / Undo /
+  // Redo)
   // instead of toolbar buttons — this listener only exists while a setup is open, so the menu
   // items are harmless no-ops from any other screen. Re-subscribes on `mode`/`selectedItemIds`/
-  // `studioId` change so the toggle and delete cases always act on current state, not a stale
-  // value captured at mount.
+  // `selectedBlockIds`/`studioId` change so the toggle, delete, and duplicate cases always act on
+  // current state, not a stale value captured at mount.
   useEffect(() => {
     return window.api.menu.onAction((action: MenuAction) => {
       switch (action) {
@@ -191,11 +197,24 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode, onOpenSetti
         case 'select-all':
           handleSelectAll()
           break
-        case 'delete-row':
-          if (selectedItemIds.size > 0) removeItems([...selectedItemIds])
+        case 'delete-selection':
+          if (mode === 'table' && selectedItemIds.size > 0) removeItems([...selectedItemIds])
+          else if (mode === 'layout' && selectedBlockIds.size > 0) removeBlocks([...selectedBlockIds])
+          break
+        case 'duplicate-selection':
+          if (mode === 'layout' && selectedBlockIds.size > 0) duplicateBlocks([...selectedBlockIds])
           break
         case 'sequential-numbering':
           if (mode === 'table') focusNumbering()
+          break
+        case 'zoom-in':
+          if (mode === 'layout') useLayoutStore.getState().zoomIn()
+          break
+        case 'zoom-out':
+          if (mode === 'layout') useLayoutStore.getState().zoomOut()
+          break
+        case 'reset-view':
+          if (mode === 'layout') useLayoutStore.getState().resetView()
           break
         case 'open-setup-settings':
           onOpenSettings()
@@ -209,7 +228,7 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode, onOpenSetti
       }
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, selectedItemIds, studioId, onOpenSettings])
+  }, [mode, selectedItemIds, selectedBlockIds, studioId, onOpenSettings])
 
   return (
     <div className="top-bar" style={{ borderTop: '1px solid var(--color-border)' }}>

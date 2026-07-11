@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useEscapeToClose } from '@renderer/hooks/useEscapeToClose'
 
 interface Props {
   initialLabel: string
@@ -7,6 +8,7 @@ interface Props {
 }
 
 export default function RenameBlockModal({ initialLabel, onClose, onConfirm }: Props): JSX.Element {
+  useEscapeToClose(onClose)
   const [label, setLabel] = useState(initialLabel)
 
   function handleConfirm(): void {

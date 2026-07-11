@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { PdfExportInclude } from '@shared/types/ipc'
+import { useEscapeToClose } from '@renderer/hooks/useEscapeToClose'
 
 interface Props {
   defaultInclude: PdfExportInclude
@@ -10,6 +11,7 @@ interface Props {
 /** Two independent checkboxes in the UI, mapped back to the existing PdfExportInclude union
  *  on export so the IPC contract and the remembered-preference setting stay unchanged. */
 export default function ExportOptionsModal({ defaultInclude, onClose, onExport }: Props): JSX.Element {
+  useEscapeToClose(onClose)
   const [includeSheet, setIncludeSheet] = useState(defaultInclude !== 'layout')
   const [includeLayout, setIncludeLayout] = useState(defaultInclude !== 'sheet')
   const [exporting, setExporting] = useState(false)

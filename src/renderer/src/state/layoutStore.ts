@@ -10,6 +10,9 @@ function newDraftId(): string {
 const DEFAULT_SIZE = 44
 export const MIN_ZOOM = 0.25
 export const MAX_ZOOM = 4
+// A bigger, discrete jump than the per-wheel-tick step in LayoutStage's handleWheel — keyboard/
+// menu zoom is a deliberate single action, not a continuous gesture.
+const KEYBOARD_ZOOM_STEP = 1.2
 
 interface LayoutState {
   blocks: RoomLayoutBlockDraft[]
@@ -42,7 +45,10 @@ interface LayoutState {
   selectBlock(id: number | string | null): void
   toggleBlock(id: number | string): void
   selectBlocksInRect(ids: (number | string)[]): void
+  selectAllBlocks(): void
   setZoomPan(zoomScale: number, panX: number, panY: number): void
+  zoomIn(): void
+  zoomOut(): void
   resetView(): void
   save(): Promise<void>
 }
@@ -173,8 +179,18 @@ export const useLayoutStore = create<LayoutState>()(
 
       selectBlocksInRect: (ids) => set({ selectedBlockIds: new Set(ids) }),
 
+      selectAllBlocks: () => set((state) => ({ selectedBlockIds: new Set(state.blocks.map((b) => b.id)) })),
+
       setZoomPan: (zoomScale, panX, panY) =>
         set({ zoomScale: Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoomScale)), panX, panY }),
+
+      // Scales in place (pan unchanged) — keyboard/menu zoom has no cursor position to anchor to,
+      // unlike handleWheel's cursor-centered zoom in LayoutStage.tsx.
+      zoomIn: () =>
+        set((state) => ({ zoomScale: Math.min(MAX_ZOOM, state.zoomScale * KEYBOARD_ZOOM_STEP) })),
+
+      zoomOut: () =>
+        set((state) => ({ zoomScale: Math.max(MIN_ZOOM, state.zoomScale / KEYBOARD_ZOOM_STEP) })),
 
       resetView: () => set({ zoomScale: 1, panX: 0, panY: 0 }),
 
