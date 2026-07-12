@@ -13,6 +13,22 @@ interface Props {
   onContextMenu: (clientX: number, clientY: number) => void
 }
 
+/** Clamp a shape's center so its un-rotated bounding box stays within the room image — a
+ *  close-enough approximation without full rotated-bbox math (a rotated block may visually poke
+ *  out slightly at extreme angles). Shared by drag (below), the Transformer resize clamp, and
+ *  arrow-key nudge (all in LayoutStage.tsx) so the three interactions agree on one boundary rule. */
+export function clampCenterToRoom(
+  center: { x: number; y: number },
+  halfWidth: number,
+  halfHeight: number,
+  imageSize: { width: number; height: number }
+): { x: number; y: number } {
+  return {
+    x: Math.max(halfWidth, Math.min(center.x, imageSize.width - halfWidth)),
+    y: Math.max(halfHeight, Math.min(center.y, imageSize.height - halfHeight))
+  }
+}
+
 /** A single Layout Mode block — fully self-contained (label/shape/color/width/height come
  *  straight off the block, no catalog lookup). Sized by width/height directly rather than a
  *  uniform scale multiplier, so independent-axis resize (via the Transformer in
@@ -54,12 +70,7 @@ const LayoutBlockIcon = forwardRef<Konva.Group, Props>(function LayoutBlockIcon(
     const parent = this.getParent()!
     const toLocal = parent.getAbsoluteTransform().copy().invert()
     const local = toLocal.point(pos)
-    const halfW = block.width / 2
-    const halfH = block.height / 2
-    const clampedLocal = {
-      x: Math.max(halfW, Math.min(local.x, imageSize.width - halfW)),
-      y: Math.max(halfH, Math.min(local.y, imageSize.height - halfH))
-    }
+    const clampedLocal = clampCenterToRoom(local, block.width / 2, block.height / 2, imageSize)
     return parent.getAbsoluteTransform().point(clampedLocal)
   }
 

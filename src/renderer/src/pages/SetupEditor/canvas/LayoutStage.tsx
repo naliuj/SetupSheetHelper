@@ -3,7 +3,7 @@ import { Stage, Layer, Rect, Transformer } from 'react-konva'
 import type Konva from 'konva'
 import { useLayoutStore, MIN_ZOOM, MAX_ZOOM } from '@renderer/state/layoutStore'
 import LayoutBackground from './LayoutBackground'
-import LayoutBlockIcon from './LayoutBlockIcon'
+import LayoutBlockIcon, { clampCenterToRoom } from './LayoutBlockIcon'
 import ContextMenu from './ContextMenu'
 import RenameBlockModal from './RenameBlockModal'
 import ChangeColorPopover from './ChangeColorPopover'
@@ -13,6 +13,12 @@ import Icon from '@renderer/components/Icon'
 interface Props {
   studioId: number
   stageRef: React.RefObject<Konva.Stage | null>
+  /** Whether Layout Mode is the currently-visible mode. The stage stays mounted (hidden) in
+   *  Table Mode too (see SetupEditor.tsx), so the arrow-key nudge below is gated on this — a
+   *  layout block left selected from a prior visit shouldn't silently move while the user is
+   *  looking at the table. (Delete/Backspace here is intentionally NOT gated the same way —
+   *  pre-existing behavior, unrelated to this change.) */
+  active: boolean
 }
 
 interface PaletteDragPayload {
@@ -24,7 +30,7 @@ interface PaletteDragPayload {
 const ZOOM_STEP = 1.05
 const MARQUEE_THRESHOLD = 5
 
-export default function LayoutStage({ studioId, stageRef }: Props): JSX.Element {
+export default function LayoutStage({ studioId, stageRef, active }: Props): JSX.Element {
   const blocks = useLayoutStore((s) => s.blocks)
   const addBlock = useLayoutStore((s) => s.addBlock)
   const updateBlockTransform = useLayoutStore((s) => s.updateBlockTransform)
@@ -100,6 +106,34 @@ export default function LayoutStage({ studioId, stageRef }: Props): JSX.Element 
     transformer.getLayer()?.batchDraw()
   }, [selectedBlockIds, blocks.length])
 
+  // Live-clamps the block during resize (called on every "transform" tick, unlike boundBoxFunc
+  // which only sees the proposed box before Konva applies it): caps size so a block can never
+  // end up larger than the room, then clamps position so the (possibly size-capped) box stays
+  // within the room bounds. getClientRect gives the axis-aligned bounding box in the parent
+  // Layer's local (room-pixel) space directly, accounting for the node's current rotation —
+  // sidesteps hand-rolling rotated-box trig for this same "close enough" approximation the drag
+  // clamp already uses (see clampCenterToRoom's doc comment in LayoutBlockIcon.tsx).
+  function handleTransform(): void {
+    if (selectedBlockIds.size !== 1) return
+    const id = [...selectedBlockIds][0]
+    const node = nodeRefs.current.get(id)
+    const parent = node?.getParent()
+    if (!node || !parent) return
+
+    const rawRect = node.getClientRect({ relativeTo: parent })
+    if (rawRect.width > imageSize.width || rawRect.height > imageSize.height) {
+      const capScale = Math.min(imageSize.width / rawRect.width, imageSize.height / rawRect.height)
+      node.scaleX(node.scaleX() * capScale)
+      node.scaleY(node.scaleY() * capScale)
+    }
+
+    const rect = node.getClientRect({ relativeTo: parent })
+    const center = { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 }
+    const clampedCenter = clampCenterToRoom(center, rect.width / 2, rect.height / 2, imageSize)
+    node.x(node.x() + (clampedCenter.x - center.x))
+    node.y(node.y() + (clampedCenter.y - center.y))
+  }
+
   function handleTransformEnd(): void {
     if (selectedBlockIds.size !== 1) return
     const id = [...selectedBlockIds][0]
@@ -112,14 +146,19 @@ export default function LayoutStage({ studioId, stageRef }: Props): JSX.Element 
     const height = Math.max(8, block.height * node.scaleY())
     node.scaleX(1)
     node.scaleY(1)
-    updateBlockTransform(id, { width, height, rotation: node.rotation() })
+    // Resizing from a non-bottom-right handle moves the node's position live (to keep the
+    // opposite anchor fixed) — previously this was never persisted, so the store's x/y silently
+    // went stale and the block could snap back to its old position on the next re-render.
+    updateBlockTransform(id, { x: node.x(), y: node.y(), width, height, rotation: node.rotation() })
   }
 
   // Backspace/Delete removes every selected block, unless focus is in a text field. Space
-  // (tracked here too) toggles pan-drag mode for the canvas. Both need preventDefault(): Space
-  // scrolls the page, Backspace can navigate back. Duplicate (Cmd/Ctrl+D) is handled by the
-  // native Edit menu's "Duplicate" accelerator (SetupToolbar.tsx) instead of here, so a single
-  // keypress doesn't fire both this listener and the menu accelerator and duplicate twice.
+  // (tracked here too) toggles pan-drag mode for the canvas. Arrow keys nudge the selection by
+  // 1px (10px with Shift). All need preventDefault(): Space scrolls the page, Backspace can
+  // navigate back, arrows would otherwise scroll a scrollable ancestor. Duplicate (Cmd/Ctrl+D) is
+  // handled by the native Edit menu's "Duplicate" accelerator (SetupToolbar.tsx) instead of here,
+  // so a single keypress doesn't fire both this listener and the menu accelerator and duplicate
+  // twice.
   useEffect(() => {
     function isTextField(target: EventTarget | null): boolean {
       const el = target as HTMLElement | null
@@ -136,6 +175,33 @@ export default function LayoutStage({ studioId, stageRef }: Props): JSX.Element 
       if (e.key === 'Backspace' || e.key === 'Delete') {
         e.preventDefault()
         removeBlocks([...selectedBlockIds])
+        return
+      }
+      // Arrow-key nudge — gated on `active` (Layout Mode actually visible) since the stage stays
+      // mounted-but-hidden in Table Mode and a block selection can be left over from a prior
+      // visit; Delete/Backspace above is intentionally not gated the same way (pre-existing).
+      const isArrow = e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight'
+      if (!isArrow || !active) return
+      e.preventDefault()
+      const step = e.shiftKey ? 10 : 1
+      const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0
+      const dy = e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0
+      if (selectedBlockIds.size === 1) {
+        const id = [...selectedBlockIds][0]
+        const block = blocks.find((b) => b.id === id)
+        if (block) {
+          const clamped = clampCenterToRoom(
+            { x: block.x + dx, y: block.y + dy },
+            block.width / 2,
+            block.height / 2,
+            imageSize
+          )
+          updateBlockTransform(id, { x: clamped.x, y: clamped.y })
+        }
+      } else {
+        // Group nudge shifts every selected block by the same delta, unclamped — same accepted
+        // simplification moveBlocksBy's own doc comment already describes for group-drag.
+        moveBlocksBy([...selectedBlockIds], dx, dy)
       }
     }
     function handleKeyUp(e: KeyboardEvent): void {
@@ -147,7 +213,7 @@ export default function LayoutStage({ studioId, stageRef }: Props): JSX.Element 
       window.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener('keyup', handleKeyUp)
     }
-  }, [selectedBlockIds, removeBlocks])
+  }, [selectedBlockIds, removeBlocks, active, blocks, imageSize, updateBlockTransform, moveBlocksBy])
 
   const renamingBlock = renamingBlockId != null ? blocks.find((b) => b.id === renamingBlockId) : null
 
@@ -367,6 +433,7 @@ export default function LayoutStage({ studioId, stageRef }: Props): JSX.Element 
             ref={transformerRef}
             rotateEnabled
             boundBoxFunc={(oldBox, newBox) => (newBox.width < 8 || newBox.height < 8 ? oldBox : newBox)}
+            onTransform={handleTransform}
             onTransformEnd={handleTransformEnd}
           />
           {marquee && (
