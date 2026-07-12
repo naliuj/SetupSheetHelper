@@ -46,6 +46,7 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode, onOpenSetti
   const [templateModalOpen, setTemplateModalOpen] = useState(false)
   const [exportModalOpen, setExportModalOpen] = useState(false)
   const [defaultExportInclude, setDefaultExportInclude] = useState<PdfExportInclude>('both')
+  const [defaultExportColoredRows, setDefaultExportColoredRows] = useState(false)
   const [layoutGateOpen, setLayoutGateOpen] = useState(false)
 
   const nameField = useBufferedField(name, setName)
@@ -59,8 +60,12 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode, onOpenSetti
 
   async function handleExport(): Promise<void> {
     setExportMessage(null)
-    const remembered = await window.api.settings.get(APP_SETTINGS_KEYS.defaultPdfExportInclude)
+    const [remembered, rememberedColoredRows] = await Promise.all([
+      window.api.settings.get(APP_SETTINGS_KEYS.defaultPdfExportInclude),
+      window.api.settings.get(APP_SETTINGS_KEYS.defaultPdfExportColoredRows)
+    ])
     setDefaultExportInclude(remembered === 'sheet' || remembered === 'layout' ? remembered : 'both')
+    setDefaultExportColoredRows(rememberedColoredRows === '1')
     setExportModalOpen(true)
   }
 
@@ -105,6 +110,7 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode, onOpenSetti
       setExportMessage(result.canceled ? null : `Exported to ${result.filePath}`)
       if (!result.canceled) {
         await window.api.settings.set(APP_SETTINGS_KEYS.defaultPdfExportInclude, include)
+        await window.api.settings.set(APP_SETTINGS_KEYS.defaultPdfExportColoredRows, coloredRows ? '1' : '0')
       }
     } finally {
       setExporting(false)
@@ -307,6 +313,7 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode, onOpenSetti
       {exportModalOpen && (
         <ExportOptionsModal
           defaultInclude={defaultExportInclude}
+          defaultColoredRows={defaultExportColoredRows}
           onClose={() => setExportModalOpen(false)}
           onExport={performExport}
         />

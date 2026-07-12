@@ -12,17 +12,23 @@ export interface ExportOptions {
 
 interface Props {
   defaultInclude: PdfExportInclude
+  defaultColoredRows: boolean
   onClose: () => void
   onExport: (options: ExportOptions) => Promise<void>
 }
 
 /** Independent checkboxes in the UI, mapped back to the existing PdfExportInclude union on export
  *  so the IPC contract and the remembered-preference setting stay unchanged. */
-export default function ExportOptionsModal({ defaultInclude, onClose, onExport }: Props): JSX.Element {
+export default function ExportOptionsModal({
+  defaultInclude,
+  defaultColoredRows,
+  onClose,
+  onExport
+}: Props): JSX.Element {
   useEscapeToClose(onClose)
   const [includeSheet, setIncludeSheet] = useState(defaultInclude !== 'layout')
   const [includeLayout, setIncludeLayout] = useState(defaultInclude !== 'sheet')
-  const [coloredRows, setColoredRows] = useState(false)
+  const [coloredRows, setColoredRows] = useState(defaultColoredRows)
   const [orientation, setOrientation] = useState<PdfExportOrientation>('portrait')
   const [density, setDensity] = useState<PdfExportDensity>('normal')
   const [exporting, setExporting] = useState(false)

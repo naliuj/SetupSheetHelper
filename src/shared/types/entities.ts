@@ -90,8 +90,19 @@ export interface OutboardGearWithStudio extends OutboardGear {
 export const APP_SETTINGS_KEYS = {
   defaultEngineerName: 'default_engineer_name',
   defaultPdfExportInclude: 'default_pdf_export_include',
+  /** '1' | '0'. Remembered "Colored rows" choice from the Export Options modal — a general
+   *  preference, not something to re-toggle on every export. Absent → off. */
+  defaultPdfExportColoredRows: 'default_pdf_export_colored_rows',
   theme: 'theme',
   berkleeFeaturesEnabled: 'berklee_features_enabled',
   /** JSON array of SetupColumnKey — the columns a newly created setup starts with. Absent → all. */
-  defaultVisibleColumns: 'default_visible_columns'
+  defaultVisibleColumns: 'default_visible_columns',
+  /** PdfGridStyle: 'none' | 'full' | 'rows' | 'outer'. Absent/garbage → 'full'. */
+  pdfGridStyle: 'pdf_grid_style',
+  /** '1' | '0'. Absent → off. */
+  pdfZebraStripes: 'pdf_zebra_stripes',
+  /** '1' | '0'. Absent → off. */
+  pdfHeaderShaded: 'pdf_header_shaded',
+  /** Hex string '#rrggbb', or absent/blank → no accent tint anywhere in the export. */
+  pdfAccentColor: 'pdf_accent_color'
 } as const

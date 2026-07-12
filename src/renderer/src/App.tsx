@@ -5,6 +5,7 @@ import { useThemeStore } from './state/themeStore'
 import { usePaletteStore } from './state/paletteStore'
 import { useBerkleeFeaturesStore } from './state/berkleeFeaturesStore'
 import { useColumnPrefsStore } from './state/columnPrefsStore'
+import { usePdfLayoutPrefsStore } from './state/pdfLayoutPrefsStore'
 import Home from './pages/Home/Home'
 import SettingsPage from './pages/SettingsPage/SettingsPage'
 import SetupEditor from './pages/SetupEditor/SetupEditor'
@@ -49,6 +50,12 @@ export default function App(): JSX.Element {
   // → Columns tab edits it.
   useEffect(() => {
     useColumnPrefsStore.getState().load()
+  }, [])
+
+  // Load the PDF export style preferences once at startup — read directly by exportSetupPdf on
+  // the main process, but the Settings → PDF Layout tab needs them hydrated to display/edit.
+  useEffect(() => {
+    usePdfLayoutPrefsStore.getState().load()
   }, [])
 
   // App-wide "Settings…" (Cmd+,) from the native menu. Handled here rather than in SetupToolbar

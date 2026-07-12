@@ -10,12 +10,13 @@ import ToggleSwitch from '@renderer/components/ToggleSwitch'
 import FacultyReserveEditor from './FacultyReserveEditor'
 import PersonalGearEditor from './PersonalGearEditor'
 import PaletteEditor from './PaletteEditor'
+import PdfLayoutEditor from './PdfLayoutEditor'
 import StudioExportPage from './StudioExportPage'
 import StudioImportPage from './StudioImportPage'
 import ManagePresetsModal from '../PresetManager/ManagePresetsModal'
 
 type Subview = { kind: 'main' } | { kind: 'export' } | { kind: 'import'; file: StudioExportFile }
-type Tab = 'general' | 'columns' | 'personalGear' | 'facultyReserve' | 'backup' | 'theme' | 'palette'
+type Tab = 'general' | 'columns' | 'personalGear' | 'facultyReserve' | 'backup' | 'theme' | 'pdfLayout' | 'palette'
 
 export default function SettingsPage(): JSX.Element {
   const goToHome = useNavigationStore((s) => s.goToHome)
@@ -38,6 +39,7 @@ export default function SettingsPage(): JSX.Element {
     { id: 'general', label: 'General' },
     { id: 'columns', label: 'Columns' },
     { id: 'theme', label: 'Theme' },
+    { id: 'pdfLayout', label: 'PDF Layout' },
     { id: 'personalGear', label: 'Personal Gear Locker' },
     ...(berkleeFeaturesEnabled ? [{ id: 'facultyReserve' as const, label: 'Faculty Reserve' }] : []),
     { id: 'palette', label: 'Layout Palette' },
@@ -219,6 +221,12 @@ export default function SettingsPage(): JSX.Element {
       {activeTab === 'theme' && (
         <div className="panel">
           <ToggleSwitch checked={theme === 'dark'} onChange={(on) => setTheme(on ? 'dark' : 'light')} label="Dark mode" />
+        </div>
+      )}
+
+      {activeTab === 'pdfLayout' && (
+        <div className="panel">
+          <PdfLayoutEditor />
         </div>
       )}
 
