@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useSetupStore } from '@renderer/state/setupStore'
 import { useBerkleeFeaturesStore } from '@renderer/state/berkleeFeaturesStore'
+import ToggleSwitch from '@renderer/components/ToggleSwitch'
 import SetupGearLocker from './SetupGearLocker'
 
 type Tab = 'gear' | 'general'
@@ -42,14 +43,11 @@ export default function SetupSettingsPage({ setupId, onBack }: Props): JSX.Eleme
       <div className="panel" style={{ marginTop: 16 }}>
         {tab === 'gear' && <SetupGearLocker setupId={setupId} />}
         {tab === 'general' && berkleeFeaturesEnabled && (
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <input
-              type="checkbox"
-              checked={facultyReserveEnabled}
-              onChange={(e) => setFacultyReserveEnabled(e.target.checked)}
-            />
-            Show Berklee faculty reserve mics
-          </label>
+          <ToggleSwitch
+            checked={facultyReserveEnabled}
+            onChange={setFacultyReserveEnabled}
+            label="Show Berklee faculty reserve mics"
+          />
         )}
       </div>
     </div>

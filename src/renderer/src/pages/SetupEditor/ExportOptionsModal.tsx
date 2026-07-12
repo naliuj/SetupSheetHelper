@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { PdfExportInclude, PdfExportOrientation, PdfExportDensity } from '@shared/types/ipc'
 import { useEscapeToClose } from '@renderer/hooks/useEscapeToClose'
+import ToggleSwitch from '@renderer/components/ToggleSwitch'
 
 export interface ExportOptions {
   include: PdfExportInclude
@@ -42,23 +43,20 @@ export default function ExportOptionsModal({ defaultInclude, onClose, onExport }
       <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 340 }}>
         <h2 style={{ marginTop: 0 }}>Export to PDF</h2>
         <p className="card-sub" style={{ marginTop: 0 }}>What should the PDF include?</p>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-          <input type="checkbox" checked={includeSheet} onChange={(e) => setIncludeSheet(e.target.checked)} />
-          Setup sheet
-        </label>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-          <input type="checkbox" checked={includeLayout} onChange={(e) => setIncludeLayout(e.target.checked)} />
-          Room layout
-        </label>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-          <input
-            type="checkbox"
+        <div style={{ marginBottom: 8 }}>
+          <ToggleSwitch checked={includeSheet} onChange={setIncludeSheet} label="Setup sheet" />
+        </div>
+        <div style={{ marginBottom: 8 }}>
+          <ToggleSwitch checked={includeLayout} onChange={setIncludeLayout} label="Room layout" />
+        </div>
+        <div style={{ marginBottom: 4 }}>
+          <ToggleSwitch
             checked={coloredRows}
+            onChange={setColoredRows}
             disabled={!includeSheet}
-            onChange={(e) => setColoredRows(e.target.checked)}
+            label="Colored rows"
           />
-          Colored rows
-        </label>
+        </div>
         <p className="card-sub" style={{ margin: '0 0 12px 24px' }}>
           Tints rows by their color. Leave off for black-and-white printing.
         </p>

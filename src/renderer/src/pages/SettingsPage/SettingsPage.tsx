@@ -4,6 +4,7 @@ import type { StudioExportFile } from '@shared/types/ipc'
 import { useNavigationStore } from '@renderer/state/navigationStore'
 import { useThemeStore } from '@renderer/state/themeStore'
 import { useBerkleeFeaturesStore } from '@renderer/state/berkleeFeaturesStore'
+import ToggleSwitch from '@renderer/components/ToggleSwitch'
 import FacultyReserveEditor from './FacultyReserveEditor'
 import PersonalGearEditor from './PersonalGearEditor'
 import PaletteEditor from './PaletteEditor'
@@ -145,14 +146,11 @@ export default function SettingsPage(): JSX.Element {
           </div>
 
           <div style={{ marginTop: 20 }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <input
-                type="checkbox"
-                checked={berkleeFeaturesEnabled === true}
-                onChange={(e) => (e.target.checked ? enableBerkleeFeatures() : disableBerkleeFeatures())}
-              />
-              Berklee features
-            </label>
+            <ToggleSwitch
+              checked={berkleeFeaturesEnabled === true}
+              onChange={(on) => (on ? enableBerkleeFeatures() : disableBerkleeFeatures())}
+              label="Berklee features"
+            />
             <p className="card-sub" style={{ marginTop: 4 }}>
               Shows Berklee's studios, gear lists, and faculty reserve pool
             </p>
@@ -192,14 +190,7 @@ export default function SettingsPage(): JSX.Element {
 
       {activeTab === 'theme' && (
         <div className="panel">
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <input
-              type="checkbox"
-              checked={theme === 'dark'}
-              onChange={(e) => setTheme(e.target.checked ? 'dark' : 'light')}
-            />
-            Dark mode
-          </label>
+          <ToggleSwitch checked={theme === 'dark'} onChange={(on) => setTheme(on ? 'dark' : 'light')} label="Dark mode" />
         </div>
       )}
 

@@ -67,6 +67,61 @@ select {
   color: var(--color-text);
 }
 
+/* Theme any otherwise-unclassed text input so bare <input>s (e.g. the Save Channel Preset
+   modal) match the rest of the app. Scoped away from checkboxes. Context rules like
+   `.inline-form input` / `table.data-table td input` come later and still win. */
+input[type='text'],
+input[type='number'],
+input[type='search'],
+input:not([type]),
+textarea {
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+/* Custom checkbox — replaces the dated native control app-wide with a compact, flat 2px square
+   that fills with the accent + a checkmark when checked. Toggle switches and field chips (below)
+   opt out by not being checkboxes at all. */
+input[type='checkbox'] {
+  appearance: none;
+  -webkit-appearance: none;
+  margin: 0;
+  width: 16px;
+  height: 16px;
+  flex: none;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  cursor: pointer;
+  position: relative;
+}
+
+input[type='checkbox']:checked {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+/* Checkmark: a rotated rectangle with two borders in the on-accent color. */
+input[type='checkbox']:checked::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 4px;
+  height: 8px;
+  border: solid var(--color-on-accent);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+input[type='checkbox']:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .app-shell {
   display: flex;
   flex-direction: column;
@@ -269,7 +324,7 @@ table.data-table td {
   vertical-align: middle;
 }
 
-table.data-table td input,
+table.data-table td input:not([type='checkbox']),
 table.data-table td select {
   width: 100%;
   padding: 4px 6px;
@@ -549,4 +604,86 @@ table.data-table td select {
    cmd-toggle), not just the drag handle it contains. */
 .gutter-cell:hover {
   background: var(--color-surface-alt);
+}
+
+/* Toggle switch — for true on/off settings. Sharpened to match the flat 2px aesthetic:
+   rounded-rect track, square-ish knob, accent track when on. */
+.toggle-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.toggle-switch:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.toggle-track {
+  flex: none;
+  position: relative;
+  width: 34px;
+  height: 20px;
+  border-radius: 3px;
+  background: var(--color-border);
+  transition: background 0.15s;
+}
+
+.toggle-switch[aria-checked='true'] .toggle-track {
+  background: var(--color-accent);
+}
+
+.toggle-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 2px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  transition: left 0.15s;
+}
+
+.toggle-switch[aria-checked='true'] .toggle-knob {
+  left: 16px;
+}
+
+/* Field chip — sharp 2px selectable pill for multi-select "fields to include" lists. */
+.field-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border-radius: var(--radius);
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-dim);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.field-chip:hover {
+  border-color: var(--color-accent);
+}
+
+.field-chip[aria-pressed='true'] {
+  border-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 16%, var(--color-bg));
+  color: var(--color-text);
+}
+
+.field-chip-check {
+  color: var(--color-accent);
+  font-size: 11px;
+  line-height: 1;
 }
