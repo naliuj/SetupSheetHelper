@@ -4,6 +4,7 @@ import { useNavigationStore } from './state/navigationStore'
 import { useThemeStore } from './state/themeStore'
 import { usePaletteStore } from './state/paletteStore'
 import { useBerkleeFeaturesStore } from './state/berkleeFeaturesStore'
+import { useColumnPrefsStore } from './state/columnPrefsStore'
 import Home from './pages/Home/Home'
 import SettingsPage from './pages/SettingsPage/SettingsPage'
 import SetupEditor from './pages/SetupEditor/SetupEditor'
@@ -42,6 +43,12 @@ export default function App(): JSX.Element {
   // never been answered (see berkleeFeaturesStore.load()).
   useEffect(() => {
     useBerkleeFeaturesStore.getState().load()
+  }, [])
+
+  // Load the default column visibility once at startup — new setups snapshot it, and the Settings
+  // → Columns tab edits it.
+  useEffect(() => {
+    useColumnPrefsStore.getState().load()
   }, [])
 
   // App-wide "Settings…" (Cmd+,) from the native menu. Handled here rather than in SetupToolbar

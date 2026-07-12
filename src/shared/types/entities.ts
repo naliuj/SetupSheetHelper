@@ -91,5 +91,7 @@ export const APP_SETTINGS_KEYS = {
   defaultEngineerName: 'default_engineer_name',
   defaultPdfExportInclude: 'default_pdf_export_include',
   theme: 'theme',
-  berkleeFeaturesEnabled: 'berklee_features_enabled'
+  berkleeFeaturesEnabled: 'berklee_features_enabled',
+  /** JSON array of SetupColumnKey — the columns a newly created setup starts with. Absent → all. */
+  defaultVisibleColumns: 'default_visible_columns'
 } as const

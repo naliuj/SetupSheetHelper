@@ -106,6 +106,7 @@ const api: RendererApi = {
     saveItems: (setupId, items) => ipcRenderer.invoke(IPC.setups.saveItems, setupId, items),
     setOutboardColumnCount: (setupId, count) =>
       ipcRenderer.invoke(IPC.setups.setOutboardColumnCount, setupId, count),
+    setVisibleColumns: (setupId, columns) => ipcRenderer.invoke(IPC.setups.setVisibleColumns, setupId, columns),
     remove: (id) => ipcRenderer.invoke(IPC.setups.remove, id),
     instantiateFromTemplate: (templateId) => ipcRenderer.invoke(IPC.setups.instantiateFromTemplate, templateId),
     saveAsTemplate: (input) => ipcRenderer.invoke(IPC.setups.saveAsTemplate, input),
