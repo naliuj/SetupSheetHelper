@@ -151,6 +151,17 @@ export function getMicById(id: number): Mic | null {
   return row ? mapRow(row) : null
 }
 
+/** Batch id lookup in one query — for per-row resolution loops (e.g. PDF export), where calling
+ *  getMicById per row would issue one query per item. */
+export function getMicsByIds(ids: number[]): Map<number, Mic> {
+  const map = new Map<number, Mic>()
+  if (ids.length === 0) return map
+  const placeholders = ids.map(() => '?').join(',')
+  const rows = getDb().prepare(`SELECT * FROM mics WHERE id IN (${placeholders})`).all(...ids) as MicRow[]
+  for (const row of rows) map.set(row.id, mapRow(row))
+  return map
+}
+
 /** Every mic in the entire database regardless of pool (studio lockers, building pools,
  *  faculty reserve, personal, setup-scoped) — powers the comprehensive "Add from Catalogue"
  *  picker when building a new studio's inventory, where origin doesn't matter. */

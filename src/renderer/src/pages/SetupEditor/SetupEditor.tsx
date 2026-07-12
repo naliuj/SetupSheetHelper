@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import type Konva from 'konva'
 import { APP_SETTINGS_KEYS } from '@shared/types/entities'
 import { useNavigationStore } from '@renderer/state/navigationStore'
@@ -6,7 +6,6 @@ import { useSetupStore } from '@renderer/state/setupStore'
 import { useLayoutStore } from '@renderer/state/layoutStore'
 import { useCatalogStore } from '@renderer/state/catalogStore'
 import InstrumentPalette from './palette/InstrumentPalette'
-import LayoutStage from './canvas/LayoutStage'
 import SetupSheetTable from './table/SetupSheetTable'
 import TableModeToolbar from './table/TableModeToolbar'
 import SelectionActionBar from './table/SelectionActionBar'
@@ -14,6 +13,12 @@ import SetupToolbar from './SetupToolbar'
 import SetupSettingsPage from './SetupSettingsPage'
 
 const AUTOSAVE_DELAY_MS = 1000
+
+// Lazy so konva + react-konva + pdfjs (the app's heaviest dependencies, all reached only through
+// the canvas) live in their own chunk instead of the startup bundle — app launch and Table Mode
+// don't pay their parse cost. The stage still mounts (hidden) as soon as the editor opens, so
+// PDF export's stageRef capture keeps working exactly as before.
+const LayoutStage = lazy(() => import('./canvas/LayoutStage'))
 
 export default function SetupEditor(): JSX.Element {
   const buildingId = useNavigationStore((s) => s.buildingId)
@@ -45,13 +50,20 @@ export default function SetupEditor(): JSX.Element {
 
   const stageRef = useRef<Konva.Stage>(null)
 
+  // Whether the setup itself has finished loading into the store — gates the catalog load below
+  // so it doesn't fire a full (and immediately stale) load with the store's default
+  // facultyReserveEnabled before the persisted value arrives.
+  const [setupLoaded, setSetupLoaded] = useState(false)
+
   useEffect(() => {
     if (!studioId) return
+    setSetupLoaded(false)
     loadLayoutBlocks(setupId)
 
     if (setupId) {
       window.api.setups.getWithItems(setupId).then((setup) => {
         if (setup) loadFromSetup(setup)
+        setSetupLoaded(true)
       })
     } else {
       window.api.settings.get(APP_SETTINGS_KEYS.defaultEngineerName).then((defaultEngineer) => {
@@ -62,6 +74,7 @@ export default function SetupEditor(): JSX.Element {
           null,
           defaultEngineer || null
         )
+        setSetupLoaded(true)
       })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -69,13 +82,13 @@ export default function SetupEditor(): JSX.Element {
 
   // Separate from the load effect above: re-runs whenever facultyReserveEnabled changes (not
   // just on studio/setup switch), so toggling the Setup Settings checkbox reflects in the "Add
-  // from Catalogue" dropdowns immediately — no save required first. Also naturally re-fires
-  // once loadFromSetup (above) populates the real persisted value shortly after mount, since
-  // it starts as the store's default before that resolves.
+  // from Catalogue" dropdowns immediately — no save required first. Gated on setupLoaded so a
+  // setup open triggers exactly one catalog load, with the real persisted faculty flag —
+  // previously it double-loaded (once with the store default, again when the setup resolved).
   useEffect(() => {
-    if (!studioId) return
+    if (!studioId || !setupLoaded) return
     loadCatalog(studioId, buildingId, setupId, facultyReserveEnabled)
-  }, [studioId, buildingId, setupId, facultyReserveEnabled, loadCatalog])
+  }, [studioId, buildingId, setupId, facultyReserveEnabled, setupLoaded, loadCatalog])
 
   // Debounced autosave: any dirty change (re)starts a short timer that saves once things
   // settle, instead of hammering a full items-table replace on every keystroke/drag. Table
@@ -147,7 +160,9 @@ export default function SetupEditor(): JSX.Element {
       <div style={{ flex: 1, display: mode === 'table' ? 'none' : 'flex', minHeight: 0 }}>
         <InstrumentPalette />
         <div style={{ flex: 1, minWidth: 0 }}>
-          <LayoutStage studioId={studioId} stageRef={stageRef} />
+          <Suspense fallback={null}>
+            <LayoutStage studioId={studioId} stageRef={stageRef} />
+          </Suspense>
         </div>
       </div>
     </div>

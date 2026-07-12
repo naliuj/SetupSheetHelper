@@ -481,19 +481,38 @@ export const useSetupStore = create<SetupState>()(
       )
 
       // saveItems assigns each row's sort_order from its array index and returns rows
-      // ordered by sort_order, so saved[i] is itemsBeforeSave[i] with its real DB id — new
-      // rows swap a temporary draft id for one assigned by the database. Remap any pending
-      // unresolvedGearHints (set by applyChannelPreset) onto the new ids so the hint survives
-      // this save instead of pointing at an id nothing has anymore.
-      const currentHints = get().unresolvedGearHints
-      const remappedHints = new Map<number | string, UnresolvedGearHint>()
+      // ordered by sort_order, so saved[i] is itemsBeforeSave[i] with its real DB id.
+      // To avoid a full-table re-render one second after every commit, rows keep their
+      // current object identity — the DB row's content is exactly what we just sent, so
+      // there's nothing new to adopt except ids: rows that were new (string draft id)
+      // swap in their DB-assigned id, everything else is untouched. Pending
+      // unresolvedGearHints keyed by a draft id are remapped the same way.
+      const newIdByDraftId = new Map<string, number>()
       itemsBeforeSave.forEach((oldItem, index) => {
-        const hint = currentHints.get(oldItem.id)
-        const newItem = saved[index]
-        if (hint && newItem) remappedHints.set(newItem.id, hint)
+        const savedItem = saved[index]
+        if (typeof oldItem.id === 'string' && savedItem) newIdByDraftId.set(oldItem.id, savedItem.id)
       })
 
-      set({ setupId, items: saved, unresolvedGearHints: remappedHints, isDirty: false, isSaving: false })
+      // Read the store fresh: the user may have kept editing during the awaited IPC call,
+      // and those edits must not be clobbered by the pre-save snapshot.
+      const currentItems = get().items
+      const currentHints = get().unresolvedGearHints
+      let nextItems = currentItems
+      let nextHints = currentHints
+      if (newIdByDraftId.size > 0) {
+        nextItems = currentItems.map((item) =>
+          typeof item.id === 'string' && newIdByDraftId.has(item.id)
+            ? { ...item, id: newIdByDraftId.get(item.id)! }
+            : item
+        )
+        nextHints = new Map<number | string, UnresolvedGearHint>()
+        currentHints.forEach((hint, id) => {
+          const newId = typeof id === 'string' ? newIdByDraftId.get(id) : undefined
+          nextHints.set(newId ?? id, hint)
+        })
+      }
+
+      set({ setupId, items: nextItems, unresolvedGearHints: nextHints, isDirty: false, isSaving: false })
     } catch (err) {
       set({ isSaving: false })
       throw err
@@ -510,6 +529,18 @@ export const useSetupStore = create<SetupState>()(
         artist: state.artist,
         facultyReserveEnabled: state.facultyReserveEnabled
       }),
+      // Without an equality check zundo snapshots on EVERY set() — selection clicks,
+      // numbering-focus ticks, and hint updates would fill the undo stack with entries
+      // identical to the present state (Cmd+Z "does nothing" and real edits get evicted).
+      // All partialized slices are immutably replaced, so reference compares are exact.
+      equality: (past, current) =>
+        past.items === current.items &&
+        past.outboardColumnCount === current.outboardColumnCount &&
+        past.name === current.name &&
+        past.sessionDate === current.sessionDate &&
+        past.engineer === current.engineer &&
+        past.artist === current.artist &&
+        past.facultyReserveEnabled === current.facultyReserveEnabled,
       limit: 100
     }
   )
