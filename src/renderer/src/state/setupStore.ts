@@ -107,6 +107,7 @@ interface SetupState {
   removeOutboardColumn(): Promise<void>
   removeItem(id: number | string): void
   removeItems(ids: Array<number | string>): void
+  duplicateItems(ids: Array<number | string>): void
   reorderItems(orderedIds: Array<number | string>): void
   selectItem(id: number | string | null): void
   selectRangeTo(id: number | string): void
@@ -321,6 +322,25 @@ export const useSetupStore = create<SetupState>()(
           state.selectionAnchorId != null && removing.has(state.selectionAnchorId) ? null : state.selectionAnchorId,
         isDirty: true
       }
+    }),
+
+  // Duplicates every listed row in place (right after its original), mirroring layoutStore's
+  // duplicateBlocks — selects the new copies afterward. Unlike blocks, rows have no x/y to
+  // offset; position in the list is what "in place" means here.
+  duplicateItems: (ids) =>
+    set((state) => {
+      const idSet = new Set(ids)
+      const newSelected = new Set<number | string>()
+      const nextItems: SetupItemDraft[] = []
+      for (const item of state.items) {
+        nextItems.push(item)
+        if (idSet.has(item.id)) {
+          const duplicate: SetupItemDraft = { ...item, id: newDraftId() }
+          nextItems.push(duplicate)
+          newSelected.add(duplicate.id)
+        }
+      }
+      return { items: nextItems, selectedItemIds: newSelected, isDirty: true }
     }),
 
   selectItem: (id) =>

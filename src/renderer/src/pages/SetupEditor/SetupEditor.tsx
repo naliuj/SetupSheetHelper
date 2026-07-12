@@ -161,7 +161,7 @@ export default function SetupEditor(): JSX.Element {
         <InstrumentPalette />
         <div style={{ flex: 1, minWidth: 0 }}>
           <Suspense fallback={null}>
-            <LayoutStage studioId={studioId} stageRef={stageRef} />
+            <LayoutStage studioId={studioId} stageRef={stageRef} active={mode === 'layout'} />
           </Suspense>
         </div>
       </div>

@@ -36,10 +36,13 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode, onOpenSetti
   const addItem = useSetupStore((s) => s.addItem)
   const selectedItemIds = useSetupStore((s) => s.selectedItemIds)
   const removeItems = useSetupStore((s) => s.removeItems)
+  const duplicateItems = useSetupStore((s) => s.duplicateItems)
+  const clearSelection = useSetupStore((s) => s.clearSelection)
   const focusNumbering = useSetupStore((s) => s.focusNumbering)
   const selectedBlockIds = useLayoutStore((s) => s.selectedBlockIds)
   const removeBlocks = useLayoutStore((s) => s.removeBlocks)
   const duplicateBlocks = useLayoutStore((s) => s.duplicateBlocks)
+  const selectBlock = useLayoutStore((s) => s.selectBlock)
 
   const [exporting, setExporting] = useState(false)
   const [exportMessage, setExportMessage] = useState<string | null>(null)
@@ -212,6 +215,7 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode, onOpenSetti
           break
         case 'duplicate-selection':
           if (mode === 'layout' && selectedBlockIds.size > 0) duplicateBlocks([...selectedBlockIds])
+          else if (mode === 'table' && selectedItemIds.size > 0) duplicateItems([...selectedItemIds])
           break
         case 'sequential-numbering':
           if (mode === 'table') focusNumbering()
@@ -238,6 +242,35 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode, onOpenSetti
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, selectedItemIds, selectedBlockIds, studioId, onOpenSettings])
+
+  // Bare Delete/Backspace and Escape, mirroring LayoutStage.tsx's canvas-scoped keydown handler
+  // but for table-mode row selection (which has no canvas component of its own to live in).
+  // Delete/Backspace only acts with no modifier held, so Cmd/Ctrl+Backspace (the existing menu
+  // accelerator, routed through the 'delete-selection' case above) doesn't fire this a second
+  // time and double-delete. Escape clears whichever mode's selection is active; modals close
+  // independently via their own useEscapeToClose listener, so both can fire on the same keypress
+  // — an accepted simplification, not a bug.
+  useEffect(() => {
+    function isTextField(target: EventTarget | null): boolean {
+      const el = target as HTMLElement | null
+      return !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)
+    }
+    function handleKeyDown(e: KeyboardEvent): void {
+      if (isTextField(e.target)) return
+      if (e.key === 'Escape') {
+        if (mode === 'table') clearSelection()
+        else selectBlock(null)
+        return
+      }
+      if (e.metaKey || e.ctrlKey) return
+      if ((e.key === 'Backspace' || e.key === 'Delete') && mode === 'table' && selectedItemIds.size > 0) {
+        e.preventDefault()
+        removeItems([...selectedItemIds])
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [mode, selectedItemIds, removeItems, clearSelection, selectBlock])
 
   return (
     <div className="top-bar" style={{ borderTop: '1px solid var(--color-border)' }}>
