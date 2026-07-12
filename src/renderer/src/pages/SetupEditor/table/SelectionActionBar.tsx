@@ -74,7 +74,11 @@ export default function SelectionActionBar(): JSX.Element | null {
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--color-text)' }}>
         <Icon name="list-numbers" size={15} style={{ color: 'var(--color-text-dim)' }} />
         Number
-        <select value={field} onChange={(e) => setField(e.target.value as NumberingField)}>
+        <select
+          value={field}
+          onChange={(e) => setField(e.target.value as NumberingField)}
+          style={{ padding: '4px 8px', fontSize: 13 }}
+        >
           {(Object.keys(FIELD_LABELS) as NumberingField[]).map((key) => (
             <option key={key} value={key}>
               {FIELD_LABELS[key]}
@@ -90,7 +94,7 @@ export default function SelectionActionBar(): JSX.Element | null {
           onChange={(e) => setStartText(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleApply()}
           onFocus={(e) => e.target.select()}
-          style={{ width: 56 }}
+          style={{ width: 56, padding: '4px 8px', fontSize: 13 }}
         />
         <button className="btn small primary" onClick={handleApply} disabled={!validStart}>
           Apply

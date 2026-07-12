@@ -117,12 +117,18 @@ export default function SaveChannelPresetModal({ onClose }: { onClose: () => voi
         <div className="section-title" style={{ marginTop: 0 }}>
           Fields to include
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '20px 1fr', rowGap: 6, columnGap: 8 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
           {(Object.keys(FIELD_LABELS) as IncludeField[]).map((field) => (
-            <label key={field} style={{ display: 'contents', cursor: 'pointer' }}>
-              <input type="checkbox" checked={included[field]} onChange={() => toggleField(field)} />
-              <span>{FIELD_LABELS[field]}</span>
-            </label>
+            <button
+              key={field}
+              type="button"
+              className="field-chip"
+              aria-pressed={included[field]}
+              onClick={() => toggleField(field)}
+            >
+              {included[field] && <span className="field-chip-check">✓</span>}
+              {FIELD_LABELS[field]}
+            </button>
           ))}
         </div>
 
