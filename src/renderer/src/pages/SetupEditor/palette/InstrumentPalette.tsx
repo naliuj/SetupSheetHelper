@@ -56,7 +56,7 @@ export default function InstrumentPalette(): JSX.Element {
       <button className="btn small" style={{ width: '100%', marginBottom: 6 }} onClick={() => setModalOpen(true)}>
         + Add custom block
       </button>
-      <button className="btn small" style={{ width: '100%', marginBottom: 10 }} onClick={goToSettings}>
+      <button className="btn small" style={{ width: '100%', marginBottom: 10 }} onClick={() => goToSettings()}>
         Manage palette…
       </button>
 

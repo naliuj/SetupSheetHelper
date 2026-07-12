@@ -27,6 +27,17 @@ type Tab =
   | 'pdfLayout'
   | 'keybinds'
   | 'palette'
+const TAB_IDS: Tab[] = [
+  'general',
+  'columns',
+  'personalGear',
+  'facultyReserve',
+  'backup',
+  'theme',
+  'pdfLayout',
+  'keybinds',
+  'palette'
+]
 
 export default function SettingsPage(): JSX.Element {
   const goToHome = useNavigationStore((s) => s.goToHome)
@@ -38,7 +49,11 @@ export default function SettingsPage(): JSX.Element {
   const disableBerkleeFeatures = useBerkleeFeaturesStore((s) => s.disable)
   const defaultVisibleColumns = useColumnPrefsStore((s) => s.defaultVisibleColumns)
   const setDefaultColumns = useColumnPrefsStore((s) => s.setDefault)
-  const [activeTab, setActiveTab] = useState<Tab>('general')
+  const consumeSettingsInitialTab = useNavigationStore((s) => s.consumeSettingsInitialTab)
+  const [activeTab, setActiveTab] = useState<Tab>(() => {
+    const requested = consumeSettingsInitialTab()
+    return TAB_IDS.includes(requested as Tab) ? (requested as Tab) : 'general'
+  })
   const [defaultEngineerName, setDefaultEngineerName] = useState('')
   const [loaded, setLoaded] = useState(false)
   const [subview, setSubview] = useState<Subview>({ kind: 'main' })
@@ -47,7 +62,7 @@ export default function SettingsPage(): JSX.Element {
 
   const TABS: { id: Tab; label: string }[] = [
     { id: 'general', label: 'General' },
-    { id: 'columns', label: 'Columns' },
+    { id: 'columns', label: 'Columns (new setup default)' },
     { id: 'theme', label: 'Theme' },
     { id: 'pdfLayout', label: 'PDF Layout' },
     { id: 'keybinds', label: 'Keybinds' },
@@ -170,7 +185,8 @@ export default function SettingsPage(): JSX.Element {
               label="Berklee features"
             />
             <p className="card-sub" style={{ marginTop: 4 }}>
-              Shows Berklee's studios, gear lists, and faculty reserve pool
+              Shows Berklee's studios, gear lists, and faculty reserve pool. Also adds a "Faculty Reserve" tab here
+              in Settings for gear shared across studios.
             </p>
           </div>
         </div>
@@ -178,9 +194,12 @@ export default function SettingsPage(): JSX.Element {
 
       {activeTab === 'columns' && (
         <div className="panel">
+          <p style={{ marginTop: 0, marginBottom: 16, fontWeight: 600 }}>
+            This sets the default for new setups only — it won't change any setup you already have open. To
+            show/hide columns on an existing setup, use the Columns menu above its table instead.
+          </p>
           <p className="card-sub" style={{ marginTop: 0, marginBottom: 16 }}>
-            Choose which columns a new setup starts with. Existing setups aren't affected — adjust those from the
-            Columns menu above their table. (Source name is always shown.)
+            Source name is always shown.
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 320 }}>
             {TOGGLEABLE_COLUMNS.map((c) => (
