@@ -213,6 +213,11 @@ export const useLayoutStore = create<LayoutState>()(
     }),
     {
       partialize: (state) => ({ blocks: state.blocks }),
+      // Without an equality check zundo snapshots on EVERY set() — panning/zooming
+      // (setZoomPan per mousemove/wheel tick) and selection changes would flush all 100
+      // real undo entries in one gesture. Blocks are immutably replaced on every real
+      // edit, so a reference compare is exact.
+      equality: (past, current) => past.blocks === current.blocks,
       limit: 100
     }
   )

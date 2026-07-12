@@ -99,6 +99,17 @@ export function getOutboardById(id: number): OutboardGear | null {
   return row ? mapRow(row) : null
 }
 
+/** Batch id lookup in one query — for per-row resolution loops (e.g. PDF export), where calling
+ *  getOutboardById per slot would issue one query per outboard cell. */
+export function getOutboardByIds(ids: number[]): Map<number, OutboardGear> {
+  const map = new Map<number, OutboardGear>()
+  if (ids.length === 0) return map
+  const placeholders = ids.map(() => '?').join(',')
+  const rows = getDb().prepare(`SELECT * FROM outboard_gear WHERE id IN (${placeholders})`).all(...ids) as OutboardRow[]
+  for (const row of rows) map.set(row.id, mapRow(row))
+  return map
+}
+
 export function upsertOutboard(input: OutboardUpsertInput): OutboardGear {
   const db = getDb()
   if (input.id) {

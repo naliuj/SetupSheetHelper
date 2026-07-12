@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
 import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { useSetupStore } from '@renderer/state/setupStore'
@@ -56,11 +56,16 @@ export default function SetupSheetTable(): JSX.Element {
     reorderItems(arrayMove(items, oldIndex, newIndex).map((item) => item.id))
   }
 
-  function handleGutterClick(e: React.MouseEvent, itemId: number | string): void {
-    if (e.shiftKey) selectRangeTo(itemId)
-    else if (e.ctrlKey || e.metaKey) toggleItem(itemId)
-    else selectItem(itemId)
-  }
+  // Stable identity (deps are all stable store actions) so memoized rows aren't re-rendered
+  // just because the table re-rendered.
+  const handleGutterClick = useCallback(
+    (e: React.MouseEvent, itemId: number | string): void => {
+      if (e.shiftKey) selectRangeTo(itemId)
+      else if (e.ctrlKey || e.metaKey) toggleItem(itemId)
+      else selectItem(itemId)
+    },
+    [selectRangeTo, toggleItem, selectItem]
+  )
 
   const mics = useCatalogStore((s) => s.mics)
   const outboardGear = useCatalogStore((s) => s.outboardGear)
@@ -75,10 +80,14 @@ export default function SetupSheetTable(): JSX.Element {
   const outboardSuggestions = useMemo(() => toLabels(gearSuggestions.outboard), [gearSuggestions.outboard])
   const preampSuggestions = useMemo(() => toLabels(gearSuggestions.preamps), [gearSuggestions.preamps])
 
-  const conflicts = computeTieLineConflicts(items)
-  const micUsageCounts = computeUsageCounts(items, 'micId')
-  const outboardUsageCounts = computeOutboardUsageCounts(items)
-  const preampUsageCounts = computeUsageCounts(items, 'preampId')
+  // Memoized on items: these are O(rows) and produce fresh Map identities, so recomputing
+  // them on unrelated re-renders (selection, hints, catalog loads) both wasted the work and
+  // broke SetupSheetRow's memoization.
+  const conflicts = useMemo(() => computeTieLineConflicts(items), [items])
+  const micUsageCounts = useMemo(() => computeUsageCounts(items, 'micId'), [items])
+  const outboardUsageCounts = useMemo(() => computeOutboardUsageCounts(items), [items])
+  const preampUsageCounts = useMemo(() => computeUsageCounts(items, 'preampId'), [items])
+  const sortableIds = useMemo(() => items.map((item) => item.id), [items])
 
   return (
     <div style={{ padding: 12 }}>
@@ -111,7 +120,7 @@ export default function SetupSheetTable(): JSX.Element {
                 <th></th>
               </tr>
             </thead>
-            <SortableContext items={items.map((item) => item.id)} strategy={verticalListSortingStrategy}>
+            <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
               <tbody>
                 {items.map((item) => (
                   <SetupSheetRow
@@ -123,26 +132,45 @@ export default function SetupSheetTable(): JSX.Element {
                     outboardColumnCount={outboardColumnCount}
                     visibleColumns={col}
                     isTemporary={isTemporary}
-                    micSuggestions={micSuggestions}
-                    outboardSuggestions={outboardSuggestions}
-                    preampSuggestions={preampSuggestions}
                     selected={selectedItemIds.has(item.id)}
                     conflict={item.tieLine != null && conflicts.has(item.tieLine)}
                     unresolvedGearHint={unresolvedGearHints.get(item.id)}
-                    onClearUnresolvedGearHint={(field) => clearUnresolvedGearHint(item.id, field)}
+                    onClearUnresolvedGearHint={clearUnresolvedGearHint}
                     micUsageCounts={micUsageCounts}
                     outboardUsageCounts={outboardUsageCounts}
                     preampUsageCounts={preampUsageCounts}
-                    onGutterClick={(e) => handleGutterClick(e, item.id)}
-                    onChange={(patch) => updateItemFields(item.id, patch)}
-                    onOutboardSlotChange={(slotIndex, patch) => updateItemOutboardSlot(item.id, slotIndex, patch)}
-                    onDelete={() => removeItem(item.id)}
+                    onGutterClick={handleGutterClick}
+                    onChange={updateItemFields}
+                    onOutboardSlotChange={updateItemOutboardSlot}
+                    onDelete={removeItem}
                   />
                 ))}
               </tbody>
             </SortableContext>
           </table>
         </DndContext>
+      )}
+      {/* One shared datalist per free-text gear field (Quick Setup mode) — previously each row
+          rendered its own full copy of every suggestion list, multiplying hundreds of <option>
+          nodes by the row count. */}
+      {isTemporary && (
+        <>
+          <datalist id="mic-suggestions">
+            {micSuggestions.map((s) => (
+              <option key={s} value={s} />
+            ))}
+          </datalist>
+          <datalist id="outboard-suggestions">
+            {outboardSuggestions.map((s) => (
+              <option key={s} value={s} />
+            ))}
+          </datalist>
+          <datalist id="preamp-suggestions">
+            {preampSuggestions.map((s) => (
+              <option key={s} value={s} />
+            ))}
+          </datalist>
+        </>
       )}
     </div>
   )

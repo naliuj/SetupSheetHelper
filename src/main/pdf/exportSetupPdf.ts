@@ -9,9 +9,9 @@ import type {
 } from '@shared/types/ipc'
 import { getSetupWithItems } from '../db/repositories/setupsRepo'
 import { getLayoutFileForStudio } from '../db/repositories/roomLayoutFileRepo'
-import { getMicById } from '../db/repositories/micsRepo'
-import { getOutboardById } from '../db/repositories/outboardRepo'
-import { getPreampById } from '../db/repositories/preampRepo'
+import { getMicsByIds } from '../db/repositories/micsRepo'
+import { getOutboardByIds } from '../db/repositories/outboardRepo'
+import { getPreampsByIds } from '../db/repositories/preampRepo'
 import { stripManufacturerPrefix } from '@shared/utils/manufacturerPrefix'
 import { fitColumns, wrapText, type ColumnSpec } from './pdfLayout'
 
@@ -97,10 +97,18 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
     const usableWidth = pageWidth - 2 * MARGIN
     const dens = DENSITY[input.density]
 
+    // Resolve every referenced piece of gear in one IN() query per gear type, instead of one
+    // query per row/slot (an N+1 that hit ~200 queries on a large sheet).
+    const micById = getMicsByIds(setup.items.flatMap((item) => (item.micId != null ? [item.micId] : [])))
+    const preampById = getPreampsByIds(setup.items.flatMap((item) => (item.preampId != null ? [item.preampId] : [])))
+    const outboardById = getOutboardByIds(
+      setup.items.flatMap((item) => item.outboards.flatMap((s) => (s.outboardId != null ? [s.outboardId] : [])))
+    )
+
     const resolvedValues = new Map<number, Record<string, string>>()
     for (const item of setup.items) {
-      const mic = item.micId != null ? getMicById(item.micId) : null
-      const preamp = item.preampId != null ? getPreampById(item.preampId) : null
+      const mic = item.micId != null ? micById.get(item.micId) ?? null : null
+      const preamp = item.preampId != null ? preampById.get(item.preampId) ?? null : null
       const isConflict = item.tieLine != null && conflicts.has(item.tieLine)
 
       // Consolidate every outboard slot into one comma-joined cell (empty slots skipped), in slot
@@ -108,7 +116,7 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
       const outboardParts: string[] = []
       for (let i = 0; i < setup.outboardColumnCount; i++) {
         const slot = item.outboards.find((s) => s.slotIndex === i)
-        const outboard = slot?.outboardId != null ? getOutboardById(slot.outboardId) : null
+        const outboard = slot?.outboardId != null ? outboardById.get(slot.outboardId) ?? null : null
         const text = outboard
           ? stripManufacturerPrefix(outboard.name, outboard.manufacturer ?? '')
           : slot?.outboardText ?? ''

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { computeUsedByOthers } from '@renderer/state/usageCounts'
 import { stripManufacturerPrefix } from '@shared/utils/manufacturerPrefix'
@@ -133,19 +133,30 @@ export default function ManufacturerPickerDropdown<T extends PickerItem>({
   const containerRef = useRef<HTMLDivElement>(null)
   const rowRefs = useRef<Map<string, HTMLDivElement>>(new Map())
 
-  const selectedItem = items.find((i) => i.id === selectedId) ?? null
-  const tree = buildMenuTree(items, outerGroupBy, outerGroupOrder)
+  const selectedItem = useMemo(() => items.find((i) => i.id === selectedId) ?? null, [items, selectedId])
+
+  // The grouped/sorted menu tree is only needed while the menu is open — a closed dropdown
+  // renders just its trigger label. Previously this rebuilt (buckets + two sorts per group) on
+  // every render of every dropdown in the table, which dominated row re-render cost.
+  const tree = useMemo(
+    () => (open ? buildMenuTree(items, outerGroupBy, outerGroupOrder) : []),
+    [open, items, outerGroupBy, outerGroupOrder]
+  )
 
   const trimmedSearch = search.trim().toLowerCase()
-  const searchResults = trimmedSearch
-    ? items
-        .filter(
-          (item) =>
-            item.name.toLowerCase().includes(trimmedSearch) ||
-            (item.manufacturer ?? '').toLowerCase().includes(trimmedSearch)
-        )
-        .sort((a, b) => a.name.localeCompare(b.name))
-    : null
+  const searchResults = useMemo(
+    () =>
+      open && trimmedSearch
+        ? items
+            .filter(
+              (item) =>
+                item.name.toLowerCase().includes(trimmedSearch) ||
+                (item.manufacturer ?? '').toLowerCase().includes(trimmedSearch)
+            )
+            .sort((a, b) => a.name.localeCompare(b.name))
+        : null,
+    [open, items, trimmedSearch]
+  )
 
   useEffect(() => {
     if (!open) return

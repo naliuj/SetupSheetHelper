@@ -99,6 +99,17 @@ export function getPreampById(id: number): Preamp | null {
   return row ? mapRow(row) : null
 }
 
+/** Batch id lookup in one query — for per-row resolution loops (e.g. PDF export), where calling
+ *  getPreampById per row would issue one query per item. */
+export function getPreampsByIds(ids: number[]): Map<number, Preamp> {
+  const map = new Map<number, Preamp>()
+  if (ids.length === 0) return map
+  const placeholders = ids.map(() => '?').join(',')
+  const rows = getDb().prepare(`SELECT * FROM preamps WHERE id IN (${placeholders})`).all(...ids) as PreampRow[]
+  for (const row of rows) map.set(row.id, mapRow(row))
+  return map
+}
+
 export function upsertPreamp(input: PreampUpsertInput): Preamp {
   const db = getDb()
   if (input.id) {

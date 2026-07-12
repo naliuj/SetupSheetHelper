@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import type { SetupItemDraft, SetupItemOutboardSlot } from '@shared/types/setup'
@@ -38,27 +39,30 @@ const PREAMP_POOL_ORDER = [
   PREAMP_POOL_LABELS.faculty_reserve
 ]
 
+// Hoisted to module scope so ManufacturerPickerDropdown's internal useMemo (keyed on these
+// props) sees stable references across renders instead of a fresh lambda every time.
+const micGroupBy = (m: Mic): string => POOL_LABELS[m.poolType]
+const micQuantity = (m: Mic): number => m.quantity
+const outboardGroupBy = (g: OutboardGear): string => POOL_LABELS[g.poolType]
+const outboardQuantity = (g: OutboardGear): number => g.quantity
+const preampGroupBy = (p: Preamp): string => PREAMP_POOL_LABELS[p.poolType]
+const preampQuantity = (p: Preamp): number => p.channels
+
 // A single Outboard column's cell. Extracted as its own component (rather than an inline
 // loop body) because each slot needs its own independent useBufferedField hook instance, and
 // hooks can't be called a variable number of times inside a plain loop (Rules of Hooks).
 function OutboardSlotCell({
-  slotIndex,
   slot,
   isTemporary,
   outboardGear,
-  outboardSuggestions,
   outboardUsageCounts,
-  itemId,
   hintText,
   onSlotChange
 }: {
-  slotIndex: number
   slot: SetupItemOutboardSlot | undefined
   isTemporary: boolean
   outboardGear: OutboardGear[]
-  outboardSuggestions: string[]
   outboardUsageCounts: Map<number, number>
-  itemId: number | string
   hintText: string | undefined
   onSlotChange: (patch: Partial<Pick<SetupItemOutboardSlot, 'outboardId' | 'outboardText'>>) => void
 }): JSX.Element {
@@ -67,29 +71,22 @@ function OutboardSlotCell({
   return (
     <td onClick={(e) => e.stopPropagation()}>
       {isTemporary ? (
-        <>
-          <input
-            value={outboardText.value}
-            placeholder="Outboard"
-            onChange={(e) => outboardText.onChange(e.target.value)}
-            onBlur={outboardText.onBlur}
-            onClick={(e) => e.stopPropagation()}
-            list={`outboard-suggestions-${itemId}-${slotIndex}`}
-          />
-          <datalist id={`outboard-suggestions-${itemId}-${slotIndex}`}>
-            {outboardSuggestions.map((s) => (
-              <option key={s} value={s} />
-            ))}
-          </datalist>
-        </>
+        <input
+          value={outboardText.value}
+          placeholder="Outboard"
+          onChange={(e) => outboardText.onChange(e.target.value)}
+          onBlur={outboardText.onBlur}
+          onClick={(e) => e.stopPropagation()}
+          list="outboard-suggestions"
+        />
       ) : (
         <ManufacturerPickerDropdown
           items={outboardGear}
           usageCounts={outboardUsageCounts}
-          getQuantity={(g) => g.quantity}
+          getQuantity={outboardQuantity}
           selectedId={slot?.outboardId ?? null}
           onSelect={(outboardId) => onSlotChange({ outboardId })}
-          outerGroupBy={(g) => POOL_LABELS[g.poolType]}
+          outerGroupBy={outboardGroupBy}
           outerGroupOrder={POOL_ORDER}
           stripManufacturerInTrigger
         />
@@ -99,6 +96,8 @@ function OutboardSlotCell({
   )
 }
 
+// Every callback takes the row's id (rather than closing over it in the table's map) so the
+// table can pass referentially-stable functions and React.memo below can actually bail out.
 interface Props {
   item: SetupItemDraft
   mics: Mic[]
@@ -107,26 +106,24 @@ interface Props {
   outboardColumnCount: number
   visibleColumns: Set<SetupColumnKey>
   isTemporary: boolean
-  micSuggestions: string[]
-  outboardSuggestions: string[]
-  preampSuggestions: string[]
   selected: boolean
   conflict: boolean
   unresolvedGearHint: UnresolvedGearHint | undefined
-  onClearUnresolvedGearHint: (field: 'mic' | 'outboard' | 'preamp') => void
+  onClearUnresolvedGearHint: (id: number | string, field: 'mic' | 'outboard' | 'preamp') => void
   micUsageCounts: Map<number, number>
   outboardUsageCounts: Map<number, number>
   preampUsageCounts: Map<number, number>
-  onGutterClick: (e: React.MouseEvent) => void
-  onChange: (patch: Partial<SetupItemDraft>) => void
+  onGutterClick: (e: React.MouseEvent, id: number | string) => void
+  onChange: (id: number | string, patch: Partial<SetupItemDraft>) => void
   onOutboardSlotChange: (
+    id: number | string,
     slotIndex: number,
     patch: Partial<Pick<SetupItemOutboardSlot, 'outboardId' | 'outboardText'>>
   ) => void
-  onDelete: () => void
+  onDelete: (id: number | string) => void
 }
 
-export default function SetupSheetRow({
+function SetupSheetRow({
   item,
   mics,
   outboardGear,
@@ -134,22 +131,29 @@ export default function SetupSheetRow({
   outboardColumnCount,
   visibleColumns,
   isTemporary,
-  micSuggestions,
-  outboardSuggestions,
-  preampSuggestions,
   selected,
   conflict,
   unresolvedGearHint,
-  onClearUnresolvedGearHint,
+  onClearUnresolvedGearHint: onClearUnresolvedGearHintById,
   micUsageCounts,
   outboardUsageCounts,
   preampUsageCounts,
-  onGutterClick,
-  onChange,
-  onOutboardSlotChange,
-  onDelete
+  onGutterClick: onGutterClickById,
+  onChange: onChangeById,
+  onOutboardSlotChange: onOutboardSlotChangeById,
+  onDelete: onDeleteById
 }: Props): JSX.Element {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id })
+
+  // Thin id-bound wrappers so the rest of the component keeps its original single-row API.
+  const onChange = (patch: Partial<SetupItemDraft>): void => onChangeById(item.id, patch)
+  const onOutboardSlotChange = (
+    slotIndex: number,
+    patch: Partial<Pick<SetupItemOutboardSlot, 'outboardId' | 'outboardText'>>
+  ): void => onOutboardSlotChangeById(item.id, slotIndex, patch)
+  const onClearUnresolvedGearHint = (field: 'mic' | 'outboard' | 'preamp'): void =>
+    onClearUnresolvedGearHintById(item.id, field)
+  const onDelete = (): void => onDeleteById(item.id)
   // A row's color is a wash over the page background. The mix strength comes from the themed
   // --row-color-tint-percent (global.css) rather than a fixed number here: dark mode mixes toward
   // a dark bg so a lighter wash keeps text legible, but light mode's bg is near-white, so the same
@@ -213,7 +217,7 @@ export default function SetupSheetRow({
     <tr ref={setNodeRef} style={rowStyle}>
       <td
         className="gutter-cell"
-        onClick={onGutterClick}
+        onClick={(e) => onGutterClickById(e, item.id)}
         title="Click to select · Shift-click for a range · Cmd/Ctrl-click to toggle"
         style={{ cursor: 'pointer', userSelect: 'none' }}
       >
@@ -238,29 +242,22 @@ export default function SetupSheetRow({
       {visibleColumns.has('mic') && (
         <td onClick={(e) => e.stopPropagation()}>
           {isTemporary ? (
-            <>
-              <input
-                value={micText.value}
-                placeholder="Mic"
-                onChange={(e) => micText.onChange(e.target.value)}
-                onBlur={micText.onBlur}
-                onClick={(e) => e.stopPropagation()}
-                list={`mic-suggestions-${item.id}`}
-              />
-              <datalist id={`mic-suggestions-${item.id}`}>
-                {micSuggestions.map((s) => (
-                  <option key={s} value={s} />
-                ))}
-              </datalist>
-            </>
+            <input
+              value={micText.value}
+              placeholder="Mic"
+              onChange={(e) => micText.onChange(e.target.value)}
+              onBlur={micText.onBlur}
+              onClick={(e) => e.stopPropagation()}
+              list="mic-suggestions"
+            />
           ) : (
             <ManufacturerPickerDropdown
               items={mics}
               usageCounts={micUsageCounts}
-              getQuantity={(m) => m.quantity}
+              getQuantity={micQuantity}
               selectedId={item.micId}
               onSelect={handleMicChange}
-              outerGroupBy={(m) => POOL_LABELS[m.poolType]}
+              outerGroupBy={micGroupBy}
               outerGroupOrder={POOL_ORDER}
             />
           )}
@@ -283,13 +280,10 @@ export default function SetupSheetRow({
         Array.from({ length: outboardColumnCount }, (_, slotIndex) => (
           <OutboardSlotCell
             key={slotIndex}
-            slotIndex={slotIndex}
             slot={item.outboards.find((s) => s.slotIndex === slotIndex)}
             isTemporary={isTemporary}
             outboardGear={outboardGear}
-            outboardSuggestions={outboardSuggestions}
             outboardUsageCounts={outboardUsageCounts}
-            itemId={item.id}
             hintText={slotIndex === 0 ? unresolvedGearHint?.outboard : undefined}
             onSlotChange={(patch) => handleOutboardSlotChange(slotIndex, patch)}
           />
@@ -309,29 +303,22 @@ export default function SetupSheetRow({
       {visibleColumns.has('preamp') && (
         <td onClick={(e) => e.stopPropagation()}>
           {isTemporary ? (
-            <>
-              <input
-                value={preampText.value}
-                placeholder="Preamp"
-                onChange={(e) => preampText.onChange(e.target.value)}
-                onBlur={preampText.onBlur}
-                onClick={(e) => e.stopPropagation()}
-                list={`preamp-suggestions-${item.id}`}
-              />
-              <datalist id={`preamp-suggestions-${item.id}`}>
-                {preampSuggestions.map((s) => (
-                  <option key={s} value={s} />
-                ))}
-              </datalist>
-            </>
+            <input
+              value={preampText.value}
+              placeholder="Preamp"
+              onChange={(e) => preampText.onChange(e.target.value)}
+              onBlur={preampText.onBlur}
+              onClick={(e) => e.stopPropagation()}
+              list="preamp-suggestions"
+            />
           ) : (
             <ManufacturerPickerDropdown
               items={preamps}
               usageCounts={preampUsageCounts}
-              getQuantity={(p) => p.channels}
+              getQuantity={preampQuantity}
               selectedId={item.preampId}
               onSelect={handlePreampChange}
-              outerGroupBy={(p) => PREAMP_POOL_LABELS[p.poolType]}
+              outerGroupBy={preampGroupBy}
               outerGroupOrder={PREAMP_POOL_ORDER}
               stripManufacturerInTrigger
             />
@@ -400,3 +387,8 @@ export default function SetupSheetRow({
     </tr>
   )
 }
+
+// Memoized: with per-row callbacks id-based and stable, and the table's derived Maps memoized
+// on items, a selection click / hint update / catalog load no longer re-renders every row —
+// only rows whose own props actually changed.
+export default memo(SetupSheetRow)
