@@ -19,6 +19,7 @@ export interface ChannelPresetItem {
   cueBox: number | null
   polarityFlip: boolean | null
   notes: string | null
+  color: string | null
 }
 
 export interface ChannelPreset {
@@ -51,4 +52,5 @@ export interface ChannelPresetItemInput {
   cueBox: number | null
   polarityFlip: boolean | null
   notes: string | null
+  color: string | null
 }

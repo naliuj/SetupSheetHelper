@@ -48,7 +48,7 @@ export default function SetupSettingsPage({ setupId, onBack }: Props): JSX.Eleme
               checked={facultyReserveEnabled}
               onChange={(e) => setFacultyReserveEnabled(e.target.checked)}
             />
-            Show faculty reserve mics for this setup — off by default, since students don't have access
+            Show Berklee faculty reserve mics
           </label>
         )}
       </div>

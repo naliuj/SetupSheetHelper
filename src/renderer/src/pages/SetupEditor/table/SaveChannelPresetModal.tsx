@@ -4,7 +4,7 @@ import { useSetupStore } from '@renderer/state/setupStore'
 import { useCatalogStore } from '@renderer/state/catalogStore'
 import { useEscapeToClose } from '@renderer/hooks/useEscapeToClose'
 
-type IncludeField = 'mic' | 'outboard' | 'preamp' | 'channel' | 'tieLine' | 'cueBox' | 'polarity' | 'notes'
+type IncludeField = 'mic' | 'outboard' | 'preamp' | 'channel' | 'tieLine' | 'cueBox' | 'polarity' | 'notes' | 'color'
 
 const FIELD_LABELS: Record<IncludeField, string> = {
   mic: 'Mic',
@@ -14,7 +14,8 @@ const FIELD_LABELS: Record<IncludeField, string> = {
   tieLine: 'Tie Line',
   cueBox: 'Cue Box',
   polarity: 'Polarity',
-  notes: 'Notes'
+  notes: 'Notes',
+  color: 'Color'
 }
 
 const DEFAULT_INCLUDED: Record<IncludeField, boolean> = {
@@ -25,7 +26,8 @@ const DEFAULT_INCLUDED: Record<IncludeField, boolean> = {
   tieLine: false,
   cueBox: false,
   polarity: false,
-  notes: false
+  notes: false,
+  color: false
 }
 
 /** Captures the selected rows (or every row, when nothing is selected — same convention as
@@ -77,7 +79,8 @@ export default function SaveChannelPresetModal({ onClose }: { onClose: () => voi
           tieLine: included.tieLine ? item.tieLine : null,
           cueBox: included.cueBox ? item.cueBox : null,
           polarityFlip: included.polarity ? item.polarityFlip : null,
-          notes: included.notes ? item.notes : null
+          notes: included.notes ? item.notes : null,
+          color: included.color ? item.color : null
         }
       })
       await window.api.presets.create({ name: name.trim(), description: description.trim() || null, items: presetItems })

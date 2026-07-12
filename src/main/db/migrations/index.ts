@@ -15,6 +15,7 @@ import { run as removeHasConsole } from './013_remove_has_console'
 import { run as presetFolders } from './014_preset_folders'
 import { run as rowColor } from './015_row_color'
 import { run as paletteDefaultColors } from './016_palette_default_colors'
+import { run as channelPresetColor } from './017_channel_preset_color'
 
 export interface SqlMigration {
   version: number
@@ -44,5 +45,6 @@ export const MIGRATIONS: Migration[] = [
   { version: 13, run: removeHasConsole },
   { version: 14, run: presetFolders },
   { version: 15, run: rowColor },
-  { version: 16, run: paletteDefaultColors }
+  { version: 16, run: paletteDefaultColors },
+  { version: 17, run: channelPresetColor }
 ]

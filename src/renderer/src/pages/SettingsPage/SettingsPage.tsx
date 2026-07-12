@@ -132,7 +132,7 @@ export default function SettingsPage(): JSX.Element {
               value={defaultEngineerName}
               onChange={(e) => setDefaultEngineerName(e.target.value)}
               onBlur={handleDefaultEngineerNameBlur}
-              placeholder="e.g. Jordan Rivera"
+              placeholder="e.g. Julian Rose"
               style={{ width: 240 }}
             />
             <p className="card-sub" style={{ marginTop: 4 }}>Prefills the Engineer field on every new setup.</p>
@@ -154,8 +154,7 @@ export default function SettingsPage(): JSX.Element {
               Berklee features
             </label>
             <p className="card-sub" style={{ marginTop: 4 }}>
-              Shows Berklee's real studios, gear lists, and faculty reserve pool. Turning this off just hides them —
-              nothing is deleted, and turning it back on brings everything right back.
+              Shows Berklee's studios, gear lists, and faculty reserve pool
             </p>
           </div>
         </div>
