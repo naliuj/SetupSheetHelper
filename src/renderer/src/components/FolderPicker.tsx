@@ -6,14 +6,15 @@ interface Props {
   folders: Folder[]
   selectedFolderId: number | null
   onSelect: (id: number | null) => void
-  /** Creates a folder and returns it (already added to the caller's list). New folders land at the
-   *  top level, matching the previous picker; nested creation stays in the Manage modal. */
+  /** Creates a folder under `parentFolderId` (null = top level) and returns it (already added to
+   *  the caller's list). */
   onCreateFolder: (name: string, parentFolderId: number | null) => Promise<Folder>
 }
 
 /** Inline folder picker: a searchable, nested list with create-in-place — replaces the old native
  *  `<select>`. Namespace-agnostic (caller supplies the folder list + create fn), so it drives
- *  studio, setup, and preset folder selection alike. */
+ *  studio, setup, and preset folder selection alike. New folders can be created at the top level
+ *  (the bottom row) or nested under any folder (its hover "+" action). */
 export default function FolderPicker({
   folders,
   selectedFolderId,
@@ -21,7 +22,8 @@ export default function FolderPicker({
   onCreateFolder
 }: Props): JSX.Element {
   const [query, setQuery] = useState('')
-  const [creating, setCreating] = useState(false)
+  // null = not creating; otherwise the parent the new folder will be created under (null = root).
+  const [createTarget, setCreateTarget] = useState<{ parentId: number | null } | null>(null)
   const [newName, setNewName] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -29,16 +31,20 @@ export default function FolderPicker({
   const q = query.trim().toLowerCase()
   const filtered = q ? options.filter((o) => o.folder.name.toLowerCase().includes(q)) : options
   const showSearch = folders.length > 5
+  const parentName =
+    createTarget && createTarget.parentId != null
+      ? folders.find((f) => f.id === createTarget.parentId)?.name ?? null
+      : null
 
   async function confirmCreate(): Promise<void> {
     const name = newName.trim()
-    if (!name || busy) return
+    if (!name || busy || !createTarget) return
     setBusy(true)
     try {
-      const folder = await onCreateFolder(name, null)
+      const folder = await onCreateFolder(name, createTarget.parentId)
       onSelect(folder.id)
       setNewName('')
-      setCreating(false)
+      setCreateTarget(null)
       setQuery('')
     } finally {
       setBusy(false)
@@ -46,7 +52,7 @@ export default function FolderPicker({
   }
 
   function cancelCreate(): void {
-    setCreating(false)
+    setCreateTarget(null)
     setNewName('')
   }
 
@@ -64,33 +70,43 @@ export default function FolderPicker({
       )}
       <div className="folder-picker-list">
         {!q && (
-          <button
-            type="button"
-            className={`folder-picker-row${selectedFolderId === null ? ' selected' : ''}`}
-            onClick={() => onSelect(null)}
-          >
-            <span className="folder-picker-row-name folder-picker-none">No folder</span>
+          <div className={`folder-picker-row${selectedFolderId === null ? ' selected' : ''}`}>
+            <button type="button" className="folder-picker-select folder-picker-none" onClick={() => onSelect(null)}>
+              No folder
+            </button>
             {selectedFolderId === null && <span className="folder-picker-check">✓</span>}
-          </button>
+          </div>
         )}
         {filtered.map(({ folder, depth }) => (
-          <button
+          <div
             key={folder.id}
-            type="button"
             className={`folder-picker-row${selectedFolderId === folder.id ? ' selected' : ''}`}
             style={{ paddingLeft: 10 + (q ? 0 : depth * 16) }}
-            onClick={() => onSelect(folder.id)}
           >
-            <span className="folder-picker-row-name">📁 {folder.name}</span>
+            <button type="button" className="folder-picker-select" onClick={() => onSelect(folder.id)}>
+              📁 {folder.name}
+            </button>
+            <button
+              type="button"
+              className="folder-picker-subfolder"
+              title="New subfolder"
+              aria-label={`New subfolder in ${folder.name}`}
+              onClick={() => {
+                setNewName('')
+                setCreateTarget({ parentId: folder.id })
+              }}
+            >
+              +
+            </button>
             {selectedFolderId === folder.id && <span className="folder-picker-check">✓</span>}
-          </button>
+          </div>
         ))}
         {q && filtered.length === 0 && <div className="folder-picker-empty">No folders match “{query}”.</div>}
       </div>
-      {creating ? (
+      {createTarget ? (
         <div className="folder-picker-create">
           <input
-            placeholder="New folder name"
+            placeholder={parentName ? `New subfolder in ${parentName}` : 'New folder name'}
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             onKeyDown={(e) => {
@@ -107,7 +123,7 @@ export default function FolderPicker({
           </button>
         </div>
       ) : (
-        <button type="button" className="folder-picker-new" onClick={() => setCreating(true)}>
+        <button type="button" className="folder-picker-new" onClick={() => setCreateTarget({ parentId: null })}>
           + New folder…
         </button>
       )}
