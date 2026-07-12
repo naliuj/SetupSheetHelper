@@ -30,7 +30,7 @@ export default function FolderTreeNode({
       <div
         ref={setNodeRef}
         className={`folder-tree-row ${selectedFolderId === node.id ? 'selected' : ''} ${isOver ? 'drop-target' : ''}`}
-        style={{ paddingLeft: depth * 16 }}
+        style={{ paddingLeft: 10 + depth * 16 }}
       >
         {hasChildren ? (
           <button className="folder-tree-toggle" onClick={() => setExpanded((e) => !e)}>

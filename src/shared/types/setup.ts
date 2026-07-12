@@ -3,11 +3,19 @@ import type { SetupColumnKey } from '../constants/setupColumns'
 export type SetupKind = 'setup' | 'template'
 export type TemplateSource = 'berklee' | 'custom'
 
+/** Which entity a `folders` row organizes. Studio folders and setup folders are independent
+ *  namespaces — a folder created in one never appears in the other. (Channel presets have their
+ *  own separate `preset_folders` table and are not part of this scope.) */
+export type FolderScope = 'studio' | 'setup'
+
 export interface Folder {
   id: number
   name: string
   parentFolderId: number | null
   createdAt: string
+  /** Set for studio/setup folders (the `folders` table). Absent for preset folders, which live in
+   *  the separate `preset_folders` table and carry no scope. */
+  scope?: FolderScope
 }
 
 /** A folder plus its direct children, recursively — for tree UIs (Manage modal, folder pickers). */

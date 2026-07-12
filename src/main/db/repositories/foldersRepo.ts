@@ -1,4 +1,4 @@
-import type { Folder } from '@shared/types/setup'
+import type { Folder, FolderScope } from '@shared/types/setup'
 import type { FolderDeleteImpact } from '@shared/types/ipc'
 import { getDb } from '../index'
 import { removeStudioCascade } from './studiosRepo'
@@ -9,21 +9,38 @@ interface FolderRow {
   name: string
   parent_folder_id: number | null
   created_at: string
+  scope: FolderScope
 }
 
 function mapRow(row: FolderRow): Folder {
-  return { id: row.id, name: row.name, parentFolderId: row.parent_folder_id, createdAt: row.created_at }
+  return {
+    id: row.id,
+    name: row.name,
+    parentFolderId: row.parent_folder_id,
+    createdAt: row.created_at,
+    scope: row.scope
+  }
 }
 
-/** Flat list of every folder — tree structure is built client-side from this. */
-export function listFolders(): Folder[] {
-  const rows = getDb().prepare('SELECT * FROM folders ORDER BY name').all() as FolderRow[]
+/** Flat list of every folder in one scope ('studio' | 'setup') — tree structure is built
+ *  client-side from this. Studio and setup folders are independent namespaces (see migration 020),
+ *  so callers pass the scope for the list they're organizing. */
+export function listFolders(scope: FolderScope): Folder[] {
+  const rows = getDb()
+    .prepare('SELECT * FROM folders WHERE scope = ? ORDER BY name')
+    .all(scope) as FolderRow[]
   return rows.map(mapRow)
 }
 
-export function createFolder(name: string, parentFolderId: number | null = null): Folder {
+export function createFolder(
+  name: string,
+  parentFolderId: number | null = null,
+  scope: FolderScope = 'setup'
+): Folder {
   const db = getDb()
-  const info = db.prepare('INSERT INTO folders (name, parent_folder_id) VALUES (?, ?)').run(name, parentFolderId)
+  const info = db
+    .prepare('INSERT INTO folders (name, parent_folder_id, scope) VALUES (?, ?, ?)')
+    .run(name, parentFolderId, scope)
   const row = db.prepare('SELECT * FROM folders WHERE id = ?').get(info.lastInsertRowid) as FolderRow
   return mapRow(row)
 }

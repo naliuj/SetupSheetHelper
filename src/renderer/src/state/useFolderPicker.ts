@@ -1,38 +1,31 @@
-import { useEffect, useState } from 'react'
-import type { Folder } from '@shared/types/setup'
-import { buildFolderTree, flattenFolderTreeForPicker, type FolderPickerOption } from './folderTree'
+import { useCallback, useEffect, useState } from 'react'
+import type { Folder, FolderScope } from '@shared/types/setup'
 
-export const NEW_FOLDER_VALUE = '__new_folder__'
-export const NO_FOLDER_VALUE = ''
-
-/** Shared folder-selection state for any dialog that files something into an optional folder.
- *  New folders created from this picker always land at the top level — nested creation
- *  happens via the Manage modal's "+ New Subfolder" action instead. */
-export function useFolderPicker(): {
-  folderOptions: FolderPickerOption[]
-  selection: string
-  setSelection: (value: string) => void
-  newFolderName: string
-  setNewFolderName: (value: string) => void
-  resolveFolderId: () => Promise<number | null>
+/** Folder-selection state for a dialog that files something into an optional folder within one
+ *  scope ('studio' | 'setup'). Pairs with the FolderPicker component: this owns the scoped folder
+ *  list + selection, FolderPicker renders it. Folders created here are stamped with `scope` and
+ *  land at the top level. */
+export function useFolderPicker(scope: FolderScope): {
+  folders: Folder[]
+  selectedFolderId: number | null
+  setSelectedFolderId: (id: number | null) => void
+  createFolder: (name: string, parentFolderId: number | null) => Promise<Folder>
 } {
-  const [folderOptions, setFolderOptions] = useState<FolderPickerOption[]>([])
-  const [selection, setSelection] = useState(NO_FOLDER_VALUE)
-  const [newFolderName, setNewFolderName] = useState('')
+  const [folders, setFolders] = useState<Folder[]>([])
+  const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null)
 
   useEffect(() => {
-    window.api.folders.list().then((folders) => setFolderOptions(flattenFolderTreeForPicker(buildFolderTree(folders))))
-  }, [])
+    window.api.folders.list(scope).then(setFolders)
+  }, [scope])
 
-  async function resolveFolderId(): Promise<number | null> {
-    if (selection === NEW_FOLDER_VALUE) {
-      if (!newFolderName.trim()) return null
-      const folder = await window.api.folders.create(newFolderName.trim(), null)
-      return folder.id
-    }
-    if (selection === NO_FOLDER_VALUE) return null
-    return Number(selection)
-  }
+  const createFolder = useCallback(
+    async (name: string, parentFolderId: number | null): Promise<Folder> => {
+      const folder = await window.api.folders.create(name, parentFolderId, scope)
+      setFolders((prev) => [...prev, folder])
+      return folder
+    },
+    [scope]
+  )
 
-  return { folderOptions, selection, setSelection, newFolderName, setNewFolderName, resolveFolderId }
+  return { folders, selectedFolderId, setSelectedFolderId, createFolder }
 }

@@ -558,16 +558,28 @@ table.data-table td select {
 .folder-tree-row {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px 6px;
+  gap: 6px;
+  padding: 6px 8px;
   border-radius: var(--radius);
   font-size: 13px;
   cursor: default;
 }
 
+.folder-tree-row:hover {
+  background: var(--color-surface-alt);
+}
+
 .folder-tree-row.selected {
   background: var(--color-surface-alt);
   font-weight: 600;
+}
+
+.folder-tree-search {
+  padding: 0 0 8px;
+}
+
+.folder-tree-search input {
+  width: 100%;
 }
 
 .folder-tree-row.drop-target {
@@ -619,6 +631,142 @@ table.data-table td select {
   font-size: 11px;
   color: var(--color-text-dim);
   margin: 12px 0 6px;
+}
+
+/* Inline folder picker (FolderPicker.tsx) — the searchable, create-in-place list that replaced the
+ * native <select> in every "file into a folder" dialog. */
+.folder-picker-field-label {
+  margin: 16px 0 6px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-dim);
+}
+
+.folder-picker {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.folder-picker-search {
+  padding: 6px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg);
+}
+
+.folder-picker-search input {
+  width: 100%;
+}
+
+.folder-picker-list {
+  max-height: 180px;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.folder-picker-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: var(--radius);
+  font-size: 13px;
+}
+
+.folder-picker-row:hover {
+  background: var(--color-surface-alt);
+}
+
+.folder-picker-row.selected {
+  background: var(--color-surface-alt);
+  font-weight: 600;
+}
+
+.folder-picker-select {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.folder-picker-none {
+  color: var(--color-text-dim);
+}
+
+.folder-picker-subfolder {
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  color: var(--color-text-dim);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0 4px;
+  border-radius: var(--radius);
+  opacity: 0;
+}
+
+.folder-picker-row:hover .folder-picker-subfolder {
+  opacity: 1;
+}
+
+.folder-picker-subfolder:hover {
+  color: var(--color-text);
+  background: var(--color-border);
+}
+
+.folder-picker-check {
+  flex-shrink: 0;
+  color: var(--color-accent);
+}
+
+.folder-picker-empty {
+  padding: 10px;
+  font-size: 12px;
+  color: var(--color-text-dim);
+}
+
+.folder-picker-new {
+  display: block;
+  width: 100%;
+  padding: 7px 10px;
+  border: none;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-accent);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.folder-picker-new:hover {
+  background: var(--color-surface-alt);
+}
+
+.folder-picker-create {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-bg);
+}
+
+.folder-picker-create input {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+}
+
+.folder-picker-search input {
+  font-size: 13px;
 }
 
 .manage-kind-heading:first-child {

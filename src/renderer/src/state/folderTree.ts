@@ -25,19 +25,10 @@ export interface FolderPickerOption {
   depth: number
 }
 
-/** Depth-first flatten of a folder tree, for indentation in a flat <select>. */
+/** Depth-first flatten of a folder tree, carrying each node's depth for indentation. */
 export function flattenFolderTreeForPicker(tree: FolderTreeNode[], depth = 0): FolderPickerOption[] {
   return tree.flatMap((node) => [
     { folder: node, depth },
     ...flattenFolderTreeForPicker(node.children, depth + 1)
   ])
-}
-
-const NBSP = String.fromCharCode(160)
-const TREE_BRANCH = String.fromCharCode(0x2514) + ' '
-
-/** Indentation prefix for a flat <option> label - non-breaking spaces so it doesn't collapse. */
-export function indentedFolderLabel(name: string, depth: number): string {
-  if (depth === 0) return name
-  return NBSP.repeat(depth * 2) + TREE_BRANCH + name
 }

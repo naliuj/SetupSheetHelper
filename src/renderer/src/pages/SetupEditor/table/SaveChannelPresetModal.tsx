@@ -1,8 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { ChannelPresetItemInput } from '@shared/types/channelPreset'
+import type { Folder } from '@shared/types/setup'
 import { useSetupStore } from '@renderer/state/setupStore'
 import { useCatalogStore } from '@renderer/state/catalogStore'
 import { useEscapeToClose } from '@renderer/hooks/useEscapeToClose'
+import FolderPicker from '@renderer/components/FolderPicker'
 
 type IncludeField = 'mic' | 'outboard' | 'preamp' | 'channel' | 'tieLine' | 'cueBox' | 'polarity' | 'notes' | 'color'
 
@@ -47,6 +49,21 @@ export default function SaveChannelPresetModal({ onClose }: { onClose: () => voi
   const [included, setIncluded] = useState(DEFAULT_INCLUDED)
   const [saving, setSaving] = useState(false)
 
+  // Preset folders are their own namespace (preset_folders table), separate from studio/setup
+  // folders — but the picker UI is the same one used everywhere else.
+  const [folders, setFolders] = useState<Folder[]>([])
+  const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null)
+
+  useEffect(() => {
+    window.api.presetFolders.list().then(setFolders)
+  }, [])
+
+  async function createFolder(folderName: string, parentFolderId: number | null): Promise<Folder> {
+    const folder = await window.api.presetFolders.create(folderName, parentFolderId)
+    setFolders((prev) => [...prev, folder])
+    return folder
+  }
+
   const targetItems = selectedItemIds.size > 0 ? items.filter((item) => selectedItemIds.has(item.id)) : items
 
   function toggleField(field: IncludeField): void {
@@ -83,7 +100,12 @@ export default function SaveChannelPresetModal({ onClose }: { onClose: () => voi
           color: included.color ? item.color : null
         }
       })
-      await window.api.presets.create({ name: name.trim(), description: description.trim() || null, items: presetItems })
+      await window.api.presets.create({
+        name: name.trim(),
+        description: description.trim() || null,
+        items: presetItems,
+        folderId: selectedFolderId
+      })
       onClose()
     } finally {
       setSaving(false)
@@ -131,6 +153,14 @@ export default function SaveChannelPresetModal({ onClose }: { onClose: () => voi
             </button>
           ))}
         </div>
+
+        <div className="folder-picker-field-label">Folder</div>
+        <FolderPicker
+          folders={folders}
+          selectedFolderId={selectedFolderId}
+          onSelect={setSelectedFolderId}
+          onCreateFolder={createFolder}
+        />
 
         <div className="modal-actions">
           <button className="btn" onClick={onClose}>

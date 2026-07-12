@@ -3,9 +3,9 @@ import type { Mic, MicWithStudio, OutboardGear, OutboardGearWithStudio, Preamp }
 import { guessManufacturer, MANUFACTURER_PREFIXES } from '@shared/constants/manufacturers'
 import { stripManufacturerPrefix } from '@shared/utils/manufacturerPrefix'
 import { useNavigationStore } from '@renderer/state/navigationStore'
-import { useFolderPicker, NEW_FOLDER_VALUE, NO_FOLDER_VALUE } from '@renderer/state/useFolderPicker'
-import { indentedFolderLabel } from '@renderer/state/folderTree'
+import { useFolderPicker } from '@renderer/state/useFolderPicker'
 import { useModelSuggestions } from '@renderer/state/useModelSuggestions'
+import FolderPicker from '@renderer/components/FolderPicker'
 import ManufacturerPickerDropdown from '@renderer/components/ManufacturerPickerDropdown'
 import ImportGearModal from './ImportGearModal'
 import LayoutFileUploader from '@renderer/components/LayoutFileUploader'
@@ -159,8 +159,7 @@ export default function StudioSetupPage(): JSX.Element {
   const [creatingForLayout, setCreatingForLayout] = useState(false)
   const activeStudioId = studioSetupId ?? createdStudioId
 
-  const { folderOptions, selection, setSelection, newFolderName, setNewFolderName, resolveFolderId } =
-    useFolderPicker()
+  const { folders, selectedFolderId, setSelectedFolderId, createFolder } = useFolderPicker('studio')
 
   const catalogueMics = dedupeByNameAndManufacturer(micCatalogueSource)
   const catalogueOutboard = dedupeByNameAndManufacturer(outboardCatalogueSource)
@@ -187,7 +186,7 @@ export default function StudioSetupPage(): JSX.Element {
       window.api.studios.get(studioSetupId).then((studio) => {
         if (!studio) return
         setName(studio.name)
-        setSelection(studio.folderId != null ? String(studio.folderId) : NO_FOLDER_VALUE)
+        setSelectedFolderId(studio.folderId)
       })
       window.api.mics.listStudioMics(studioSetupId).then((mics) =>
         setPendingMics(
@@ -330,8 +329,7 @@ export default function StudioSetupPage(): JSX.Element {
   async function ensureStudioExists(): Promise<number | null> {
     if (activeStudioId) return activeStudioId
     if (!name.trim()) return null
-    const folderId = await resolveFolderId()
-    const created = await window.api.studios.createCustom(name.trim(), folderId)
+    const created = await window.api.studios.createCustom(name.trim(), selectedFolderId)
     setCreatedStudioId(created.id)
     return created.id
   }
@@ -359,11 +357,9 @@ export default function StudioSetupPage(): JSX.Element {
     if (!name.trim()) return
     setSaving(true)
     try {
-      const folderId = await resolveFolderId()
-
       const studioId = activeStudioId
-        ? (await window.api.studios.updateCustomDetails(activeStudioId, name.trim(), folderId)).id
-        : (await window.api.studios.createCustom(name.trim(), folderId)).id
+        ? (await window.api.studios.updateCustomDetails(activeStudioId, name.trim(), selectedFolderId)).id
+        : (await window.api.studios.createCustom(name.trim(), selectedFolderId)).id
 
       for (const id of removedMicIds) await window.api.mics.remove(id)
       for (const id of removedOutboardIds) await window.api.outboard.remove(id)
@@ -436,24 +432,6 @@ export default function StudioSetupPage(): JSX.Element {
             fontWeight: 600
           }}
         />
-        <select value={selection} onChange={(e) => setSelection(e.target.value)} style={{ maxWidth: 200 }}>
-          <option value={NO_FOLDER_VALUE}>No folder</option>
-          {folderOptions.map(({ folder, depth }) => (
-            <option key={folder.id} value={folder.id}>
-              {indentedFolderLabel(folder.name, depth)}
-            </option>
-          ))}
-          <option value={NEW_FOLDER_VALUE}>+ Create new folder…</option>
-        </select>
-        {selection === NEW_FOLDER_VALUE && (
-          <input
-            placeholder="New folder name"
-            value={newFolderName}
-            onChange={(e) => setNewFolderName(e.target.value)}
-            style={{ maxWidth: 180 }}
-            autoFocus
-          />
-        )}
         <div className="spacer" />
         <button className="btn" onClick={handleCancel}>
           Cancel
@@ -464,6 +442,18 @@ export default function StudioSetupPage(): JSX.Element {
       </div>
 
       <div style={{ flex: 1, overflow: 'auto', padding: 16 }}>
+        <div className="section-title" style={{ marginTop: 0 }}>
+          Folder
+        </div>
+        <div style={{ maxWidth: 320, marginBottom: 16 }}>
+          <FolderPicker
+            folders={folders}
+            selectedFolderId={selectedFolderId}
+            onSelect={setSelectedFolderId}
+            onCreateFolder={createFolder}
+          />
+        </div>
+
         <button className="btn" style={{ marginBottom: 16 }} onClick={() => setImportModalOpen(true)}>
           Import gear from another studio…
         </button>

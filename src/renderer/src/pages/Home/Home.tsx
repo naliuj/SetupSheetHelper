@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { Building, Studio } from '@shared/types/entities'
-import type { Folder, Setup } from '@shared/types/setup'
+import type { Folder, FolderScope, Setup } from '@shared/types/setup'
 import type { FolderDeleteImpact } from '@shared/types/ipc'
 import { useNavigationStore } from '@renderer/state/navigationStore'
 import { useBerkleeFeaturesStore } from '@renderer/state/berkleeFeaturesStore'
@@ -27,7 +27,10 @@ export default function Home(): JSX.Element {
 
   const [customStudios, setCustomStudios] = useState<Studio[]>([])
   const [customTemplates, setCustomTemplates] = useState<Setup[]>([])
-  const [folders, setFolders] = useState<Folder[]>([])
+  // Studio folders (custom studios + templates) and setup folders (saved setups) are independent
+  // namespaces — see migration 020. Kept as two lists so a folder in one never shows in the other.
+  const [studioFolders, setStudioFolders] = useState<Folder[]>([])
+  const [setupFolders, setSetupFolders] = useState<Folder[]>([])
   const [selectedCustomFolderId, setSelectedCustomFolderId] = useState<number | null>(null)
   const [selectedSetupFolderId, setSelectedSetupFolderId] = useState<number | null>(null)
   const [savedSetups, setSavedSetups] = useState<Setup[]>([])
@@ -41,7 +44,8 @@ export default function Home(): JSX.Element {
   function reload(): void {
     window.api.studios.listCustom().then(setCustomStudios)
     window.api.setups.listByKind({ kind: 'template', templateSource: 'custom' }).then(setCustomTemplates)
-    window.api.folders.list().then(setFolders)
+    window.api.folders.list('studio').then(setStudioFolders)
+    window.api.folders.list('setup').then(setSetupFolders)
     window.api.setups.listByKind({ kind: 'setup' }).then(setSavedSetups)
   }
 
@@ -170,9 +174,14 @@ export default function Home(): JSX.Element {
     )
   }
 
-  // Shared folder CRUD dispatch — folders are a single global tree used by both manage modals.
-  async function handleCreateFolder(name: string, parentFolderId: number | null): Promise<void> {
-    await window.api.folders.create(name, parentFolderId)
+  // Folder CRUD dispatch. Create is scope-bound (each manage modal passes its own scope); rename
+  // and delete are id-based and scope-agnostic. reload() refreshes both scoped lists.
+  async function handleCreateFolder(
+    name: string,
+    parentFolderId: number | null,
+    scope: FolderScope
+  ): Promise<void> {
+    await window.api.folders.create(name, parentFolderId, scope)
     reload()
   }
   async function handleRenameFolder(id: number, name: string): Promise<void> {
@@ -293,7 +302,7 @@ export default function Home(): JSX.Element {
       {templateBrowse.kind === 'normal' && (
         <FolderGroupedGrid
           title={templateSectionTitle}
-          folders={folders}
+          folders={studioFolders}
           items={customStudioItems}
           getFolderId={(item) => item.data.folderId}
           renderItem={(item) => (item.kind === 'studio' ? renderStudioCard(item.data) : renderTemplateCard(item.data))}
@@ -322,7 +331,7 @@ export default function Home(): JSX.Element {
 
       <FolderGroupedGrid
         title="Saved Setups"
-        folders={folders}
+        folders={setupFolders}
         items={savedSetups}
         getFolderId={(setup) => setup.folderId}
         renderItem={renderSavedSetupCard}
@@ -344,11 +353,11 @@ export default function Home(): JSX.Element {
         <ManageItemsModal
           title="Manage studios"
           items={manageStudioItems}
-          folders={folders}
+          folders={studioFolders}
           onMoveToFolder={handleStudioItemMoveToFolder}
           onReorder={handleStudioItemReorder}
           onDelete={handleStudioItemDelete}
-          onCreateFolder={handleCreateFolder}
+          onCreateFolder={(name, parentFolderId) => handleCreateFolder(name, parentFolderId, 'studio')}
           onRenameFolder={handleRenameFolder}
           onGetFolderDeleteImpact={handleGetFolderDeleteImpact}
           onDeleteFolderRecursive={handleDeleteFolderRecursive}
@@ -361,11 +370,11 @@ export default function Home(): JSX.Element {
         <ManageItemsModal
           title="Manage setups"
           items={manageSetupItems}
-          folders={folders}
+          folders={setupFolders}
           onMoveToFolder={handleSetupItemMoveToFolder}
           onReorder={handleSetupItemReorder}
           onDelete={handleSetupItemDelete}
-          onCreateFolder={handleCreateFolder}
+          onCreateFolder={(name, parentFolderId) => handleCreateFolder(name, parentFolderId, 'setup')}
           onRenameFolder={handleRenameFolder}
           onGetFolderDeleteImpact={handleGetFolderDeleteImpact}
           onDeleteFolderRecursive={handleDeleteFolderRecursive}
