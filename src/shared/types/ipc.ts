@@ -13,6 +13,7 @@ import type {
 } from './entities'
 import type { ChannelPreset, ChannelPresetItemInput, ChannelPresetWithItems } from './channelPreset'
 import type { PaletteItem } from './palette'
+import type { SetupColumnKey } from '../constants/setupColumns'
 import type {
   Folder,
   RoomLayoutBlock,
@@ -113,6 +114,7 @@ export const IPC = {
     rename: 'setups:rename',
     saveItems: 'setups:saveItems',
     setOutboardColumnCount: 'setups:setOutboardColumnCount',
+    setVisibleColumns: 'setups:setVisibleColumns',
     remove: 'setups:remove',
     instantiateFromTemplate: 'setups:instantiateFromTemplate',
     saveAsTemplate: 'setups:saveAsTemplate',
@@ -216,6 +218,7 @@ export interface SetupItemInput {
   sourceName: string
   micId: number | null
   micText: string | null
+  phantomPower: boolean
   channel: number | null
   tieLine: number | null
   cueBox: number | null
@@ -469,6 +472,7 @@ export interface RendererApi {
     ): Promise<void>
     saveItems(setupId: number, items: SetupItemInput[]): Promise<SetupItem[]>
     setOutboardColumnCount(setupId: number, count: number): Promise<void>
+    setVisibleColumns(setupId: number, columns: SetupColumnKey[]): Promise<void>
     remove(id: number): Promise<void>
     instantiateFromTemplate(templateId: number): Promise<Setup>
     saveAsTemplate(input: SaveAsTemplateInput): Promise<Setup>

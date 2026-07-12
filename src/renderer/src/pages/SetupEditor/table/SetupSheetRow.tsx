@@ -1,6 +1,7 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import type { SetupItemDraft, SetupItemOutboardSlot } from '@shared/types/setup'
+import type { SetupColumnKey } from '@shared/constants/setupColumns'
 import type { Mic, OutboardGear, Preamp } from '@shared/types/entities'
 import type { UnresolvedGearHint } from '@renderer/state/setupStore'
 import ManufacturerPickerDropdown from '@renderer/components/ManufacturerPickerDropdown'
@@ -104,6 +105,7 @@ interface Props {
   outboardGear: OutboardGear[]
   preamps: Preamp[]
   outboardColumnCount: number
+  visibleColumns: Set<SetupColumnKey>
   isTemporary: boolean
   micSuggestions: string[]
   outboardSuggestions: string[]
@@ -130,6 +132,7 @@ export default function SetupSheetRow({
   outboardGear,
   preamps,
   outboardColumnCount,
+  visibleColumns,
   isTemporary,
   micSuggestions,
   outboardSuggestions,
@@ -232,132 +235,157 @@ export default function SetupSheetRow({
           onClick={(e) => e.stopPropagation()}
         />
       </td>
-      <td onClick={(e) => e.stopPropagation()}>
-        {isTemporary ? (
-          <>
-            <input
-              value={micText.value}
-              placeholder="Mic"
-              onChange={(e) => micText.onChange(e.target.value)}
-              onBlur={micText.onBlur}
-              onClick={(e) => e.stopPropagation()}
-              list={`mic-suggestions-${item.id}`}
+      {visibleColumns.has('mic') && (
+        <td onClick={(e) => e.stopPropagation()}>
+          {isTemporary ? (
+            <>
+              <input
+                value={micText.value}
+                placeholder="Mic"
+                onChange={(e) => micText.onChange(e.target.value)}
+                onBlur={micText.onBlur}
+                onClick={(e) => e.stopPropagation()}
+                list={`mic-suggestions-${item.id}`}
+              />
+              <datalist id={`mic-suggestions-${item.id}`}>
+                {micSuggestions.map((s) => (
+                  <option key={s} value={s} />
+                ))}
+              </datalist>
+            </>
+          ) : (
+            <ManufacturerPickerDropdown
+              items={mics}
+              usageCounts={micUsageCounts}
+              getQuantity={(m) => m.quantity}
+              selectedId={item.micId}
+              onSelect={handleMicChange}
+              outerGroupBy={(m) => POOL_LABELS[m.poolType]}
+              outerGroupOrder={POOL_ORDER}
             />
-            <datalist id={`mic-suggestions-${item.id}`}>
-              {micSuggestions.map((s) => (
-                <option key={s} value={s} />
-              ))}
-            </datalist>
-          </>
-        ) : (
-          <ManufacturerPickerDropdown
-            items={mics}
-            usageCounts={micUsageCounts}
-            getQuantity={(m) => m.quantity}
-            selectedId={item.micId}
-            onSelect={handleMicChange}
-            outerGroupBy={(m) => POOL_LABELS[m.poolType]}
-            outerGroupOrder={POOL_ORDER}
+          )}
+          {unresolvedGearHint?.mic && (
+            <div className="warning-badge">⚠ Preset expected: {unresolvedGearHint.mic}</div>
+          )}
+        </td>
+      )}
+      {visibleColumns.has('phantomPower') && (
+        <td style={{ textAlign: 'center' }}>
+          <input
+            type="checkbox"
+            checked={item.phantomPower}
+            onChange={(e) => onChange({ phantomPower: e.target.checked })}
+            onClick={(e) => e.stopPropagation()}
           />
-        )}
-        {unresolvedGearHint?.mic && (
-          <div className="warning-badge">⚠ Preset expected: {unresolvedGearHint.mic}</div>
-        )}
-      </td>
-      {Array.from({ length: outboardColumnCount }, (_, slotIndex) => (
-        <OutboardSlotCell
-          key={slotIndex}
-          slotIndex={slotIndex}
-          slot={item.outboards.find((s) => s.slotIndex === slotIndex)}
-          isTemporary={isTemporary}
-          outboardGear={outboardGear}
-          outboardSuggestions={outboardSuggestions}
-          outboardUsageCounts={outboardUsageCounts}
-          itemId={item.id}
-          hintText={slotIndex === 0 ? unresolvedGearHint?.outboard : undefined}
-          onSlotChange={(patch) => handleOutboardSlotChange(slotIndex, patch)}
-        />
-      ))}
-      <td>
-        <input
-          type="number"
-          min={1}
-          value={channel.value}
-          onChange={(e) => channel.onChange(e.target.value)}
-          onBlur={channel.onBlur}
-          onClick={(e) => e.stopPropagation()}
-        />
-      </td>
-      <td onClick={(e) => e.stopPropagation()}>
-        {isTemporary ? (
-          <>
-            <input
-              value={preampText.value}
-              placeholder="Preamp"
-              onChange={(e) => preampText.onChange(e.target.value)}
-              onBlur={preampText.onBlur}
-              onClick={(e) => e.stopPropagation()}
-              list={`preamp-suggestions-${item.id}`}
+        </td>
+      )}
+      {visibleColumns.has('outboard') &&
+        Array.from({ length: outboardColumnCount }, (_, slotIndex) => (
+          <OutboardSlotCell
+            key={slotIndex}
+            slotIndex={slotIndex}
+            slot={item.outboards.find((s) => s.slotIndex === slotIndex)}
+            isTemporary={isTemporary}
+            outboardGear={outboardGear}
+            outboardSuggestions={outboardSuggestions}
+            outboardUsageCounts={outboardUsageCounts}
+            itemId={item.id}
+            hintText={slotIndex === 0 ? unresolvedGearHint?.outboard : undefined}
+            onSlotChange={(patch) => handleOutboardSlotChange(slotIndex, patch)}
+          />
+        ))}
+      {visibleColumns.has('channel') && (
+        <td>
+          <input
+            type="number"
+            min={1}
+            value={channel.value}
+            onChange={(e) => channel.onChange(e.target.value)}
+            onBlur={channel.onBlur}
+            onClick={(e) => e.stopPropagation()}
+          />
+        </td>
+      )}
+      {visibleColumns.has('preamp') && (
+        <td onClick={(e) => e.stopPropagation()}>
+          {isTemporary ? (
+            <>
+              <input
+                value={preampText.value}
+                placeholder="Preamp"
+                onChange={(e) => preampText.onChange(e.target.value)}
+                onBlur={preampText.onBlur}
+                onClick={(e) => e.stopPropagation()}
+                list={`preamp-suggestions-${item.id}`}
+              />
+              <datalist id={`preamp-suggestions-${item.id}`}>
+                {preampSuggestions.map((s) => (
+                  <option key={s} value={s} />
+                ))}
+              </datalist>
+            </>
+          ) : (
+            <ManufacturerPickerDropdown
+              items={preamps}
+              usageCounts={preampUsageCounts}
+              getQuantity={(p) => p.channels}
+              selectedId={item.preampId}
+              onSelect={handlePreampChange}
+              outerGroupBy={(p) => PREAMP_POOL_LABELS[p.poolType]}
+              outerGroupOrder={PREAMP_POOL_ORDER}
+              stripManufacturerInTrigger
             />
-            <datalist id={`preamp-suggestions-${item.id}`}>
-              {preampSuggestions.map((s) => (
-                <option key={s} value={s} />
-              ))}
-            </datalist>
-          </>
-        ) : (
-          <ManufacturerPickerDropdown
-            items={preamps}
-            usageCounts={preampUsageCounts}
-            getQuantity={(p) => p.channels}
-            selectedId={item.preampId}
-            onSelect={handlePreampChange}
-            outerGroupBy={(p) => PREAMP_POOL_LABELS[p.poolType]}
-            outerGroupOrder={PREAMP_POOL_ORDER}
-            stripManufacturerInTrigger
+          )}
+          {unresolvedGearHint?.preamp && (
+            <div className="warning-badge">⚠ Preset expected: {unresolvedGearHint.preamp}</div>
+          )}
+        </td>
+      )}
+      {visibleColumns.has('tieLine') && (
+        <td>
+          <input
+            type="number"
+            min={1}
+            value={tieLine.value}
+            onChange={(e) => tieLine.onChange(e.target.value)}
+            onBlur={tieLine.onBlur}
+            onClick={(e) => e.stopPropagation()}
           />
-        )}
-        {unresolvedGearHint?.preamp && (
-          <div className="warning-badge">⚠ Preset expected: {unresolvedGearHint.preamp}</div>
-        )}
-      </td>
-      <td>
-        <input
-          type="number"
-          min={1}
-          value={tieLine.value}
-          onChange={(e) => tieLine.onChange(e.target.value)}
-          onBlur={tieLine.onBlur}
-          onClick={(e) => e.stopPropagation()}
-        />
-        {conflict && <div className="warning-badge">⚠ duplicate tie line</div>}
-      </td>
-      <td>
-        <input
-          type="number"
-          min={1}
-          value={cueBox.value}
-          onChange={(e) => cueBox.onChange(e.target.value)}
-          onBlur={cueBox.onBlur}
-          onClick={(e) => e.stopPropagation()}
-        />
-      </td>
-      <td style={{ textAlign: 'center' }}>
-        <input
-          type="checkbox"
-          checked={item.polarityFlip}
-          onChange={(e) => onChange({ polarityFlip: e.target.checked })}
-          onClick={(e) => e.stopPropagation()}
-        />
-      </td>
-      <td>
-        <input
-          value={notes.value}
-          onChange={(e) => notes.onChange(e.target.value)}
-          onBlur={notes.onBlur}
-          onClick={(e) => e.stopPropagation()}
-        />
-      </td>
+          {conflict && <div className="warning-badge">⚠ duplicate tie line</div>}
+        </td>
+      )}
+      {visibleColumns.has('cueBox') && (
+        <td>
+          <input
+            type="number"
+            min={1}
+            value={cueBox.value}
+            onChange={(e) => cueBox.onChange(e.target.value)}
+            onBlur={cueBox.onBlur}
+            onClick={(e) => e.stopPropagation()}
+          />
+        </td>
+      )}
+      {visibleColumns.has('polarity') && (
+        <td style={{ textAlign: 'center' }}>
+          <input
+            type="checkbox"
+            checked={item.polarityFlip}
+            onChange={(e) => onChange({ polarityFlip: e.target.checked })}
+            onClick={(e) => e.stopPropagation()}
+          />
+        </td>
+      )}
+      {visibleColumns.has('notes') && (
+        <td>
+          <input
+            value={notes.value}
+            onChange={(e) => notes.onChange(e.target.value)}
+            onBlur={notes.onBlur}
+            onClick={(e) => e.stopPropagation()}
+          />
+        </td>
+      )}
       <td>
         <button
           className="btn small danger"

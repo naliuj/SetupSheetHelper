@@ -16,6 +16,8 @@ import { run as presetFolders } from './014_preset_folders'
 import { run as rowColor } from './015_row_color'
 import { run as paletteDefaultColors } from './016_palette_default_colors'
 import { run as channelPresetColor } from './017_channel_preset_color'
+import { run as setupVisibleColumns } from './018_setup_visible_columns'
+import { run as phantomPower } from './019_phantom_power'
 
 export interface SqlMigration {
   version: number
@@ -46,5 +48,7 @@ export const MIGRATIONS: Migration[] = [
   { version: 14, run: presetFolders },
   { version: 15, run: rowColor },
   { version: 16, run: paletteDefaultColors },
-  { version: 17, run: channelPresetColor }
+  { version: 17, run: channelPresetColor },
+  { version: 18, run: setupVisibleColumns },
+  { version: 19, run: phantomPower }
 ]

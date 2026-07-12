@@ -4,6 +4,8 @@ import type { StudioExportFile } from '@shared/types/ipc'
 import { useNavigationStore } from '@renderer/state/navigationStore'
 import { useThemeStore } from '@renderer/state/themeStore'
 import { useBerkleeFeaturesStore } from '@renderer/state/berkleeFeaturesStore'
+import { useColumnPrefsStore } from '@renderer/state/columnPrefsStore'
+import { TOGGLEABLE_COLUMNS } from '@shared/constants/setupColumns'
 import ToggleSwitch from '@renderer/components/ToggleSwitch'
 import FacultyReserveEditor from './FacultyReserveEditor'
 import PersonalGearEditor from './PersonalGearEditor'
@@ -13,7 +15,7 @@ import StudioImportPage from './StudioImportPage'
 import ManagePresetsModal from '../PresetManager/ManagePresetsModal'
 
 type Subview = { kind: 'main' } | { kind: 'export' } | { kind: 'import'; file: StudioExportFile }
-type Tab = 'general' | 'personalGear' | 'facultyReserve' | 'backup' | 'theme' | 'palette'
+type Tab = 'general' | 'columns' | 'personalGear' | 'facultyReserve' | 'backup' | 'theme' | 'palette'
 
 export default function SettingsPage(): JSX.Element {
   const goToHome = useNavigationStore((s) => s.goToHome)
@@ -23,6 +25,8 @@ export default function SettingsPage(): JSX.Element {
   const berkleeFeaturesEnabled = useBerkleeFeaturesStore((s) => s.enabled)
   const enableBerkleeFeatures = useBerkleeFeaturesStore((s) => s.enable)
   const disableBerkleeFeatures = useBerkleeFeaturesStore((s) => s.disable)
+  const defaultVisibleColumns = useColumnPrefsStore((s) => s.defaultVisibleColumns)
+  const setDefaultColumns = useColumnPrefsStore((s) => s.setDefault)
   const [activeTab, setActiveTab] = useState<Tab>('general')
   const [defaultEngineerName, setDefaultEngineerName] = useState('')
   const [loaded, setLoaded] = useState(false)
@@ -32,6 +36,7 @@ export default function SettingsPage(): JSX.Element {
 
   const TABS: { id: Tab; label: string }[] = [
     { id: 'general', label: 'General' },
+    { id: 'columns', label: 'Columns' },
     { id: 'theme', label: 'Theme' },
     { id: 'personalGear', label: 'Personal Gear Locker' },
     ...(berkleeFeaturesEnabled ? [{ id: 'facultyReserve' as const, label: 'Faculty Reserve' }] : []),
@@ -154,6 +159,29 @@ export default function SettingsPage(): JSX.Element {
             <p className="card-sub" style={{ marginTop: 4 }}>
               Shows Berklee's studios, gear lists, and faculty reserve pool
             </p>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'columns' && (
+        <div className="panel">
+          <p className="card-sub" style={{ marginTop: 0, marginBottom: 16 }}>
+            Choose which columns a new setup starts with. Existing setups aren't affected — adjust those from the
+            Columns menu above their table. (Source name is always shown.)
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 320 }}>
+            {TOGGLEABLE_COLUMNS.map((c) => (
+              <ToggleSwitch
+                key={c.key}
+                checked={defaultVisibleColumns.includes(c.key)}
+                onChange={(on) =>
+                  setDefaultColumns(
+                    on ? [...defaultVisibleColumns, c.key] : defaultVisibleColumns.filter((k) => k !== c.key)
+                  )
+                }
+                label={c.label}
+              />
+            ))}
           </div>
         </div>
       )}

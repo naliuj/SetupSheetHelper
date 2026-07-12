@@ -17,6 +17,7 @@ function toLabels(items: { name: string; manufacturer: string | null }[]): strin
 export default function SetupSheetTable(): JSX.Element {
   const items = useSetupStore((s) => s.items)
   const outboardColumnCount = useSetupStore((s) => s.outboardColumnCount)
+  const visibleColumns = useSetupStore((s) => s.visibleColumns)
   const updateItemOutboardSlot = useSetupStore((s) => s.updateItemOutboardSlot)
   const selectedItemIds = useSetupStore((s) => s.selectedItemIds)
   const selectItem = useSetupStore((s) => s.selectItem)
@@ -29,6 +30,7 @@ export default function SetupSheetTable(): JSX.Element {
   const clearUnresolvedGearHint = useSetupStore((s) => s.clearUnresolvedGearHint)
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }))
+  const col = useMemo(() => new Set(visibleColumns), [visibleColumns])
 
   function handleDragEnd(event: DragEndEvent): void {
     const { active, over } = event
@@ -94,16 +96,18 @@ export default function SetupSheetTable(): JSX.Element {
               <tr>
                 <th></th>
                 <th>Source name</th>
-                <th>Mic</th>
-                {Array.from({ length: outboardColumnCount }, (_, i) => (
-                  <th key={i}>{i === 0 ? 'Outboard' : `Outboard ${i + 1}`}</th>
-                ))}
-                <th>Channel</th>
-                <th>Preamp</th>
-                <th>Tie line</th>
-                <th>Cue box</th>
-                <th>Polarity</th>
-                <th>Notes</th>
+                {col.has('mic') && <th>Mic</th>}
+                {col.has('phantomPower') && <th>48V</th>}
+                {col.has('outboard') &&
+                  Array.from({ length: outboardColumnCount }, (_, i) => (
+                    <th key={i}>{i === 0 ? 'Outboard' : `Outboard ${i + 1}`}</th>
+                  ))}
+                {col.has('channel') && <th>Channel</th>}
+                {col.has('preamp') && <th>Preamp</th>}
+                {col.has('tieLine') && <th>Tie line</th>}
+                {col.has('cueBox') && <th>Cue box</th>}
+                {col.has('polarity') && <th>Polarity</th>}
+                {col.has('notes') && <th>Notes</th>}
                 <th></th>
               </tr>
             </thead>
@@ -117,6 +121,7 @@ export default function SetupSheetTable(): JSX.Element {
                     outboardGear={outboardGear}
                     preamps={preamps}
                     outboardColumnCount={outboardColumnCount}
+                    visibleColumns={col}
                     isTemporary={isTemporary}
                     micSuggestions={micSuggestions}
                     outboardSuggestions={outboardSuggestions}

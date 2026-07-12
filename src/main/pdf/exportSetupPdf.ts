@@ -40,6 +40,7 @@ const DENSITY: Record<PdfExportDensity, DensityConfig> = {
 const COLUMNS: ColumnSpec[] = [
   { key: 'sourceName', label: 'Source Name', width: 80, minWidth: 60 },
   { key: 'mic', label: 'Microphone', width: 80, minWidth: 60 },
+  { key: 'phantomPower', label: '48V', width: 32, minWidth: 26 },
   { key: 'outboard', label: 'Outboard', width: 95, minWidth: 65 },
   { key: 'channel', label: 'Channel', width: 40, minWidth: 34 },
   { key: 'preamp', label: 'Preamp', width: 55, minWidth: 45 },
@@ -117,6 +118,7 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
       const values: Record<string, string> = {
         sourceName: item.sourceName || '',
         mic: mic ? mic.name : item.micText ?? '',
+        phantomPower: item.phantomPower ? 'Yes' : '',
         outboard: outboardParts.join(', '),
         channel: item.channel != null ? String(item.channel) : '',
         preamp: preamp ? stripManufacturerPrefix(preamp.name, preamp.manufacturer ?? '') : item.preampText ?? '',
@@ -128,12 +130,16 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
       resolvedValues.set(item.id, values)
     }
 
-    // Outboard, Preamp, Tie Line, Cue Box, and Polarity are each independently omittable if blank
-    // across the whole sheet; every other column always shows.
+    // Two independent filters drop columns: (1) the setup's own column-visibility choice (Source
+    // name always shown), so the PDF matches what's on screen; (2) 48V, Outboard, Preamp,
+    // Tie Line, Cue Box, and Polarity are additionally dropped when blank across the whole sheet.
     const itemIds = setup.items.map((item) => item.id)
-    const omittableKeys = ['outboard', 'preamp', 'tieLine', 'cueBox', 'polarity']
+    const shownColumns = new Set<string>(setup.visibleColumns)
+    const omittableKeys = ['phantomPower', 'outboard', 'preamp', 'tieLine', 'cueBox', 'polarity']
     const keptColumns = COLUMNS.filter(
-      (col) => !omittableKeys.includes(col.key) || !isColumnEmpty(col.key, itemIds, resolvedValues)
+      (col) =>
+        (col.key === 'sourceName' || shownColumns.has(col.key)) &&
+        (!omittableKeys.includes(col.key) || !isColumnEmpty(col.key, itemIds, resolvedValues))
     )
 
     // Fit the kept columns to the page width — shrink an over-wide table, or hand slack to text

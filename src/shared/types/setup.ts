@@ -1,3 +1,5 @@
+import type { SetupColumnKey } from '../constants/setupColumns'
+
 export type SetupKind = 'setup' | 'template'
 export type TemplateSource = 'berklee' | 'custom'
 
@@ -29,6 +31,7 @@ export interface SetupItem {
   sourceName: string
   micId: number | null
   micText: string | null
+  phantomPower: boolean
   channel: number | null
   tieLine: number | null
   cueBox: number | null
@@ -79,6 +82,10 @@ export interface Setup {
    *  this many slots (see SetupItemOutboardSlot), though a given row may not have filled in
    *  every one yet. Defaults to 1; "+ Add Outboard Column" increments it. */
   outboardColumnCount: number
+  /** Which toggleable columns this setup shows (see SetupColumnKey). Snapshotted from the global
+   *  default when the setup is created, then owned by the setup. Always resolved to a concrete
+   *  list on read — a null DB value (pre-feature setups) means every column is shown. */
+  visibleColumns: SetupColumnKey[]
 }
 
 export interface SetupWithItems extends Setup {

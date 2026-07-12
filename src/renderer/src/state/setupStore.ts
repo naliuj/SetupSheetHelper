@@ -1,6 +1,8 @@
 import { create } from 'zustand'
 import { temporal } from 'zundo'
 import type { SetupItemDraft, SetupItemOutboardSlot, SetupWithItems } from '@shared/types/setup'
+import { ALL_COLUMN_KEYS, type SetupColumnKey } from '@shared/constants/setupColumns'
+import { useColumnPrefsStore } from './columnPrefsStore'
 
 export interface UnresolvedGearHint {
   mic?: string
@@ -60,6 +62,9 @@ interface SetupState {
   /** How many "Outboard" columns the table currently shows — every row conceptually has this
    *  many slots (see SetupItemOutboardSlot), though a row may not have filled in every one. */
   outboardColumnCount: number
+  /** Which toggleable columns this setup shows. Snapshotted from the global default on new setups;
+   *  edited per-setup via the table toolbar's Columns popover. */
+  visibleColumns: SetupColumnKey[]
   /** Contiguous row selection (click = single, shift-click = range from the anchor). */
   selectedItemIds: Set<number | string>
   /** The last plain-clicked row — shift-click selects the range between it and the clicked row. */
@@ -87,6 +92,8 @@ interface SetupState {
   setEngineer(engineer: string | null): void
   setArtist(artist: string | null): void
   setFacultyReserveEnabled(enabled: boolean): void
+  setColumnVisibility(key: SetupColumnKey, visible: boolean): void
+  resetColumnsToDefault(): void
   addItem(instrumentType: string, defaults?: NewItemDefaults): string
   addItemAt(instrumentType: string, defaults: NewItemDefaults): string
   updateItemFields(id: number | string, patch: Partial<SetupItemDraft>): void
@@ -126,6 +133,7 @@ export const useSetupStore = create<SetupState>()(
   facultyReserveEnabled: false,
   items: [],
   outboardColumnCount: 1,
+  visibleColumns: [...ALL_COLUMN_KEYS],
   selectedItemIds: new Set<number | string>(),
   selectionAnchorId: null,
   numberingFocusTick: 0,
@@ -146,6 +154,9 @@ export const useSetupStore = create<SetupState>()(
       facultyReserveEnabled: false,
       items: [],
       outboardColumnCount: 1,
+      // Snapshot the current global default so a brand-new (still-unsaved) sheet renders the right
+      // columns immediately; createSetup persists the same snapshot to the DB on first save.
+      visibleColumns: [...useColumnPrefsStore.getState().defaultVisibleColumns],
       selectedItemIds: new Set(),
       selectionAnchorId: null,
       unresolvedGearHints: new Map(),
@@ -166,6 +177,7 @@ export const useSetupStore = create<SetupState>()(
       facultyReserveEnabled: setup.facultyReserveEnabled,
       items: setup.items,
       outboardColumnCount: setup.outboardColumnCount,
+      visibleColumns: setup.visibleColumns,
       selectedItemIds: new Set(),
       selectionAnchorId: null,
       unresolvedGearHints: new Map(),
@@ -179,6 +191,22 @@ export const useSetupStore = create<SetupState>()(
   setArtist: (artist) => set({ artist, isDirty: true }),
   setFacultyReserveEnabled: (facultyReserveEnabled) => set({ facultyReserveEnabled, isDirty: true }),
 
+  // Column visibility is per-setup. Persist immediately when the setup already exists (mirrors
+  // setOutboardColumnCount); for a still-unsaved setup it rides along in save()'s create path.
+  setColumnVisibility: (key, visible) => {
+    const next = ALL_COLUMN_KEYS.filter((k) => (k === key ? visible : get().visibleColumns.includes(k)))
+    set({ visibleColumns: next, isDirty: true })
+    const { setupId } = get()
+    if (setupId) void window.api.setups.setVisibleColumns(setupId, next)
+  },
+
+  resetColumnsToDefault: () => {
+    const next = [...useColumnPrefsStore.getState().defaultVisibleColumns]
+    set({ visibleColumns: next, isDirty: true })
+    const { setupId } = get()
+    if (setupId) void window.api.setups.setVisibleColumns(setupId, next)
+  },
+
   addItem: (instrumentType, defaults) => get().addItemAt(instrumentType, defaults ?? {}),
 
   addItemAt: (instrumentType, defaults) => {
@@ -189,6 +217,7 @@ export const useSetupStore = create<SetupState>()(
       sourceName: defaults.sourceName ?? '',
       micId: defaults.micId ?? null,
       micText: null,
+      phantomPower: false,
       channel: defaults.channel ?? null,
       tieLine: null,
       cueBox: null,
@@ -384,6 +413,7 @@ export const useSetupStore = create<SetupState>()(
           sourceName: item.sourceName,
           micId: item.micId,
           micText: item.micName,
+          phantomPower: false,
           channel: item.channel != null ? Math.max(1, item.channel) : null,
           tieLine: item.tieLine != null ? Math.max(1, item.tieLine) : null,
           cueBox: item.cueBox != null ? Math.max(1, item.cueBox) : null,
@@ -430,6 +460,9 @@ export const useSetupStore = create<SetupState>()(
         if (state.outboardColumnCount !== 1) {
           await window.api.setups.setOutboardColumnCount(setupId, state.outboardColumnCount)
         }
+        // createSetup snapshots the global default; overwrite with the store's columns in case the
+        // user adjusted them before this first save.
+        await window.api.setups.setVisibleColumns(setupId, state.visibleColumns)
       } else {
         await window.api.setups.rename(
           setupId,

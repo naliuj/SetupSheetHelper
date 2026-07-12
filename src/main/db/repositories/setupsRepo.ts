@@ -1,6 +1,10 @@
 import type { Setup, SetupKind, SetupWithItems, TemplateSource } from '@shared/types/setup'
 import type { SetupsListFilter } from '@shared/types/ipc'
+import type { SetupColumnKey } from '@shared/constants/setupColumns'
+import { parseVisibleColumns, serializeVisibleColumns } from '@shared/constants/setupColumns'
+import { APP_SETTINGS_KEYS } from '@shared/types/entities'
 import { getDb } from '../index'
+import { getSetting } from './settingsRepo'
 import { listItemsBySetup, copyItemsToSetup } from './setupItemsRepo'
 
 interface SetupRow {
@@ -18,6 +22,7 @@ interface SetupRow {
   updated_at: string
   faculty_reserve_enabled: number
   outboard_column_count: number
+  visible_columns: string | null
 }
 
 function mapRow(row: SetupRow): Setup {
@@ -35,7 +40,8 @@ function mapRow(row: SetupRow): Setup {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     facultyReserveEnabled: row.faculty_reserve_enabled === 1,
-    outboardColumnCount: row.outboard_column_count
+    outboardColumnCount: row.outboard_column_count,
+    visibleColumns: parseVisibleColumns(row.visible_columns)
   }
 }
 
@@ -93,13 +99,31 @@ export function createSetup(
   facultyReserveEnabled = false
 ): Setup {
   const db = getDb()
+  // Snapshot the global default columns at creation, so the setup owns its columns from here on and
+  // later changes to the default never retroactively alter it. Null default → null (shows all).
+  const defaultVisibleColumns = getSetting(APP_SETTINGS_KEYS.defaultVisibleColumns)
   const info = db
     .prepare(
-      'INSERT INTO setups (studio_id, name, session_date, kind, template_source, folder_id, engineer, artist, faculty_reserve_enabled) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      'INSERT INTO setups (studio_id, name, session_date, kind, template_source, folder_id, engineer, artist, faculty_reserve_enabled, visible_columns) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
     )
-    .run(studioId, name, sessionDate, kind, templateSource, folderId, engineer, artist, facultyReserveEnabled ? 1 : 0)
+    .run(
+      studioId,
+      name,
+      sessionDate,
+      kind,
+      templateSource,
+      folderId,
+      engineer,
+      artist,
+      facultyReserveEnabled ? 1 : 0,
+      defaultVisibleColumns
+    )
   const row = db.prepare('SELECT * FROM setups WHERE id = ?').get(info.lastInsertRowid) as SetupRow
   return mapRow(row)
+}
+
+export function setVisibleColumns(id: number, columns: SetupColumnKey[]): void {
+  getDb().prepare('UPDATE setups SET visible_columns = ? WHERE id = ?').run(serializeVisibleColumns(columns), id)
 }
 
 export function renameSetup(

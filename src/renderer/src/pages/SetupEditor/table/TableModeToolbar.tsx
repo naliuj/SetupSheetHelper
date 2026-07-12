@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useSetupStore } from '@renderer/state/setupStore'
+import { TOGGLEABLE_COLUMNS } from '@shared/constants/setupColumns'
 import Icon from '@renderer/components/Icon'
+import ToggleSwitch from '@renderer/components/ToggleSwitch'
 import LoadPresetModal from '../../PresetManager/LoadPresetModal'
 import ManagePresetsModal from '../../PresetManager/ManagePresetsModal'
 import { GENERIC_INSTRUMENT_TYPE } from './tableConstants'
@@ -12,12 +14,18 @@ export default function TableModeToolbar(): JSX.Element {
   const outboardColumnCount = useSetupStore((s) => s.outboardColumnCount)
   const addOutboardColumn = useSetupStore((s) => s.addOutboardColumn)
   const removeOutboardColumn = useSetupStore((s) => s.removeOutboardColumn)
+  const visibleColumns = useSetupStore((s) => s.visibleColumns)
+  const setColumnVisibility = useSetupStore((s) => s.setColumnVisibility)
+  const resetColumnsToDefault = useSetupStore((s) => s.resetColumnsToDefault)
 
   const [sourceName, setSourceName] = useState('')
   const [presetsOpen, setPresetsOpen] = useState(false)
+  const [columnsOpen, setColumnsOpen] = useState(false)
   const [loadPresetOpen, setLoadPresetOpen] = useState(false)
   const [managePresetsOpen, setManagePresetsOpen] = useState(false)
   const presetsRef = useRef<HTMLDivElement>(null)
+  const columnsRef = useRef<HTMLDivElement>(null)
+  const visibleSet = new Set(visibleColumns)
 
   function handleAdd(): void {
     addItem(GENERIC_INSTRUMENT_TYPE, { sourceName: sourceName.trim() || 'Untitled Source' })
@@ -33,6 +41,16 @@ export default function TableModeToolbar(): JSX.Element {
     document.addEventListener('mousedown', onDown)
     return () => document.removeEventListener('mousedown', onDown)
   }, [presetsOpen])
+
+  // Close the Columns menu on an outside click.
+  useEffect(() => {
+    if (!columnsOpen) return
+    function onDown(e: MouseEvent): void {
+      if (columnsRef.current && !columnsRef.current.contains(e.target as Node)) setColumnsOpen(false)
+    }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [columnsOpen])
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 12px 0' }}>
@@ -70,6 +88,40 @@ export default function TableModeToolbar(): JSX.Element {
         <button className="btn small" onClick={addOutboardColumn} aria-label="Add outboard column">
           <Icon name="plus" size={14} />
         </button>
+      </div>
+
+      <div ref={columnsRef} style={{ position: 'relative' }}>
+        <button
+          className="btn"
+          onClick={() => setColumnsOpen((v) => !v)}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+        >
+          <Icon name="columns" size={15} /> Columns <Icon name="chevron-down" size={14} />
+        </button>
+        {columnsOpen && (
+          <div
+            className="picker-menu"
+            style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, minWidth: 220, padding: 10 }}
+          >
+            <div className="card-sub" style={{ margin: '0 0 8px' }}>Columns shown in this setup</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {TOGGLEABLE_COLUMNS.map((c) => (
+                <ToggleSwitch
+                  key={c.key}
+                  checked={visibleSet.has(c.key)}
+                  onChange={(on) => setColumnVisibility(c.key, on)}
+                  label={c.label}
+                />
+              ))}
+            </div>
+            <div
+              onClick={() => resetColumnsToDefault()}
+              style={{ marginTop: 10, fontSize: 12, color: 'var(--color-accent)', cursor: 'pointer' }}
+            >
+              ↺ Reset to my defaults
+            </div>
+          </div>
+        )}
       </div>
 
       <div ref={presetsRef} style={{ position: 'relative' }}>
