@@ -6,7 +6,7 @@ import EntryRow from './EntryRow'
 
 /** File-tree layout: the whole folder hierarchy shown at once, folders expand/collapse, entries as
  *  leaf rows. No drill-down — everything is visible and navigable in place. */
-export default function TreeLayout({ folders, entries, leadingTiles, emptyMessage }: HomeLayoutViewProps): JSX.Element {
+export default function TreeLayout({ folders, entries, leadingItems, emptyMessage }: HomeLayoutViewProps): JSX.Element {
   const [collapsed, setCollapsed] = useState<Set<number>>(new Set())
   const tree = buildFolderTree(folders)
   const entriesByFolder = new Map<number | null, HomeEntry[]>()
@@ -17,7 +17,7 @@ export default function TreeLayout({ folders, entries, leadingTiles, emptyMessag
   }
 
   const rootEntries = entriesByFolder.get(null) ?? []
-  const isEmpty = tree.length === 0 && rootEntries.length === 0 && !leadingTiles
+  const isEmpty = tree.length === 0 && rootEntries.length === 0 && !leadingItems?.length
 
   function toggle(id: number): void {
     setCollapsed((prev) => {
@@ -62,7 +62,17 @@ export default function TreeLayout({ folders, entries, leadingTiles, emptyMessag
 
   return (
     <div className="home-tree">
-      {leadingTiles && <div className="home-tree-leading">{leadingTiles}</div>}
+      {leadingItems?.map((item) => (
+        <button
+          key={item.id}
+          type="button"
+          className="folder-tree-row home-selectable"
+          style={{ paddingLeft: 10 }}
+          onClick={item.onActivate}
+        >
+          <span className="folder-tree-toggle" />📁 {item.label}
+        </button>
+      ))}
       {tree.map((node) => renderFolder(node, 0))}
       {rootEntries.map((entry) => (
         <EntryRow key={entry.id} entry={entry} style={{ paddingLeft: 10 }} />

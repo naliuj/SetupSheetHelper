@@ -303,13 +303,17 @@ export default function Home(): JSX.Element {
           entries={templateEntries}
           selectedFolderId={selectedCustomFolderId}
           onSelectFolder={setSelectedCustomFolderId}
-          leadingTiles={
-            berkleeFeaturesEnabled && (
-              <button className="card clickable" onClick={() => setTemplateBrowse({ kind: 'berklee-root' })}>
-                <div className="card-title">📁 Berklee</div>
-                <div className="card-sub">Real Berklee studios</div>
-              </button>
-            )
+          leadingItems={
+            berkleeFeaturesEnabled
+              ? [
+                  {
+                    id: 'berklee',
+                    label: 'Berklee',
+                    meta: 'Real Berklee studios',
+                    onActivate: () => setTemplateBrowse({ kind: 'berklee-root' })
+                  }
+                ]
+              : undefined
           }
           headerAction={
             <div style={{ display: 'flex', gap: 8 }}>

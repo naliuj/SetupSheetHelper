@@ -23,14 +23,24 @@ export interface HomeEntry {
   secondaryAction?: { label: string; onClick: () => void }
 }
 
+/** A folder-like entry pinned at the top level that navigates elsewhere when clicked (the "Berklee"
+ *  browse portal). Each layout renders it in its own folder style so it matches the selection. */
+export interface HomeLeadingItem {
+  id: string
+  label: string
+  /** Secondary line — only shown where the layout has room (Blocks). */
+  meta?: string
+  onActivate: () => void
+}
+
 /** Props every layout view receives. Section chrome (title + headerAction) lives in HomeSection. */
 export interface HomeLayoutViewProps {
   folders: Folder[]
   entries: HomeEntry[]
   selectedFolderId: number | null
   onSelectFolder: (folderId: number | null) => void
-  /** Extra tile(s) for the top level only — e.g. the "Berklee" browse card. */
-  leadingTiles?: ReactNode
+  /** Top-level-only folder-style shortcuts (e.g. "Berklee"). */
+  leadingItems?: HomeLeadingItem[]
   emptyMessage?: string
 }
 

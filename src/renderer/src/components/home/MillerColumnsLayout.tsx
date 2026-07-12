@@ -7,7 +7,7 @@ import EntryRow from './EntryRow'
 export default function MillerColumnsLayout({
   folders,
   entries,
-  leadingTiles,
+  leadingItems,
   emptyMessage
 }: HomeLayoutViewProps): JSX.Element {
   // Selected folder id per column; column k's parent is path[k-1] (root for k=0).
@@ -15,7 +15,7 @@ export default function MillerColumnsLayout({
 
   const parentIds: (number | null)[] = [null, ...path]
 
-  const hasAnything = folders.length > 0 || entries.some((e) => e.folderId === null) || leadingTiles
+  const hasAnything = folders.length > 0 || entries.some((e) => e.folderId === null) || !!leadingItems?.length
   if (!hasAnything) return <div className="empty-state">{emptyMessage ?? 'Nothing here yet.'}</div>
 
   function selectFolder(columnIndex: number, folderId: number): void {
@@ -28,12 +28,23 @@ export default function MillerColumnsLayout({
         const childFolders = folders.filter((f) => f.parentFolderId === parentId)
         const childEntries = entries.filter((e) => e.folderId === parentId)
         const selectedInColumn = path[columnIndex] ?? null
+        const showLeading = columnIndex === 0 && !!leadingItems?.length
         const empty = childFolders.length === 0 && childEntries.length === 0
         return (
           <div className="miller-col" key={columnIndex}>
-            {columnIndex === 0 && leadingTiles && (
-              <div className="list-grid" style={{ marginBottom: 8 }}>{leadingTiles}</div>
-            )}
+            {showLeading &&
+              leadingItems!.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className="folder-tree-row home-selectable miller-folder"
+                  style={{ paddingLeft: 10 }}
+                  onClick={item.onActivate}
+                >
+                  <span className="miller-folder-name">📁 {item.label}</span>
+                  <span className="miller-folder-caret">›</span>
+                </button>
+              ))}
             {childFolders.map((folder) => (
               <button
                 key={folder.id}
@@ -51,7 +62,7 @@ export default function MillerColumnsLayout({
             {childEntries.map((entry) => (
               <EntryRow key={entry.id} entry={entry} />
             ))}
-            {empty && !(columnIndex === 0 && leadingTiles) && (
+            {empty && !showLeading && (
               <div className="empty-state" style={{ padding: 10, fontSize: 12 }}>
                 Empty
               </div>
