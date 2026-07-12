@@ -16,6 +16,7 @@ import type { PaletteItem } from './palette'
 import type { SetupColumnKey } from '../constants/setupColumns'
 import type {
   Folder,
+  FolderScope,
   RoomLayoutBlock,
   Setup,
   SetupItem,
@@ -284,6 +285,10 @@ export interface ChannelPresetCreateInput {
   name: string
   description: string | null
   items: ChannelPresetItemInput[]
+  /** Preset-folder to file a NEW preset under (its own namespace, separate from studio/setup
+   *  folders). Applies on create only — folder moves go through presets.moveToFolder. Omitted
+   *  leaves the preset unfiled. */
+  folderId?: number | null
 }
 
 export type PdfExportInclude = 'sheet' | 'layout' | 'both'
@@ -488,8 +493,8 @@ export interface RendererApi {
     disable(): Promise<void>
   }
   folders: {
-    list(): Promise<Folder[]>
-    create(name: string, parentFolderId: number | null): Promise<Folder>
+    list(scope: FolderScope): Promise<Folder[]>
+    create(name: string, parentFolderId: number | null, scope: FolderScope): Promise<Folder>
     rename(id: number, name: string): Promise<void>
     getDeleteImpact(id: number): Promise<FolderDeleteImpact>
     deleteRecursive(id: number): Promise<void>

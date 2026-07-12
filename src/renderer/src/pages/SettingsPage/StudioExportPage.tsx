@@ -19,7 +19,7 @@ export default function StudioExportPage({ onBack }: Props): JSX.Element {
     // Only custom studios support folders — the real building-bound studios are built-in app
     // content, not user-created studios meant to be shared/exported.
     window.api.studios.listCustom().then(setStudios)
-    window.api.folders.list().then(setFolders)
+    window.api.folders.list('studio').then(setFolders)
   }, [])
 
   const tree = useMemo(() => buildFolderTree(folders), [folders])

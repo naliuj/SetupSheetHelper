@@ -119,11 +119,11 @@ function insertItems(db: Database.Database, presetId: number, items: ChannelPres
 export function createChannelPreset(input: ChannelPresetCreateInput): ChannelPreset {
   const db = getDb()
   const create = db.transaction(() => {
-    // New presets append to the end of the (unfiled) list.
+    // New presets append to the end of the list (within their chosen folder, or the unfiled root).
     const maxSortOrder = (db.prepare('SELECT MAX(sort_order) m FROM channel_presets').get() as { m: number | null }).m
     const info = db
-      .prepare('INSERT INTO channel_presets (name, description, sort_order) VALUES (?, ?, ?)')
-      .run(input.name, input.description, (maxSortOrder ?? -1) + 1)
+      .prepare('INSERT INTO channel_presets (name, description, folder_id, sort_order) VALUES (?, ?, ?, ?)')
+      .run(input.name, input.description, input.folderId ?? null, (maxSortOrder ?? -1) + 1)
     const id = Number(info.lastInsertRowid)
     insertItems(db, id, input.items)
     return id

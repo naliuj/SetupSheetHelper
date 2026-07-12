@@ -18,6 +18,7 @@ import { run as paletteDefaultColors } from './016_palette_default_colors'
 import { run as channelPresetColor } from './017_channel_preset_color'
 import { run as setupVisibleColumns } from './018_setup_visible_columns'
 import { run as phantomPower } from './019_phantom_power'
+import { run as folderScope } from './020_folder_scope'
 
 export interface SqlMigration {
   version: number
@@ -50,5 +51,6 @@ export const MIGRATIONS: Migration[] = [
   { version: 16, run: paletteDefaultColors },
   { version: 17, run: channelPresetColor },
   { version: 18, run: setupVisibleColumns },
-  { version: 19, run: phantomPower }
+  { version: 19, run: phantomPower },
+  { version: 20, run: folderScope }
 ]

@@ -122,8 +122,9 @@ const api: RendererApi = {
     disable: () => ipcRenderer.invoke(IPC.berklee.disable)
   },
   folders: {
-    list: () => ipcRenderer.invoke(IPC.folders.list),
-    create: (name, parentFolderId) => ipcRenderer.invoke(IPC.folders.create, name, parentFolderId),
+    list: (scope) => ipcRenderer.invoke(IPC.folders.list, scope),
+    create: (name, parentFolderId, scope) =>
+      ipcRenderer.invoke(IPC.folders.create, name, parentFolderId, scope),
     rename: (id, name) => ipcRenderer.invoke(IPC.folders.rename, id, name),
     getDeleteImpact: (id) => ipcRenderer.invoke(IPC.folders.getDeleteImpact, id),
     deleteRecursive: (id) => ipcRenderer.invoke(IPC.folders.deleteRecursive, id),

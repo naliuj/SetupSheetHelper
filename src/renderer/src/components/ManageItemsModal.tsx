@@ -14,7 +14,7 @@ import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } 
 import { CSS } from '@dnd-kit/utilities'
 import type { Folder } from '@shared/types/setup'
 import type { FolderDeleteImpact } from '@shared/types/ipc'
-import { buildFolderTree } from '@renderer/state/folderTree'
+import { buildFolderTree, flattenFolderTreeForPicker } from '@renderer/state/folderTree'
 import { useEscapeToClose } from '@renderer/hooks/useEscapeToClose'
 import FolderTreeNode from './FolderTreeNode'
 
@@ -68,10 +68,54 @@ function RootFolderRow({
     <div
       ref={setNodeRef}
       className={`folder-tree-row ${selected ? 'selected' : ''} ${isOver ? 'drop-target' : ''}`}
+      style={{ paddingLeft: 10 }}
     >
       <span className="folder-tree-toggle" />
       <button className="folder-tree-label" onClick={onSelect}>
         (No folder)
+      </button>
+    </div>
+  )
+}
+
+/** A single flat folder row for search results — droppable and with the same select/CRUD actions
+ *  as a tree node, but no expand toggle or indentation (search flattens the hierarchy). */
+function FlatFolderRow({
+  id,
+  name,
+  selected,
+  onSelect,
+  onCreateSubfolder,
+  onRename,
+  onDelete
+}: {
+  id: number
+  name: string
+  selected: boolean
+  onSelect: () => void
+  onCreateSubfolder: () => void
+  onRename: () => void
+  onDelete: () => void
+}): JSX.Element {
+  const { isOver, setNodeRef } = useDroppable({ id: `folder-${id}` })
+  return (
+    <div
+      ref={setNodeRef}
+      className={`folder-tree-row ${selected ? 'selected' : ''} ${isOver ? 'drop-target' : ''}`}
+      style={{ paddingLeft: 10 }}
+    >
+      <span className="folder-tree-toggle" />
+      <button className="folder-tree-label" onClick={onSelect}>
+        📁 {name}
+      </button>
+      <button className="folder-tree-action" title="New Subfolder" onClick={onCreateSubfolder}>
+        +
+      </button>
+      <button className="folder-tree-action" title="Rename" onClick={onRename}>
+        ✎
+      </button>
+      <button className="folder-tree-action" title="Delete" onClick={onDelete}>
+        🗑
       </button>
     </div>
   )
@@ -144,6 +188,7 @@ export default function ManageItemsModal({
   onClose
 }: Props): JSX.Element {
   const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null)
+  const [folderQuery, setFolderQuery] = useState('')
   const [activeDndId, setActiveDndId] = useState<string | null>(null)
   const [folderDialog, setFolderDialog] = useState<FolderDialog | null>(null)
   const [dialogName, setDialogName] = useState('')
@@ -162,6 +207,11 @@ export default function ManageItemsModal({
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }))
   const tree = buildFolderTree(folders)
+  const showFolderSearch = folders.length > 5
+  const folderQ = folderQuery.trim().toLowerCase()
+  const searchMatches = folderQ
+    ? flattenFolderTreeForPicker(tree).filter((o) => o.folder.name.toLowerCase().includes(folderQ))
+    : []
   const itemsHere = items.filter((item) => item.folderId === selectedFolderId)
   const kinds = [...new Set(itemsHere.map((item) => item.kind))]
   const activeItem = activeDndId ? items.find((i) => `${i.kind}-${i.id}` === activeDndId) : null
@@ -262,22 +312,53 @@ export default function ManageItemsModal({
         >
           <div className="manage-layout">
             <div className="folder-tree-pane">
-              <RootFolderRow selected={selectedFolderId === null} onSelect={() => setSelectedFolderId(null)} />
-              {tree.map((node) => (
-                <FolderTreeNode
-                  key={node.id}
-                  node={node}
-                  depth={0}
-                  selectedFolderId={selectedFolderId}
-                  onSelect={setSelectedFolderId}
-                  onCreateSubfolder={openCreateDialog}
-                  onRename={openRenameDialog}
-                  onDelete={handleDeleteClick}
-                />
-              ))}
-              <button className="btn small" style={{ marginTop: 8 }} onClick={() => openCreateDialog(null)}>
-                + New folder
-              </button>
+              {showFolderSearch && (
+                <div className="folder-tree-search">
+                  <input
+                    placeholder="Search folders"
+                    value={folderQuery}
+                    onChange={(e) => setFolderQuery(e.target.value)}
+                    aria-label="Search folders"
+                  />
+                </div>
+              )}
+              {folderQ ? (
+                searchMatches.length > 0 ? (
+                  searchMatches.map(({ folder }) => (
+                    <FlatFolderRow
+                      key={folder.id}
+                      id={folder.id}
+                      name={folder.name}
+                      selected={selectedFolderId === folder.id}
+                      onSelect={() => setSelectedFolderId(folder.id)}
+                      onCreateSubfolder={() => openCreateDialog(folder.id)}
+                      onRename={() => openRenameDialog(folder.id, folder.name)}
+                      onDelete={() => handleDeleteClick(folder.id)}
+                    />
+                  ))
+                ) : (
+                  <div className="folder-picker-empty">No folders match “{folderQuery}”.</div>
+                )
+              ) : (
+                <>
+                  <RootFolderRow selected={selectedFolderId === null} onSelect={() => setSelectedFolderId(null)} />
+                  {tree.map((node) => (
+                    <FolderTreeNode
+                      key={node.id}
+                      node={node}
+                      depth={0}
+                      selectedFolderId={selectedFolderId}
+                      onSelect={setSelectedFolderId}
+                      onCreateSubfolder={openCreateDialog}
+                      onRename={openRenameDialog}
+                      onDelete={handleDeleteClick}
+                    />
+                  ))}
+                  <button className="btn small" style={{ marginTop: 8 }} onClick={() => openCreateDialog(null)}>
+                    + New folder
+                  </button>
+                </>
+              )}
             </div>
             <div className="manage-list-pane">
               {itemsHere.length === 0 ? (

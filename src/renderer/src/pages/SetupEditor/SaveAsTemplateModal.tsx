@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useFolderPicker } from '@renderer/state/useFolderPicker'
-import FolderPickerFields from '@renderer/components/FolderPickerFields'
+import FolderPicker from '@renderer/components/FolderPicker'
 import { useEscapeToClose } from '@renderer/hooks/useEscapeToClose'
 
 interface Props {
@@ -12,15 +12,15 @@ export default function SaveAsTemplateModal({ onClose, onSave }: Props): JSX.Ele
   useEscapeToClose(onClose)
   const [name, setName] = useState('')
   const [saving, setSaving] = useState(false)
-  const { folderOptions, selection, setSelection, newFolderName, setNewFolderName, resolveFolderId } =
-    useFolderPicker()
+  // Templates live alongside custom studios in grid 1 ("New Setup From Studio Template"), so their
+  // folders belong to the 'studio' namespace — not 'setup'.
+  const { folders, selectedFolderId, setSelectedFolderId, createFolder } = useFolderPicker('studio')
 
   async function handleSave(): Promise<void> {
     if (!name.trim()) return
     setSaving(true)
     try {
-      const folderId = await resolveFolderId()
-      await onSave(name.trim(), folderId)
+      await onSave(name.trim(), selectedFolderId)
       onClose()
     } finally {
       setSaving(false)
@@ -39,16 +39,16 @@ export default function SaveAsTemplateModal({ onClose, onSave }: Props): JSX.Ele
             placeholder="Studio name"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && !newFolderName && handleSave()}
+            onKeyDown={(e) => e.key === 'Enter' && handleSave()}
             autoFocus
           />
         </div>
-        <FolderPickerFields
-          folderOptions={folderOptions}
-          selection={selection}
-          onChangeSelection={setSelection}
-          newFolderName={newFolderName}
-          onChangeNewFolderName={setNewFolderName}
+        <div className="folder-picker-field-label">Folder</div>
+        <FolderPicker
+          folders={folders}
+          selectedFolderId={selectedFolderId}
+          onSelect={setSelectedFolderId}
+          onCreateFolder={createFolder}
         />
         <div className="modal-actions">
           <button className="btn" onClick={onClose}>

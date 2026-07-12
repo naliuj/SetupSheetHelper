@@ -89,7 +89,7 @@ export default function ImportGearModal({
   const [folders, setFolders] = useState<Folder[]>([])
 
   useEffect(() => {
-    window.api.folders.list().then(setFolders)
+    window.api.folders.list('studio').then(setFolders)
     window.api.studios.listCustom().then(setCustomStudios)
     window.api.buildings.list().then(async (list) => {
       setBuildings(list)
