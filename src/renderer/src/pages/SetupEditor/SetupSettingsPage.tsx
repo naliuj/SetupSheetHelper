@@ -22,27 +22,38 @@ export default function SetupSettingsPage({ setupId, onBack }: Props): JSX.Eleme
   const setFacultyReserveEnabled = useSetupStore((s) => s.setFacultyReserveEnabled)
   const berkleeFeaturesEnabled = useBerkleeFeaturesStore((s) => s.enabled)
 
+  // "General" only has content for Berklee users (the faculty reserve toggle) — when it's
+  // filtered out, Session Gear is the only tab left, so skip the tab strip entirely rather than
+  // showing a single, purposeless tab button. This also naturally handles Berklee features being
+  // turned off while "General" is the active tab: with no strip, the gear locker is forced back
+  // into view instead of leaving an empty panel behind.
+  const visibleTabs = TABS.filter((t) => t.key !== 'general' || berkleeFeaturesEnabled)
+  const showTabStrip = visibleTabs.length > 1
+  const activeTab = showTabStrip ? tab : 'gear'
+
   return (
     <div className="page">
       <div className="nav-crumbs">
         <button onClick={onBack}>Setup Editor</button> / Setup Settings
       </div>
       <h2>Setup settings</h2>
-      <div className="inline-form" style={{ marginTop: 0 }}>
-        {TABS.map((t) => (
-          <button
-            key={t.key}
-            className={`btn ${tab === t.key ? 'primary' : ''}`}
-            onClick={() => setTab(t.key)}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      {showTabStrip && (
+        <div className="inline-form" style={{ marginTop: 0 }}>
+          {visibleTabs.map((t) => (
+            <button
+              key={t.key}
+              className={`btn ${tab === t.key ? 'primary' : ''}`}
+              onClick={() => setTab(t.key)}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      )}
 
-      <div className="panel" style={{ marginTop: 16 }}>
-        {tab === 'gear' && <SetupGearLocker setupId={setupId} />}
-        {tab === 'general' && berkleeFeaturesEnabled && (
+      <div className="panel" style={{ marginTop: showTabStrip ? 16 : 0 }}>
+        {activeTab === 'gear' && <SetupGearLocker setupId={setupId} />}
+        {activeTab === 'general' && berkleeFeaturesEnabled && (
           <ToggleSwitch
             checked={facultyReserveEnabled}
             onChange={setFacultyReserveEnabled}

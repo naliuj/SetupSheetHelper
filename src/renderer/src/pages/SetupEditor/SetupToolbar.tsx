@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type Konva from 'konva'
 import { APP_SETTINGS_KEYS } from '@shared/types/entities'
 import type { MenuAction, PdfExportInclude } from '@shared/types/ipc'
@@ -53,6 +53,26 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode, onOpenSetti
   const sessionDateField = useBufferedField(sessionDate ?? '', (v) => setSessionDate(v || null))
   const engineerField = useBufferedField(engineer ?? '', (v) => setEngineer(v || null))
   const artistField = useBufferedField(artist ?? '', (v) => setArtist(v || null))
+
+  // Transient "✓ Saved" confirmation: today Saving… / Unsaved changes just vanish on success with
+  // no positive confirmation autosave landed. Fires on the isSaving true->false edge (only when
+  // the save actually succeeded, i.e. nothing re-dirtied it in the meantime), then self-clears.
+  const [justSaved, setJustSaved] = useState(false)
+  const wasSavingRef = useRef(false)
+  useEffect(() => {
+    if (wasSavingRef.current && !isSaving && !isDirty) {
+      setJustSaved(true)
+      const timer = setTimeout(() => setJustSaved(false), 2000)
+      wasSavingRef.current = isSaving
+      return () => clearTimeout(timer)
+    }
+    wasSavingRef.current = isSaving
+  }, [isSaving, isDirty])
+  // A fresh edit while the "Saved" confirmation is still showing should replace it with "Unsaved
+  // changes" immediately, rather than showing both at once for the rest of the 2s window.
+  useEffect(() => {
+    if (isDirty) setJustSaved(false)
+  }, [isDirty])
 
   async function handleSave(): Promise<void> {
     await save()
@@ -242,62 +262,41 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode, onOpenSetti
   return (
     <div className="top-bar" style={{ borderTop: '1px solid var(--color-border)' }}>
       <input
+        aria-label="Setup name"
         value={nameField.value}
         onChange={(e) => nameField.onChange(e.target.value)}
         onBlur={nameField.onBlur}
-        style={{
-          background: 'transparent',
-          border: 'none',
-          color: 'var(--color-text)',
-          fontSize: 14,
-          fontWeight: 600
-        }}
+        className="setup-name-input"
       />
       <input
+        aria-label="Session date"
         type="date"
         value={sessionDateField.value}
         onChange={(e) => sessionDateField.onChange(e.target.value)}
         onBlur={sessionDateField.onBlur}
-        style={{
-          background: 'var(--color-bg)',
-          border: '1px solid var(--color-border)',
-          color: 'var(--color-text)',
-          borderRadius: 4,
-          padding: '4px 6px'
-        }}
+        className="setup-meta-input"
       />
       <input
+        aria-label="Engineer"
         placeholder="Engineer"
         value={engineerField.value}
         onChange={(e) => engineerField.onChange(e.target.value)}
         onBlur={engineerField.onBlur}
-        style={{
-          background: 'var(--color-bg)',
-          border: '1px solid var(--color-border)',
-          color: 'var(--color-text)',
-          borderRadius: 4,
-          padding: '4px 6px',
-          width: 120
-        }}
+        className="setup-meta-input"
       />
       <input
+        aria-label="Artist"
         placeholder="Artist"
         value={artistField.value}
         onChange={(e) => artistField.onChange(e.target.value)}
         onBlur={artistField.onBlur}
-        style={{
-          background: 'var(--color-bg)',
-          border: '1px solid var(--color-border)',
-          color: 'var(--color-text)',
-          borderRadius: 4,
-          padding: '4px 6px',
-          width: 120
-        }}
+        className="setup-meta-input"
       />
       <div className="spacer" />
       {exportMessage && <span className="card-sub">{exportMessage}</span>}
       {isDirty && <span className="card-sub">Unsaved changes</span>}
       {isSaving && <span className="card-sub">Saving…</span>}
+      {!isSaving && !isDirty && justSaved && <span className="card-sub">✓ Saved</span>}
       {exporting && <span className="card-sub">Exporting…</span>}
       {setupId && (
         <button className="btn" onClick={onOpenSettings}>
