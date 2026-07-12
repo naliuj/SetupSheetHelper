@@ -11,6 +11,7 @@ import TableModeToolbar from './table/TableModeToolbar'
 import SelectionActionBar from './table/SelectionActionBar'
 import SetupToolbar from './SetupToolbar'
 import SetupSettingsPage from './SetupSettingsPage'
+import Toast from '@renderer/components/Toast'
 
 const AUTOSAVE_DELAY_MS = 1000
 
@@ -165,6 +166,7 @@ export default function SetupEditor(): JSX.Element {
           </Suspense>
         </div>
       </div>
+      <Toast />
     </div>
   )
 }

@@ -386,7 +386,9 @@ export default function LayoutStage({ studioId, stageRef, active }: Props): JSX.
           pointerEvents: 'none'
         }}
       >
-        Scroll to zoom · Space-drag to pan · Drag to select
+        {selectedBlockIds.size >= 2
+          ? `${selectedBlockIds.size} selected — drag to move together; resize one at a time`
+          : 'Scroll to zoom · Space-drag to pan · Drag to select'}
       </div>
       <Stage
         ref={stageRef}

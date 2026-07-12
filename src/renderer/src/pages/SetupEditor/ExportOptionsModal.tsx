@@ -2,6 +2,8 @@ import { useState } from 'react'
 import type { PdfExportInclude, PdfExportOrientation, PdfExportDensity } from '@shared/types/ipc'
 import { useEscapeToClose } from '@renderer/hooks/useEscapeToClose'
 import ToggleSwitch from '@renderer/components/ToggleSwitch'
+import { useSetupStore } from '@renderer/state/setupStore'
+import { TOGGLEABLE_COLUMNS } from '@shared/constants/setupColumns'
 
 export interface ExportOptions {
   include: PdfExportInclude
@@ -32,6 +34,11 @@ export default function ExportOptionsModal({
   const [orientation, setOrientation] = useState<PdfExportOrientation>('portrait')
   const [density, setDensity] = useState<PdfExportDensity>('normal')
   const [exporting, setExporting] = useState(false)
+
+  const visibleColumns = useSetupStore((s) => s.visibleColumns)
+  const setColumnVisibility = useSetupStore((s) => s.setColumnVisibility)
+  const visibleSet = new Set(visibleColumns)
+  const hiddenColumns = TOGGLEABLE_COLUMNS.filter((c) => !visibleSet.has(c.key))
 
   async function handleExport(): Promise<void> {
     const include: PdfExportInclude = includeSheet && includeLayout ? 'both' : includeSheet ? 'sheet' : 'layout'
@@ -66,6 +73,18 @@ export default function ExportOptionsModal({
         <p className="card-sub" style={{ margin: '0 0 12px 24px' }}>
           Tints rows by their color. Leave off for black-and-white printing.
         </p>
+
+        {includeSheet && hiddenColumns.length > 0 && (
+          <p style={{ margin: '0 0 12px', color: 'var(--color-warning)', fontSize: 13 }}>
+            Hidden columns won't appear on the sheet: {hiddenColumns.map((c) => c.label).join(', ')}.{' '}
+            <span
+              onClick={() => hiddenColumns.forEach((c) => setColumnVisibility(c.key, true))}
+              style={{ color: 'var(--color-accent)', cursor: 'pointer', fontWeight: 600 }}
+            >
+              Show them
+            </span>
+          </p>
+        )}
 
         <div style={{ display: 'flex', gap: 16, marginBottom: 4, opacity: includeSheet ? 1 : 0.5 }}>
           <label style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1 }}>

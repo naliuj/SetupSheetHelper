@@ -16,14 +16,19 @@ interface NavigationState {
   /** Table vs. Layout mode in the Setup Editor — lives here (not local component state) so it
    *  survives SetupEditor unmounting/remounting when the user detours through Settings. */
   editorMode: EditorMode
+  /** Which Settings tab to land on next time it opens — set by goToSettings(tab), consumed once
+   *  by SettingsPage's initial activeTab state and cleared so a later plain "Cmd+," open (or
+   *  clicking a tab button) doesn't keep bouncing back to it. */
+  settingsInitialTab: string | null
 
   goToHome(): void
   /** buildingId is null for custom (buildingless) studios. */
   goToSetup(buildingId: number | null, studioId: number, setupId: number | null): void
   goToStudioSetup(studioId: number | null): void
-  goToSettings(): void
+  goToSettings(initialTab?: string): void
   closeSettings(): void
   setEditorMode(mode: EditorMode): void
+  consumeSettingsInitialTab(): string | null
 }
 
 export const useNavigationStore = create<NavigationState>((set, get) => ({
@@ -34,14 +39,24 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
   studioSetupId: null,
   previousView: null,
   editorMode: 'table',
+  settingsInitialTab: null,
 
   goToHome: () => set({ view: 'home', setupId: null }),
   goToSetup: (buildingId, studioId, setupId) => set({ view: 'setup', buildingId, studioId, setupId }),
   goToStudioSetup: (studioId) => set({ view: 'studioSetup', studioSetupId: studioId }),
-  goToSettings: () => {
+  goToSettings: (initialTab) => {
     const current = get().view
-    set({ view: 'settings', previousView: current === 'settings' ? get().previousView : current })
+    set({
+      view: 'settings',
+      previousView: current === 'settings' ? get().previousView : current,
+      settingsInitialTab: initialTab ?? null
+    })
   },
   closeSettings: () => set({ view: get().previousView ?? 'home', previousView: null }),
-  setEditorMode: (mode) => set({ editorMode: mode })
+  setEditorMode: (mode) => set({ editorMode: mode }),
+  consumeSettingsInitialTab: () => {
+    const tab = get().settingsInitialTab
+    set({ settingsInitialTab: null })
+    return tab
+  }
 }))

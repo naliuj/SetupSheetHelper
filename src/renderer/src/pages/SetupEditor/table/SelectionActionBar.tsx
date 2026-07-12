@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useSetupStore } from '@renderer/state/setupStore'
+import { useKeybindPrefsStore } from '@renderer/state/keybindPrefsStore'
+import { formatCombo } from '@shared/constants/keybindActions'
 import Icon from '@renderer/components/Icon'
 import SwatchPicker from '@renderer/components/SwatchPicker'
 import SaveChannelPresetModal from './SaveChannelPresetModal'
@@ -23,6 +25,7 @@ export default function SelectionActionBar(): JSX.Element | null {
   const removeItems = useSetupStore((s) => s.removeItems)
   const clearSelection = useSetupStore((s) => s.clearSelection)
   const numberingFocusTick = useSetupStore((s) => s.numberingFocusTick)
+  const resolveKeybind = useKeybindPrefsStore((s) => s.resolve)
 
   const [field, setField] = useState<NumberingField>('channel')
   const [startText, setStartText] = useState('1')
@@ -125,6 +128,7 @@ export default function SelectionActionBar(): JSX.Element | null {
         className="btn small danger"
         onClick={() => removeItems([...selectedItemIds])}
         style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+        title={formatCombo(resolveKeybind('delete-selection-table'))}
       >
         <Icon name="trash" size={14} /> Delete
       </button>

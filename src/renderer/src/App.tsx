@@ -104,7 +104,7 @@ export default function App(): JSX.Element {
           Home
         </button>
         <div className="spacer" />
-        <button className="btn small" onClick={goToSettings}>
+        <button className="btn small" onClick={() => goToSettings()}>
           Settings
         </button>
       </div>

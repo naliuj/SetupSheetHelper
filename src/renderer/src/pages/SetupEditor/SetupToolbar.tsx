@@ -2,11 +2,11 @@ import { useEffect, useRef, useState } from 'react'
 import type Konva from 'konva'
 import { APP_SETTINGS_KEYS } from '@shared/types/entities'
 import type { MenuAction, PdfExportInclude } from '@shared/types/ipc'
-import { KEYBIND_ACTIONS, normalizeKeyEvent } from '@shared/constants/keybindActions'
+import { KEYBIND_ACTIONS, formatCombo, normalizeKeyEvent } from '@shared/constants/keybindActions'
 import { useSetupStore } from '@renderer/state/setupStore'
 import { useLayoutStore } from '@renderer/state/layoutStore'
 import { useKeybindPrefsStore } from '@renderer/state/keybindPrefsStore'
-import type { EditorMode } from '@renderer/state/navigationStore'
+import { useNavigationStore, type EditorMode } from '@renderer/state/navigationStore'
 import { exportStageToDataUrl } from './canvas/konvaExport'
 import SaveAsTemplateModal from './SaveAsTemplateModal'
 import ExportOptionsModal, { type ExportOptions } from './ExportOptionsModal'
@@ -53,6 +53,9 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode, onOpenSetti
   const [defaultExportInclude, setDefaultExportInclude] = useState<PdfExportInclude>('both')
   const [defaultExportColoredRows, setDefaultExportColoredRows] = useState(false)
   const [layoutGateOpen, setLayoutGateOpen] = useState(false)
+
+  const resolveKeybind = useKeybindPrefsStore((s) => s.resolve)
+  const goToSettings = useNavigationStore((s) => s.goToSettings)
 
   const nameField = useBufferedField(name, setName)
   const sessionDateField = useBufferedField(sessionDate ?? '', (v) => setSessionDate(v || null))
@@ -137,6 +140,8 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode, onOpenSetti
         await window.api.settings.set(APP_SETTINGS_KEYS.defaultPdfExportInclude, include)
         await window.api.settings.set(APP_SETTINGS_KEYS.defaultPdfExportColoredRows, coloredRows ? '1' : '0')
       }
+    } catch (err) {
+      setExportMessage(`Export failed — ${err instanceof Error ? err.message : 'please try again.'}`)
     } finally {
       setExporting(false)
     }
@@ -342,8 +347,16 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode, onOpenSetti
           Setup settings
         </button>
       )}
-      <button className="btn" onClick={requestToggleMode}>
+      <button className="btn" onClick={requestToggleMode} title={formatCombo(resolveKeybind('toggle-mode'))}>
         {mode === 'table' ? 'Layout Mode' : 'Table Mode'}
+      </button>
+      <button
+        className="btn"
+        onClick={() => goToSettings('keybinds')}
+        title="Keyboard shortcuts"
+        aria-label="Keyboard shortcuts"
+      >
+        ⌨
       </button>
       {templateModalOpen && (
         <SaveAsTemplateModal onClose={() => setTemplateModalOpen(false)} onSave={handleSaveAsTemplate} />

@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { temporal } from 'zundo'
 import type { RoomLayoutBlockDraft } from '@shared/types/setup'
 import { useSetupStore } from './setupStore'
+import { useToastStore } from './toastStore'
 
 function newDraftId(): string {
   return crypto.randomUUID()
@@ -141,7 +142,7 @@ export const useLayoutStore = create<LayoutState>()(
           }
         }),
 
-      removeBlocks: (ids) =>
+      removeBlocks: (ids) => {
         set((state) => {
           const idSet = new Set(ids)
           const selectedBlockIds = new Set([...state.selectedBlockIds].filter((id) => !idSet.has(id)))
@@ -150,7 +151,15 @@ export const useLayoutStore = create<LayoutState>()(
             selectedBlockIds,
             isDirty: true
           }
-        }),
+        })
+        if (ids.length > 0) {
+          useToastStore
+            .getState()
+            .show(`Deleted ${ids.length} block${ids.length === 1 ? '' : 's'}`, () =>
+              useLayoutStore.temporal.getState().undo()
+            )
+        }
+      },
 
       // Shifts every listed block by the same (dx, dy) — used for group-drag: dragging one
       // block that's part of a larger selection moves every other selected block along with it

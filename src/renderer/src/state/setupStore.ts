@@ -3,6 +3,7 @@ import { temporal } from 'zundo'
 import type { SetupItemDraft, SetupItemOutboardSlot, SetupWithItems } from '@shared/types/setup'
 import { ALL_COLUMN_KEYS, type SetupColumnKey } from '@shared/constants/setupColumns'
 import { useColumnPrefsStore } from './columnPrefsStore'
+import { useToastStore } from './toastStore'
 
 export interface UnresolvedGearHint {
   mic?: string
@@ -311,7 +312,7 @@ export const useSetupStore = create<SetupState>()(
 
   removeItem: (id) => get().removeItems([id]),
 
-  removeItems: (ids) =>
+  removeItems: (ids) => {
     set((state) => {
       const removing = new Set(ids)
       const selectedItemIds = new Set([...state.selectedItemIds].filter((id) => !removing.has(id)))
@@ -322,7 +323,13 @@ export const useSetupStore = create<SetupState>()(
           state.selectionAnchorId != null && removing.has(state.selectionAnchorId) ? null : state.selectionAnchorId,
         isDirty: true
       }
-    }),
+    })
+    if (ids.length > 0) {
+      useToastStore
+        .getState()
+        .show(`Deleted ${ids.length} row${ids.length === 1 ? '' : 's'}`, () => useSetupStore.temporal.getState().undo())
+    }
+  },
 
   // Duplicates every listed row in place (right after its original), mirroring layoutStore's
   // duplicateBlocks — selects the new copies afterward. Unlike blocks, rows have no x/y to

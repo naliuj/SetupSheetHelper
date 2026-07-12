@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useSetupStore } from '@renderer/state/setupStore'
+import { useKeybindPrefsStore } from '@renderer/state/keybindPrefsStore'
+import { formatCombo } from '@shared/constants/keybindActions'
 import { TOGGLEABLE_COLUMNS } from '@shared/constants/setupColumns'
 import Icon from '@renderer/components/Icon'
 import ToggleSwitch from '@renderer/components/ToggleSwitch'
@@ -17,6 +19,7 @@ export default function TableModeToolbar(): JSX.Element {
   const visibleColumns = useSetupStore((s) => s.visibleColumns)
   const setColumnVisibility = useSetupStore((s) => s.setColumnVisibility)
   const resetColumnsToDefault = useSetupStore((s) => s.resetColumnsToDefault)
+  const resolveKeybind = useKeybindPrefsStore((s) => s.resolve)
 
   const [sourceName, setSourceName] = useState('')
   const [presetsOpen, setPresetsOpen] = useState(false)
@@ -69,7 +72,7 @@ export default function TableModeToolbar(): JSX.Element {
           color: 'var(--color-text)'
         }}
       />
-      <button className="btn primary" onClick={handleAdd}>
+      <button className="btn primary" onClick={handleAdd} title={formatCombo(resolveKeybind('add-source'))}>
         Add source
       </button>
 
