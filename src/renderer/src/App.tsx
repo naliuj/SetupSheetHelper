@@ -6,6 +6,8 @@ import { usePaletteStore } from './state/paletteStore'
 import { useBerkleeFeaturesStore } from './state/berkleeFeaturesStore'
 import { useColumnPrefsStore } from './state/columnPrefsStore'
 import { usePdfLayoutPrefsStore } from './state/pdfLayoutPrefsStore'
+import { useKeybindPrefsStore } from './state/keybindPrefsStore'
+import { normalizeKeyEvent } from '@shared/constants/keybindActions'
 import Home from './pages/Home/Home'
 import SettingsPage from './pages/SettingsPage/SettingsPage'
 import SetupEditor from './pages/SetupEditor/SetupEditor'
@@ -58,12 +60,40 @@ export default function App(): JSX.Element {
     usePdfLayoutPrefsStore.getState().load()
   }, [])
 
-  // App-wide "Settings…" (Cmd+,) from the native menu. Handled here rather than in SetupToolbar
-  // so it works from any view, not just inside a setup.
+  // Load keybind customizations once at startup — read by both this file's own keydown listener
+  // below and SetupToolbar's, plus the Settings → Keybinds editor.
+  useEffect(() => {
+    useKeybindPrefsStore.getState().load()
+  }, [])
+
+  // App-wide "App Settings…" — mouse-click path (native menu item, still sends this MenuAction)
+  // stays wired here since Settings must be reachable from any view, not just inside an open
+  // setup (SetupToolbar's unified keybind dispatcher only exists inside the editor). The
+  // keyboard path is now a plain keydown match against the user's configured combo instead of a
+  // native Electron accelerator — see SetupToolbar.tsx for why (text-field safety + rebindability
+  // for every other action); this is the one action that needs its own copy of that match logic
+  // because it must work outside the editor too.
   useEffect(() => {
     return window.api.menu.onAction((action) => {
       if (action === 'open-settings') goToSettings()
     })
+  }, [goToSettings])
+
+  useEffect(() => {
+    function isTextField(target: EventTarget | null): boolean {
+      const el = target as HTMLElement | null
+      return !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)
+    }
+    function handleKeyDown(e: KeyboardEvent): void {
+      if (isTextField(e.target)) return
+      const combo = normalizeKeyEvent(e)
+      if (combo && combo === useKeybindPrefsStore.getState().resolve('open-settings')) {
+        e.preventDefault()
+        goToSettings()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
   }, [goToSettings])
 
   return (

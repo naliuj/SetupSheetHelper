@@ -152,13 +152,14 @@ export default function LayoutStage({ studioId, stageRef, active }: Props): JSX.
     updateBlockTransform(id, { x: node.x(), y: node.y(), width, height, rotation: node.rotation() })
   }
 
-  // Backspace/Delete removes every selected block, unless focus is in a text field. Space
-  // (tracked here too) toggles pan-drag mode for the canvas. Arrow keys nudge the selection by
-  // 1px (10px with Shift). All need preventDefault(): Space scrolls the page, Backspace can
-  // navigate back, arrows would otherwise scroll a scrollable ancestor. Duplicate (Cmd/Ctrl+D) is
-  // handled by the native Edit menu's "Duplicate" accelerator (SetupToolbar.tsx) instead of here,
-  // so a single keypress doesn't fire both this listener and the menu accelerator and duplicate
-  // twice.
+  // Space toggles pan-drag mode for the canvas; arrow keys nudge the selection by 1px (10px with
+  // Shift). Both are deliberately fixed/non-rebindable (universal creative-tool conventions, and
+  // arrow keys are too risky to remap given they're used for navigation elsewhere) — see
+  // KEYBIND_ACTIONS' doc comment for the actions that ARE user-rebindable. Delete/Backspace for
+  // removing selected blocks moved to SetupToolbar.tsx's unified keybind dispatcher (as
+  // `delete-selection-layout`) so every rebindable shortcut has one home; this listener now only
+  // owns the two fixed interactions. Both still need preventDefault(): Space scrolls the page,
+  // arrows would otherwise scroll a scrollable ancestor.
   useEffect(() => {
     function isTextField(target: EventTarget | null): boolean {
       const el = target as HTMLElement | null
@@ -172,14 +173,9 @@ export default function LayoutStage({ studioId, stageRef, active }: Props): JSX.
         return
       }
       if (selectedBlockIds.size === 0) return
-      if (e.key === 'Backspace' || e.key === 'Delete') {
-        e.preventDefault()
-        removeBlocks([...selectedBlockIds])
-        return
-      }
       // Arrow-key nudge — gated on `active` (Layout Mode actually visible) since the stage stays
       // mounted-but-hidden in Table Mode and a block selection can be left over from a prior
-      // visit; Delete/Backspace above is intentionally not gated the same way (pre-existing).
+      // visit.
       const isArrow = e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight'
       if (!isArrow || !active) return
       e.preventDefault()
@@ -213,7 +209,7 @@ export default function LayoutStage({ studioId, stageRef, active }: Props): JSX.
       window.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener('keyup', handleKeyUp)
     }
-  }, [selectedBlockIds, removeBlocks, active, blocks, imageSize, updateBlockTransform, moveBlocksBy])
+  }, [selectedBlockIds, active, blocks, imageSize, updateBlockTransform, moveBlocksBy])
 
   const renamingBlock = renamingBlockId != null ? blocks.find((b) => b.id === renamingBlockId) : null
 

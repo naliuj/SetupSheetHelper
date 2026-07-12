@@ -2,8 +2,10 @@ import { useEffect, useRef, useState } from 'react'
 import type Konva from 'konva'
 import { APP_SETTINGS_KEYS } from '@shared/types/entities'
 import type { MenuAction, PdfExportInclude } from '@shared/types/ipc'
+import { KEYBIND_ACTIONS, normalizeKeyEvent } from '@shared/constants/keybindActions'
 import { useSetupStore } from '@renderer/state/setupStore'
 import { useLayoutStore } from '@renderer/state/layoutStore'
+import { useKeybindPrefsStore } from '@renderer/state/keybindPrefsStore'
 import type { EditorMode } from '@renderer/state/navigationStore'
 import { exportStageToDataUrl } from './canvas/konvaExport'
 import SaveAsTemplateModal from './SaveAsTemplateModal'
@@ -201,75 +203,73 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode, onOpenSetti
     else setLayoutGateOpen(true)
   }
 
-  // These actions live in the native File/Edit menus (Save Setup / Save as Studio / Export
-  // PDF / Toggle Mode / Add Source / Delete Selection / Duplicate / Zoom / Setup settings / Undo /
-  // Redo)
-  // instead of toolbar buttons — this listener only exists while a setup is open, so the menu
-  // items are harmless no-ops from any other screen. Re-subscribes on `mode`/`selectedItemIds`/
-  // `selectedBlockIds`/`studioId` change so the toggle, delete, and duplicate cases always act on
-  // current state, not a stale value captured at mount.
+  // One handler per rebindable action (see KEYBIND_ACTIONS), shared by both dispatch paths below:
+  // the native menu's mouse-click IPC message, and the keyboard shortcut matcher. `open-settings`
+  // isn't here — it's handled in App.tsx since it must work from any screen, not just inside an
+  // open setup. Recreated each render (cheap) so both effects' closures see current state without
+  // needing every dependency spelled out per-key.
+  const handlers: Record<string, () => void> = {
+    'save-setup': handleSave,
+    'save-as-studio': () => setTemplateModalOpen(true),
+    'export-pdf': handleExport,
+    'toggle-mode': requestToggleMode,
+    'add-source': () => addItem(GENERIC_INSTRUMENT_TYPE, { sourceName: 'Untitled Source' }),
+    'select-all': handleSelectAll,
+    'delete-selection': () => {
+      if (mode === 'table' && selectedItemIds.size > 0) removeItems([...selectedItemIds])
+      else if (mode === 'layout' && selectedBlockIds.size > 0) removeBlocks([...selectedBlockIds])
+    },
+    'duplicate-selection': () => {
+      if (mode === 'layout' && selectedBlockIds.size > 0) duplicateBlocks([...selectedBlockIds])
+      else if (mode === 'table' && selectedItemIds.size > 0) duplicateItems([...selectedItemIds])
+    },
+    'sequential-numbering': () => {
+      if (mode === 'table') focusNumbering()
+    },
+    'zoom-in': () => {
+      if (mode === 'layout') useLayoutStore.getState().zoomIn()
+    },
+    'zoom-out': () => {
+      if (mode === 'layout') useLayoutStore.getState().zoomOut()
+    },
+    'reset-view': () => {
+      if (mode === 'layout') useLayoutStore.getState().resetView()
+    },
+    'open-setup-settings': onOpenSettings,
+    undo: () => handleUndoRedo('undo'),
+    redo: () => handleUndoRedo('redo'),
+    'clear-selection': () => {
+      if (mode === 'table') clearSelection()
+      else selectBlock(null)
+    },
+    'delete-selection-table': () => {
+      if (mode === 'table' && selectedItemIds.size > 0) removeItems([...selectedItemIds])
+    },
+    'delete-selection-layout': () => {
+      if (mode === 'layout' && selectedBlockIds.size > 0) removeBlocks([...selectedBlockIds])
+    }
+  }
+
+  // Mouse-click path: the native menu's items still send these over IPC when clicked — this
+  // listener only exists while a setup is open, so the menu items are harmless no-ops from any
+  // other screen. The menu no longer carries live `accelerator`s (see menu.ts and the Settings →
+  // Keybinds tab), so this switch only fires from an actual click now, never a keypress.
   useEffect(() => {
     return window.api.menu.onAction((action: MenuAction) => {
-      switch (action) {
-        case 'save-setup':
-          handleSave()
-          break
-        case 'save-as-studio':
-          setTemplateModalOpen(true)
-          break
-        case 'export-pdf':
-          handleExport()
-          break
-        case 'toggle-mode':
-          requestToggleMode()
-          break
-        case 'add-source':
-          addItem(GENERIC_INSTRUMENT_TYPE, { sourceName: 'Untitled Source' })
-          break
-        case 'select-all':
-          handleSelectAll()
-          break
-        case 'delete-selection':
-          if (mode === 'table' && selectedItemIds.size > 0) removeItems([...selectedItemIds])
-          else if (mode === 'layout' && selectedBlockIds.size > 0) removeBlocks([...selectedBlockIds])
-          break
-        case 'duplicate-selection':
-          if (mode === 'layout' && selectedBlockIds.size > 0) duplicateBlocks([...selectedBlockIds])
-          else if (mode === 'table' && selectedItemIds.size > 0) duplicateItems([...selectedItemIds])
-          break
-        case 'sequential-numbering':
-          if (mode === 'table') focusNumbering()
-          break
-        case 'zoom-in':
-          if (mode === 'layout') useLayoutStore.getState().zoomIn()
-          break
-        case 'zoom-out':
-          if (mode === 'layout') useLayoutStore.getState().zoomOut()
-          break
-        case 'reset-view':
-          if (mode === 'layout') useLayoutStore.getState().resetView()
-          break
-        case 'open-setup-settings':
-          onOpenSettings()
-          break
-        case 'undo':
-          handleUndoRedo('undo')
-          break
-        case 'redo':
-          handleUndoRedo('redo')
-          break
-      }
+      handlers[action]?.()
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, selectedItemIds, selectedBlockIds, studioId, onOpenSettings])
 
-  // Bare Delete/Backspace and Escape, mirroring LayoutStage.tsx's canvas-scoped keydown handler
-  // but for table-mode row selection (which has no canvas component of its own to live in).
-  // Delete/Backspace only acts with no modifier held, so Cmd/Ctrl+Backspace (the existing menu
-  // accelerator, routed through the 'delete-selection' case above) doesn't fire this a second
-  // time and double-delete. Escape clears whichever mode's selection is active; modals close
-  // independently via their own useEscapeToClose listener, so both can fire on the same keypress
-  // — an accepted simplification, not a bug.
+  // Keyboard path: matches every KEYBIND_ACTIONS entry (except open-settings, see above) against
+  // its user-configured (or default) combo. isTextField bails out before matching ANY action —
+  // this is a deliberate behavior change from the old native-accelerator Cmd/Ctrl+Backspace,
+  // which used to fire even mid-edit in a text field (Electron accelerators can't see DOM focus);
+  // routing it through here instead makes it respect text-field focus like bare Delete already
+  // did, which is strictly safer. Undo/Redo/Select All specifically WANT to no-op here while a
+  // text field is focused, since without a native accelerator claiming the key, the browser's own
+  // built-in text-field undo/redo/select-all behavior applies for free — see handleUndoRedo/
+  // handleSelectAll's own comments for the mouse-click-path half of that story.
   useEffect(() => {
     function isTextField(target: EventTarget | null): boolean {
       const el = target as HTMLElement | null
@@ -277,20 +277,26 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode, onOpenSetti
     }
     function handleKeyDown(e: KeyboardEvent): void {
       if (isTextField(e.target)) return
-      if (e.key === 'Escape') {
-        if (mode === 'table') clearSelection()
-        else selectBlock(null)
+      const combo = normalizeKeyEvent(e)
+      if (!combo) return
+      const { resolve } = useKeybindPrefsStore.getState()
+      for (const action of KEYBIND_ACTIONS) {
+        if (action.id === 'open-settings') continue
+        if (action.scope === 'table' && mode !== 'table') continue
+        if (action.scope === 'layout' && mode !== 'layout') continue
+        if (resolve(action.id) !== combo) continue
+        const handler = handlers[action.id]
+        if (handler) {
+          e.preventDefault()
+          handler()
+        }
         return
-      }
-      if (e.metaKey || e.ctrlKey) return
-      if ((e.key === 'Backspace' || e.key === 'Delete') && mode === 'table' && selectedItemIds.size > 0) {
-        e.preventDefault()
-        removeItems([...selectedItemIds])
       }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [mode, selectedItemIds, removeItems, clearSelection, selectBlock])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, selectedItemIds, selectedBlockIds, studioId, onOpenSettings])
 
   return (
     <div className="top-bar" style={{ borderTop: '1px solid var(--color-border)' }}>
