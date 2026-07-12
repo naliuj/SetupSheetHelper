@@ -35,6 +35,7 @@ interface ChannelPresetItemRow {
   cue_box: number | null
   polarity_flip: number | null
   notes: string | null
+  color: string | null
 }
 
 function mapPreset(row: ChannelPresetRow): ChannelPreset {
@@ -66,7 +67,8 @@ function mapItem(row: ChannelPresetItemRow): ChannelPresetItem {
     tieLine: row.tie_line,
     cueBox: row.cue_box,
     polarityFlip: row.polarity_flip == null ? null : row.polarity_flip === 1,
-    notes: row.notes
+    notes: row.notes,
+    color: row.color
   }
 }
 
@@ -89,8 +91,8 @@ export function getChannelPresetWithItems(id: number): ChannelPresetWithItems | 
 function insertItems(db: Database.Database, presetId: number, items: ChannelPresetItemInput[]): void {
   const insert = db.prepare(
     `INSERT INTO channel_preset_items
-      (preset_id, sort_order, instrument_type, source_name, mic_name, mic_manufacturer, outboard_name, outboard_manufacturer, preamp_name, preamp_manufacturer, channel, tie_line, cue_box, polarity_flip, notes)
-     VALUES (@presetId, @sortOrder, @instrumentType, @sourceName, @micName, @micManufacturer, @outboardName, @outboardManufacturer, @preampName, @preampManufacturer, @channel, @tieLine, @cueBox, @polarityFlip, @notes)`
+      (preset_id, sort_order, instrument_type, source_name, mic_name, mic_manufacturer, outboard_name, outboard_manufacturer, preamp_name, preamp_manufacturer, channel, tie_line, cue_box, polarity_flip, notes, color)
+     VALUES (@presetId, @sortOrder, @instrumentType, @sourceName, @micName, @micManufacturer, @outboardName, @outboardManufacturer, @preampName, @preampManufacturer, @channel, @tieLine, @cueBox, @polarityFlip, @notes, @color)`
   )
   items.forEach((item, index) => {
     insert.run({
@@ -108,7 +110,8 @@ function insertItems(db: Database.Database, presetId: number, items: ChannelPres
       tieLine: item.tieLine,
       cueBox: item.cueBox,
       polarityFlip: item.polarityFlip == null ? null : item.polarityFlip ? 1 : 0,
-      notes: item.notes
+      notes: item.notes,
+      color: item.color
     })
   })
 }

@@ -28,6 +28,7 @@ export interface ResolvedChannelPresetItem {
   cueBox: number | null
   polarityFlip: boolean | null
   notes: string | null
+  color: string | null
   unresolvedMicName?: string
   unresolvedOutboardName?: string
   unresolvedPreampName?: string
@@ -396,7 +397,7 @@ export const useSetupStore = create<SetupState>()(
           preampText: item.preampName,
           polarityFlip: item.polarityFlip ?? false,
           notes: item.notes,
-          color: null
+          color: item.color ?? null
         })
         if (item.unresolvedMicName || item.unresolvedOutboardName || item.unresolvedPreampName) {
           hints.set(id, {
