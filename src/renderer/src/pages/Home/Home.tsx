@@ -4,7 +4,8 @@ import type { Folder, FolderScope, Setup } from '@shared/types/setup'
 import type { FolderDeleteImpact } from '@shared/types/ipc'
 import { useNavigationStore } from '@renderer/state/navigationStore'
 import { useBerkleeFeaturesStore } from '@renderer/state/berkleeFeaturesStore'
-import FolderGroupedGrid from '@renderer/components/FolderGroupedGrid'
+import { useHomeLayoutStore } from '@renderer/state/homeLayoutStore'
+import HomeSection, { type HomeEntry } from '@renderer/components/home/HomeSection'
 import NewSetupModal, { type NewSetupDetails } from '@renderer/components/NewSetupModal'
 import ManageItemsModal, { type ManagedItem } from '@renderer/components/ManageItemsModal'
 
@@ -24,6 +25,7 @@ export default function Home(): JSX.Element {
   const goToSetup = useNavigationStore((s) => s.goToSetup)
   const goToStudioSetup = useNavigationStore((s) => s.goToStudioSetup)
   const berkleeFeaturesEnabled = useBerkleeFeaturesStore((s) => s.enabled)
+  const homeLayout = useHomeLayoutStore((s) => s.layout)
 
   const [customStudios, setCustomStudios] = useState<Studio[]>([])
   const [customTemplates, setCustomTemplates] = useState<Setup[]>([])
@@ -121,32 +123,39 @@ export default function Home(): JSX.Element {
     ...customTemplates.map((data): CustomStudioItem => ({ kind: 'template', data }))
   ]
 
-  function renderStudioCard(studio: Studio): JSX.Element {
-    return (
-      <div key={`studio-${studio.id}`} className="card">
-        <button
-          className="clickable"
-          style={{ background: 'none', border: 'none', color: 'inherit', textAlign: 'left', padding: 0, width: '100%' }}
-          onClick={() => setPendingSelection({ buildingId: studio.buildingId, studioId: studio.id })}
-        >
-          <div className="card-title">🎛 {studio.name}</div>
-          <div className="card-sub">Studio</div>
-        </button>
-        <button className="btn small" style={{ marginTop: 6 }} onClick={() => goToStudioSetup(studio.id)}>
-          Edit inventory
-        </button>
-      </div>
-    )
-  }
+  // Normalized entries for the studio-template section (custom studios + templates), rendered by
+  // whichever home layout is active. Studios carry an "Edit inventory" secondary action.
+  const templateEntries: HomeEntry[] = customStudioItems.map((item) =>
+    item.kind === 'studio'
+      ? {
+          id: `studio-${item.data.id}`,
+          kind: 'studio',
+          folderId: item.data.folderId,
+          label: item.data.name,
+          meta: 'Studio',
+          icon: '🎛',
+          onActivate: () => setPendingSelection({ buildingId: item.data.buildingId, studioId: item.data.id }),
+          secondaryAction: { label: 'Edit inventory', onClick: () => goToStudioSetup(item.data.id) }
+        }
+      : {
+          id: `template-${item.data.id}`,
+          kind: 'template',
+          folderId: item.data.folderId,
+          label: item.data.name,
+          meta: 'Gear list',
+          icon: '📄',
+          onActivate: () => openCustomTemplate(item.data)
+        }
+  )
 
-  function renderTemplateCard(template: Setup): JSX.Element {
-    return (
-      <button key={`template-${template.id}`} className="card clickable" onClick={() => openCustomTemplate(template)}>
-        <div className="card-title">📄 {template.name}</div>
-        <div className="card-sub">Gear list</div>
-      </button>
-    )
-  }
+  const setupEntries: HomeEntry[] = savedSetups.map((setup) => ({
+    id: `setup-${setup.id}`,
+    kind: 'setup',
+    folderId: setup.folderId,
+    label: setup.name,
+    meta: setup.sessionDate ?? 'no date',
+    onActivate: () => openSavedSetup(setup)
+  }))
 
   function renderBerkleeStudioCard(studio: Studio): JSX.Element {
     return (
@@ -157,19 +166,6 @@ export default function Home(): JSX.Element {
       >
         <div className="card-title">🎛 {studio.name}</div>
         <div className="card-sub">Berklee Studio</div>
-      </button>
-    )
-  }
-
-  function renderSavedSetupCard(setup: Setup): JSX.Element {
-    return (
-      <button
-        key={`setup-${setup.id}`}
-        className="card clickable"
-        onClick={() => openSavedSetup(setup)}
-      >
-        <div className="card-title">{setup.name}</div>
-        <div className="card-sub">{setup.sessionDate ?? 'no date'}</div>
       </button>
     )
   }
@@ -300,12 +296,11 @@ export default function Home(): JSX.Element {
       )}
 
       {templateBrowse.kind === 'normal' && (
-        <FolderGroupedGrid
+        <HomeSection
           title={templateSectionTitle}
+          layout={homeLayout}
           folders={studioFolders}
-          items={customStudioItems}
-          getFolderId={(item) => item.data.folderId}
-          renderItem={(item) => (item.kind === 'studio' ? renderStudioCard(item.data) : renderTemplateCard(item.data))}
+          entries={templateEntries}
           selectedFolderId={selectedCustomFolderId}
           onSelectFolder={setSelectedCustomFolderId}
           leadingTiles={
@@ -329,12 +324,11 @@ export default function Home(): JSX.Element {
         />
       )}
 
-      <FolderGroupedGrid
+      <HomeSection
         title="Saved Setups"
+        layout={homeLayout}
         folders={setupFolders}
-        items={savedSetups}
-        getFolderId={(setup) => setup.folderId}
-        renderItem={renderSavedSetupCard}
+        entries={setupEntries}
         selectedFolderId={selectedSetupFolderId}
         onSelectFolder={setSelectedSetupFolderId}
         emptyMessage="No saved setups in this folder yet."
