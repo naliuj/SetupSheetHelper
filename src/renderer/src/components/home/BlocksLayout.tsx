@@ -8,15 +8,13 @@ export default function BlocksLayout({
   entries,
   selectedFolderId,
   onSelectFolder,
-  leadingItems,
   emptyMessage
 }: HomeLayoutViewProps): JSX.Element {
   const childFolders = folders.filter((f) => f.parentFolderId === selectedFolderId)
   const entriesHere = entries.filter((e) => e.folderId === selectedFolderId)
   const ancestry = selectedFolderId != null ? folderAncestry(folders, selectedFolderId) : []
   const atTopLevel = selectedFolderId === null
-  const showLeading = atTopLevel && !!leadingItems?.length
-  const showEmpty = childFolders.length === 0 && entriesHere.length === 0 && !showLeading
+  const showEmpty = childFolders.length === 0 && entriesHere.length === 0
 
   return (
     <>
@@ -39,13 +37,6 @@ export default function BlocksLayout({
         <div className="empty-state">{emptyMessage ?? 'Nothing here yet.'}</div>
       ) : (
         <div className="list-grid">
-          {showLeading &&
-            leadingItems!.map((item) => (
-              <button key={item.id} className="card clickable" onClick={item.onActivate}>
-                <div className="card-title">📁 {item.label}</div>
-                {item.meta && <div className="card-sub">{item.meta}</div>}
-              </button>
-            ))}
           {childFolders.map((folder) => (
             <button key={folder.id} className="card clickable" onClick={() => onSelectFolder(folder.id)}>
               <div className="card-title">📁 {folder.name}</div>

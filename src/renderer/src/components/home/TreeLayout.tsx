@@ -6,7 +6,7 @@ import EntryRow from './EntryRow'
 
 /** File-tree layout: the whole folder hierarchy shown at once, folders expand/collapse, entries as
  *  leaf rows. No drill-down — everything is visible and navigable in place. */
-export default function TreeLayout({ folders, entries, leadingItems, emptyMessage }: HomeLayoutViewProps): JSX.Element {
+export default function TreeLayout({ folders, entries, emptyMessage }: HomeLayoutViewProps): JSX.Element {
   const [collapsed, setCollapsed] = useState<Set<number>>(new Set())
   const tree = buildFolderTree(folders)
   const entriesByFolder = new Map<number | null, HomeEntry[]>()
@@ -17,7 +17,7 @@ export default function TreeLayout({ folders, entries, leadingItems, emptyMessag
   }
 
   const rootEntries = entriesByFolder.get(null) ?? []
-  const isEmpty = tree.length === 0 && rootEntries.length === 0 && !leadingItems?.length
+  const isEmpty = tree.length === 0 && rootEntries.length === 0
 
   function toggle(id: number): void {
     setCollapsed((prev) => {
@@ -34,18 +34,16 @@ export default function TreeLayout({ folders, entries, leadingItems, emptyMessag
     const hasChildren = node.children.length > 0 || childEntries.length > 0
     return (
       <div key={node.id}>
-        <div className="folder-tree-row" style={{ paddingLeft: 10 + depth * 16 }}>
-          {hasChildren ? (
-            <button className="folder-tree-toggle" onClick={() => toggle(node.id)}>
-              {isCollapsed ? '▸' : '▾'}
-            </button>
-          ) : (
-            <span className="folder-tree-toggle" />
-          )}
-          <span className="folder-tree-label" style={{ cursor: 'default' }}>
-            📁 {node.name}
-          </span>
-        </div>
+        <button
+          type="button"
+          className="folder-tree-row home-selectable"
+          style={{ paddingLeft: 10 + depth * 16 }}
+          onClick={() => hasChildren && toggle(node.id)}
+          aria-expanded={hasChildren ? !isCollapsed : undefined}
+        >
+          <span className="folder-tree-toggle">{hasChildren ? (isCollapsed ? '▸' : '▾') : ''}</span>
+          📁 {node.name}
+        </button>
         {!isCollapsed && (
           <>
             {node.children.map((child) => renderFolder(child, depth + 1))}
@@ -62,17 +60,6 @@ export default function TreeLayout({ folders, entries, leadingItems, emptyMessag
 
   return (
     <div className="home-tree">
-      {leadingItems?.map((item) => (
-        <button
-          key={item.id}
-          type="button"
-          className="folder-tree-row home-selectable"
-          style={{ paddingLeft: 10 }}
-          onClick={item.onActivate}
-        >
-          <span className="folder-tree-toggle" />📁 {item.label}
-        </button>
-      ))}
       {tree.map((node) => renderFolder(node, 0))}
       {rootEntries.map((entry) => (
         <EntryRow key={entry.id} entry={entry} style={{ paddingLeft: 10 }} />

@@ -23,24 +23,12 @@ export interface HomeEntry {
   secondaryAction?: { label: string; onClick: () => void }
 }
 
-/** A folder-like entry pinned at the top level that navigates elsewhere when clicked (the "Berklee"
- *  browse portal). Each layout renders it in its own folder style so it matches the selection. */
-export interface HomeLeadingItem {
-  id: string
-  label: string
-  /** Secondary line — only shown where the layout has room (Blocks). */
-  meta?: string
-  onActivate: () => void
-}
-
 /** Props every layout view receives. Section chrome (title + headerAction) lives in HomeSection. */
 export interface HomeLayoutViewProps {
   folders: Folder[]
   entries: HomeEntry[]
   selectedFolderId: number | null
   onSelectFolder: (folderId: number | null) => void
-  /** Top-level-only folder-style shortcuts (e.g. "Berklee"). */
-  leadingItems?: HomeLeadingItem[]
   emptyMessage?: string
 }
 
@@ -48,13 +36,11 @@ interface Props extends HomeLayoutViewProps {
   title: string
   layout: HomeLayout
   headerAction?: ReactNode
-  /** Optional breadcrumb row under the title (e.g. the "exit Berklee" trail). */
-  crumbs?: ReactNode
 }
 
 /** Renders a home section (studios/templates or saved setups) in the user's chosen layout. Shared
  *  header (title + Manage/New buttons); the body is delegated to the active layout component. */
-export default function HomeSection({ title, layout, headerAction, crumbs, ...view }: Props): JSX.Element {
+export default function HomeSection({ title, layout, headerAction, ...view }: Props): JSX.Element {
   const View =
     layout === 'tree'
       ? TreeLayout
@@ -73,7 +59,6 @@ export default function HomeSection({ title, layout, headerAction, crumbs, ...vi
         <span>{title}</span>
         {headerAction}
       </div>
-      {crumbs && <div className="nav-crumbs">{crumbs}</div>}
       <View {...view} />
     </div>
   )
