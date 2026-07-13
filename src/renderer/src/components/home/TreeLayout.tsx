@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { ChevronDown, ChevronRight, Folder } from 'lucide-react'
 import type { FolderTreeNode } from '@shared/types/setup'
 import { buildFolderTree } from '@renderer/state/folderTree'
 import type { HomeEntry, HomeLayoutViewProps } from './HomeSection'
@@ -41,8 +42,11 @@ export default function TreeLayout({ folders, entries, emptyMessage }: HomeLayou
           onClick={() => hasChildren && toggle(node.id)}
           aria-expanded={hasChildren ? !isCollapsed : undefined}
         >
-          <span className="folder-tree-toggle">{hasChildren ? (isCollapsed ? '▸' : '▾') : ''}</span>
-          📁 {node.name}
+          <span className="folder-tree-toggle">
+            {hasChildren && (isCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />)}
+          </span>
+          <Folder className="home-icon" size={15} aria-hidden="true" />
+          <span className="folder-tree-name">{node.name}</span>
         </button>
         {!isCollapsed && (
           <>

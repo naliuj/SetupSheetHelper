@@ -590,11 +590,35 @@ table.data-table td select {
 .folder-tree-toggle {
   width: 16px;
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: none;
   border: none;
   color: var(--color-text-dim);
   cursor: pointer;
   padding: 0;
+}
+
+/* Lucide icons on the home screen: keep them from shrinking, and let folder/entry name text
+ * ellipsis around them. Icons inherit the row's text color; chevrons/carets stay dim via their
+ * own dim containers. */
+.home-icon {
+  flex-shrink: 0;
+}
+
+.card-title-icon {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.folder-tree-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .folder-tree-label {

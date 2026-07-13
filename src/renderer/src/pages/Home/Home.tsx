@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { SlidersHorizontal, FileText } from 'lucide-react'
 import type { Building, Studio } from '@shared/types/entities'
 import type { Folder, FolderScope, Setup } from '@shared/types/setup'
 import type { FolderDeleteImpact } from '@shared/types/ipc'
@@ -139,7 +140,7 @@ export default function Home(): JSX.Element {
           folderId: item.data.folderId,
           label: item.data.name,
           meta: 'Studio',
-          icon: '🎛',
+          icon: SlidersHorizontal,
           onActivate: () => setPendingSelection({ buildingId: item.data.buildingId, studioId: item.data.id }),
           secondaryAction: { label: 'Edit inventory', onClick: () => goToStudioSetup(item.data.id) }
         }
@@ -149,7 +150,7 @@ export default function Home(): JSX.Element {
           folderId: item.data.folderId,
           label: item.data.name,
           meta: 'Gear list',
-          icon: '📄',
+          icon: FileText,
           onActivate: () => openCustomTemplate(item.data)
         }
   )
@@ -189,7 +190,7 @@ export default function Home(): JSX.Element {
       folderId: berkleeBuildingFolderId(studio.buildingId),
       label: studio.name,
       meta: 'Berklee Studio',
-      icon: '🎛',
+      icon: SlidersHorizontal,
       onActivate: () => setPendingSelection({ buildingId: studio.buildingId, studioId: studio.id })
     }))
 

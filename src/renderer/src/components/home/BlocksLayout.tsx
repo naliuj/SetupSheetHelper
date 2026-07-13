@@ -1,3 +1,4 @@
+import { Folder } from 'lucide-react'
 import { folderAncestry } from '@renderer/state/folderTree'
 import type { HomeEntry, HomeLayoutViewProps } from './HomeSection'
 
@@ -39,7 +40,10 @@ export default function BlocksLayout({
         <div className="list-grid">
           {childFolders.map((folder) => (
             <button key={folder.id} className="card clickable" onClick={() => onSelectFolder(folder.id)}>
-              <div className="card-title">📁 {folder.name}</div>
+              <div className="card-title card-title-icon">
+                <Folder size={16} aria-hidden="true" />
+                {folder.name}
+              </div>
             </button>
           ))}
           {entriesHere.map((entry) => (
@@ -54,7 +58,10 @@ export default function BlocksLayout({
 function EntryCard({ entry }: { entry: HomeEntry }): JSX.Element {
   const title = (
     <>
-      <div className="card-title">{entry.icon ? `${entry.icon} ${entry.label}` : entry.label}</div>
+      <div className={`card-title${entry.icon ? ' card-title-icon' : ''}`}>
+        {entry.icon && <entry.icon size={16} aria-hidden="true" />}
+        {entry.label}
+      </div>
       {entry.meta && <div className="card-sub">{entry.meta}</div>}
     </>
   )

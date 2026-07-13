@@ -1,3 +1,4 @@
+import { Folder, Folders } from 'lucide-react'
 import { buildFolderTree, flattenFolderTreeForPicker } from '@renderer/state/folderTree'
 import type { HomeLayoutViewProps } from './HomeSection'
 import EntryRow from './EntryRow'
@@ -24,7 +25,8 @@ export default function TwoPaneLayout({
           style={{ paddingLeft: 10 }}
           onClick={() => onSelectFolder(null)}
         >
-          🗂 All
+          <Folders className="home-icon" size={15} aria-hidden="true" />
+          <span>All</span>
         </button>
         {flatFolders.map(({ folder, depth }) => (
           <button
@@ -34,7 +36,8 @@ export default function TwoPaneLayout({
             style={{ paddingLeft: 10 + depth * 16 }}
             onClick={() => onSelectFolder(folder.id)}
           >
-            📁 {folder.name}
+            <Folder className="home-icon" size={15} aria-hidden="true" />
+            <span>{folder.name}</span>
           </button>
         ))}
       </div>
