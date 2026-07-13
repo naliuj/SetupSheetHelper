@@ -4,7 +4,8 @@ import type { Folder, FolderScope, Setup } from '@shared/types/setup'
 import type { FolderDeleteImpact } from '@shared/types/ipc'
 import { useNavigationStore } from '@renderer/state/navigationStore'
 import { useBerkleeFeaturesStore } from '@renderer/state/berkleeFeaturesStore'
-import FolderGroupedGrid from '@renderer/components/FolderGroupedGrid'
+import { useHomeLayoutStore } from '@renderer/state/homeLayoutStore'
+import HomeSection, { type HomeEntry } from '@renderer/components/home/HomeSection'
 import NewSetupModal, { type NewSetupDetails } from '@renderer/components/NewSetupModal'
 import ManageItemsModal, { type ManagedItem } from '@renderer/components/ManageItemsModal'
 
@@ -15,15 +16,13 @@ interface PendingStudioSelection {
   studioId: number
 }
 
-type TemplateBrowse =
-  | { kind: 'normal' }
-  | { kind: 'berklee-root' }
-  | { kind: 'berklee-building'; buildingId: number }
+type TemplateBrowse = { kind: 'normal' } | { kind: 'berklee' }
 
 export default function Home(): JSX.Element {
   const goToSetup = useNavigationStore((s) => s.goToSetup)
   const goToStudioSetup = useNavigationStore((s) => s.goToStudioSetup)
   const berkleeFeaturesEnabled = useBerkleeFeaturesStore((s) => s.enabled)
+  const homeLayout = useHomeLayoutStore((s) => s.layout)
 
   const [customStudios, setCustomStudios] = useState<Studio[]>([])
   const [customTemplates, setCustomTemplates] = useState<Setup[]>([])
@@ -39,6 +38,9 @@ export default function Home(): JSX.Element {
   const [templateBrowse, setTemplateBrowse] = useState<TemplateBrowse>({ kind: 'normal' })
   const [berkleeBuildings, setBerkleeBuildings] = useState<Building[]>([])
   const [berkleeStudios, setBerkleeStudios] = useState<Studio[]>([])
+  // Which building is open in the Berklee browse — the drill-down state for the Blocks layout
+  // (tree/two-pane/columns manage their own navigation). null = the building list.
+  const [selectedBerkleeBuildingId, setSelectedBerkleeBuildingId] = useState<number | null>(null)
   const [manageMode, setManageMode] = useState<'studios' | 'setups' | null>(null)
 
   function reload(): void {
@@ -69,14 +71,20 @@ export default function Home(): JSX.Element {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [savedSetups])
 
+  // Entering the Berklee browse loads every building plus all their studios up front, so any layout
+  // (tree/columns show the whole hierarchy at once) has the full tree to render.
   useEffect(() => {
-    if (templateBrowse.kind === 'berklee-root' && berkleeBuildings.length === 0) {
-      window.api.buildings.list().then(setBerkleeBuildings)
+    if (templateBrowse.kind !== 'berklee') return
+    let cancelled = false
+    window.api.buildings.list().then(async (buildings) => {
+      if (cancelled) return
+      setBerkleeBuildings(buildings)
+      const perBuilding = await Promise.all(buildings.map((b) => window.api.studios.listByBuilding(b.id)))
+      if (!cancelled) setBerkleeStudios(perBuilding.flat())
+    })
+    return () => {
+      cancelled = true
     }
-    if (templateBrowse.kind === 'berklee-building') {
-      window.api.studios.listByBuilding(templateBrowse.buildingId).then(setBerkleeStudios)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [templateBrowse])
 
   async function startQuickSetup(): Promise<void> {
@@ -121,57 +129,64 @@ export default function Home(): JSX.Element {
     ...customTemplates.map((data): CustomStudioItem => ({ kind: 'template', data }))
   ]
 
-  function renderStudioCard(studio: Studio): JSX.Element {
-    return (
-      <div key={`studio-${studio.id}`} className="card">
-        <button
-          className="clickable"
-          style={{ background: 'none', border: 'none', color: 'inherit', textAlign: 'left', padding: 0, width: '100%' }}
-          onClick={() => setPendingSelection({ buildingId: studio.buildingId, studioId: studio.id })}
-        >
-          <div className="card-title">🎛 {studio.name}</div>
-          <div className="card-sub">Studio</div>
-        </button>
-        <button className="btn small" style={{ marginTop: 6 }} onClick={() => goToStudioSetup(studio.id)}>
-          Edit inventory
-        </button>
-      </div>
-    )
-  }
+  // Normalized entries for the studio-template section (custom studios + templates), rendered by
+  // whichever home layout is active. Studios carry an "Edit inventory" secondary action.
+  const templateEntries: HomeEntry[] = customStudioItems.map((item) =>
+    item.kind === 'studio'
+      ? {
+          id: `studio-${item.data.id}`,
+          kind: 'studio',
+          folderId: item.data.folderId,
+          label: item.data.name,
+          meta: 'Studio',
+          icon: '🎛',
+          onActivate: () => setPendingSelection({ buildingId: item.data.buildingId, studioId: item.data.id }),
+          secondaryAction: { label: 'Edit inventory', onClick: () => goToStudioSetup(item.data.id) }
+        }
+      : {
+          id: `template-${item.data.id}`,
+          kind: 'template',
+          folderId: item.data.folderId,
+          label: item.data.name,
+          meta: 'Gear list',
+          icon: '📄',
+          onActivate: () => openCustomTemplate(item.data)
+        }
+  )
 
-  function renderTemplateCard(template: Setup): JSX.Element {
-    return (
-      <button key={`template-${template.id}`} className="card clickable" onClick={() => openCustomTemplate(template)}>
-        <div className="card-title">📄 {template.name}</div>
-        <div className="card-sub">Gear list</div>
-      </button>
-    )
-  }
+  const setupEntries: HomeEntry[] = savedSetups.map((setup) => ({
+    id: `setup-${setup.id}`,
+    kind: 'setup',
+    folderId: setup.folderId,
+    label: setup.name,
+    meta: setup.sessionDate ?? 'no date',
+    onActivate: () => openSavedSetup(setup)
+  }))
 
-  function renderBerkleeStudioCard(studio: Studio): JSX.Element {
-    return (
-      <button
-        key={`berklee-studio-${studio.id}`}
-        className="card clickable"
-        onClick={() => setPendingSelection({ buildingId: studio.buildingId, studioId: studio.id })}
-      >
-        <div className="card-title">🎛 {studio.name}</div>
-        <div className="card-sub">Berklee Studio</div>
-      </button>
-    )
-  }
+  // Berklee browse, modeled for the layout components: buildings become folders, studios become
+  // entries filed under their building. Rendered by whichever layout is active, same as everything
+  // else on the home screen.
+  const berkleeFolders: Folder[] = berkleeBuildings.map((b) => ({
+    id: b.id,
+    name: b.name,
+    parentFolderId: null,
+    createdAt: '',
+    scope: 'studio'
+  }))
 
-  function renderSavedSetupCard(setup: Setup): JSX.Element {
-    return (
-      <button
-        key={`setup-${setup.id}`}
-        className="card clickable"
-        onClick={() => openSavedSetup(setup)}
-      >
-        <div className="card-title">{setup.name}</div>
-        <div className="card-sub">{setup.sessionDate ?? 'no date'}</div>
-      </button>
-    )
+  const berkleeStudioEntries: HomeEntry[] = berkleeStudios.map((studio) => ({
+    id: `berklee-studio-${studio.id}`,
+    kind: 'studio',
+    folderId: studio.buildingId,
+    label: studio.name,
+    meta: 'Berklee Studio',
+    icon: '🎛',
+    onActivate: () => setPendingSelection({ buildingId: studio.buildingId, studioId: studio.id })
+  }))
+
+  function openBerkleeBrowse(): void {
+    setSelectedBerkleeBuildingId(null)
+    setTemplateBrowse({ kind: 'berklee' })
   }
 
   // Folder CRUD dispatch. Create is scope-bound (each manage modal passes its own scope); rename
@@ -259,62 +274,42 @@ export default function Home(): JSX.Element {
         </button>
       </div>
 
-      {templateBrowse.kind === 'berklee-root' && berkleeFeaturesEnabled && (
-        <div>
-          <div className="section-title" style={{ marginTop: 24 }}>
-            {templateSectionTitle}
-          </div>
-          <div className="nav-crumbs">
-            <button onClick={() => setTemplateBrowse({ kind: 'normal' })}>{templateSectionTitle}</button> / Berklee
-          </div>
-          <div className="list-grid">
-            {berkleeBuildings.map((b) => (
-              <button
-                key={b.id}
-                className="card clickable"
-                onClick={() => setTemplateBrowse({ kind: 'berklee-building', buildingId: b.id })}
-              >
-                <div className="card-title">📁 {b.name}</div>
-              </button>
-            ))}
-            {berkleeBuildings.length === 0 && <div className="empty-state">No Berklee buildings set up yet.</div>}
-          </div>
-        </div>
-      )}
-
-      {templateBrowse.kind === 'berklee-building' && berkleeFeaturesEnabled && (
-        <div>
-          <div className="section-title" style={{ marginTop: 24 }}>
-            {templateSectionTitle}
-          </div>
-          <div className="nav-crumbs">
-            <button onClick={() => setTemplateBrowse({ kind: 'normal' })}>{templateSectionTitle}</button> /{' '}
-            <button onClick={() => setTemplateBrowse({ kind: 'berklee-root' })}>Berklee</button> /{' '}
-            {berkleeBuildings.find((b) => b.id === templateBrowse.buildingId)?.name}
-          </div>
-          <div className="list-grid">
-            {berkleeStudios.map(renderBerkleeStudioCard)}
-            {berkleeStudios.length === 0 && <div className="empty-state">No studios in this building yet.</div>}
-          </div>
-        </div>
+      {templateBrowse.kind === 'berklee' && berkleeFeaturesEnabled && (
+        <HomeSection
+          title={templateSectionTitle}
+          layout={homeLayout}
+          folders={berkleeFolders}
+          entries={berkleeStudioEntries}
+          selectedFolderId={selectedBerkleeBuildingId}
+          onSelectFolder={setSelectedBerkleeBuildingId}
+          emptyMessage="No Berklee studios set up yet."
+          crumbs={
+            <>
+              <button onClick={() => setTemplateBrowse({ kind: 'normal' })}>{templateSectionTitle}</button> / Berklee
+            </>
+          }
+        />
       )}
 
       {templateBrowse.kind === 'normal' && (
-        <FolderGroupedGrid
+        <HomeSection
           title={templateSectionTitle}
+          layout={homeLayout}
           folders={studioFolders}
-          items={customStudioItems}
-          getFolderId={(item) => item.data.folderId}
-          renderItem={(item) => (item.kind === 'studio' ? renderStudioCard(item.data) : renderTemplateCard(item.data))}
+          entries={templateEntries}
           selectedFolderId={selectedCustomFolderId}
           onSelectFolder={setSelectedCustomFolderId}
-          leadingTiles={
-            berkleeFeaturesEnabled && (
-              <button className="card clickable" onClick={() => setTemplateBrowse({ kind: 'berklee-root' })}>
-                <div className="card-title">📁 Berklee</div>
-                <div className="card-sub">Real Berklee studios</div>
-              </button>
-            )
+          leadingItems={
+            berkleeFeaturesEnabled
+              ? [
+                  {
+                    id: 'berklee',
+                    label: 'Berklee',
+                    meta: 'Real Berklee studios',
+                    onActivate: openBerkleeBrowse
+                  }
+                ]
+              : undefined
           }
           headerAction={
             <div style={{ display: 'flex', gap: 8 }}>
@@ -329,12 +324,11 @@ export default function Home(): JSX.Element {
         />
       )}
 
-      <FolderGroupedGrid
+      <HomeSection
         title="Saved Setups"
+        layout={homeLayout}
         folders={setupFolders}
-        items={savedSetups}
-        getFolderId={(setup) => setup.folderId}
-        renderItem={renderSavedSetupCard}
+        entries={setupEntries}
         selectedFolderId={selectedSetupFolderId}
         onSelectFolder={setSelectedSetupFolderId}
         emptyMessage="No saved setups in this folder yet."

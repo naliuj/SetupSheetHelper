@@ -7,6 +7,7 @@ import { useBerkleeFeaturesStore } from './state/berkleeFeaturesStore'
 import { useColumnPrefsStore } from './state/columnPrefsStore'
 import { usePdfLayoutPrefsStore } from './state/pdfLayoutPrefsStore'
 import { useKeybindPrefsStore } from './state/keybindPrefsStore'
+import { useHomeLayoutStore } from './state/homeLayoutStore'
 import { normalizeKeyEvent } from '@shared/constants/keybindActions'
 import Home from './pages/Home/Home'
 import SettingsPage from './pages/SettingsPage/SettingsPage'
@@ -64,6 +65,12 @@ export default function App(): JSX.Element {
   // below and SetupToolbar's, plus the Settings → Keybinds editor.
   useEffect(() => {
     useKeybindPrefsStore.getState().load()
+  }, [])
+
+  // Load the home-screen layout preference once at startup — read by Home, edited in Settings →
+  // General.
+  useEffect(() => {
+    useHomeLayoutStore.getState().load()
   }, [])
 
   // App-wide "App Settings…" — mouse-click path (native menu item, still sends this MenuAction)

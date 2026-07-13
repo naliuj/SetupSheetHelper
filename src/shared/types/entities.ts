@@ -107,5 +107,7 @@ export const APP_SETTINGS_KEYS = {
   pdfAccentColor: 'pdf_accent_color',
   /** JSON object { [keybindActionId]: comboString } — only entries that differ from
    *  KEYBIND_ACTIONS' defaults are stored. Absent/garbage → {} (every action at its default). */
-  keybindOverrides: 'keybind_overrides'
+  keybindOverrides: 'keybind_overrides',
+  /** HomeLayout: 'blocks' | 'tree' | 'twoPane' | 'miller' — home screen presentation. Absent/garbage → 'blocks'. */
+  homeLayout: 'home_layout'
 } as const

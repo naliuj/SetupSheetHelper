@@ -20,6 +20,19 @@ export function buildFolderTree(folders: Folder[]): FolderTreeNode[] {
   return build(null)
 }
 
+/** Full ancestor chain from root down to (and including) `folderId`, via parentFolderId links —
+ *  for breadcrumb trails in the home layouts. */
+export function folderAncestry(folders: Folder[], folderId: number): Folder[] {
+  const chain: Folder[] = []
+  let current: Folder | undefined = folders.find((f) => f.id === folderId)
+  while (current) {
+    chain.unshift(current)
+    const parentId: number | null = current.parentFolderId
+    current = parentId != null ? folders.find((f) => f.id === parentId) : undefined
+  }
+  return chain
+}
+
 export interface FolderPickerOption {
   folder: Folder
   depth: number

@@ -5,6 +5,8 @@ import { useNavigationStore } from '@renderer/state/navigationStore'
 import { useThemeStore } from '@renderer/state/themeStore'
 import { useBerkleeFeaturesStore } from '@renderer/state/berkleeFeaturesStore'
 import { useColumnPrefsStore } from '@renderer/state/columnPrefsStore'
+import { useHomeLayoutStore } from '@renderer/state/homeLayoutStore'
+import { HOME_LAYOUTS } from '@shared/constants/homeLayout'
 import { TOGGLEABLE_COLUMNS } from '@shared/constants/setupColumns'
 import ToggleSwitch from '@renderer/components/ToggleSwitch'
 import FacultyReserveEditor from './FacultyReserveEditor'
@@ -49,6 +51,8 @@ export default function SettingsPage(): JSX.Element {
   const disableBerkleeFeatures = useBerkleeFeaturesStore((s) => s.disable)
   const defaultVisibleColumns = useColumnPrefsStore((s) => s.defaultVisibleColumns)
   const setDefaultColumns = useColumnPrefsStore((s) => s.setDefault)
+  const homeLayout = useHomeLayoutStore((s) => s.layout)
+  const setHomeLayout = useHomeLayoutStore((s) => s.setLayout)
   const consumeSettingsInitialTab = useNavigationStore((s) => s.consumeSettingsInitialTab)
   const [activeTab, setActiveTab] = useState<Tab>(() => {
     const requested = consumeSettingsInitialTab()
@@ -170,6 +174,24 @@ export default function SettingsPage(): JSX.Element {
               style={{ width: 240 }}
             />
             <p className="card-sub" style={{ marginTop: 4 }}>Prefills the Engineer field on every new setup.</p>
+          </div>
+
+          <div style={{ marginTop: 20 }}>
+            <label style={{ display: 'block', marginBottom: 6 }}>Home screen layout</label>
+            <div className="inline-form" style={{ marginTop: 0, flexWrap: 'wrap' }}>
+              {HOME_LAYOUTS.map((l) => (
+                <button
+                  key={l.id}
+                  className={homeLayout === l.id ? 'btn primary' : 'btn'}
+                  onClick={() => setHomeLayout(l.id)}
+                >
+                  {l.label}
+                </button>
+              ))}
+            </div>
+            <p className="card-sub" style={{ marginTop: 4 }}>
+              {HOME_LAYOUTS.find((l) => l.id === homeLayout)?.description}
+            </p>
           </div>
 
           <div style={{ marginTop: 20 }}>
