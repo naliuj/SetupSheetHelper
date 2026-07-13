@@ -16,7 +16,6 @@ interface PendingStudioSelection {
   studioId: number
 }
 
-type TemplateBrowse = { kind: 'normal' } | { kind: 'berklee' }
 
 export default function Home(): JSX.Element {
   const goToSetup = useNavigationStore((s) => s.goToSetup)
@@ -35,12 +34,8 @@ export default function Home(): JSX.Element {
   const [savedSetups, setSavedSetups] = useState<Setup[]>([])
   const [buildingIdByStudio, setBuildingIdByStudio] = useState<Map<number, number | null>>(new Map())
   const [pendingSelection, setPendingSelection] = useState<PendingStudioSelection | null>(null)
-  const [templateBrowse, setTemplateBrowse] = useState<TemplateBrowse>({ kind: 'normal' })
   const [berkleeBuildings, setBerkleeBuildings] = useState<Building[]>([])
   const [berkleeStudios, setBerkleeStudios] = useState<Studio[]>([])
-  // Which building is open in the Berklee browse — the drill-down state for the Blocks layout
-  // (tree/two-pane/columns manage their own navigation). null = the building list.
-  const [selectedBerkleeBuildingId, setSelectedBerkleeBuildingId] = useState<number | null>(null)
   const [manageMode, setManageMode] = useState<'studios' | 'setups' | null>(null)
 
   function reload(): void {
@@ -71,10 +66,15 @@ export default function Home(): JSX.Element {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [savedSetups])
 
-  // Entering the Berklee browse loads every building plus all their studios up front, so any layout
-  // (tree/columns show the whole hierarchy at once) has the full tree to render.
+  // Berklee lives inline in the templates section as a folder subtree (buildings → studios), so its
+  // whole hierarchy loads up front whenever Berklee features are on — every layout renders it like
+  // any other folder.
   useEffect(() => {
-    if (templateBrowse.kind !== 'berklee') return
+    if (!berkleeFeaturesEnabled) {
+      setBerkleeBuildings([])
+      setBerkleeStudios([])
+      return
+    }
     let cancelled = false
     window.api.buildings.list().then(async (buildings) => {
       if (cancelled) return
@@ -85,7 +85,7 @@ export default function Home(): JSX.Element {
     return () => {
       cancelled = true
     }
-  }, [templateBrowse])
+  }, [berkleeFeaturesEnabled])
 
   async function startQuickSetup(): Promise<void> {
     const studio = await window.api.studios.createTemporary()
@@ -163,31 +163,35 @@ export default function Home(): JSX.Element {
     onActivate: () => openSavedSetup(setup)
   }))
 
-  // Berklee browse, modeled for the layout components: buildings become folders, studios become
-  // entries filed under their building. Rendered by whichever layout is active, same as everything
-  // else on the home screen.
-  const berkleeFolders: Folder[] = berkleeBuildings.map((b) => ({
-    id: b.id,
-    name: b.name,
-    parentFolderId: null,
-    createdAt: '',
-    scope: 'studio'
-  }))
+  // Berklee lives inline in the templates section as a folder subtree: a "Berklee" root folder,
+  // one subfolder per building, studios as entries under their building. Synthetic negative folder
+  // ids keep these clear of the real `folders` table ids they sit alongside.
+  const berkleeRootFolderId = -1
+  const berkleeBuildingFolderId = (buildingId: number): number => -100000 - buildingId
+  const berkleeFolders: Folder[] = berkleeFeaturesEnabled
+    ? [
+        { id: berkleeRootFolderId, name: 'Berklee', parentFolderId: null, createdAt: '', scope: 'studio' },
+        ...berkleeBuildings.map((b) => ({
+          id: berkleeBuildingFolderId(b.id),
+          name: b.name,
+          parentFolderId: berkleeRootFolderId,
+          createdAt: '',
+          scope: 'studio' as const
+        }))
+      ]
+    : []
 
-  const berkleeStudioEntries: HomeEntry[] = berkleeStudios.map((studio) => ({
-    id: `berklee-studio-${studio.id}`,
-    kind: 'studio',
-    folderId: studio.buildingId,
-    label: studio.name,
-    meta: 'Berklee Studio',
-    icon: '🎛',
-    onActivate: () => setPendingSelection({ buildingId: studio.buildingId, studioId: studio.id })
-  }))
-
-  function openBerkleeBrowse(): void {
-    setSelectedBerkleeBuildingId(null)
-    setTemplateBrowse({ kind: 'berklee' })
-  }
+  const berkleeStudioEntries: HomeEntry[] = berkleeStudios
+    .filter((s): s is Studio & { buildingId: number } => s.buildingId != null)
+    .map((studio) => ({
+      id: `berklee-studio-${studio.id}`,
+      kind: 'studio',
+      folderId: berkleeBuildingFolderId(studio.buildingId),
+      label: studio.name,
+      meta: 'Berklee Studio',
+      icon: '🎛',
+      onActivate: () => setPendingSelection({ buildingId: studio.buildingId, studioId: studio.id })
+    }))
 
   // Folder CRUD dispatch. Create is scope-bound (each manage modal passes its own scope); rename
   // and delete are id-based and scope-agnostic. reload() refreshes both scoped lists.
@@ -274,55 +278,24 @@ export default function Home(): JSX.Element {
         </button>
       </div>
 
-      {templateBrowse.kind === 'berklee' && berkleeFeaturesEnabled && (
-        <HomeSection
-          title={templateSectionTitle}
-          layout={homeLayout}
-          folders={berkleeFolders}
-          entries={berkleeStudioEntries}
-          selectedFolderId={selectedBerkleeBuildingId}
-          onSelectFolder={setSelectedBerkleeBuildingId}
-          emptyMessage="No Berklee studios set up yet."
-          crumbs={
-            <>
-              <button onClick={() => setTemplateBrowse({ kind: 'normal' })}>{templateSectionTitle}</button> / Berklee
-            </>
-          }
-        />
-      )}
-
-      {templateBrowse.kind === 'normal' && (
-        <HomeSection
-          title={templateSectionTitle}
-          layout={homeLayout}
-          folders={studioFolders}
-          entries={templateEntries}
-          selectedFolderId={selectedCustomFolderId}
-          onSelectFolder={setSelectedCustomFolderId}
-          leadingItems={
-            berkleeFeaturesEnabled
-              ? [
-                  {
-                    id: 'berklee',
-                    label: 'Berklee',
-                    meta: 'Real Berklee studios',
-                    onActivate: openBerkleeBrowse
-                  }
-                ]
-              : undefined
-          }
-          headerAction={
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button className="btn small" onClick={() => goToStudioSetup(null)}>
-                + New studio
-              </button>
-              <button className="btn small" onClick={() => setManageMode('studios')}>
-                Manage studios
-              </button>
-            </div>
-          }
-        />
-      )}
+      <HomeSection
+        title={templateSectionTitle}
+        layout={homeLayout}
+        folders={[...berkleeFolders, ...studioFolders]}
+        entries={[...templateEntries, ...berkleeStudioEntries]}
+        selectedFolderId={selectedCustomFolderId}
+        onSelectFolder={setSelectedCustomFolderId}
+        headerAction={
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn small" onClick={() => goToStudioSetup(null)}>
+              + New studio
+            </button>
+            <button className="btn small" onClick={() => setManageMode('studios')}>
+              Manage studios
+            </button>
+          </div>
+        }
+      />
 
       <HomeSection
         title="Saved Setups"

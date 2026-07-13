@@ -9,7 +9,6 @@ export default function TwoPaneLayout({
   entries,
   selectedFolderId,
   onSelectFolder,
-  leadingItems,
   emptyMessage
 }: HomeLayoutViewProps): JSX.Element {
   const flatFolders = flattenFolderTreeForPicker(buildFolderTree(folders))
@@ -27,17 +26,6 @@ export default function TwoPaneLayout({
         >
           🗂 All
         </button>
-        {leadingItems?.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            className="folder-tree-row home-selectable"
-            style={{ paddingLeft: 10 }}
-            onClick={item.onActivate}
-          >
-            📁 {item.label}
-          </button>
-        ))}
         {flatFolders.map(({ folder, depth }) => (
           <button
             key={folder.id}
