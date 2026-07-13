@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { AlertTriangle } from 'lucide-react'
 import { useKeybindPrefsStore } from '@renderer/state/keybindPrefsStore'
 import {
   KEYBIND_ACTIONS,
@@ -115,8 +116,9 @@ export default function KeybindsEditor(): JSX.Element {
                   Reset
                 </button>
                 {conflicts.length > 0 && (
-                  <span className="card-sub" style={{ color: 'var(--color-warning)' }}>
-                    ⚠ Also used by {conflicts.map((c) => c.label).join(', ')}
+                  <span className="card-sub inline-icon-text" style={{ color: 'var(--color-warning)' }}>
+                    <AlertTriangle size={13} aria-hidden="true" />
+                    Also used by {conflicts.map((c) => c.label).join(', ')}
                   </span>
                 )}
               </div>

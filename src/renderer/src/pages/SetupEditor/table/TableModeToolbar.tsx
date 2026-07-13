@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { RotateCcw } from 'lucide-react'
 import { useSetupStore } from '@renderer/state/setupStore'
 import { useKeybindPrefsStore } from '@renderer/state/keybindPrefsStore'
 import { formatCombo } from '@shared/constants/keybindActions'
@@ -119,9 +120,10 @@ export default function TableModeToolbar(): JSX.Element {
             </div>
             <div
               onClick={() => resetColumnsToDefault()}
+              className="inline-icon-text"
               style={{ marginTop: 10, fontSize: 12, color: 'var(--color-accent)', cursor: 'pointer' }}
             >
-              ↺ Reset to my defaults
+              <RotateCcw size={13} aria-hidden="true" /> Reset to my defaults
             </div>
           </div>
         )}

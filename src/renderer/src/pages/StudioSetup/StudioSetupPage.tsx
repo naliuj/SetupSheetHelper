@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { X } from 'lucide-react'
 import type { Mic, MicWithStudio, OutboardGear, OutboardGearWithStudio, Preamp } from '@shared/types/entities'
 import { guessManufacturer, MANUFACTURER_PREFIXES } from '@shared/constants/manufacturers'
 import { stripManufacturerPrefix } from '@shared/utils/manufacturerPrefix'
@@ -527,7 +528,7 @@ export default function StudioSetupPage(): JSX.Element {
                   </td>
                   <td>
                     <button className="btn small danger" onClick={() => removeMic(item)}>
-                      ✕
+                      <X size={14} aria-hidden="true" />
                     </button>
                   </td>
                 </tr>
@@ -585,7 +586,7 @@ export default function StudioSetupPage(): JSX.Element {
                   </td>
                   <td>
                     <button className="btn small danger" onClick={() => removeOutboard(item)}>
-                      ✕
+                      <X size={14} aria-hidden="true" />
                     </button>
                   </td>
                 </tr>
@@ -644,7 +645,7 @@ export default function StudioSetupPage(): JSX.Element {
                   </td>
                   <td>
                     <button className="btn small danger" onClick={() => removePreamp(item)}>
-                      ✕
+                      <X size={14} aria-hidden="true" />
                     </button>
                   </td>
                 </tr>

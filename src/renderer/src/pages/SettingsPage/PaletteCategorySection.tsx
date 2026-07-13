@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useDroppable } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import { ChevronDown, ChevronRight, GripVertical } from 'lucide-react'
 import type { PaletteItem } from '@shared/types/palette'
 import { usePaletteStore } from '@renderer/state/paletteStore'
 import { DEFAULT_SWATCH } from '@shared/constants/swatches'
@@ -35,7 +36,7 @@ function PaletteItemRow({ item }: { item: PaletteItem }): JSX.Element {
       }}
     >
       <span className="drag-handle" {...attributes} {...listeners} style={{ cursor: 'grab' }}>
-        ⠿
+        <GripVertical size={16} aria-hidden="true" />
       </span>
       <SwatchPicker
         className="palette-color"
@@ -131,10 +132,14 @@ export default function PaletteCategorySection({
         }}
       >
         <span className="drag-handle" {...attributes} {...listeners} style={{ cursor: 'grab' }} title="Drag to reorder category">
-          ⠿
+          <GripVertical size={16} aria-hidden="true" />
         </span>
-        <span onClick={onToggleCollapse} style={{ cursor: 'pointer', color: 'var(--color-text-dim)', width: 14 }}>
-          {collapsed ? '▸' : '▾'}
+        <span
+          onClick={onToggleCollapse}
+          className="inline-icon-text"
+          style={{ cursor: 'pointer', color: 'var(--color-text-dim)', width: 14 }}
+        >
+          {collapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
         </span>
         {renaming ? (
           <input

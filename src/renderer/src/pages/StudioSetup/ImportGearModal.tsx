@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Building2, ChevronDown, ChevronRight, Folder } from 'lucide-react'
 import type { Building, MicWithStudio, OutboardGearWithStudio, Studio } from '@shared/types/entities'
-import type { Folder, FolderTreeNode as FolderTreeNodeType } from '@shared/types/setup'
+import type { Folder as FolderType, FolderTreeNode as FolderTreeNodeType } from '@shared/types/setup'
 import { buildFolderTree } from '@renderer/state/folderTree'
 import { useEscapeToClose } from '@renderer/hooks/useEscapeToClose'
 
@@ -36,12 +37,15 @@ function StudioPickerFolderNode({
       <div className="folder-tree-row" style={{ paddingLeft: depth * 16 }}>
         {hasContent ? (
           <button className="folder-tree-toggle" onClick={() => setExpanded((e) => !e)}>
-            {expanded ? '▾' : '▸'}
+            {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
           </button>
         ) : (
           <span className="folder-tree-toggle" />
         )}
-        <span className="folder-tree-label">📁 {node.name}</span>
+        <span className="folder-tree-label tree-label">
+          <Folder className="home-icon" size={15} aria-hidden="true" />
+          <span className="folder-tree-name">{node.name}</span>
+        </span>
       </div>
       {expanded && (
         <>
@@ -86,7 +90,7 @@ export default function ImportGearModal({
   const [buildings, setBuildings] = useState<Building[]>([])
   const [buildingStudios, setBuildingStudios] = useState<Studio[]>([])
   const [customStudios, setCustomStudios] = useState<Studio[]>([])
-  const [folders, setFolders] = useState<Folder[]>([])
+  const [folders, setFolders] = useState<FolderType[]>([])
 
   useEffect(() => {
     window.api.folders.list('studio').then(setFolders)
@@ -182,7 +186,10 @@ export default function ImportGearModal({
             <div key={building.id}>
               <div className="folder-tree-row">
                 <span className="folder-tree-toggle" />
-                <span className="folder-tree-label">🏢 {building.name}</span>
+                <span className="folder-tree-label tree-label">
+                  <Building2 className="home-icon" size={15} aria-hidden="true" />
+                  <span className="folder-tree-name">{building.name}</span>
+                </span>
               </div>
               {studios.map((studio) => (
                 <div

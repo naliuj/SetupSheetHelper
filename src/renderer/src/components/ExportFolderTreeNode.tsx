@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { ChevronDown, ChevronRight, Folder } from 'lucide-react'
 import type { Studio } from '@shared/types/entities'
 import type { FolderTreeNode as FolderTreeNodeType } from '@shared/types/setup'
 
@@ -38,12 +39,15 @@ export default function ExportFolderTreeNode({
       <div className="folder-tree-row" style={{ paddingLeft: depth * 16 }}>
         {hasContent ? (
           <button className="folder-tree-toggle" onClick={() => setExpanded((e) => !e)}>
-            {expanded ? '▾' : '▸'}
+            {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
           </button>
         ) : (
           <span className="folder-tree-toggle" />
         )}
-        <span className="folder-tree-label">📁 {node.name}</span>
+        <span className="folder-tree-label tree-label">
+          <Folder className="home-icon" size={15} aria-hidden="true" />
+          <span className="folder-tree-name">{node.name}</span>
+        </span>
         <button
           className="folder-tree-action"
           title="Select all studios in this folder"

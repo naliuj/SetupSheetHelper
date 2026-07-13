@@ -637,13 +637,25 @@ table.data-table td select {
 
 .folder-tree-action {
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: none;
   border: none;
   color: var(--color-text-dim);
   cursor: pointer;
-  padding: 2px 4px;
+  padding: 3px 4px;
   font-size: 12px;
   border-radius: var(--radius);
+}
+
+/* A folder-tree label that carries a leading icon: lay icon + name out in a row and let the name
+ * ellipsize (via .folder-tree-name). */
+.tree-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
 }
 
 .folder-tree-action:hover {
@@ -964,6 +976,15 @@ table.data-table td select {
   color: var(--color-text-dim);
   flex-shrink: 0;
   touch-action: none;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Inline icon + text runs (save confirmation, warnings, collapse toggles, reset link). */
+.inline-icon-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
 /* Row-select gutter — hint that the whole cell is a click target (select / shift-range /

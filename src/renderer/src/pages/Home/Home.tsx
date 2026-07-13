@@ -224,7 +224,8 @@ export default function Home(): JSX.Element {
     kind: item.kind,
     id: item.data.id,
     folderId: item.data.folderId,
-    label: item.kind === 'studio' ? `🎛 ${item.data.name}` : `📄 ${item.data.name}`
+    label: item.data.name,
+    icon: item.kind === 'studio' ? SlidersHorizontal : FileText
   }))
 
   async function handleStudioItemMoveToFolder(kind: string, id: number, folderId: number | null): Promise<void> {
