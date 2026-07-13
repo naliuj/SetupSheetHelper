@@ -48,11 +48,13 @@ interface Props extends HomeLayoutViewProps {
   title: string
   layout: HomeLayout
   headerAction?: ReactNode
+  /** Optional breadcrumb row under the title (e.g. the "exit Berklee" trail). */
+  crumbs?: ReactNode
 }
 
 /** Renders a home section (studios/templates or saved setups) in the user's chosen layout. Shared
  *  header (title + Manage/New buttons); the body is delegated to the active layout component. */
-export default function HomeSection({ title, layout, headerAction, ...view }: Props): JSX.Element {
+export default function HomeSection({ title, layout, headerAction, crumbs, ...view }: Props): JSX.Element {
   const View =
     layout === 'tree'
       ? TreeLayout
@@ -71,6 +73,7 @@ export default function HomeSection({ title, layout, headerAction, ...view }: Pr
         <span>{title}</span>
         {headerAction}
       </div>
+      {crumbs && <div className="nav-crumbs">{crumbs}</div>}
       <View {...view} />
     </div>
   )

@@ -16,10 +16,7 @@ interface PendingStudioSelection {
   studioId: number
 }
 
-type TemplateBrowse =
-  | { kind: 'normal' }
-  | { kind: 'berklee-root' }
-  | { kind: 'berklee-building'; buildingId: number }
+type TemplateBrowse = { kind: 'normal' } | { kind: 'berklee' }
 
 export default function Home(): JSX.Element {
   const goToSetup = useNavigationStore((s) => s.goToSetup)
@@ -41,6 +38,9 @@ export default function Home(): JSX.Element {
   const [templateBrowse, setTemplateBrowse] = useState<TemplateBrowse>({ kind: 'normal' })
   const [berkleeBuildings, setBerkleeBuildings] = useState<Building[]>([])
   const [berkleeStudios, setBerkleeStudios] = useState<Studio[]>([])
+  // Which building is open in the Berklee browse — the drill-down state for the Blocks layout
+  // (tree/two-pane/columns manage their own navigation). null = the building list.
+  const [selectedBerkleeBuildingId, setSelectedBerkleeBuildingId] = useState<number | null>(null)
   const [manageMode, setManageMode] = useState<'studios' | 'setups' | null>(null)
 
   function reload(): void {
@@ -71,14 +71,20 @@ export default function Home(): JSX.Element {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [savedSetups])
 
+  // Entering the Berklee browse loads every building plus all their studios up front, so any layout
+  // (tree/columns show the whole hierarchy at once) has the full tree to render.
   useEffect(() => {
-    if (templateBrowse.kind === 'berklee-root' && berkleeBuildings.length === 0) {
-      window.api.buildings.list().then(setBerkleeBuildings)
+    if (templateBrowse.kind !== 'berklee') return
+    let cancelled = false
+    window.api.buildings.list().then(async (buildings) => {
+      if (cancelled) return
+      setBerkleeBuildings(buildings)
+      const perBuilding = await Promise.all(buildings.map((b) => window.api.studios.listByBuilding(b.id)))
+      if (!cancelled) setBerkleeStudios(perBuilding.flat())
+    })
+    return () => {
+      cancelled = true
     }
-    if (templateBrowse.kind === 'berklee-building') {
-      window.api.studios.listByBuilding(templateBrowse.buildingId).then(setBerkleeStudios)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [templateBrowse])
 
   async function startQuickSetup(): Promise<void> {
@@ -157,17 +163,30 @@ export default function Home(): JSX.Element {
     onActivate: () => openSavedSetup(setup)
   }))
 
-  function renderBerkleeStudioCard(studio: Studio): JSX.Element {
-    return (
-      <button
-        key={`berklee-studio-${studio.id}`}
-        className="card clickable"
-        onClick={() => setPendingSelection({ buildingId: studio.buildingId, studioId: studio.id })}
-      >
-        <div className="card-title">🎛 {studio.name}</div>
-        <div className="card-sub">Berklee Studio</div>
-      </button>
-    )
+  // Berklee browse, modeled for the layout components: buildings become folders, studios become
+  // entries filed under their building. Rendered by whichever layout is active, same as everything
+  // else on the home screen.
+  const berkleeFolders: Folder[] = berkleeBuildings.map((b) => ({
+    id: b.id,
+    name: b.name,
+    parentFolderId: null,
+    createdAt: '',
+    scope: 'studio'
+  }))
+
+  const berkleeStudioEntries: HomeEntry[] = berkleeStudios.map((studio) => ({
+    id: `berklee-studio-${studio.id}`,
+    kind: 'studio',
+    folderId: studio.buildingId,
+    label: studio.name,
+    meta: 'Berklee Studio',
+    icon: '🎛',
+    onActivate: () => setPendingSelection({ buildingId: studio.buildingId, studioId: studio.id })
+  }))
+
+  function openBerkleeBrowse(): void {
+    setSelectedBerkleeBuildingId(null)
+    setTemplateBrowse({ kind: 'berklee' })
   }
 
   // Folder CRUD dispatch. Create is scope-bound (each manage modal passes its own scope); rename
@@ -255,44 +274,21 @@ export default function Home(): JSX.Element {
         </button>
       </div>
 
-      {templateBrowse.kind === 'berklee-root' && berkleeFeaturesEnabled && (
-        <div>
-          <div className="section-title" style={{ marginTop: 24 }}>
-            {templateSectionTitle}
-          </div>
-          <div className="nav-crumbs">
-            <button onClick={() => setTemplateBrowse({ kind: 'normal' })}>{templateSectionTitle}</button> / Berklee
-          </div>
-          <div className="list-grid">
-            {berkleeBuildings.map((b) => (
-              <button
-                key={b.id}
-                className="card clickable"
-                onClick={() => setTemplateBrowse({ kind: 'berklee-building', buildingId: b.id })}
-              >
-                <div className="card-title">📁 {b.name}</div>
-              </button>
-            ))}
-            {berkleeBuildings.length === 0 && <div className="empty-state">No Berklee buildings set up yet.</div>}
-          </div>
-        </div>
-      )}
-
-      {templateBrowse.kind === 'berklee-building' && berkleeFeaturesEnabled && (
-        <div>
-          <div className="section-title" style={{ marginTop: 24 }}>
-            {templateSectionTitle}
-          </div>
-          <div className="nav-crumbs">
-            <button onClick={() => setTemplateBrowse({ kind: 'normal' })}>{templateSectionTitle}</button> /{' '}
-            <button onClick={() => setTemplateBrowse({ kind: 'berklee-root' })}>Berklee</button> /{' '}
-            {berkleeBuildings.find((b) => b.id === templateBrowse.buildingId)?.name}
-          </div>
-          <div className="list-grid">
-            {berkleeStudios.map(renderBerkleeStudioCard)}
-            {berkleeStudios.length === 0 && <div className="empty-state">No studios in this building yet.</div>}
-          </div>
-        </div>
+      {templateBrowse.kind === 'berklee' && berkleeFeaturesEnabled && (
+        <HomeSection
+          title={templateSectionTitle}
+          layout={homeLayout}
+          folders={berkleeFolders}
+          entries={berkleeStudioEntries}
+          selectedFolderId={selectedBerkleeBuildingId}
+          onSelectFolder={setSelectedBerkleeBuildingId}
+          emptyMessage="No Berklee studios set up yet."
+          crumbs={
+            <>
+              <button onClick={() => setTemplateBrowse({ kind: 'normal' })}>{templateSectionTitle}</button> / Berklee
+            </>
+          }
+        />
       )}
 
       {templateBrowse.kind === 'normal' && (
@@ -310,7 +306,7 @@ export default function Home(): JSX.Element {
                     id: 'berklee',
                     label: 'Berklee',
                     meta: 'Real Berklee studios',
-                    onActivate: () => setTemplateBrowse({ kind: 'berklee-root' })
+                    onActivate: openBerkleeBrowse
                   }
                 ]
               : undefined
