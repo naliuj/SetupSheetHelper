@@ -34,18 +34,16 @@ export default function TreeLayout({ folders, entries, emptyMessage }: HomeLayou
     const hasChildren = node.children.length > 0 || childEntries.length > 0
     return (
       <div key={node.id}>
-        <div className="folder-tree-row" style={{ paddingLeft: 10 + depth * 16 }}>
-          {hasChildren ? (
-            <button className="folder-tree-toggle" onClick={() => toggle(node.id)}>
-              {isCollapsed ? '▸' : '▾'}
-            </button>
-          ) : (
-            <span className="folder-tree-toggle" />
-          )}
-          <span className="folder-tree-label" style={{ cursor: 'default' }}>
-            📁 {node.name}
-          </span>
-        </div>
+        <button
+          type="button"
+          className="folder-tree-row home-selectable"
+          style={{ paddingLeft: 10 + depth * 16 }}
+          onClick={() => hasChildren && toggle(node.id)}
+          aria-expanded={hasChildren ? !isCollapsed : undefined}
+        >
+          <span className="folder-tree-toggle">{hasChildren ? (isCollapsed ? '▸' : '▾') : ''}</span>
+          📁 {node.name}
+        </button>
         {!isCollapsed && (
           <>
             {node.children.map((child) => renderFolder(child, depth + 1))}
