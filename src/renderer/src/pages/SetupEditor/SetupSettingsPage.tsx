@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useSetupStore } from '@renderer/state/setupStore'
 import { useBerkleeFeaturesStore } from '@renderer/state/berkleeFeaturesStore'
+import { useEscapeToClose } from '@renderer/hooks/useEscapeToClose'
 import ToggleSwitch from '@renderer/components/ToggleSwitch'
 import SetupGearLocker from './SetupGearLocker'
 
@@ -22,6 +23,8 @@ export default function SetupSettingsPage({ setupId, onBack }: Props): JSX.Eleme
   const setFacultyReserveEnabled = useSetupStore((s) => s.setFacultyReserveEnabled)
   const berkleeFeaturesEnabled = useBerkleeFeaturesStore((s) => s.enabled)
 
+  useEscapeToClose(onBack)
+
   // "General" only has content for Berklee users (the faculty reserve toggle) — when it's
   // filtered out, Session Gear is the only tab left, so skip the tab strip entirely rather than
   // showing a single, purposeless tab button. This also naturally handles Berklee features being
@@ -36,7 +39,12 @@ export default function SetupSettingsPage({ setupId, onBack }: Props): JSX.Eleme
       <div className="nav-crumbs">
         <button onClick={onBack}>Setup Editor</button> / Setup Settings
       </div>
-      <h2>Setup settings</h2>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <h2>Setup settings</h2>
+        <button className="btn" onClick={onBack}>
+          Close
+        </button>
+      </div>
       {showTabStrip && (
         <div className="inline-form" style={{ marginTop: 0 }}>
           {visibleTabs.map((t) => (
