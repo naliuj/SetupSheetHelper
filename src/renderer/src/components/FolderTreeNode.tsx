@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useDroppable } from '@dnd-kit/core'
+import { ChevronDown, ChevronRight, Folder, Pencil, Plus, Trash2 } from 'lucide-react'
 import type { FolderTreeNode as FolderTreeNodeType } from '@shared/types/setup'
 
 interface Props {
@@ -34,22 +35,23 @@ export default function FolderTreeNode({
       >
         {hasChildren ? (
           <button className="folder-tree-toggle" onClick={() => setExpanded((e) => !e)}>
-            {expanded ? '▾' : '▸'}
+            {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
           </button>
         ) : (
           <span className="folder-tree-toggle" />
         )}
-        <button className="folder-tree-label" onClick={() => onSelect(node.id)}>
-          📁 {node.name}
+        <button className="folder-tree-label tree-label" onClick={() => onSelect(node.id)}>
+          <Folder className="home-icon" size={15} aria-hidden="true" />
+          <span className="folder-tree-name">{node.name}</span>
         </button>
         <button className="folder-tree-action" title="New Subfolder" onClick={() => onCreateSubfolder(node.id)}>
-          +
+          <Plus size={15} aria-hidden="true" />
         </button>
         <button className="folder-tree-action" title="Rename" onClick={() => onRename(node.id, node.name)}>
-          ✎
+          <Pencil size={14} aria-hidden="true" />
         </button>
         <button className="folder-tree-action" title="Delete" onClick={() => onDelete(node.id)}>
-          🗑
+          <Trash2 size={14} aria-hidden="true" />
         </button>
       </div>
       {expanded &&

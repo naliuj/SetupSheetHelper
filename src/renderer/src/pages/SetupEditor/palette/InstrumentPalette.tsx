@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { ChevronDown, ChevronRight } from 'lucide-react'
 import { staggeredPosition } from '@shared/utils/staggeredGrid'
 import { readableTextColor } from '@shared/constants/swatches'
 import { useLayoutStore } from '@renderer/state/layoutStore'
@@ -72,9 +73,10 @@ export default function InstrumentPalette(): JSX.Element {
           <div key={category} style={{ marginBottom: 8 }}>
             <div
               onClick={() => toggleCategory(category)}
+              className="inline-icon-text"
               style={{ cursor: 'pointer', fontSize: 12, fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: 4 }}
             >
-              {isCollapsed ? '▸' : '▾'} {category}
+              {isCollapsed ? <ChevronRight size={13} /> : <ChevronDown size={13} />} {category}
             </div>
             {!isCollapsed &&
               items.map((item) => (

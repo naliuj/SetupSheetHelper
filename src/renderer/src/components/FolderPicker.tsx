@@ -1,14 +1,15 @@
 import { useMemo, useState } from 'react'
-import type { Folder } from '@shared/types/setup'
+import { Check, Folder, Plus } from 'lucide-react'
+import type { Folder as FolderType } from '@shared/types/setup'
 import { buildFolderTree, flattenFolderTreeForPicker } from '@renderer/state/folderTree'
 
 interface Props {
-  folders: Folder[]
+  folders: FolderType[]
   selectedFolderId: number | null
   onSelect: (id: number | null) => void
   /** Creates a folder under `parentFolderId` (null = top level) and returns it (already added to
    *  the caller's list). */
-  onCreateFolder: (name: string, parentFolderId: number | null) => Promise<Folder>
+  onCreateFolder: (name: string, parentFolderId: number | null) => Promise<FolderType>
 }
 
 /** Inline folder picker: a searchable, nested list with create-in-place — replaces the old native
@@ -74,7 +75,7 @@ export default function FolderPicker({
             <button type="button" className="folder-picker-select folder-picker-none" onClick={() => onSelect(null)}>
               No folder
             </button>
-            {selectedFolderId === null && <span className="folder-picker-check">✓</span>}
+            {selectedFolderId === null && <Check className="folder-picker-check" size={15} aria-hidden="true" />}
           </div>
         )}
         {filtered.map(({ folder, depth }) => (
@@ -83,8 +84,9 @@ export default function FolderPicker({
             className={`folder-picker-row${selectedFolderId === folder.id ? ' selected' : ''}`}
             style={{ paddingLeft: 10 + (q ? 0 : depth * 16) }}
           >
-            <button type="button" className="folder-picker-select" onClick={() => onSelect(folder.id)}>
-              📁 {folder.name}
+            <button type="button" className="folder-picker-select tree-label" onClick={() => onSelect(folder.id)}>
+              <Folder className="home-icon" size={15} aria-hidden="true" />
+              <span className="folder-tree-name">{folder.name}</span>
             </button>
             <button
               type="button"
@@ -96,9 +98,9 @@ export default function FolderPicker({
                 setCreateTarget({ parentId: folder.id })
               }}
             >
-              +
+              <Plus size={15} aria-hidden="true" />
             </button>
-            {selectedFolderId === folder.id && <span className="folder-picker-check">✓</span>}
+            {selectedFolderId === folder.id && <Check className="folder-picker-check" size={15} aria-hidden="true" />}
           </div>
         ))}
         {q && filtered.length === 0 && <div className="folder-picker-empty">No folders match “{query}”.</div>}

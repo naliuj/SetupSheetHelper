@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type Konva from 'konva'
+import { Check, Keyboard } from 'lucide-react'
 import { APP_SETTINGS_KEYS } from '@shared/types/entities'
 import type { MenuAction, PdfExportInclude } from '@shared/types/ipc'
 import { KEYBIND_ACTIONS, formatCombo, normalizeKeyEvent } from '@shared/constants/keybindActions'
@@ -340,7 +341,11 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode, onOpenSetti
       {exportMessage && <span className="card-sub">{exportMessage}</span>}
       {isDirty && <span className="card-sub">Unsaved changes</span>}
       {isSaving && <span className="card-sub">Saving…</span>}
-      {!isSaving && !isDirty && justSaved && <span className="card-sub">✓ Saved</span>}
+      {!isSaving && !isDirty && justSaved && (
+        <span className="card-sub inline-icon-text">
+          <Check size={14} aria-hidden="true" /> Saved
+        </span>
+      )}
       {exporting && <span className="card-sub">Exporting…</span>}
       {setupId && (
         <button className="btn" onClick={onOpenSettings}>
@@ -356,7 +361,7 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode, onOpenSetti
         title="Keyboard shortcuts"
         aria-label="Keyboard shortcuts"
       >
-        ⌨
+        <Keyboard size={16} aria-hidden="true" />
       </button>
       {templateModalOpen && (
         <SaveAsTemplateModal onClose={() => setTemplateModalOpen(false)} onSave={handleSaveAsTemplate} />

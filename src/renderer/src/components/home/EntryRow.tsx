@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react'
+import { Pencil } from 'lucide-react'
 import type { HomeEntry } from './HomeSection'
 
 /** A compact one-line entry row shared by the tree, two-pane, and columns layouts: icon + label,
@@ -16,7 +17,8 @@ export default function EntryRow({
   return (
     <div className={`home-row${selected ? ' selected' : ''}`} style={style}>
       <button type="button" className="home-row-main" onClick={entry.onActivate}>
-        <span className="home-row-label">{entry.icon ? `${entry.icon} ${entry.label}` : entry.label}</span>
+        {entry.icon && <entry.icon className="home-icon" size={15} aria-hidden="true" />}
+        <span className="home-row-label">{entry.label}</span>
         {entry.meta && <span className="home-row-meta">{entry.meta}</span>}
       </button>
       {entry.secondaryAction && (
@@ -27,7 +29,7 @@ export default function EntryRow({
           aria-label={entry.secondaryAction.label}
           onClick={entry.secondaryAction.onClick}
         >
-          ✎
+          <Pencil size={14} aria-hidden="true" />
         </button>
       )}
     </div>

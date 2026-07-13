@@ -1,6 +1,7 @@
 import { memo } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import { AlertTriangle, GripVertical, X } from 'lucide-react'
 import type { SetupItemDraft, SetupItemOutboardSlot } from '@shared/types/setup'
 import type { SetupColumnKey } from '@shared/constants/setupColumns'
 import type { Mic, OutboardGear, Preamp } from '@shared/types/entities'
@@ -91,7 +92,12 @@ function OutboardSlotCell({
           stripManufacturerInTrigger
         />
       )}
-      {hintText && <div className="warning-badge">⚠ Preset expected: {hintText}</div>}
+      {hintText && (
+        <div className="warning-badge inline-icon-text">
+          <AlertTriangle size={12} aria-hidden="true" />
+          Preset expected: {hintText}
+        </div>
+      )}
     </td>
   )
 }
@@ -227,7 +233,7 @@ function SetupSheetRow({
           {...listeners}
           style={{ cursor: 'grab' }}
         >
-          ⠿
+          <GripVertical size={16} aria-hidden="true" />
         </span>
       </td>
       <td>
@@ -262,7 +268,10 @@ function SetupSheetRow({
             />
           )}
           {unresolvedGearHint?.mic && (
-            <div className="warning-badge">⚠ Preset expected: {unresolvedGearHint.mic}</div>
+            <div className="warning-badge inline-icon-text">
+              <AlertTriangle size={12} aria-hidden="true" />
+              Preset expected: {unresolvedGearHint.mic}
+            </div>
           )}
         </td>
       )}
@@ -324,7 +333,10 @@ function SetupSheetRow({
             />
           )}
           {unresolvedGearHint?.preamp && (
-            <div className="warning-badge">⚠ Preset expected: {unresolvedGearHint.preamp}</div>
+            <div className="warning-badge inline-icon-text">
+              <AlertTriangle size={12} aria-hidden="true" />
+              Preset expected: {unresolvedGearHint.preamp}
+            </div>
           )}
         </td>
       )}
@@ -338,7 +350,12 @@ function SetupSheetRow({
             onBlur={tieLine.onBlur}
             onClick={(e) => e.stopPropagation()}
           />
-          {conflict && <div className="warning-badge">⚠ duplicate tie line</div>}
+          {conflict && (
+            <div className="warning-badge inline-icon-text">
+              <AlertTriangle size={12} aria-hidden="true" />
+              duplicate tie line
+            </div>
+          )}
         </td>
       )}
       {visibleColumns.has('cueBox') && (
@@ -380,8 +397,9 @@ function SetupSheetRow({
             e.stopPropagation()
             onDelete()
           }}
+          aria-label="Delete row"
         >
-          ✕
+          <X size={14} aria-hidden="true" />
         </button>
       </td>
     </tr>

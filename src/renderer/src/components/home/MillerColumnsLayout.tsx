@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { ChevronRight, Folder } from 'lucide-react'
 import type { HomeLayoutViewProps } from './HomeSection'
 import EntryRow from './EntryRow'
 
@@ -40,8 +41,11 @@ export default function MillerColumnsLayout({
                 style={{ paddingLeft: 10 }}
                 onClick={() => selectFolder(columnIndex, folder.id)}
               >
-                <span className="miller-folder-name">📁 {folder.name}</span>
-                <span className="miller-folder-caret">›</span>
+                <span className="miller-folder-name">
+                  <Folder className="home-icon" size={15} aria-hidden="true" />
+                  {folder.name}
+                </span>
+                <ChevronRight className="miller-folder-caret" size={15} aria-hidden="true" />
               </button>
             ))}
             {childEntries.map((entry) => (

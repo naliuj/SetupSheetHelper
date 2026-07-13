@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Check } from 'lucide-react'
 import type { ChannelPresetItemInput } from '@shared/types/channelPreset'
 import type { Folder } from '@shared/types/setup'
 import { useSetupStore } from '@renderer/state/setupStore'
@@ -148,7 +149,7 @@ export default function SaveChannelPresetModal({ onClose }: { onClose: () => voi
               aria-pressed={included[field]}
               onClick={() => toggleField(field)}
             >
-              {included[field] && <span className="field-chip-check">✓</span>}
+              {included[field] && <Check className="field-chip-check" size={13} aria-hidden="true" />}
               {FIELD_LABELS[field]}
             </button>
           ))}

@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import type { LucideIcon } from 'lucide-react'
 import type { Folder } from '@shared/types/setup'
 import type { HomeLayout } from '@shared/constants/homeLayout'
 import BlocksLayout from './BlocksLayout'
@@ -16,8 +17,8 @@ export interface HomeEntry {
   label: string
   /** Secondary line — "Studio", "Gear list", a session date, etc. */
   meta?: string
-  /** Emoji prefix shown before the label. */
-  icon?: string
+  /** Lucide icon component shown before the label. */
+  icon?: LucideIcon
   onActivate: () => void
   /** Optional extra action (e.g. a studio's "Edit inventory"). */
   secondaryAction?: { label: string; onClick: () => void }

@@ -12,7 +12,9 @@ import {
 } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import type { Folder } from '@shared/types/setup'
+import { Folder, GripVertical, Pencil, Plus, Trash2 } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
+import type { Folder as FolderType } from '@shared/types/setup'
 import type { FolderDeleteImpact } from '@shared/types/ipc'
 import { buildFolderTree, flattenFolderTreeForPicker } from '@renderer/state/folderTree'
 import { useEscapeToClose } from '@renderer/hooks/useEscapeToClose'
@@ -23,12 +25,14 @@ export interface ManagedItem {
   id: number
   folderId: number | null
   label: string
+  /** Optional Lucide icon shown before the label. */
+  icon?: LucideIcon
 }
 
 interface Props {
   title: string
   items: ManagedItem[]
-  folders: Folder[]
+  folders: FolderType[]
   onMoveToFolder: (kind: string, id: number, folderId: number | null) => Promise<void>
   onReorder: (kind: string, folderId: number | null, orderedIds: number[]) => Promise<void>
   onDelete: (kind: string, item: ManagedItem) => Promise<void>
@@ -105,17 +109,18 @@ function FlatFolderRow({
       style={{ paddingLeft: 10 }}
     >
       <span className="folder-tree-toggle" />
-      <button className="folder-tree-label" onClick={onSelect}>
-        📁 {name}
+      <button className="folder-tree-label tree-label" onClick={onSelect}>
+        <Folder className="home-icon" size={15} aria-hidden="true" />
+        <span className="folder-tree-name">{name}</span>
       </button>
       <button className="folder-tree-action" title="New Subfolder" onClick={onCreateSubfolder}>
-        +
+        <Plus size={15} aria-hidden="true" />
       </button>
       <button className="folder-tree-action" title="Rename" onClick={onRename}>
-        ✎
+        <Pencil size={14} aria-hidden="true" />
       </button>
       <button className="folder-tree-action" title="Delete" onClick={onDelete}>
-        🗑
+        <Trash2 size={14} aria-hidden="true" />
       </button>
     </div>
   )
@@ -156,9 +161,12 @@ function SortableItemRow({
   return (
     <div ref={setNodeRef} style={style} className="manage-item-row">
       <span className="drag-handle" {...attributes} {...listeners}>
-        ⠿
+        <GripVertical size={16} aria-hidden="true" />
       </span>
-      <span className="manage-item-label">{item.label}</span>
+      <span className="manage-item-label inline-icon-text">
+        {item.icon && <item.icon size={15} className="home-icon" aria-hidden="true" />}
+        {item.label}
+      </span>
       {onEdit && (
         <button className="btn small" onClick={onEdit}>
           Edit
