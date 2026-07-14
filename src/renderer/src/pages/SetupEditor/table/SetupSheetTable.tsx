@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from 'react'
 import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
+import type { SetupItemDraft, SetupItemOutboardSlot } from '@shared/types/setup'
 import { useSetupStore } from '@renderer/state/setupStore'
 import { useCatalogStore } from '@renderer/state/catalogStore'
 import { useGearCatalogueSuggestions } from '@renderer/state/useGearCatalogueSuggestions'
@@ -39,16 +40,27 @@ export default function SetupSheetTable(): JSX.Element {
     const newIndex = items.findIndex((item) => item.id === over.id)
     if (oldIndex === -1 || newIndex === -1) return
 
-    // Dragging a row that's part of a multi-selection moves the whole selected group together,
-    // as one block, instead of just the row whose handle was grabbed — mirrors LayoutStage's
-    // handleBlockDragEnd for a multi-selected group of canvas blocks.
+    // Which rows move as one block, in priority order: a multi-selection (drag any selected row and
+    // the whole selection travels together), otherwise a linked stereo pair (dragging either half
+    // carries its partner so the two never separate). Anything else is a plain single-row move.
+    let blockIds: Set<number | string> | null = null
     if (selectedItemIds.size > 1 && selectedItemIds.has(active.id)) {
-      if (selectedItemIds.has(over.id)) return // dropped on another already-selected row — no-op
-      const selectedGroup = items.filter((item) => selectedItemIds.has(item.id))
-      const others = items.filter((item) => !selectedItemIds.has(item.id))
+      blockIds = selectedItemIds
+    } else {
+      const activeItem = items[oldIndex]
+      if (activeItem.groupId != null) {
+        const pair = items.filter((item) => item.groupId === activeItem.groupId)
+        if (pair.length > 1) blockIds = new Set(pair.map((item) => item.id))
+      }
+    }
+
+    if (blockIds) {
+      if (blockIds.has(over.id)) return // dropped within the same block — no-op
+      const block = items.filter((item) => blockIds!.has(item.id))
+      const others = items.filter((item) => !blockIds!.has(item.id))
       const overIndexInOthers = others.findIndex((item) => item.id === over.id)
       const insertAt = newIndex > oldIndex ? overIndexInOthers + 1 : overIndexInOthers
-      const reordered = [...others.slice(0, insertAt), ...selectedGroup, ...others.slice(insertAt)]
+      const reordered = [...others.slice(0, insertAt), ...block, ...others.slice(insertAt)]
       reorderItems(reordered.map((item) => item.id))
       return
     }
@@ -65,6 +77,155 @@ export default function SetupSheetTable(): JSX.Element {
       else selectItem(itemId)
     },
     [selectRangeTo, toggleItem, selectItem]
+  )
+
+  // Toggles a mic-group link for the pair straddling `itemId` — pairing is purely positional
+  // (row 1 & 2, row 3 & 4, ...; 1-indexed odd row start), independent of what channel numbers are
+  // actually filled in. Reads the freshest store state at click time via getState() rather than
+  // closing over `items`/`mics` props, so this callback can have a permanently stable identity
+  // (empty deps) without going stale — otherwise every row would lose memoization on every edit,
+  // since this function would need to be recreated whenever `items` changes (i.e. on every
+  // keystroke).
+  const handleTogglePairLink = useCallback((itemId: number | string): void => {
+    const state = useSetupStore.getState()
+    const currentItems = state.items
+    const idx = currentItems.findIndex((i) => i.id === itemId)
+    if (idx === -1) return
+    const topIdx = idx % 2 === 0 ? idx : idx - 1
+    const topItem = currentItems[topIdx]
+    const bottomItem = currentItems[topIdx + 1]
+    if (!topItem || !bottomItem) return
+
+    const linked = topItem.groupId != null && topItem.groupId === bottomItem.groupId
+    if (linked) {
+      state.updateItemFields(topItem.id, { groupId: null })
+      state.updateItemFields(bottomItem.id, { groupId: null })
+      return
+    }
+
+    // Linking: the top row (first of the pair, by position) is always the "source" for one-time
+    // auto-fill convenience.
+    const groupId = crypto.randomUUID()
+    const patch: Partial<SetupItemDraft> = { groupId }
+    // Mic: only for a catalog mic with at least 2 units available (enough to cover both rows);
+    // free-text mics carry over unconditionally since there's no quantity to check. Only fills the
+    // bottom row's still-empty mic — separate from the ongoing sync that happens afterward when the
+    // top row's mic changes (see SetupSheetRow's handleMicChange).
+    if (bottomItem.micId == null && !bottomItem.micText) {
+      if (topItem.micId != null) {
+        const topMic = useCatalogStore.getState().mics.find((m) => m.id === topItem.micId)
+        if (topMic && topMic.quantity >= 2) patch.micId = topItem.micId
+      } else if (topItem.micText) {
+        patch.micText = topItem.micText
+      }
+    }
+    // Preamp: same quantity-gated pattern as mic (catalog preamps use `channels` as their
+    // quantity), since a preamp is exactly as gear-constrained as a mic — only fills the bottom
+    // row's still-empty preamp.
+    if (bottomItem.preampId == null && !bottomItem.preampText) {
+      if (topItem.preampId != null) {
+        const topPreamp = useCatalogStore.getState().preamps.find((p) => p.id === topItem.preampId)
+        if (topPreamp && topPreamp.channels >= 2) patch.preampId = topItem.preampId
+      } else if (topItem.preampText) {
+        patch.preampText = topItem.preampText
+      }
+    }
+    // 48V and outboard: simple mirror of the top row, no quantity gating (unlike mic/preamp) —
+    // only when the bottom row hasn't already got its own outboard picks.
+    patch.phantomPower = topItem.phantomPower
+    if (bottomItem.outboards.length === 0 && topItem.outboards.length > 0) {
+      patch.outboards = topItem.outboards.map((slot) => ({ ...slot }))
+    }
+    state.updateItemFields(topItem.id, { groupId })
+    state.updateItemFields(bottomItem.id, patch)
+  }, [])
+
+  // Ongoing sync (separate from the one-time auto-fill above): once a pair is linked, changing
+  // either row's mic to a catalog mic with at least 2 units available propagates the same mic to
+  // its partner too, keeping a stereo pair on matched mics without manual re-entry. Clearing a
+  // row's mic (picking "No Mic") always propagates too — resetting isn't subject to the quantity
+  // gate, since there's nothing to run out of. Fires from either row of an actively-linked pair
+  // (see SetupSheetRow's handleMicChange) — editing either side updates the other.
+  const handleSyncPairMic = useCallback((itemId: number | string, micId: number | null): void => {
+    const state = useSetupStore.getState()
+    const found = findLinkedPartner(state, itemId)
+    if (!found) return
+    if (micId == null) {
+      state.updateItemFields(found.partner.id, { micId: null, micText: null })
+      return
+    }
+    const mic = useCatalogStore.getState().mics.find((m) => m.id === micId)
+    if (!mic || mic.quantity < 2) return
+    state.updateItemFields(found.partner.id, { micId, micText: null })
+  }, [])
+
+  // Same ongoing sync as handleSyncPairMic, for preamp (catalog preamps use `channels` as their
+  // quantity — same idea as mic's `quantity`).
+  const handleSyncPairPreamp = useCallback((itemId: number | string, preampId: number | null): void => {
+    const state = useSetupStore.getState()
+    const found = findLinkedPartner(state, itemId)
+    if (!found) return
+    if (preampId == null) {
+      state.updateItemFields(found.partner.id, { preampId: null, preampText: null })
+      return
+    }
+    const preamp = useCatalogStore.getState().preamps.find((p) => p.id === preampId)
+    if (!preamp || preamp.channels < 2) return
+    state.updateItemFields(found.partner.id, { preampId, preampText: null })
+  }, [])
+
+  /** Shared "is this row part of an actively-linked pair, and who's its partner" check, reused by
+   *  every ongoing-sync handler below. Pairing is positional (row 1 & 2, row 3 & 4, ...), same rule
+   *  as handleTogglePairLink — works from EITHER row of the pair (editing either side updates the
+   *  other), unlike the one-time link-time auto-fill, which always seeds bottom from top.
+   *  `direction` is +1 when `itemId` is the top row (its partner is one below) and -1 when it's the
+   *  bottom row (its partner is one above) — used to keep numeric fields like channel offsetting
+   *  the right way regardless of which row triggered the sync. */
+  function findLinkedPartner(
+    state: ReturnType<typeof useSetupStore.getState>,
+    itemId: number | string
+  ): { partner: SetupItemDraft; direction: 1 | -1 } | null {
+    const currentItems = state.items
+    const idx = currentItems.findIndex((i) => i.id === itemId)
+    if (idx === -1) return null
+    const isTop = idx % 2 === 0
+    const partnerIdx = isTop ? idx + 1 : idx - 1
+    const item = currentItems[idx]
+    const partner = currentItems[partnerIdx]
+    if (!partner || item.groupId == null || item.groupId !== partner.groupId) return null
+    return { partner, direction: isTop ? 1 : -1 }
+  }
+
+  // Ongoing sync for 48V, polarity, channel, tie line, and cue box: editing any of these on either
+  // row of an actively-linked pair pushes the change to its partner. 48V and polarity copy straight
+  // across; the numeric fields carry the "N / N+1" stereo-pair convention forward (channel 3 →
+  // partner becomes 4, or the reverse if edited from the bottom row) rather than duplicating the
+  // exact number, since two rows can't share one channel/tie line/cue box — clamped to a minimum of
+  // 1 either way. Only whichever keys are actually present in `patch` get synced.
+  const handleSyncPairFields = useCallback((itemId: number | string, patch: Partial<SetupItemDraft>): void => {
+    const state = useSetupStore.getState()
+    const found = findLinkedPartner(state, itemId)
+    if (!found) return
+    const { partner, direction } = found
+    const syncPatch: Partial<SetupItemDraft> = {}
+    if ('phantomPower' in patch) syncPatch.phantomPower = patch.phantomPower
+    if ('polarityFlip' in patch) syncPatch.polarityFlip = patch.polarityFlip
+    if ('channel' in patch && patch.channel != null) syncPatch.channel = Math.max(1, patch.channel + direction)
+    if ('tieLine' in patch && patch.tieLine != null) syncPatch.tieLine = Math.max(1, patch.tieLine + direction)
+    if ('cueBox' in patch && patch.cueBox != null) syncPatch.cueBox = Math.max(1, patch.cueBox + direction)
+    if (Object.keys(syncPatch).length > 0) state.updateItemFields(partner.id, syncPatch)
+  }, [])
+
+  // Ongoing sync for outboard: editing an outboard slot on either row of an actively-linked pair
+  // mirrors the same slot on its partner.
+  const handleSyncPairOutboardSlot = useCallback(
+    (itemId: number | string, slotIndex: number, patch: Partial<Pick<SetupItemOutboardSlot, 'outboardId' | 'outboardText'>>): void => {
+      const state = useSetupStore.getState()
+      const found = findLinkedPartner(state, itemId)
+      if (!found) return
+      state.updateItemOutboardSlot(found.partner.id, slotIndex, patch)
+    },
+    []
   )
 
   const mics = useCatalogStore((s) => s.mics)
@@ -89,6 +250,19 @@ export default function SetupSheetTable(): JSX.Element {
   const preampUsageCounts = useMemo(() => computeUsageCounts(items, 'preampId'), [items])
   const sortableIds = useMemo(() => items.map((item) => item.id), [items])
 
+  // The link toggle appears between every odd-numbered row (1-indexed: row 1, 3, 5, ...) and the
+  // next row — purely positional, independent of what channel numbers are actually filled in. A
+  // trailing unpaired row (odd total row count) gets no toggle. Cheap enough to derive per-render
+  // without memoizing a whole Map, since it's a single array walk.
+  const pairByIndex: ({ role: 'top' | 'bottom'; linked: boolean } | null)[] = new Array(items.length).fill(null)
+  for (let i = 0; i + 1 < items.length; i += 2) {
+    const top = items[i]
+    const bottom = items[i + 1]
+    const linked = top.groupId != null && top.groupId === bottom.groupId
+    pairByIndex[i] = { role: 'top', linked }
+    pairByIndex[i + 1] = { role: 'bottom', linked }
+  }
+
   return (
     <div style={{ padding: 12 }}>
       <div className="section-title" style={{ marginTop: 0 }}>
@@ -103,6 +277,7 @@ export default function SetupSheetTable(): JSX.Element {
           <table className="data-table">
             <thead>
               <tr>
+                {col.has('stereoLink') && <th aria-label="Stereo pair link" style={{ width: 20 }}></th>}
                 <th></th>
                 <th>Source name</th>
                 {col.has('mic') && <th>Mic</th>}
@@ -122,7 +297,7 @@ export default function SetupSheetTable(): JSX.Element {
             </thead>
             <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
               <tbody>
-                {items.map((item) => (
+                {items.map((item, i) => (
                   <SetupSheetRow
                     key={item.id}
                     item={item}
@@ -133,6 +308,13 @@ export default function SetupSheetTable(): JSX.Element {
                     visibleColumns={col}
                     isTemporary={isTemporary}
                     selected={selectedItemIds.has(item.id)}
+                    pairRole={pairByIndex[i]?.role ?? null}
+                    pairLinked={pairByIndex[i]?.linked ?? false}
+                    onTogglePairLink={handleTogglePairLink}
+                    onSyncPairMic={handleSyncPairMic}
+                    onSyncPairPreamp={handleSyncPairPreamp}
+                    onSyncPairFields={handleSyncPairFields}
+                    onSyncPairOutboardSlot={handleSyncPairOutboardSlot}
                     conflict={item.tieLine != null && conflicts.has(item.tieLine)}
                     unresolvedGearHint={unresolvedGearHints.get(item.id)}
                     onClearUnresolvedGearHint={clearUnresolvedGearHint}

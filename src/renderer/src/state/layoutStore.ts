@@ -38,7 +38,7 @@ interface LayoutState {
     id: number | string,
     patch: Partial<Pick<RoomLayoutBlockDraft, 'x' | 'y' | 'width' | 'height' | 'rotation'>>
   ): void
-  renameBlock(id: number | string, label: string): void
+  renameBlock(id: number | string, label: string, personName?: string | null): void
   updateBlockColor(id: number | string, color: string): void
   duplicateBlocks(ids: (number | string)[]): void
   removeBlocks(ids: (number | string)[]): void
@@ -99,7 +99,8 @@ export const useLayoutStore = create<LayoutState>()(
           width,
           height,
           rotation: 0,
-          zIndex: maxZ + 1
+          zIndex: maxZ + 1,
+          personName: null
         }
         set({ blocks: [...get().blocks, draft], isDirty: true, selectedBlockIds: new Set([id]) })
         return id
@@ -111,9 +112,11 @@ export const useLayoutStore = create<LayoutState>()(
           isDirty: true
         })),
 
-      renameBlock: (id, label) =>
+      renameBlock: (id, label, personName) =>
         set((state) => ({
-          blocks: state.blocks.map((b) => (b.id === id ? { ...b, label } : b)),
+          blocks: state.blocks.map((b) =>
+            b.id === id ? { ...b, label, ...(personName !== undefined ? { personName } : {}) } : b
+          ),
           isDirty: true
         })),
 

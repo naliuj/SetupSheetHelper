@@ -3,17 +3,24 @@ import { useEscapeToClose } from '@renderer/hooks/useEscapeToClose'
 
 interface Props {
   initialLabel: string
+  initialPersonName: string | null
   onClose: () => void
-  onConfirm: (label: string) => void
+  onConfirm: (label: string, personName: string | null) => void
 }
 
-export default function RenameBlockModal({ initialLabel, onClose, onConfirm }: Props): JSX.Element {
+export default function RenameBlockModal({
+  initialLabel,
+  initialPersonName,
+  onClose,
+  onConfirm
+}: Props): JSX.Element {
   useEscapeToClose(onClose)
   const [label, setLabel] = useState(initialLabel)
+  const [personName, setPersonName] = useState(initialPersonName ?? '')
 
   function handleConfirm(): void {
     if (!label.trim()) return
-    onConfirm(label.trim())
+    onConfirm(label.trim(), personName.trim() || null)
     onClose()
   }
 
@@ -28,6 +35,16 @@ export default function RenameBlockModal({ initialLabel, onClose, onConfirm }: P
           style={{ width: '100%' }}
           autoFocus
           onFocus={(e) => e.target.select()}
+        />
+        <label className="card-sub" style={{ display: 'block', marginTop: 12, marginBottom: 4 }}>
+          Musician name (optional)
+        </label>
+        <input
+          value={personName}
+          onChange={(e) => setPersonName(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleConfirm()}
+          placeholder="e.g. Maria K."
+          style={{ width: '100%' }}
         />
         <div className="modal-actions">
           <button className="btn" onClick={onClose}>

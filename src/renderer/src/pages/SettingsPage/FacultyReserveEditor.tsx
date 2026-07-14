@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { RotateCcw } from 'lucide-react'
 import type { Mic, OutboardGear, Preamp } from '@shared/types/entities'
 import { guessManufacturer } from '@shared/constants/manufacturers'
 import { stripManufacturerPrefix } from '@shared/utils/manufacturerPrefix'
@@ -17,6 +18,8 @@ function FacultyReserveMicsSection({
   const [manufacturer, setManufacturer] = useState('')
   const [category, setCategory] = useState('')
   const [quantity, setQuantity] = useState('1')
+  const [confirmResetOpen, setConfirmResetOpen] = useState(false)
+  const [resetting, setResetting] = useState(false)
   const modelSuggestions = useModelSuggestions(catalogueMics, manufacturer)
 
   function reload(): void {
@@ -24,6 +27,17 @@ function FacultyReserveMicsSection({
   }
 
   useEffect(reload, [])
+
+  async function handleFactoryReset(): Promise<void> {
+    setResetting(true)
+    try {
+      await window.api.berklee.resetFacultyReserveMics()
+      reload()
+    } finally {
+      setResetting(false)
+      setConfirmResetOpen(false)
+    }
+  }
 
   function handleNameBlur(): void {
     if (!manufacturer.trim() && name.trim()) {
@@ -86,8 +100,17 @@ function FacultyReserveMicsSection({
 
   return (
     <div>
-      <div className="section-title" style={{ marginTop: 0 }}>
-        Mics
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 0 }}>
+        <div className="section-title" style={{ marginTop: 0 }}>
+          Mics
+        </div>
+        <button
+          className="btn small"
+          onClick={() => setConfirmResetOpen(true)}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+        >
+          <RotateCcw size={13} aria-hidden="true" /> Factory reset
+        </button>
       </div>
       <table className="data-table">
         <thead>
@@ -166,6 +189,26 @@ function FacultyReserveMicsSection({
           Add mic
         </button>
       </div>
+
+      {confirmResetOpen && (
+        <div className="modal-overlay" onClick={() => setConfirmResetOpen(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 420 }}>
+            <h2 style={{ marginTop: 0 }}>Factory reset faculty reserve mics?</h2>
+            <p className="card-sub">
+              Every faculty reserve mic — including any you've added or edited — is replaced with Berklee's original
+              set. This can't be undone. Outboard gear and preamps in faculty reserve aren't affected.
+            </p>
+            <div className="modal-actions">
+              <button className="btn" onClick={() => setConfirmResetOpen(false)} disabled={resetting}>
+                Cancel
+              </button>
+              <button className="btn danger" onClick={handleFactoryReset} disabled={resetting}>
+                {resetting ? 'Resetting…' : 'Factory reset'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

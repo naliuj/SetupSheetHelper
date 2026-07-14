@@ -19,6 +19,11 @@ import { run as channelPresetColor } from './017_channel_preset_color'
 import { run as setupVisibleColumns } from './018_setup_visible_columns'
 import { run as phantomPower } from './019_phantom_power'
 import { run as folderScope } from './020_folder_scope'
+import { run as blockPersonName } from './021_block_person_name'
+import { run as setupSessionNotes } from './022_setup_session_notes'
+import { run as micGroup } from './023_mic_group'
+import { run as dropOrphanedGroupRole } from './024_drop_orphaned_group_role'
+import { run as consolidateNiceDi } from './025_consolidate_nice_di'
 
 export interface SqlMigration {
   version: number
@@ -52,5 +57,10 @@ export const MIGRATIONS: Migration[] = [
   { version: 17, run: channelPresetColor },
   { version: 18, run: setupVisibleColumns },
   { version: 19, run: phantomPower },
-  { version: 20, run: folderScope }
+  { version: 20, run: folderScope },
+  { version: 21, run: blockPersonName },
+  { version: 22, run: setupSessionNotes },
+  { version: 23, run: micGroup },
+  { version: 24, run: dropOrphanedGroupRole },
+  { version: 25, run: consolidateNiceDi }
 ]

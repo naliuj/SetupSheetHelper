@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type Konva from 'konva'
-import { Check, Keyboard } from 'lucide-react'
+import { Check, FileText, Keyboard } from 'lucide-react'
 import { APP_SETTINGS_KEYS } from '@shared/types/entities'
 import type { MenuAction, PdfExportInclude } from '@shared/types/ipc'
 import { KEYBIND_ACTIONS, formatCombo, normalizeKeyEvent } from '@shared/constants/keybindActions'
@@ -29,10 +29,12 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode, onOpenSetti
   const sessionDate = useSetupStore((s) => s.sessionDate)
   const engineer = useSetupStore((s) => s.engineer)
   const artist = useSetupStore((s) => s.artist)
+  const sessionNotes = useSetupStore((s) => s.sessionNotes)
   const setName = useSetupStore((s) => s.setName)
   const setSessionDate = useSetupStore((s) => s.setSessionDate)
   const setEngineer = useSetupStore((s) => s.setEngineer)
   const setArtist = useSetupStore((s) => s.setArtist)
+  const setSessionNotes = useSetupStore((s) => s.setSessionNotes)
   const save = useSetupStore((s) => s.save)
   const isDirty = useSetupStore((s) => s.isDirty)
   const isSaving = useSetupStore((s) => s.isSaving)
@@ -54,6 +56,8 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode, onOpenSetti
   const [defaultExportInclude, setDefaultExportInclude] = useState<PdfExportInclude>('both')
   const [defaultExportColoredRows, setDefaultExportColoredRows] = useState(false)
   const [layoutGateOpen, setLayoutGateOpen] = useState(false)
+  const [notesOpen, setNotesOpen] = useState(false)
+  const notesRef = useRef<HTMLDivElement>(null)
 
   const resolveKeybind = useKeybindPrefsStore((s) => s.resolve)
   const goToSettings = useNavigationStore((s) => s.goToSettings)
@@ -82,6 +86,16 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode, onOpenSetti
   useEffect(() => {
     if (isDirty) setJustSaved(false)
   }, [isDirty])
+
+  // Close the Session notes popover on an outside click.
+  useEffect(() => {
+    if (!notesOpen) return
+    function onDown(e: MouseEvent): void {
+      if (notesRef.current && !notesRef.current.contains(e.target as Node)) setNotesOpen(false)
+    }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [notesOpen])
 
   async function handleSave(): Promise<void> {
     await save()
@@ -337,6 +351,37 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode, onOpenSetti
         onBlur={artistField.onBlur}
         className="setup-meta-input"
       />
+      <div ref={notesRef} style={{ position: 'relative' }}>
+        <button
+          className="btn"
+          onClick={() => setNotesOpen((open) => !open)}
+          title="Session notes"
+          aria-label="Session notes"
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+        >
+          <FileText size={16} aria-hidden="true" color={sessionNotes ? 'var(--color-accent)' : undefined} />
+        </button>
+        {notesOpen && (
+          <div
+            className="picker-menu"
+            style={{ position: 'absolute', top: '100%', left: 0, marginTop: 4, width: 320, padding: 10 }}
+          >
+            <div className="card-sub" style={{ margin: '0 0 8px' }}>
+              Session notes
+            </div>
+            <textarea
+              autoFocus
+              rows={7}
+              className="field-input"
+              style={{ width: '100%', resize: 'vertical' }}
+              placeholder="Tuning reference, mic-array spacing, or anything else worth noting for this session"
+              value={sessionNotes ?? ''}
+              onChange={(e) => setSessionNotes(e.target.value || null)}
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        )}
+      </div>
       <div className="spacer" />
       {exportMessage && <span className="card-sub">{exportMessage}</span>}
       {isDirty && <span className="card-sub">Unsaved changes</span>}

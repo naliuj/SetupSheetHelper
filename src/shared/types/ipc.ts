@@ -128,7 +128,8 @@ export const IPC = {
   },
   berklee: {
     enable: 'berklee:enable',
-    disable: 'berklee:disable'
+    disable: 'berklee:disable',
+    resetFacultyReserveMics: 'berklee:resetFacultyReserveMics'
   },
   folders: {
     list: 'folders:list',
@@ -229,6 +230,7 @@ export interface SetupItemInput {
   polarityFlip: boolean
   notes: string | null
   color: string | null
+  groupId: string | null
 }
 
 export interface RoomLayoutBlockInput {
@@ -242,6 +244,7 @@ export interface RoomLayoutBlockInput {
   height: number
   rotation: number
   zIndex: number
+  personName: string | null
 }
 
 export interface ExportedStudioGear {
@@ -465,7 +468,8 @@ export interface RendererApi {
       folderId: number | null,
       engineer: string | null,
       artist: string | null,
-      facultyReserveEnabled: boolean
+      facultyReserveEnabled: boolean,
+      sessionNotes?: string | null
     ): Promise<Setup>
     rename(
       id: number,
@@ -473,7 +477,8 @@ export interface RendererApi {
       sessionDate: string | null,
       engineer: string | null,
       artist: string | null,
-      facultyReserveEnabled: boolean
+      facultyReserveEnabled: boolean,
+      sessionNotes: string | null
     ): Promise<void>
     saveItems(setupId: number, items: SetupItemInput[]): Promise<SetupItem[]>
     setOutboardColumnCount(setupId: number, count: number): Promise<void>
@@ -491,6 +496,9 @@ export interface RendererApi {
   berklee: {
     enable(): Promise<void>
     disable(): Promise<void>
+    /** "Factory reset" for the Faculty Reserve mics editor — wipes and re-seeds faculty-reserve
+     *  mics from the Berklee fixture. Outboard/preamps are untouched (no fixture data for them). */
+    resetFacultyReserveMics(): Promise<void>
   }
   folders: {
     list(scope: FolderScope): Promise<Folder[]>

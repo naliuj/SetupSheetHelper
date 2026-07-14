@@ -3,6 +3,7 @@
 // table, the per-setup Columns popover, the global default in Settings, and the PDF export.
 
 export type SetupColumnKey =
+  | 'stereoLink'
   | 'mic'
   | 'phantomPower'
   | 'outboard'
@@ -14,6 +15,9 @@ export type SetupColumnKey =
   | 'notes'
 
 export const TOGGLEABLE_COLUMNS: { key: SetupColumnKey; label: string }[] = [
+  // The slim leftmost stereo-pair link column — a control column, but toggleable like the rest so
+  // rock setups (no stereo pairs) can hide it. On for new/unconfigured setups (it's in ALL_COLUMN_KEYS).
+  { key: 'stereoLink', label: 'Stereo Link' },
   { key: 'mic', label: 'Mic' },
   { key: 'phantomPower', label: '48V' },
   { key: 'outboard', label: 'Outboard' },

@@ -27,9 +27,8 @@ export default function SetupSettingsPage({ setupId, onBack }: Props): JSX.Eleme
 
   // "General" only has content for Berklee users (the faculty reserve toggle) — when it's
   // filtered out, Session Gear is the only tab left, so skip the tab strip entirely rather than
-  // showing a single, purposeless tab button. This also naturally handles Berklee features being
-  // turned off while "General" is the active tab: with no strip, the gear locker is forced back
-  // into view instead of leaving an empty panel behind.
+  // showing a single, purposeless tab button. (Session notes moved to a toolbar popover — see
+  // SetupToolbar.tsx — so it's no longer what kept this tab non-empty for everyone.)
   const visibleTabs = TABS.filter((t) => t.key !== 'general' || berkleeFeaturesEnabled)
   const showTabStrip = visibleTabs.length > 1
   const activeTab = showTabStrip ? tab : 'gear'

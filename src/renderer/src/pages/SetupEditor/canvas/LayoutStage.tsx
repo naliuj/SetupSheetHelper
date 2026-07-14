@@ -479,8 +479,9 @@ export default function LayoutStage({ studioId, stageRef, active }: Props): JSX.
       {renamingBlock && (
         <RenameBlockModal
           initialLabel={renamingBlock.label}
+          initialPersonName={renamingBlock.personName}
           onClose={() => setRenamingBlockId(null)}
-          onConfirm={(label) => renameBlock(renamingBlock.id, label)}
+          onConfirm={(label, personName) => renameBlock(renamingBlock.id, label, personName)}
         />
       )}
       {colorPicker &&

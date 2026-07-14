@@ -90,7 +90,7 @@ const api: RendererApi = {
     list: (studioId) => ipcRenderer.invoke(IPC.setups.list, studioId),
     listByKind: (filter) => ipcRenderer.invoke(IPC.setups.listByKind, filter),
     getWithItems: (id) => ipcRenderer.invoke(IPC.setups.getWithItems, id),
-    create: (studioId, name, sessionDate, folderId, engineer, artist, facultyReserveEnabled) =>
+    create: (studioId, name, sessionDate, folderId, engineer, artist, facultyReserveEnabled, sessionNotes) =>
       ipcRenderer.invoke(
         IPC.setups.create,
         studioId,
@@ -99,10 +99,20 @@ const api: RendererApi = {
         folderId,
         engineer,
         artist,
-        facultyReserveEnabled
+        facultyReserveEnabled,
+        sessionNotes
       ),
-    rename: (id, name, sessionDate, engineer, artist, facultyReserveEnabled) =>
-      ipcRenderer.invoke(IPC.setups.rename, id, name, sessionDate, engineer, artist, facultyReserveEnabled),
+    rename: (id, name, sessionDate, engineer, artist, facultyReserveEnabled, sessionNotes) =>
+      ipcRenderer.invoke(
+        IPC.setups.rename,
+        id,
+        name,
+        sessionDate,
+        engineer,
+        artist,
+        facultyReserveEnabled,
+        sessionNotes
+      ),
     saveItems: (setupId, items) => ipcRenderer.invoke(IPC.setups.saveItems, setupId, items),
     setOutboardColumnCount: (setupId, count) =>
       ipcRenderer.invoke(IPC.setups.setOutboardColumnCount, setupId, count),
@@ -119,7 +129,8 @@ const api: RendererApi = {
   },
   berklee: {
     enable: () => ipcRenderer.invoke(IPC.berklee.enable),
-    disable: () => ipcRenderer.invoke(IPC.berklee.disable)
+    disable: () => ipcRenderer.invoke(IPC.berklee.disable),
+    resetFacultyReserveMics: () => ipcRenderer.invoke(IPC.berklee.resetFacultyReserveMics)
   },
   folders: {
     list: (scope) => ipcRenderer.invoke(IPC.folders.list, scope),
