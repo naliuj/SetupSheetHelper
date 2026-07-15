@@ -126,6 +126,9 @@ export const IPC = {
     get: 'settings:get',
     set: 'settings:set'
   },
+  app: {
+    getVersion: 'app:getVersion'
+  },
   berklee: {
     enable: 'berklee:enable',
     disable: 'berklee:disable',
@@ -362,6 +365,7 @@ export type MenuAction =
   | 'open-settings'
   | 'undo'
   | 'redo'
+  | 'show-whats-new'
 
 /** Renderer-facing API surface, exposed on window.api via contextBridge. */
 export interface RendererApi {
@@ -492,6 +496,9 @@ export interface RendererApi {
   settings: {
     get(key: string): Promise<string | null>
     set(key: string, value: string): Promise<void>
+  }
+  app: {
+    getVersion(): Promise<string>
   }
   berklee: {
     enable(): Promise<void>

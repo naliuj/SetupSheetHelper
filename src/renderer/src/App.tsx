@@ -4,6 +4,7 @@ import { useNavigationStore } from './state/navigationStore'
 import { useThemeStore } from './state/themeStore'
 import { usePaletteStore } from './state/paletteStore'
 import { useBerkleeFeaturesStore } from './state/berkleeFeaturesStore'
+import { useWhatsNewStore } from './state/whatsNewStore'
 import { useColumnPrefsStore } from './state/columnPrefsStore'
 import { usePdfLayoutPrefsStore } from './state/pdfLayoutPrefsStore'
 import { useKeybindPrefsStore } from './state/keybindPrefsStore'
@@ -14,6 +15,7 @@ import SettingsPage from './pages/SettingsPage/SettingsPage'
 import SetupEditor from './pages/SetupEditor/SetupEditor'
 import StudioSetupPage from './pages/StudioSetup/StudioSetupPage'
 import BerkleeOnboardingModal from './components/BerkleeOnboardingModal'
+import WhatsNewModal from './components/WhatsNewModal'
 
 export default function App(): JSX.Element {
   const view = useNavigationStore((s) => s.view)
@@ -21,6 +23,7 @@ export default function App(): JSX.Element {
   const goToSettings = useNavigationStore((s) => s.goToSettings)
   const theme = useThemeStore((s) => s.theme)
   const onboardingPromptOpen = useBerkleeFeaturesStore((s) => s.onboardingPromptOpen)
+  const whatsNewOpen = useWhatsNewStore((s) => s.open)
 
   // Load the persisted theme once at startup, before the user ever opens Settings. Hydrates
   // via setState directly (not the persisting setTheme action) so loading doesn't write it
@@ -47,6 +50,13 @@ export default function App(): JSX.Element {
   // never been answered (see berkleeFeaturesStore.load()).
   useEffect(() => {
     useBerkleeFeaturesStore.getState().load()
+  }, [])
+
+  // Compare the running app version against the last one the user has seen a changelog for —
+  // surfaces the "What's New" modal on a real upgrade, stays silent on a fresh install (see
+  // whatsNewStore.load()).
+  useEffect(() => {
+    useWhatsNewStore.getState().load()
   }, [])
 
   // Load the default column visibility once at startup — new setups snapshot it, and the Settings
@@ -83,8 +93,17 @@ export default function App(): JSX.Element {
   useEffect(() => {
     return window.api.menu.onAction((action) => {
       if (action === 'open-settings') goToSettings()
+      if (action === 'show-whats-new') useWhatsNewStore.getState().openManually()
     })
   }, [goToSettings])
+
+  // Hidden debug hook to pop the What's New modal on demand from the DevTools console
+  // (`showWhatsNew()`) — deliberately not a KEYBIND_ACTIONS entry or menu item duplicate, since
+  // the whole point is that it stays undiscoverable rather than being a real, user-facing trigger.
+  useEffect(() => {
+    ;(window as unknown as { showWhatsNew: () => void }).showWhatsNew = () =>
+      useWhatsNewStore.getState().openManually()
+  }, [])
 
   useEffect(() => {
     function isTextField(target: EventTarget | null): boolean {
@@ -120,6 +139,7 @@ export default function App(): JSX.Element {
       {view === 'studioSetup' && <StudioSetupPage />}
       {view === 'settings' && <SettingsPage />}
       {onboardingPromptOpen && <BerkleeOnboardingModal />}
+      {whatsNewOpen && <WhatsNewModal />}
     </div>
   )
 }

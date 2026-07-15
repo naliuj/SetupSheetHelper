@@ -27,6 +27,7 @@ export function installAppMenu(mainWindow: BrowserWindow): void {
     submenu: [
       { role: 'about' },
       { label: 'Check for Updates…', click: () => checkForUpdatesManually(mainWindow) },
+      { label: "What's New…", click: () => send('show-whats-new') },
       { type: 'separator' },
       { label: 'Settings…', click: () => send('open-settings') },
       { type: 'separator' },

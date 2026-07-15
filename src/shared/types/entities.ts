@@ -109,5 +109,8 @@ export const APP_SETTINGS_KEYS = {
    *  KEYBIND_ACTIONS' defaults are stored. Absent/garbage → {} (every action at its default). */
   keybindOverrides: 'keybind_overrides',
   /** HomeLayout: 'blocks' | 'tree' | 'twoPane' | 'miller' — home screen presentation. Absent/garbage → 'blocks'. */
-  homeLayout: 'home_layout'
+  homeLayout: 'home_layout',
+  /** Last app version (from app.getVersion()) the user has seen the "What's New" changelog for.
+   *  Absent → fresh install; the current version is recorded silently without showing the modal. */
+  lastSeenVersion: 'last_seen_version'
 } as const

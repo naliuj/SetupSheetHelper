@@ -127,6 +127,9 @@ const api: RendererApi = {
     get: (key) => ipcRenderer.invoke(IPC.settings.get, key),
     set: (key, value) => ipcRenderer.invoke(IPC.settings.set, key, value)
   },
+  app: {
+    getVersion: () => ipcRenderer.invoke(IPC.app.getVersion)
+  },
   berklee: {
     enable: () => ipcRenderer.invoke(IPC.berklee.enable),
     disable: () => ipcRenderer.invoke(IPC.berklee.disable),

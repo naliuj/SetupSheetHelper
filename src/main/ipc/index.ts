@@ -9,6 +9,7 @@ import { registerPresetFolderHandlers } from './presetFolderHandlers'
 import { registerRoomLayoutBlockHandlers } from './roomLayoutBlockHandlers'
 import { registerPaletteHandlers } from './paletteHandlers'
 import { registerBerkleeHandlers } from './berkleeHandlers'
+import { registerAppHandlers } from './appHandlers'
 
 export function registerAllIpcHandlers(): void {
   registerStudioHandlers()
@@ -22,4 +23,5 @@ export function registerAllIpcHandlers(): void {
   registerRoomLayoutBlockHandlers()
   registerPaletteHandlers()
   registerBerkleeHandlers()
+  registerAppHandlers()
 }
