@@ -97,3 +97,24 @@ export function seedBerkleeData(db: Database.Database): void {
   })
   run()
 }
+
+/** "Factory reset" for the Faculty Reserve mics editor — wipes every faculty_reserve mic (any
+ *  user-added ones included) and re-inserts exactly the fixture's faculty_reserve set, same
+ *  insertion shape as seedBerkleeData's faculty-reserve branch above. Outboard/preamps are left
+ *  alone deliberately: the fixture has no faculty-reserve entries for either (see
+ *  berkleeSeedData.json), so there's no "factory" baseline to reset them to. */
+export function resetFacultyReserveMics(db: Database.Database): void {
+  const insertMic = db.prepare(
+    `INSERT INTO mics (pool_type, studio_id, building_id, name, manufacturer, category, notes, quantity, sort_order)
+     VALUES ('faculty_reserve', NULL, NULL, ?, ?, ?, ?, ?, ?)`
+  )
+  const run = db.transaction(() => {
+    db.prepare(`DELETE FROM mics WHERE pool_type = 'faculty_reserve'`).run()
+    for (const m of seedData.mics) {
+      if (m.poolType === 'faculty_reserve') {
+        insertMic.run(m.name, m.manufacturer, m.category, m.notes, m.quantity, m.sortOrder)
+      }
+    }
+  })
+  run()
+}

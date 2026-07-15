@@ -1,7 +1,7 @@
 import { memo } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { AlertTriangle, GripVertical, X } from 'lucide-react'
+import { AlertTriangle, GripVertical, Link2, X } from 'lucide-react'
 import type { SetupItemDraft, SetupItemOutboardSlot } from '@shared/types/setup'
 import type { SetupColumnKey } from '@shared/constants/setupColumns'
 import type { Mic, OutboardGear, Preamp } from '@shared/types/entities'
@@ -90,6 +90,7 @@ function OutboardSlotCell({
           outerGroupBy={outboardGroupBy}
           outerGroupOrder={POOL_ORDER}
           stripManufacturerInTrigger
+          clearLabel="No Outboard"
         />
       )}
       {hintText && (
@@ -113,6 +114,12 @@ interface Props {
   visibleColumns: Set<SetupColumnKey>
   isTemporary: boolean
   selected: boolean
+  /** Set only for the two rows straddling a valid odd/even channel pair (e.g. channel 3 and 4) —
+   *  every other row gets `null` and renders no link control at all. 'top' is the odd-channel row
+   *  (which hosts the clickable toggle on the seam), 'bottom' the next row down. */
+  pairRole: 'top' | 'bottom' | null
+  pairLinked: boolean
+  onTogglePairLink: (id: number | string) => void
   conflict: boolean
   unresolvedGearHint: UnresolvedGearHint | undefined
   onClearUnresolvedGearHint: (id: number | string, field: 'mic' | 'outboard' | 'preamp') => void
@@ -122,6 +129,22 @@ interface Props {
   onGutterClick: (e: React.MouseEvent, id: number | string) => void
   onChange: (id: number | string, patch: Partial<SetupItemDraft>) => void
   onOutboardSlotChange: (
+    id: number | string,
+    slotIndex: number,
+    patch: Partial<Pick<SetupItemOutboardSlot, 'outboardId' | 'outboardText'>>
+  ) => void
+  /** Ongoing mic sync for an actively-linked pair — called after the top row's own mic change
+   *  (see handleMicChange below); the table resolves the partner and applies the quantity check. */
+  onSyncPairMic: (id: number | string, micId: number | null) => void
+  /** Same as onSyncPairMic, for preamp — called after the top row's own preamp change (see
+   *  handlePreampChange below). */
+  onSyncPairPreamp: (id: number | string, preampId: number | null) => void
+  /** Ongoing sync for 48V/channel/tie line/cue box — called after the top row's own onChange with
+   *  whichever of those keys were part of the patch; the table resolves the partner and, for the
+   *  numeric fields, carries the pair's "N / N+1" convention forward rather than duplicating it. */
+  onSyncPairFields: (id: number | string, patch: Partial<SetupItemDraft>) => void
+  /** Ongoing outboard sync for an actively-linked pair — mirrors one slot onto the partner. */
+  onSyncPairOutboardSlot: (
     id: number | string,
     slotIndex: number,
     patch: Partial<Pick<SetupItemOutboardSlot, 'outboardId' | 'outboardText'>>
@@ -138,6 +161,9 @@ function SetupSheetRow({
   visibleColumns,
   isTemporary,
   selected,
+  pairRole,
+  pairLinked,
+  onTogglePairLink,
   conflict,
   unresolvedGearHint,
   onClearUnresolvedGearHint: onClearUnresolvedGearHintById,
@@ -147,16 +173,30 @@ function SetupSheetRow({
   onGutterClick: onGutterClickById,
   onChange: onChangeById,
   onOutboardSlotChange: onOutboardSlotChangeById,
+  onSyncPairMic,
+  onSyncPairPreamp,
+  onSyncPairFields,
+  onSyncPairOutboardSlot,
   onDelete: onDeleteById
 }: Props): JSX.Element {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id })
 
-  // Thin id-bound wrappers so the rest of the component keeps its original single-row API.
-  const onChange = (patch: Partial<SetupItemDraft>): void => onChangeById(item.id, patch)
+  // Thin id-bound wrappers so the rest of the component keeps its original single-row API. Once a
+  // pair is linked, either row pushes its changes to the other — the table resolves which row is
+  // "top"/"bottom" to get the channel/tie line/cue box offset direction right regardless of which
+  // side was edited.
+  const isPairSyncSource = pairLinked
+  const onChange = (patch: Partial<SetupItemDraft>): void => {
+    onChangeById(item.id, patch)
+    if (isPairSyncSource) onSyncPairFields(item.id, patch)
+  }
   const onOutboardSlotChange = (
     slotIndex: number,
     patch: Partial<Pick<SetupItemOutboardSlot, 'outboardId' | 'outboardText'>>
-  ): void => onOutboardSlotChangeById(item.id, slotIndex, patch)
+  ): void => {
+    onOutboardSlotChangeById(item.id, slotIndex, patch)
+    if (isPairSyncSource) onSyncPairOutboardSlot(item.id, slotIndex, patch)
+  }
   const onClearUnresolvedGearHint = (field: 'mic' | 'outboard' | 'preamp'): void =>
     onClearUnresolvedGearHintById(item.id, field)
   const onDelete = (): void => onDeleteById(item.id)
@@ -184,6 +224,9 @@ function SetupSheetRow({
     const nextNotes = applyMicPoolNotesTag(item.notes ?? '', mic?.poolType ?? null)
     onChange({ micId, notes: nextNotes })
     onClearUnresolvedGearHint('mic')
+    // Only the top row of an actively-linked pair drives the sync — changing the bottom row's mic
+    // never pushes back up.
+    if (isPairSyncSource) onSyncPairMic(item.id, micId)
   }
 
   function handleOutboardSlotChange(
@@ -203,6 +246,9 @@ function SetupSheetRow({
     const nextNotes = applyMicPoolNotesTag(item.notes ?? '', preamp?.poolType ?? null)
     onChange({ preampId, notes: nextNotes })
     onClearUnresolvedGearHint('preamp')
+    // Only the top row of an actively-linked pair drives the sync — changing the bottom row's
+    // preamp never pushes back up.
+    if (isPairSyncSource) onSyncPairPreamp(item.id, preampId)
   }
 
   const sourceName = useBufferedField(item.sourceName, (v) => onChange({ sourceName: v }))
@@ -214,6 +260,19 @@ function SetupSheetRow({
   const tieLine = useBufferedField(String(item.tieLine ?? ''), (v) =>
     onChange({ tieLine: v ? Math.max(1, Number(v)) : null })
   )
+  // Channel and tie line push to the linked partner on every keystroke, not just on blur like the
+  // rest of the buffered fields — seeing the paired channel/tie line update live (rather than only
+  // once you tab away) is what makes the pairing visually obvious while you're actively numbering a
+  // sheet. This row's own value still only commits to the store (and autosave) on blur as usual;
+  // only the partner's value is pushed immediately.
+  function handleChannelInputChange(raw: string): void {
+    channel.onChange(raw)
+    if (isPairSyncSource) onSyncPairFields(item.id, { channel: raw ? Math.max(1, Number(raw)) : null })
+  }
+  function handleTieLineInputChange(raw: string): void {
+    tieLine.onChange(raw)
+    if (isPairSyncSource) onSyncPairFields(item.id, { tieLine: raw ? Math.max(1, Number(raw)) : null })
+  }
   const cueBox = useBufferedField(String(item.cueBox ?? ''), (v) =>
     onChange({ cueBox: v ? Math.max(1, Number(v)) : null })
   )
@@ -221,18 +280,80 @@ function SetupSheetRow({
 
   return (
     <tr ref={setNodeRef} style={rowStyle}>
+      {/* Slim leftmost stereo-pair link column (toggleable via the Columns menu). Only an odd/even
+          channel pair (e.g. 3 & 4) gets a control: when linked, a bracket "[" is drawn against the
+          left edge spanning both rows (spine + an inward tick top and bottom, split across the two
+          cells), and the 'top' row hosts a borderless link-icon toggle on the seam. A high z-index
+          on the top cell lets the seam-straddling icon paint over the next row (later in DOM order). */}
+      {visibleColumns.has('stereoLink') && (
+        <td
+          style={{
+            width: 20,
+            padding: 0,
+            position: 'relative',
+            overflow: 'visible',
+            zIndex: pairRole === 'top' ? 1 : undefined
+          }}
+        >
+          {pairLinked && (
+            <div
+              aria-hidden="true"
+              style={{
+                position: 'absolute',
+                left: 2,
+                width: 6,
+                // Top cell draws the upper half of the "[" (spine down to the seam + top tick);
+                // bottom cell draws the lower half (spine up from the seam + bottom tick).
+                top: pairRole === 'top' ? 3 : 0,
+                bottom: pairRole === 'bottom' ? 3 : 0,
+                borderLeft: '2px solid var(--color-accent)',
+                borderTop: pairRole === 'top' ? '2px solid var(--color-accent)' : undefined,
+                borderBottom: pairRole === 'bottom' ? '2px solid var(--color-accent)' : undefined
+              }}
+            />
+          )}
+          {pairRole === 'top' && (
+            <button
+              aria-label={pairLinked ? 'Linked stereo pair — click to unlink' : 'Link as a stereo pair'}
+              title={pairLinked ? 'Linked stereo pair — click to unlink' : 'Link as a stereo pair'}
+              onClick={(e) => {
+                e.stopPropagation()
+                onTogglePairLink(item.id)
+              }}
+              onMouseEnter={(e) => {
+                if (!pairLinked) e.currentTarget.style.color = 'var(--color-accent)'
+              }}
+              onMouseLeave={(e) => {
+                if (!pairLinked) e.currentTarget.style.color = 'var(--color-text-dim)'
+              }}
+              style={{
+                position: 'absolute',
+                left: 6,
+                top: '100%',
+                transform: 'translateY(-50%)',
+                zIndex: 2,
+                padding: 2,
+                border: 'none',
+                background: 'transparent',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: pairLinked ? 'var(--color-accent)' : 'var(--color-text-dim)'
+              }}
+            >
+              <Link2 size={13} aria-hidden="true" />
+            </button>
+          )}
+        </td>
+      )}
       <td
         className="gutter-cell"
         onClick={(e) => onGutterClickById(e, item.id)}
         title="Click to select · Shift-click for a range · Cmd/Ctrl-click to toggle"
         style={{ cursor: 'pointer', userSelect: 'none' }}
       >
-        <span
-          className="drag-handle"
-          {...attributes}
-          {...listeners}
-          style={{ cursor: 'grab' }}
-        >
+        <span className="drag-handle" {...attributes} {...listeners} style={{ cursor: 'grab' }}>
           <GripVertical size={16} aria-hidden="true" />
         </span>
       </td>
@@ -265,6 +386,7 @@ function SetupSheetRow({
               onSelect={handleMicChange}
               outerGroupBy={micGroupBy}
               outerGroupOrder={POOL_ORDER}
+              clearLabel="No Mic"
             />
           )}
           {unresolvedGearHint?.mic && (
@@ -303,7 +425,7 @@ function SetupSheetRow({
             type="number"
             min={1}
             value={channel.value}
-            onChange={(e) => channel.onChange(e.target.value)}
+            onChange={(e) => handleChannelInputChange(e.target.value)}
             onBlur={channel.onBlur}
             onClick={(e) => e.stopPropagation()}
           />
@@ -330,6 +452,7 @@ function SetupSheetRow({
               outerGroupBy={preampGroupBy}
               outerGroupOrder={PREAMP_POOL_ORDER}
               stripManufacturerInTrigger
+              clearLabel="No Preamp"
             />
           )}
           {unresolvedGearHint?.preamp && (
@@ -346,7 +469,7 @@ function SetupSheetRow({
             type="number"
             min={1}
             value={tieLine.value}
-            onChange={(e) => tieLine.onChange(e.target.value)}
+            onChange={(e) => handleTieLineInputChange(e.target.value)}
             onBlur={tieLine.onBlur}
             onClick={(e) => e.stopPropagation()}
           />

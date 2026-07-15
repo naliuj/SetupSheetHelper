@@ -120,24 +120,64 @@ const LayoutBlockIcon = forwardRef<Konva.Group, Props>(function LayoutBlockIcon(
           strokeWidth={strokeWidth}
         />
       )}
-      <Text
-        text={block.label}
-        fontSize={fontSize}
-        fontStyle="bold"
-        fill={labelColor}
-        shadowColor={labelShadow}
-        shadowBlur={3}
-        shadowOpacity={0.9}
-        width={textWidth}
-        height={textHeight}
-        x={-textWidth / 2}
-        y={-textHeight / 2}
-        align="center"
-        verticalAlign="middle"
-        wrap="word"
-        ellipsis
-        listening={false}
-      />
+      {block.personName ? (
+        <>
+          <Text
+            text={block.label}
+            fontSize={fontSize}
+            fontStyle="bold"
+            fill={labelColor}
+            shadowColor={labelShadow}
+            shadowBlur={3}
+            shadowOpacity={0.9}
+            width={textWidth}
+            height={textHeight * 0.6}
+            x={-textWidth / 2}
+            y={-textHeight / 2}
+            align="center"
+            verticalAlign="bottom"
+            wrap="word"
+            ellipsis
+            listening={false}
+          />
+          <Text
+            text={block.personName}
+            fontSize={Math.max(8, fontSize * 0.6)}
+            fill={labelColor}
+            shadowColor={labelShadow}
+            shadowBlur={2}
+            shadowOpacity={0.9}
+            width={textWidth}
+            height={textHeight * 0.4}
+            x={-textWidth / 2}
+            y={-textHeight / 2 + textHeight * 0.6}
+            align="center"
+            verticalAlign="top"
+            wrap="word"
+            ellipsis
+            listening={false}
+          />
+        </>
+      ) : (
+        <Text
+          text={block.label}
+          fontSize={fontSize}
+          fontStyle="bold"
+          fill={labelColor}
+          shadowColor={labelShadow}
+          shadowBlur={3}
+          shadowOpacity={0.9}
+          width={textWidth}
+          height={textHeight}
+          x={-textWidth / 2}
+          y={-textHeight / 2}
+          align="center"
+          verticalAlign="middle"
+          wrap="word"
+          ellipsis
+          listening={false}
+        />
+      )}
     </Group>
   )
 })

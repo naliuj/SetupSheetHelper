@@ -14,6 +14,7 @@ interface RoomLayoutBlockRow {
   height: number
   rotation: number
   z_index: number
+  person_name: string | null
 }
 
 function mapRow(row: RoomLayoutBlockRow): RoomLayoutBlock {
@@ -28,7 +29,8 @@ function mapRow(row: RoomLayoutBlockRow): RoomLayoutBlock {
     width: row.width,
     height: row.height,
     rotation: row.rotation,
-    zIndex: row.z_index
+    zIndex: row.z_index,
+    personName: row.person_name
   }
 }
 
@@ -46,13 +48,13 @@ export function listBlocksBySetup(setupId: number): RoomLayoutBlock[] {
 export function replaceBlocksForSetup(setupId: number, blocks: RoomLayoutBlockInput[]): RoomLayoutBlock[] {
   const db = getDb()
   const insert = db.prepare(
-    `INSERT INTO room_layout_blocks (setup_id, label, shape, color, x, y, width, height, rotation, z_index)
-     VALUES (@setupId, @label, @shape, @color, @x, @y, @width, @height, @rotation, @zIndex)`
+    `INSERT INTO room_layout_blocks (setup_id, label, shape, color, x, y, width, height, rotation, z_index, person_name)
+     VALUES (@setupId, @label, @shape, @color, @x, @y, @width, @height, @rotation, @zIndex, @personName)`
   )
   const update = db.prepare(
     `UPDATE room_layout_blocks SET
       label = @label, shape = @shape, color = @color, x = @x, y = @y, width = @width,
-      height = @height, rotation = @rotation, z_index = @zIndex, updated_at = datetime('now')
+      height = @height, rotation = @rotation, z_index = @zIndex, person_name = @personName, updated_at = datetime('now')
      WHERE id = @id AND setup_id = @setupId`
   )
   const deleteStmt = db.prepare('DELETE FROM room_layout_blocks WHERE id = ?')
@@ -76,7 +78,8 @@ export function replaceBlocksForSetup(setupId: number, blocks: RoomLayoutBlockIn
         width: block.width,
         height: block.height,
         rotation: block.rotation,
-        zIndex: block.zIndex
+        zIndex: block.zIndex,
+        personName: block.personName
       }
       if (typeof block.id === 'number' && existingIds.has(block.id)) {
         update.run({ ...params, id: block.id })

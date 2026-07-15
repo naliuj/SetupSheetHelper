@@ -2893,23 +2893,12 @@
       "poolType": "faculty_reserve",
       "buildingName": null,
       "studioName": null,
-      "name": "Nice DI (L)",
+      "name": "Nice DI",
       "manufacturer": "Phoenix Audio",
       "category": null,
       "notes": null,
-      "quantity": 1,
+      "quantity": 2,
       "sortOrder": 19
-    },
-    {
-      "poolType": "faculty_reserve",
-      "buildingName": null,
-      "studioName": null,
-      "name": "Nice DI (R)",
-      "manufacturer": "Phoenix Audio",
-      "category": null,
-      "notes": null,
-      "quantity": 1,
-      "sortOrder": 20
     },
     {
       "poolType": "faculty_reserve",

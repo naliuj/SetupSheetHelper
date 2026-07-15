@@ -26,6 +26,9 @@ interface Props<T extends PickerItem> {
   outerGroupBy?: (item: T) => string
   outerGroupOrder?: string[]
   placeholder?: string
+  /** When set, shows a "Clear selection" row at the very top of the menu (above every group),
+   *  e.g. "No Mic" — lets the user reset the field back to unselected. Omitted entirely when unset. */
+  clearLabel?: string
   /** Whether to show the "X/Y in use" badge — only meaningful when picking items into one session. Defaults to true. */
   showUsage?: boolean
   /** Drop the manufacturer prefix from the selected item's name in the collapsed trigger
@@ -119,6 +122,7 @@ export default function ManufacturerPickerDropdown<T extends PickerItem>({
   outerGroupBy,
   outerGroupOrder,
   placeholder = '—',
+  clearLabel,
   showUsage = true,
   stripManufacturerInTrigger = false
 }: Props<T>): JSX.Element {
@@ -377,6 +381,17 @@ export default function ManufacturerPickerDropdown<T extends PickerItem>({
         style={{ position: 'fixed', top: pos.top, left: pos.left, width: MENU_WIDTH, maxHeight: MENU_MAX_HEIGHT }}
       >
         {depth === 0 && renderSearchRow()}
+        {depth === 0 && clearLabel && (
+          <div
+            className={`picker-menu-row ${selectedId == null ? 'selected' : ''}`}
+            onClick={() => {
+              onSelect(null)
+              close()
+            }}
+          >
+            <span>{clearLabel}</span>
+          </div>
+        )}
         {nodes.map((node) => {
           const isLeaf = !!node.item
           const isHovered = hoveredKey === node.key

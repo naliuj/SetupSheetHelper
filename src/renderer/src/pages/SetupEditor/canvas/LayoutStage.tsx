@@ -479,8 +479,9 @@ export default function LayoutStage({ studioId, stageRef, active }: Props): JSX.
       {renamingBlock && (
         <RenameBlockModal
           initialLabel={renamingBlock.label}
+          initialPersonName={renamingBlock.personName}
           onClose={() => setRenamingBlockId(null)}
-          onConfirm={(label) => renameBlock(renamingBlock.id, label)}
+          onConfirm={(label, personName) => renameBlock(renamingBlock.id, label, personName)}
         />
       )}
       {colorPicker &&
@@ -500,7 +501,9 @@ export default function LayoutStage({ studioId, stageRef, active }: Props): JSX.
       {addInstrumentAt && (
         <CustomBlockModal
           onClose={() => setAddInstrumentAt(null)}
-          onConfirm={(title, color) => addBlock(title, 'rect', color, addInstrumentAt.x, addInstrumentAt.y)}
+          onConfirm={(title, color, personName) =>
+            addBlock(title, 'rect', color, addInstrumentAt.x, addInstrumentAt.y, undefined, undefined, personName)
+          }
         />
       )}
     </div>

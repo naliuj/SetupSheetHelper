@@ -34,9 +34,9 @@ export default function InstrumentPalette(): JSX.Element {
     })
   }
 
-  function handleCustomBlockConfirm(title: string, color: string): void {
+  function handleCustomBlockConfirm(title: string, color: string, personName: string | null): void {
     const { x, y } = staggeredPosition(blocks.length)
-    addBlock(title, 'rect', color, x, y)
+    addBlock(title, 'rect', color, x, y, undefined, undefined, personName)
   }
 
   return (

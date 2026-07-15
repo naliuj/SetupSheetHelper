@@ -23,6 +23,7 @@ interface SetupRow {
   faculty_reserve_enabled: number
   outboard_column_count: number
   visible_columns: string | null
+  session_notes: string | null
 }
 
 function mapRow(row: SetupRow): Setup {
@@ -41,7 +42,8 @@ function mapRow(row: SetupRow): Setup {
     updatedAt: row.updated_at,
     facultyReserveEnabled: row.faculty_reserve_enabled === 1,
     outboardColumnCount: row.outboard_column_count,
-    visibleColumns: parseVisibleColumns(row.visible_columns)
+    visibleColumns: parseVisibleColumns(row.visible_columns),
+    sessionNotes: row.session_notes
   }
 }
 
@@ -96,7 +98,8 @@ export function createSetup(
   folderId: number | null = null,
   engineer: string | null = null,
   artist: string | null = null,
-  facultyReserveEnabled = false
+  facultyReserveEnabled = false,
+  sessionNotes: string | null = null
 ): Setup {
   const db = getDb()
   // Snapshot the global default columns at creation, so the setup owns its columns from here on and
@@ -104,7 +107,7 @@ export function createSetup(
   const defaultVisibleColumns = getSetting(APP_SETTINGS_KEYS.defaultVisibleColumns)
   const info = db
     .prepare(
-      'INSERT INTO setups (studio_id, name, session_date, kind, template_source, folder_id, engineer, artist, faculty_reserve_enabled, visible_columns) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      'INSERT INTO setups (studio_id, name, session_date, kind, template_source, folder_id, engineer, artist, faculty_reserve_enabled, visible_columns, session_notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
     )
     .run(
       studioId,
@@ -116,7 +119,8 @@ export function createSetup(
       engineer,
       artist,
       facultyReserveEnabled ? 1 : 0,
-      defaultVisibleColumns
+      defaultVisibleColumns,
+      sessionNotes
     )
   const row = db.prepare('SELECT * FROM setups WHERE id = ?').get(info.lastInsertRowid) as SetupRow
   return mapRow(row)
@@ -132,13 +136,14 @@ export function renameSetup(
   sessionDate: string | null,
   engineer: string | null = null,
   artist: string | null = null,
-  facultyReserveEnabled = false
+  facultyReserveEnabled = false,
+  sessionNotes: string | null = null
 ): void {
   getDb()
     .prepare(
-      `UPDATE setups SET name = ?, session_date = ?, engineer = ?, artist = ?, faculty_reserve_enabled = ?, updated_at = datetime('now') WHERE id = ?`
+      `UPDATE setups SET name = ?, session_date = ?, engineer = ?, artist = ?, faculty_reserve_enabled = ?, session_notes = ?, updated_at = datetime('now') WHERE id = ?`
     )
-    .run(name, sessionDate, engineer, artist, facultyReserveEnabled ? 1 : 0, id)
+    .run(name, sessionDate, engineer, artist, facultyReserveEnabled ? 1 : 0, sessionNotes, id)
 }
 
 export function touchSetup(id: number): void {

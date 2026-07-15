@@ -246,6 +246,17 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
       } else {
         cursorY -= 6
       }
+
+      if (setup.sessionNotes) {
+        const noteLines = setup.sessionNotes
+          .split('\n')
+          .flatMap((line) => wrapText(line, font, 9, usableWidth))
+        for (const line of noteLines) {
+          page.drawText(line, { x: MARGIN, y: cursorY, size: 9, font, color: rgb(0.35, 0.35, 0.35) })
+          cursorY -= 12
+        }
+        cursorY -= 6
+      }
     }
 
     const drawHeaderRow = (): void => {
@@ -302,6 +313,20 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
       drawHeaderRow()
     }
 
+    // Which rows are the top/bottom of a linked stereo pair — pairing is positional (row 1 & 2,
+    // row 3 & 4, ...), same rule the table UI uses, independent of what channel numbers are
+    // actually filled in — used to draw a "[" bracket in the left margin beside the pair.
+    const pairRoleById = new Map<number, 'top' | 'bottom'>()
+    for (let i = 0; i + 1 < setup.items.length; i += 2) {
+      const top = setup.items[i]
+      const bottom = setup.items[i + 1]
+      if (top.groupId != null && top.groupId === bottom.groupId) {
+        pairRoleById.set(top.id, 'top')
+        pairRoleById.set(bottom.id, 'bottom')
+      }
+    }
+    const bracketColor = accentColor ? hexToAccentRgb(accentColor) : rgb(0.35, 0.35, 0.35)
+
     drawTitle()
     drawHeaderRow()
 
@@ -352,6 +377,24 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
       }
 
       const rowTopY = cursorY + dens.rowPadding
+
+      // Stereo-pair bracket "[" in the left margin: a vertical spine spanning this row, plus an
+      // inward tick at the outer edge (top of the top row, bottom of the bottom row). The two rows'
+      // halves join into one bracket. Drawn per-row so a pair split across a page break still reads.
+      const linkRole = pairRoleById.get(item.id)
+      if (linkRole) {
+        const spineX = MARGIN - 9
+        const tickX = MARGIN - 3
+        page.drawLine({
+          start: { x: spineX, y: rowBottomY },
+          end: { x: spineX, y: rowTopY },
+          thickness: 1,
+          color: bracketColor
+        })
+        const tickY = linkRole === 'top' ? rowTopY : rowBottomY
+        page.drawLine({ start: { x: spineX, y: tickY }, end: { x: tickX, y: tickY }, thickness: 1, color: bracketColor })
+      }
+
       let x = MARGIN
       for (const col of visibleColumns) {
         const lines = wrappedByKey.get(col.key)!

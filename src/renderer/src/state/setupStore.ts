@@ -55,6 +55,8 @@ interface SetupState {
   sessionDate: string | null
   engineer: string | null
   artist: string | null
+  /** Free-text session notes (tuning reference, mic-array spacing, or anything else). */
+  sessionNotes: string | null
   folderId: number | null
   /** Off by default — students don't have access to faculty reserve gear. The sole gate for
    *  whether this setup can see it, regardless of which studio it belongs to. */
@@ -92,6 +94,7 @@ interface SetupState {
   setSessionDate(date: string | null): void
   setEngineer(engineer: string | null): void
   setArtist(artist: string | null): void
+  setSessionNotes(notes: string | null): void
   setFacultyReserveEnabled(enabled: boolean): void
   setColumnVisibility(key: SetupColumnKey, visible: boolean): void
   resetColumnsToDefault(): void
@@ -131,6 +134,7 @@ export const useSetupStore = create<SetupState>()(
   sessionDate: null,
   engineer: null,
   artist: null,
+  sessionNotes: null,
   folderId: null,
   facultyReserveEnabled: false,
   items: [],
@@ -152,6 +156,7 @@ export const useSetupStore = create<SetupState>()(
       sessionDate,
       engineer,
       artist,
+      sessionNotes: null,
       folderId,
       facultyReserveEnabled: false,
       items: [],
@@ -175,6 +180,7 @@ export const useSetupStore = create<SetupState>()(
       sessionDate: setup.sessionDate,
       engineer: setup.engineer,
       artist: setup.artist,
+      sessionNotes: setup.sessionNotes,
       folderId: setup.folderId,
       facultyReserveEnabled: setup.facultyReserveEnabled,
       items: setup.items,
@@ -191,6 +197,7 @@ export const useSetupStore = create<SetupState>()(
   setSessionDate: (sessionDate) => set({ sessionDate, isDirty: true }),
   setEngineer: (engineer) => set({ engineer, isDirty: true }),
   setArtist: (artist) => set({ artist, isDirty: true }),
+  setSessionNotes: (sessionNotes) => set({ sessionNotes, isDirty: true }),
   setFacultyReserveEnabled: (facultyReserveEnabled) => set({ facultyReserveEnabled, isDirty: true }),
 
   // Column visibility is per-setup. Persist immediately when the setup already exists (mirrors
@@ -228,7 +235,8 @@ export const useSetupStore = create<SetupState>()(
       preampText: null,
       polarityFlip: false,
       notes: defaults.notes ?? null,
-      color: null
+      color: null,
+      groupId: null
     }
     // Deliberately doesn't select the new row — auto-selecting made the SelectionActionBar pop
     // up on every add even though the user hadn't selected anything themselves.
@@ -454,7 +462,8 @@ export const useSetupStore = create<SetupState>()(
           preampText: item.preampName,
           polarityFlip: item.polarityFlip ?? false,
           notes: item.notes,
-          color: item.color ?? null
+          color: item.color ?? null,
+          groupId: null
         })
         if (item.unresolvedMicName || item.unresolvedOutboardName || item.unresolvedPreampName) {
           hints.set(id, {
@@ -481,7 +490,8 @@ export const useSetupStore = create<SetupState>()(
           state.folderId,
           state.engineer,
           state.artist,
-          state.facultyReserveEnabled
+          state.facultyReserveEnabled,
+          state.sessionNotes
         )
         setupId = created.id
         if (state.outboardColumnCount !== 1) {
@@ -497,7 +507,8 @@ export const useSetupStore = create<SetupState>()(
           state.sessionDate,
           state.engineer,
           state.artist,
-          state.facultyReserveEnabled
+          state.facultyReserveEnabled,
+          state.sessionNotes
         )
       }
 
@@ -554,6 +565,7 @@ export const useSetupStore = create<SetupState>()(
         sessionDate: state.sessionDate,
         engineer: state.engineer,
         artist: state.artist,
+        sessionNotes: state.sessionNotes,
         facultyReserveEnabled: state.facultyReserveEnabled
       }),
       // Without an equality check zundo snapshots on EVERY set() — selection clicks,
@@ -567,6 +579,7 @@ export const useSetupStore = create<SetupState>()(
         past.sessionDate === current.sessionDate &&
         past.engineer === current.engineer &&
         past.artist === current.artist &&
+        past.sessionNotes === current.sessionNotes &&
         past.facultyReserveEnabled === current.facultyReserveEnabled,
       limit: 100
     }

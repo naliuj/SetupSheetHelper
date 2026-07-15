@@ -5,21 +5,23 @@ import SwatchPicker from '@renderer/components/SwatchPicker'
 
 interface Props {
   onClose: () => void
-  onConfirm: (title: string, color: string) => void
+  onConfirm: (title: string, color: string, personName: string | null) => void
 }
 
 const DEFAULT_COLOR = DEFAULT_SWATCH
 
-/** One-off custom block creation — title and color only, per design. Confirming places a
- *  single block directly on the canvas; nothing gets added to the palette/sidebar. */
+/** One-off custom block creation — title, color, and optional musician name, per design.
+ *  Confirming places a single block directly on the canvas; nothing gets added to the
+ *  palette/sidebar. */
 export default function CustomBlockModal({ onClose, onConfirm }: Props): JSX.Element {
   useEscapeToClose(onClose)
   const [title, setTitle] = useState('')
   const [color, setColor] = useState(DEFAULT_COLOR)
+  const [personName, setPersonName] = useState('')
 
   function handleConfirm(): void {
     if (!title.trim()) return
-    onConfirm(title.trim(), color)
+    onConfirm(title.trim(), color, personName.trim() || null)
     onClose()
   }
 
@@ -42,6 +44,16 @@ export default function CustomBlockModal({ onClose, onConfirm }: Props): JSX.Ele
           Color
           <SwatchPicker value={color} onChange={(c) => setColor(c ?? DEFAULT_COLOR)} />
         </div>
+        <label className="card-sub" style={{ display: 'block', marginBottom: 4 }}>
+          Musician name (optional)
+        </label>
+        <input
+          value={personName}
+          onChange={(e) => setPersonName(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleConfirm()}
+          placeholder="e.g. Maria K."
+          style={{ width: '100%', marginBottom: 8 }}
+        />
         <div className="modal-actions">
           <button className="btn" onClick={onClose}>
             Cancel

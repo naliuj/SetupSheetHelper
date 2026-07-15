@@ -50,6 +50,10 @@ export interface SetupItem {
   notes: string | null
   /** Optional row tint (hex from the fixed swatch palette), for visually grouping rows. */
   color: string | null
+  /** Client-generated id shared by every row in a mic group (e.g. a stereo pair or array).
+   *  Null means this row isn't linked to any others. No separate role/label field — use Notes
+   *  for that; this only drives the bracket visual and the mic auto-fill convenience on link. */
+  groupId: string | null
 }
 
 /** Layout Mode's canvas blocks — a purely spatial "where does everyone stand" visualization,
@@ -68,6 +72,9 @@ export interface RoomLayoutBlock {
   height: number
   rotation: number
   zIndex: number
+  /** Optional musician/player name, so the canvas can double as a seating chart. Blank for
+   *  ordinary gear blocks — purely additive, doesn't change rendering unless set. */
+  personName: string | null
 }
 
 export interface Setup {
@@ -94,6 +101,9 @@ export interface Setup {
    *  default when the setup is created, then owned by the setup. Always resolved to a concrete
    *  list on read — a null DB value (pre-feature setups) means every column is shown. */
   visibleColumns: SetupColumnKey[]
+  /** Free-text session notes (tuning reference, mic-array spacing, or anything else) — deliberately
+   *  unstructured. Null/blank means nothing to show in Setup Settings or on the PDF export. */
+  sessionNotes: string | null
 }
 
 export interface SetupWithItems extends Setup {
