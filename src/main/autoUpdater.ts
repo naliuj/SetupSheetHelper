@@ -6,9 +6,11 @@ const { autoUpdater } = electronUpdater
 autoUpdater.autoDownload = true
 autoUpdater.autoInstallOnAppQuit = true
 
-/** Wires up electron-updater against the GitHub Releases published by `npm run release:mac`
- *  (see package.json's `build.publish` config). No-ops in dev (unpackaged) since there's no
- *  packaged app-update.yml to read update feed info from. */
+/** Wires up electron-updater against the public setup-sheet-helper-releases GitHub Releases,
+ *  published directly by `npm run release:mac` (see package.json's `build.publish` config) —
+ *  a private repo's release feed 404s on unauthenticated requests, which is what every install
+ *  would be making. No-ops in dev (unpackaged) since there's no packaged app-update.yml to read
+ *  update feed info from. */
 export function initAutoUpdater(mainWindow: BrowserWindow): void {
   if (!app.isPackaged) return
 

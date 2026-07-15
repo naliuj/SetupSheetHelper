@@ -1,7 +1,7 @@
 {
   "name": "setup-sheet-helper",
   "productName": "Setup Sheet Helper",
-  "version": "1.8.10",
+  "version": "1.8.11",
   "description": "Studio session setup sheet planner",
   "main": "./out/main/index.js",
   "author": "",
@@ -17,8 +17,7 @@
     "build:mac": "npm run build && electron-builder --mac",
     "build:win": "npm run build && electron-builder --win",
     "build:linux": "npm run build && electron-builder --linux",
-    "release:mac": "npm run build && electron-builder --mac --publish always && npm run release:public",
-    "release:public": "bash scripts/publish-public-release.sh",
+    "release:mac": "npm run build && electron-builder --mac --publish always",
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json",
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json",
     "typecheck": "npm run typecheck:node && npm run typecheck:web"
@@ -71,7 +70,7 @@
     "publish": {
       "provider": "github",
       "owner": "naliuj",
-      "repo": "SetupSheetHelper"
+      "repo": "setup-sheet-helper-releases"
     }
   }
 }
