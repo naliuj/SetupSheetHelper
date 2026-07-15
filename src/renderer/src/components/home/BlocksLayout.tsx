@@ -69,9 +69,8 @@ function EntryCard({ entry }: { entry: HomeEntry }): JSX.Element {
   // inside a plain card so the two actions don't nest; simpler entries are a single clickable card.
   if (entry.secondaryAction) {
     return (
-      <div className="card">
+      <div className="card clickable">
         <button
-          className="clickable"
           style={{ background: 'none', border: 'none', color: 'inherit', textAlign: 'left', padding: 0, width: '100%' }}
           onClick={entry.onActivate}
         >
