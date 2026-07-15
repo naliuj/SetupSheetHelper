@@ -66,7 +66,7 @@ export default function SettingsPage(): JSX.Element {
 
   const TABS: { id: Tab; label: string }[] = [
     { id: 'general', label: 'General' },
-    { id: 'columns', label: 'Columns (new setup default)' },
+    { id: 'columns', label: 'Columns' },
     { id: 'theme', label: 'Theme' },
     { id: 'pdfLayout', label: 'PDF Layout' },
     { id: 'keybinds', label: 'Keybinds' },
@@ -209,6 +209,27 @@ export default function SettingsPage(): JSX.Element {
             <p className="card-sub" style={{ marginTop: 4 }}>
               Shows Berklee's studios, gear lists, and faculty reserve pool. Also adds a "Faculty Reserve" tab here
               in Settings for gear shared across studios.
+            </p>
+          </div>
+
+          <div
+            style={{
+              marginTop: 24,
+              paddingTop: 16,
+              borderTop: '1px solid var(--color-border)'
+            }}
+          >
+            <p className="card-sub" style={{ margin: 0 }}>Created by Julian Rose</p>
+            <p className="card-sub" style={{ margin: 0 }}>
+              Icon by Regan Kulig{' '}
+              <a
+                href="https://www.instagram.com/gagekaymusic"
+                target="_blank"
+                rel="noreferrer"
+                style={{ color: 'var(--color-accent)' }}
+              >
+                @gagekaymusic
+              </a>
             </p>
           </div>
         </div>

@@ -185,5 +185,10 @@ export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
       'Added a session notes field, and musician names on Layout Mode blocks.',
       'Mic/outboard/preamp pickers gained a "No Mic"/"No Outboard"/"No Preamp" clear option.'
     ]
+  },
+  {
+    version: '1.8.10',
+    date: '2026-07-15',
+    highlights: ['Added credits to the General settings tab, and renamed "Columns (new setup default)" to just "Columns".']
   }
 ]
