@@ -501,7 +501,9 @@ export default function LayoutStage({ studioId, stageRef, active }: Props): JSX.
       {addInstrumentAt && (
         <CustomBlockModal
           onClose={() => setAddInstrumentAt(null)}
-          onConfirm={(title, color) => addBlock(title, 'rect', color, addInstrumentAt.x, addInstrumentAt.y)}
+          onConfirm={(title, color, personName) =>
+            addBlock(title, 'rect', color, addInstrumentAt.x, addInstrumentAt.y, undefined, undefined, personName)
+          }
         />
       )}
     </div>

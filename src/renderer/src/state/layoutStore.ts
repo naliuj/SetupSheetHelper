@@ -32,7 +32,8 @@ interface LayoutState {
     x: number,
     y: number,
     width?: number,
-    height?: number
+    height?: number,
+    personName?: string | null
   ): string
   updateBlockTransform(
     id: number | string,
@@ -86,7 +87,7 @@ export const useLayoutStore = create<LayoutState>()(
         set({ blocks, selectedBlockIds: new Set(), zoomScale: 1, panX: 0, panY: 0, isDirty: false })
       },
 
-      addBlock: (label, shape, color, x, y, width = DEFAULT_SIZE, height = DEFAULT_SIZE) => {
+      addBlock: (label, shape, color, x, y, width = DEFAULT_SIZE, height = DEFAULT_SIZE, personName = null) => {
         const id = newDraftId()
         const maxZ = get().blocks.reduce((max, b) => Math.max(max, b.zIndex), 0)
         const draft: RoomLayoutBlockDraft = {
@@ -100,7 +101,7 @@ export const useLayoutStore = create<LayoutState>()(
           height,
           rotation: 0,
           zIndex: maxZ + 1,
-          personName: null
+          personName
         }
         set({ blocks: [...get().blocks, draft], isDirty: true, selectedBlockIds: new Set([id]) })
         return id
