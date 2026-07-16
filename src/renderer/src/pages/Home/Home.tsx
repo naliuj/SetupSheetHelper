@@ -270,16 +270,6 @@ export default function Home(): JSX.Element {
     <div className="page">
       <h2 style={{ margin: 0 }}>Setup Sheet Helper</h2>
 
-      <div className="section-title" style={{ marginTop: 24, display: 'flex', alignItems: 'center', gap: 12 }}>
-        <span>Quick setup</span>
-      </div>
-      <div className="list-grid">
-        <button className="card clickable" style={{ borderStyle: 'dashed' }} onClick={startQuickSetup}>
-          <div className="card-title">+ Quick setup</div>
-          <div className="card-sub">No studio setup — free-text mic/outboard entry</div>
-        </button>
-      </div>
-
       <HomeSection
         title={templateSectionTitle}
         layout={homeLayout}
@@ -287,9 +277,23 @@ export default function Home(): JSX.Element {
         entries={[...templateEntries, ...berkleeStudioEntries]}
         selectedFolderId={selectedCustomFolderId}
         onSelectFolder={setSelectedCustomFolderId}
+        emptyMessage={
+          <div className="template-nudge">
+            <div>
+              <div className="template-nudge-title">Set up your studio once, reuse it every session</div>
+              <div className="template-nudge-subtitle">
+                Add your rooms, mics, and outboard gear — then every new setup starts pre-filled instead of from
+                scratch.
+              </div>
+            </div>
+            <button className="btn primary" onClick={() => goToStudioSetup(null)}>
+              + New studio
+            </button>
+          </div>
+        }
         headerAction={
           <div style={{ display: 'flex', gap: 8 }}>
-            <button className="btn small" onClick={() => goToStudioSetup(null)}>
+            <button className="btn small primary" onClick={() => goToStudioSetup(null)}>
               + New studio
             </button>
             <button className="btn small" onClick={() => setManageMode('studios')}>
@@ -298,6 +302,13 @@ export default function Home(): JSX.Element {
           </div>
         }
       />
+
+      <div className="quick-setup-row">
+        <span>Don&apos;t need a studio right now?</span>
+        <button className="link-button" onClick={startQuickSetup}>
+          Start a quick setup →
+        </button>
+      </div>
 
       <HomeSection
         title="Saved Setups"

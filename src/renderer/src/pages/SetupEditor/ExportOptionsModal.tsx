@@ -15,6 +15,10 @@ export interface ExportOptions {
 interface Props {
   defaultInclude: PdfExportInclude
   defaultColoredRows: boolean
+  /** Whether this setup currently resolves to an effective room layout (a studio file, a
+   *  per-setup file override, or a chosen blank sheet) — the "Room layout" toggle only makes
+   *  sense to offer when there's something to include. */
+  hasLayout: boolean
   onClose: () => void
   onExport: (options: ExportOptions) => Promise<void>
 }
@@ -24,12 +28,16 @@ interface Props {
 export default function ExportOptionsModal({
   defaultInclude,
   defaultColoredRows,
+  hasLayout,
   onClose,
   onExport
 }: Props): JSX.Element {
   useEscapeToClose(onClose)
-  const [includeSheet, setIncludeSheet] = useState(defaultInclude !== 'layout')
-  const [includeLayout, setIncludeLayout] = useState(defaultInclude !== 'sheet')
+  // Without a layout to offer, the setup sheet is the only possible content — always start it
+  // checked, regardless of a remembered "layout only" preference from some other studio that did
+  // have one (otherwise both toggles could start unchecked with no way to tell why Export is inert).
+  const [includeSheet, setIncludeSheet] = useState(!hasLayout || defaultInclude !== 'layout')
+  const [includeLayout, setIncludeLayout] = useState(hasLayout && defaultInclude !== 'sheet')
   const [coloredRows, setColoredRows] = useState(defaultColoredRows)
   const [orientation, setOrientation] = useState<PdfExportOrientation>('portrait')
   const [density, setDensity] = useState<PdfExportDensity>('normal')
@@ -59,9 +67,11 @@ export default function ExportOptionsModal({
         <div style={{ marginBottom: 8 }}>
           <ToggleSwitch checked={includeSheet} onChange={setIncludeSheet} label="Setup sheet" />
         </div>
-        <div style={{ marginBottom: 8 }}>
-          <ToggleSwitch checked={includeLayout} onChange={setIncludeLayout} label="Room layout" />
-        </div>
+        {hasLayout && (
+          <div style={{ marginBottom: 8 }}>
+            <ToggleSwitch checked={includeLayout} onChange={setIncludeLayout} label="Room layout" />
+          </div>
+        )}
         <div style={{ marginBottom: 4 }}>
           <ToggleSwitch
             checked={coloredRows}

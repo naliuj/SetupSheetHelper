@@ -7,6 +7,7 @@ import type { SetupColumnKey } from '@shared/constants/setupColumns'
 import type { Mic, OutboardGear, Preamp } from '@shared/types/entities'
 import type { UnresolvedGearHint } from '@renderer/state/setupStore'
 import ManufacturerPickerDropdown from '@renderer/components/ManufacturerPickerDropdown'
+import SuggestInput from '@renderer/components/SuggestInput'
 import { applyMicPoolNotesTag } from '@renderer/state/micPoolNotesTag'
 import { useBufferedField } from './useBufferedField'
 
@@ -57,6 +58,7 @@ function OutboardSlotCell({
   isTemporary,
   outboardGear,
   outboardUsageCounts,
+  outboardSuggestions,
   hintText,
   onSlotChange
 }: {
@@ -64,6 +66,7 @@ function OutboardSlotCell({
   isTemporary: boolean
   outboardGear: OutboardGear[]
   outboardUsageCounts: Map<number, number>
+  outboardSuggestions: string[]
   hintText: string | undefined
   onSlotChange: (patch: Partial<Pick<SetupItemOutboardSlot, 'outboardId' | 'outboardText'>>) => void
 }): JSX.Element {
@@ -72,13 +75,12 @@ function OutboardSlotCell({
   return (
     <td onClick={(e) => e.stopPropagation()}>
       {isTemporary ? (
-        <input
+        <SuggestInput
           value={outboardText.value}
           placeholder="Outboard"
-          onChange={(e) => outboardText.onChange(e.target.value)}
+          onChange={outboardText.onChange}
           onBlur={outboardText.onBlur}
-          onClick={(e) => e.stopPropagation()}
-          list="outboard-suggestions"
+          suggestions={outboardSuggestions}
         />
       ) : (
         <ManufacturerPickerDropdown
@@ -113,6 +115,9 @@ interface Props {
   outboardColumnCount: number
   visibleColumns: Set<SetupColumnKey>
   isTemporary: boolean
+  micSuggestions: string[]
+  outboardSuggestions: string[]
+  preampSuggestions: string[]
   selected: boolean
   /** Set only for the two rows straddling a valid odd/even channel pair (e.g. channel 3 and 4) —
    *  every other row gets `null` and renders no link control at all. 'top' is the odd-channel row
@@ -160,6 +165,9 @@ function SetupSheetRow({
   outboardColumnCount,
   visibleColumns,
   isTemporary,
+  micSuggestions,
+  outboardSuggestions,
+  preampSuggestions,
   selected,
   pairRole,
   pairLinked,
@@ -369,13 +377,12 @@ function SetupSheetRow({
       {visibleColumns.has('mic') && (
         <td onClick={(e) => e.stopPropagation()}>
           {isTemporary ? (
-            <input
+            <SuggestInput
               value={micText.value}
               placeholder="Mic"
-              onChange={(e) => micText.onChange(e.target.value)}
+              onChange={micText.onChange}
               onBlur={micText.onBlur}
-              onClick={(e) => e.stopPropagation()}
-              list="mic-suggestions"
+              suggestions={micSuggestions}
             />
           ) : (
             <ManufacturerPickerDropdown
@@ -415,6 +422,7 @@ function SetupSheetRow({
             isTemporary={isTemporary}
             outboardGear={outboardGear}
             outboardUsageCounts={outboardUsageCounts}
+            outboardSuggestions={outboardSuggestions}
             hintText={slotIndex === 0 ? unresolvedGearHint?.outboard : undefined}
             onSlotChange={(patch) => handleOutboardSlotChange(slotIndex, patch)}
           />
@@ -434,13 +442,12 @@ function SetupSheetRow({
       {visibleColumns.has('preamp') && (
         <td onClick={(e) => e.stopPropagation()}>
           {isTemporary ? (
-            <input
+            <SuggestInput
               value={preampText.value}
               placeholder="Preamp"
-              onChange={(e) => preampText.onChange(e.target.value)}
+              onChange={preampText.onChange}
               onBlur={preampText.onBlur}
-              onClick={(e) => e.stopPropagation()}
-              list="preamp-suggestions"
+              suggestions={preampSuggestions}
             />
           ) : (
             <ManufacturerPickerDropdown

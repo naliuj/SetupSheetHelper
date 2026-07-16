@@ -55,6 +55,7 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode, onOpenSetti
   const [exportModalOpen, setExportModalOpen] = useState(false)
   const [defaultExportInclude, setDefaultExportInclude] = useState<PdfExportInclude>('both')
   const [defaultExportColoredRows, setDefaultExportColoredRows] = useState(false)
+  const [exportHasLayout, setExportHasLayout] = useState(false)
   const [layoutGateOpen, setLayoutGateOpen] = useState(false)
   const [notesOpen, setNotesOpen] = useState(false)
   const notesRef = useRef<HTMLDivElement>(null)
@@ -103,12 +104,14 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode, onOpenSetti
 
   async function handleExport(): Promise<void> {
     setExportMessage(null)
-    const [remembered, rememberedColoredRows] = await Promise.all([
+    const [remembered, rememberedColoredRows, effective] = await Promise.all([
       window.api.settings.get(APP_SETTINGS_KEYS.defaultPdfExportInclude),
-      window.api.settings.get(APP_SETTINGS_KEYS.defaultPdfExportColoredRows)
+      window.api.settings.get(APP_SETTINGS_KEYS.defaultPdfExportColoredRows),
+      studioId ? window.api.layoutFile.getEffectiveForSetup(setupId, studioId) : Promise.resolve(null)
     ])
     setDefaultExportInclude(remembered === 'sheet' || remembered === 'layout' ? remembered : 'both')
     setDefaultExportColoredRows(rememberedColoredRows === '1')
+    setExportHasLayout(!!effective)
     setExportModalOpen(true)
   }
 
@@ -433,6 +436,7 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode, onOpenSetti
         <ExportOptionsModal
           defaultInclude={defaultExportInclude}
           defaultColoredRows={defaultExportColoredRows}
+          hasLayout={exportHasLayout}
           onClose={() => setExportModalOpen(false)}
           onExport={performExport}
         />
