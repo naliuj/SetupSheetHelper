@@ -26,6 +26,26 @@ export interface RoomLayoutFile {
   importedAt: string
 }
 
+/** A single setup's own layout override — either a blank sheet or its own imported file, taking
+ *  priority over the studio's shared RoomLayoutFile. See effectiveLayoutRepo.ts for resolution. */
+export interface SetupLayoutOverride {
+  id: number
+  setupId: number
+  kind: 'blank' | 'file'
+  filePath: string | null
+  originalName: string | null
+  pageWidthPt: number | null
+  pageHeightPt: number | null
+  importedAt: string
+}
+
+/** What Layout Mode should actually render for a setup, after resolving the per-setup override
+ *  (if any) against the studio's shared layout file. Null means neither exists — gate the user. */
+export type EffectiveLayout =
+  | { kind: 'blank' }
+  | { kind: 'file'; filePath: string; originalName: string | null; pageWidthPt: number | null; pageHeightPt: number | null }
+  | null
+
 export type MicPoolType = 'studio' | 'building' | 'faculty_reserve' | 'personal' | 'setup'
 export type OutboardPoolType = 'studio' | 'building' | 'faculty_reserve' | 'personal' | 'setup'
 

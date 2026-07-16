@@ -23,6 +23,10 @@ interface LayoutState {
   panY: number
   isDirty: boolean
   isSaving: boolean
+  /** Bumped whenever the Layout Mode gate resolves (blank sheet chosen, or a file committed to
+   *  the studio/setup) — LayoutBackground depends on this to know to re-fetch, since resolving
+   *  the gate doesn't change studioId/setupId (the effect's other deps) on its own. */
+  layoutBackgroundVersion: number
 
   loadForSetup(setupId: number | null): Promise<void>
   addBlock(
@@ -53,6 +57,7 @@ interface LayoutState {
   zoomOut(): void
   resetView(): void
   save(): Promise<void>
+  bumpLayoutBackgroundVersion(): void
 }
 
 /** Layout Mode's own store — fully independent of setupStore/Table Mode (no shared items,
@@ -76,6 +81,7 @@ export const useLayoutStore = create<LayoutState>()(
       panY: 0,
       isDirty: false,
       isSaving: false,
+      layoutBackgroundVersion: 0,
 
       loadForSetup: async (setupId) => {
         useLayoutStore.temporal.getState().clear()
@@ -222,7 +228,9 @@ export const useLayoutStore = create<LayoutState>()(
           set({ isSaving: false })
           throw err
         }
-      }
+      },
+
+      bumpLayoutBackgroundVersion: () => set((state) => ({ layoutBackgroundVersion: state.layoutBackgroundVersion + 1 }))
     }),
     {
       partialize: (state) => ({ blocks: state.blocks }),

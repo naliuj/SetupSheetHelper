@@ -124,11 +124,12 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode, onOpenSetti
       // Skip flattening the canvas entirely for a sheet-only export — no need to pay for it.
       // The layout stage now stays mounted (just visually hidden) even in Table Mode, so
       // capturing it no longer requires switching modes first — but it can still be genuinely
-      // empty if this studio has no room layout file assigned at all, which is what actually
-      // needs checking here (stageRef.current itself is basically always populated now).
+      // empty if there's no effective room layout (this setup's own override, or the studio's
+      // shared file) at all, which is what actually needs checking here (stageRef.current itself
+      // is basically always populated now).
       let dataUrl: string | null = null
       if (include !== 'sheet' && stageRef.current) {
-        const layout = studioId ? await window.api.layoutFile.getForStudio(studioId) : null
+        const layout = studioId ? await window.api.layoutFile.getEffectiveForSetup(currentSetupId, studioId) : null
         if (layout) {
           useLayoutStore.getState().selectBlock(null)
           // let the deselect re-render (hides the resize/rotate handles) before flattening the stage
@@ -210,18 +211,35 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode, onOpenSetti
     }
   }
 
-  // Layout Mode requires a room layout file to be assigned to the studio first — leaving
-  // Layout Mode is always allowed, but entering it checks for one and, if missing, opens a
-  // blocking prompt instead of switching.
+  // Layout Mode requires an effective room layout first (this setup's own override, or the
+  // studio's shared file) — leaving Layout Mode is always allowed, but entering it checks and, if
+  // neither exists, opens a blocking prompt instead of switching.
   async function requestToggleMode(): Promise<void> {
     if (mode === 'layout') {
       onToggleMode('table')
       return
     }
-    const layout = studioId ? await window.api.layoutFile.getForStudio(studioId) : null
-    if (layout) onToggleMode('layout')
+    const effective = studioId ? await window.api.layoutFile.getEffectiveForSetup(setupId, studioId) : null
+    if (effective) onToggleMode('layout')
     else setLayoutGateOpen(true)
   }
+
+  // `mode` is global nav state, not reset per-setup — if the user was in Layout Mode on a
+  // previous setup and opens a different one directly into Layout Mode, requestToggleMode's own
+  // gate (only triggered by the toggle button click) never runs. Re-check whenever a setup mounts
+  // (or changes) already in Layout Mode, so the gate still fires instead of silently showing an
+  // empty canvas.
+  useEffect(() => {
+    if (mode !== 'layout' || !studioId) return
+    let cancelled = false
+    window.api.layoutFile.getEffectiveForSetup(setupId, studioId).then((effective) => {
+      if (!cancelled && !effective) setLayoutGateOpen(true)
+    })
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [studioId, setupId])
 
   // One handler per rebindable action (see KEYBIND_ACTIONS), shared by both dispatch paths below:
   // the native menu's mouse-click IPC message, and the keyboard shortcut matcher. `open-settings`
@@ -422,11 +440,22 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode, onOpenSetti
       {layoutGateOpen && studioId && (
         <RequireLayoutFileModal
           studioId={studioId}
-          onUploaded={() => {
+          setupId={setupId}
+          onResolved={() => {
             setLayoutGateOpen(false)
+            // studioId/setupId don't change just because the gate resolved (a fresh setup's id
+            // may already exist, and the studio's id never changes) — LayoutBackground's own
+            // fetch effect wouldn't otherwise know to re-run and pick up the newly-set layout.
+            useLayoutStore.getState().bumpLayoutBackgroundVersion()
             onToggleMode('layout')
           }}
-          onCancel={() => setLayoutGateOpen(false)}
+          onCancel={() => {
+            setLayoutGateOpen(false)
+            // Covers both the manual-toggle gate (already 'table', a harmless no-op) and the
+            // mount-time gate above (arrived already in 'layout' with nothing to show) — either
+            // way, canceling should never leave an empty Layout Mode canvas on screen.
+            onToggleMode('table')
+          }}
         />
       )}
     </div>

@@ -1,5 +1,6 @@
 import type {
   Building,
+  EffectiveLayout,
   Mic,
   MicPoolType,
   MicWithStudio,
@@ -9,6 +10,7 @@ import type {
   Preamp,
   PreampPoolType,
   RoomLayoutFile,
+  SetupLayoutOverride,
   Studio
 } from './entities'
 import type { ChannelPreset, ChannelPresetItemInput, ChannelPresetWithItems } from './channelPreset'
@@ -87,7 +89,12 @@ export const IPC = {
   },
   layoutFile: {
     getForStudio: 'layoutFile:getForStudio',
-    importForStudio: 'layoutFile:importForStudio'
+    importForStudio: 'layoutFile:importForStudio',
+    pickFile: 'layoutFile:pickFile',
+    commitPickedToStudio: 'layoutFile:commitPickedToStudio',
+    commitPickedToSetup: 'layoutFile:commitPickedToSetup',
+    setBlankForSetup: 'layoutFile:setBlankForSetup',
+    getEffectiveForSetup: 'layoutFile:getEffectiveForSetup'
   },
   presets: {
     list: 'presets:list',
@@ -346,6 +353,11 @@ export interface StudioDeleteImpact {
   templateCount: number
 }
 
+export interface PickedLayoutFile {
+  sourcePath: string
+  fileName: string
+}
+
 export const MENU_CHANNEL = 'menu:action'
 
 export type MenuAction =
@@ -442,6 +454,11 @@ export interface RendererApi {
   layoutFile: {
     getForStudio(studioId: number): Promise<RoomLayoutFile | null>
     importForStudio(studioId: number): Promise<RoomLayoutFile | null>
+    pickFile(): Promise<PickedLayoutFile | null>
+    commitPickedToStudio(studioId: number, sourcePath: string): Promise<RoomLayoutFile>
+    commitPickedToSetup(setupId: number, sourcePath: string): Promise<SetupLayoutOverride>
+    setBlankForSetup(setupId: number): Promise<SetupLayoutOverride>
+    getEffectiveForSetup(setupId: number | null, studioId: number): Promise<EffectiveLayout>
   }
   presets: {
     list(): Promise<ChannelPreset[]>

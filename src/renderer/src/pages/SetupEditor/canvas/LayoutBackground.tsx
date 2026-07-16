@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
-import { Image as KonvaImage } from 'react-konva'
+import { Image as KonvaImage, Rect } from 'react-konva'
 import * as pdfjsLib from 'pdfjs-dist'
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.mjs?url'
+import { BLANK_SHEET_WIDTH_PX, BLANK_SHEET_HEIGHT_PX } from '@shared/constants/roomLayout'
+import { useLayoutStore } from '@renderer/state/layoutStore'
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl
 
@@ -9,6 +11,7 @@ const RENDER_SCALE = 2
 
 interface Props {
   studioId: number
+  setupId: number | null
   onSize: (width: number, height: number) => void
 }
 
@@ -36,24 +39,33 @@ function loadImage(url: string): Promise<{ image: HTMLImageElement; width: numbe
   })
 }
 
-export default function LayoutBackground({ studioId, onSize }: Props): JSX.Element | null {
+export default function LayoutBackground({ studioId, setupId, onSize }: Props): JSX.Element | null {
   const [image, setImage] = useState<HTMLCanvasElement | HTMLImageElement | null>(null)
+  const [blank, setBlank] = useState(false)
+  const layoutBackgroundVersion = useLayoutStore((s) => s.layoutBackgroundVersion)
 
   useEffect(() => {
     let cancelled = false
     setImage(null)
+    setBlank(false)
 
     async function render(): Promise<void> {
-      const layout = await window.api.layoutFile.getForStudio(studioId)
-      if (!layout || cancelled) return
+      const effective = await window.api.layoutFile.getEffectiveForSetup(setupId, studioId)
+      if (!effective || cancelled) return
+
+      if (effective.kind === 'blank') {
+        setBlank(true)
+        onSize(BLANK_SHEET_WIDTH_PX, BLANK_SHEET_HEIGHT_PX)
+        return
+      }
 
       // "app-file" is a registered "standard" scheme (like http), which requires a non-empty
       // host — a bare `app-file:///Users/...` gets misparsed as host "Users" with the rest of
       // the path silently dropped. Route the real absolute path through a single opaque,
       // percent-encoded path segment behind a fixed placeholder host instead (matched by the
       // protocol.handle in src/main/index.ts).
-      const url = `app-file://local-file/${encodeURIComponent(layout.filePath)}`
-      const isPdf = layout.filePath.toLowerCase().endsWith('.pdf')
+      const url = `app-file://local-file/${encodeURIComponent(effective.filePath)}`
+      const isPdf = effective.filePath.toLowerCase().endsWith('.pdf')
       const result = isPdf ? await renderPdf(url) : await loadImage(url)
       if (cancelled) return
 
@@ -66,8 +78,13 @@ export default function LayoutBackground({ studioId, onSize }: Props): JSX.Eleme
     return () => {
       cancelled = true
     }
-  }, [studioId])
+  }, [studioId, setupId, layoutBackgroundVersion])
 
+  if (blank) {
+    return (
+      <Rect x={0} y={0} width={BLANK_SHEET_WIDTH_PX} height={BLANK_SHEET_HEIGHT_PX} fill="white" listening={false} />
+    )
+  }
   if (!image) return null
   return <KonvaImage image={image} x={0} y={0} listening={false} />
 }

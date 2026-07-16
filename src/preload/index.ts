@@ -66,7 +66,15 @@ const api: RendererApi = {
   },
   layoutFile: {
     getForStudio: (studioId) => ipcRenderer.invoke(IPC.layoutFile.getForStudio, studioId),
-    importForStudio: (studioId) => ipcRenderer.invoke(IPC.layoutFile.importForStudio, studioId)
+    importForStudio: (studioId) => ipcRenderer.invoke(IPC.layoutFile.importForStudio, studioId),
+    pickFile: () => ipcRenderer.invoke(IPC.layoutFile.pickFile),
+    commitPickedToStudio: (studioId, sourcePath) =>
+      ipcRenderer.invoke(IPC.layoutFile.commitPickedToStudio, studioId, sourcePath),
+    commitPickedToSetup: (setupId, sourcePath) =>
+      ipcRenderer.invoke(IPC.layoutFile.commitPickedToSetup, setupId, sourcePath),
+    setBlankForSetup: (setupId) => ipcRenderer.invoke(IPC.layoutFile.setBlankForSetup, setupId),
+    getEffectiveForSetup: (setupId, studioId) =>
+      ipcRenderer.invoke(IPC.layoutFile.getEffectiveForSetup, setupId, studioId)
   },
   presets: {
     list: () => ipcRenderer.invoke(IPC.presets.list),
