@@ -16,6 +16,7 @@ import PdfLayoutEditor from './PdfLayoutEditor'
 import KeybindsEditor from './KeybindsEditor'
 import StudioExportPage from './StudioExportPage'
 import StudioImportPage from './StudioImportPage'
+import FeedbackForm from './FeedbackForm'
 import ManagePresetsModal from '../PresetManager/ManagePresetsModal'
 
 type Subview = { kind: 'main' } | { kind: 'export' } | { kind: 'import'; file: StudioExportFile }
@@ -29,6 +30,7 @@ type Tab =
   | 'pdfLayout'
   | 'keybinds'
   | 'palette'
+  | 'feedback'
 const TAB_IDS: Tab[] = [
   'general',
   'columns',
@@ -38,7 +40,8 @@ const TAB_IDS: Tab[] = [
   'theme',
   'pdfLayout',
   'keybinds',
-  'palette'
+  'palette',
+  'feedback'
 ]
 
 export default function SettingsPage(): JSX.Element {
@@ -73,7 +76,8 @@ export default function SettingsPage(): JSX.Element {
     { id: 'personalGear', label: 'Personal Gear Locker' },
     ...(berkleeFeaturesEnabled ? [{ id: 'facultyReserve' as const, label: 'Faculty Reserve' }] : []),
     { id: 'palette', label: 'Layout Palette' },
-    { id: 'backup', label: 'Import/Export' }
+    { id: 'backup', label: 'Import/Export' },
+    { id: 'feedback', label: 'Feedback' }
   ]
 
   // If Berklee features get disabled while the Faculty Reserve tab is selected, fall back to
@@ -322,6 +326,12 @@ export default function SettingsPage(): JSX.Element {
       {activeTab === 'palette' && (
         <div className="panel">
           <PaletteEditor />
+        </div>
+      )}
+
+      {activeTab === 'feedback' && (
+        <div className="panel">
+          <FeedbackForm />
         </div>
       )}
 

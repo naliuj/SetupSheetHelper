@@ -129,6 +129,9 @@ export const IPC = {
   app: {
     getVersion: 'app:getVersion'
   },
+  feedback: {
+    submit: 'feedback:submit'
+  },
   berklee: {
     enable: 'berklee:enable',
     disable: 'berklee:disable',
@@ -346,6 +349,20 @@ export interface StudioDeleteImpact {
   templateCount: number
 }
 
+export type FeedbackCategory = 'Feature Request' | 'Bug Report' | 'Other'
+
+export interface FeedbackSubmission {
+  category: FeedbackCategory
+  name: string
+  email: string
+  message: string
+}
+
+export interface FeedbackSubmitResult {
+  ok: boolean
+  error?: string
+}
+
 export const MENU_CHANNEL = 'menu:action'
 
 export type MenuAction =
@@ -499,6 +516,9 @@ export interface RendererApi {
   }
   app: {
     getVersion(): Promise<string>
+  }
+  feedback: {
+    submit(input: FeedbackSubmission): Promise<FeedbackSubmitResult>
   }
   berklee: {
     enable(): Promise<void>

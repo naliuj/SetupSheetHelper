@@ -130,6 +130,9 @@ const api: RendererApi = {
   app: {
     getVersion: () => ipcRenderer.invoke(IPC.app.getVersion)
   },
+  feedback: {
+    submit: (input) => ipcRenderer.invoke(IPC.feedback.submit, input)
+  },
   berklee: {
     enable: () => ipcRenderer.invoke(IPC.berklee.enable),
     disable: () => ipcRenderer.invoke(IPC.berklee.disable),

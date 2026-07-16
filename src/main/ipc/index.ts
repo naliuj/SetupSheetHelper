@@ -10,6 +10,7 @@ import { registerRoomLayoutBlockHandlers } from './roomLayoutBlockHandlers'
 import { registerPaletteHandlers } from './paletteHandlers'
 import { registerBerkleeHandlers } from './berkleeHandlers'
 import { registerAppHandlers } from './appHandlers'
+import { registerFeedbackHandlers } from './feedbackHandlers'
 
 export function registerAllIpcHandlers(): void {
   registerStudioHandlers()
@@ -24,4 +25,5 @@ export function registerAllIpcHandlers(): void {
   registerPaletteHandlers()
   registerBerkleeHandlers()
   registerAppHandlers()
+  registerFeedbackHandlers()
 }
