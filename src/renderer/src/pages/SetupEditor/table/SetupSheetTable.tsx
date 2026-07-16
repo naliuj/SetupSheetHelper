@@ -307,6 +307,9 @@ export default function SetupSheetTable(): JSX.Element {
                     outboardColumnCount={outboardColumnCount}
                     visibleColumns={col}
                     isTemporary={isTemporary}
+                    micSuggestions={micSuggestions}
+                    outboardSuggestions={outboardSuggestions}
+                    preampSuggestions={preampSuggestions}
                     selected={selectedItemIds.has(item.id)}
                     pairRole={pairByIndex[i]?.role ?? null}
                     pairLinked={pairByIndex[i]?.linked ?? false}
@@ -331,28 +334,6 @@ export default function SetupSheetTable(): JSX.Element {
             </SortableContext>
           </table>
         </DndContext>
-      )}
-      {/* One shared datalist per free-text gear field (Quick Setup mode) — previously each row
-          rendered its own full copy of every suggestion list, multiplying hundreds of <option>
-          nodes by the row count. */}
-      {isTemporary && (
-        <>
-          <datalist id="mic-suggestions">
-            {micSuggestions.map((s) => (
-              <option key={s} value={s} />
-            ))}
-          </datalist>
-          <datalist id="outboard-suggestions">
-            {outboardSuggestions.map((s) => (
-              <option key={s} value={s} />
-            ))}
-          </datalist>
-          <datalist id="preamp-suggestions">
-            {preampSuggestions.map((s) => (
-              <option key={s} value={s} />
-            ))}
-          </datalist>
-        </>
       )}
     </div>
   )
