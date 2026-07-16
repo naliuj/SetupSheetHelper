@@ -30,7 +30,7 @@ export interface HomeLayoutViewProps {
   entries: HomeEntry[]
   selectedFolderId: number | null
   onSelectFolder: (folderId: number | null) => void
-  emptyMessage?: string
+  emptyMessage?: ReactNode
 }
 
 interface Props extends HomeLayoutViewProps {
