@@ -1,7 +1,7 @@
 {
   "name": "setup-sheet-helper",
   "productName": "Setup Sheet Helper",
-  "version": "1.8.11",
+  "version": "1.8.12",
   "description": "Studio session setup sheet planner",
   "main": "./out/main/index.js",
   "author": "",
@@ -65,7 +65,11 @@
       "hardenedRuntime": true,
       "entitlements": "build/entitlements.mac.plist",
       "entitlementsInherit": "build/entitlements.mac.plist",
-      "notarize": true
+      "notarize": true,
+      "target": [
+        { "target": "dmg", "arch": ["arm64", "x64"] },
+        { "target": "zip", "arch": ["arm64", "x64"] }
+      ]
     },
     "publish": {
       "provider": "github",

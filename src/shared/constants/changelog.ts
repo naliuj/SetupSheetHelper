@@ -195,5 +195,10 @@ export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
     version: '1.8.11',
     date: '2026-07-15',
     highlights: ['Fixed "Check for Updates" failing with a 404 — it now checks the public releases feed instead of the private source repo.']
+  },
+  {
+    version: '1.8.12',
+    date: '2026-07-15',
+    highlights: ['Added an Intel Mac build alongside the Apple Silicon build.']
   }
 ]
