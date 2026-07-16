@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Stage, Layer, Rect, Transformer } from 'react-konva'
 import type Konva from 'konva'
 import { useLayoutStore, MIN_ZOOM, MAX_ZOOM } from '@renderer/state/layoutStore'
+import { useSetupStore } from '@renderer/state/setupStore'
 import LayoutBackground from './LayoutBackground'
 import LayoutBlockIcon, { clampCenterToRoom } from './LayoutBlockIcon'
 import ContextMenu from './ContextMenu'
@@ -31,6 +32,7 @@ const ZOOM_STEP = 1.05
 const MARQUEE_THRESHOLD = 5
 
 export default function LayoutStage({ studioId, stageRef, active }: Props): JSX.Element {
+  const setupId = useSetupStore((s) => s.setupId)
   const blocks = useLayoutStore((s) => s.blocks)
   const addBlock = useLayoutStore((s) => s.addBlock)
   const updateBlockTransform = useLayoutStore((s) => s.updateBlockTransform)
@@ -409,7 +411,11 @@ export default function LayoutStage({ studioId, stageRef, active }: Props): JSX.
         onContextMenu={handleStageContextMenu}
       >
         <Layer>
-          <LayoutBackground studioId={studioId} onSize={(width, height) => setImageSize({ width, height })} />
+          <LayoutBackground
+            studioId={studioId}
+            setupId={setupId}
+            onSize={(width, height) => setImageSize({ width, height })}
+          />
         </Layer>
         <Layer>
           {blocks.map((block) => (

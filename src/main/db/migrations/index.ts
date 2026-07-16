@@ -24,6 +24,7 @@ import { run as setupSessionNotes } from './022_setup_session_notes'
 import { run as micGroup } from './023_mic_group'
 import { run as dropOrphanedGroupRole } from './024_drop_orphaned_group_role'
 import { run as consolidateNiceDi } from './025_consolidate_nice_di'
+import { run as setupLayoutOverrides } from './026_setup_layout_overrides'
 
 export interface SqlMigration {
   version: number
@@ -62,5 +63,6 @@ export const MIGRATIONS: Migration[] = [
   { version: 22, run: setupSessionNotes },
   { version: 23, run: micGroup },
   { version: 24, run: dropOrphanedGroupRole },
-  { version: 25, run: consolidateNiceDi }
+  { version: 25, run: consolidateNiceDi },
+  { version: 26, run: setupLayoutOverrides }
 ]
