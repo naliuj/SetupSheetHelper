@@ -209,5 +209,14 @@ export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
       'Fixed Cmd/Ctrl+A not selecting text in most text fields.',
       'Added a "Donate (If you want)" link to the credits in General settings.'
     ]
+  },
+  {
+    version: '1.8.14',
+    date: '2026-07-16',
+    highlights: [
+      'Added an in-app feedback form (Settings → Feedback) for Feature Requests, Bug Reports, and Other.',
+      'Layout Mode: if a studio has no room layout, you can now continue with a blank sheet instead of only uploading one.',
+      'Uploading a room layout from Layout Mode now asks whether to save it to the studio (shared) or just this setup.'
+    ]
   }
 ]
