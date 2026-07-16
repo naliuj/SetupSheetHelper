@@ -3,8 +3,8 @@ import { MENU_CHANNEL, type MenuAction } from '@shared/types/ipc'
 import { checkForUpdatesManually } from './autoUpdater'
 
 /** Builds the native application menu, wiring File-menu items through to the renderer via IPC.
- *  Deliberately carries no `accelerator` on any app-defined item (Settings/Save/Export/Undo/
- *  Delete/etc.) — those are all now user-rebindable via Settings → Keybinds, dispatched by a
+ *  Deliberately carries no `accelerator` on almost any app-defined item (Settings/Save/Export/
+ *  Undo/Delete/etc.) — those are all now user-rebindable via Settings → Keybinds, dispatched by a
  *  single DOM keydown listener in the renderer (SetupToolbar.tsx + App.tsx for open-settings)
  *  instead of native Electron accelerators. Native accelerators fire before the DOM even sees the
  *  keystroke, which can't be made to respect focused text fields (that's exactly why bare
@@ -12,7 +12,11 @@ import { checkForUpdatesManually } from './autoUpdater'
  *  rebuilding this menu. The menu items themselves stay (label + click) for mouse/trackpad users
  *  and macOS convention — only the live keyboard binding moved. Native OS roles (cut/copy/paste/
  *  quit/hide/services/about) and the built-in viewMenu/windowMenu are untouched; they're not
- *  app-defined actions and aren't part of the rebindable set. */
+ *  app-defined actions and aren't part of the rebindable set.
+ *  "Select All" is the one exception and DOES carry a real `accelerator` — like cut/copy/paste,
+ *  the OS only routes Cmd/Ctrl+A into a focused text field via an actual menu accelerator, so
+ *  without one it's not a "text field loses default behavior" case, it's "nothing happens at all,
+ *  anywhere in the app". See App.tsx/SetupToolbar.tsx's handleSelectAll for the renderer side. */
 export function installAppMenu(mainWindow: BrowserWindow): void {
   const isMac = process.platform === 'darwin'
 
@@ -69,7 +73,7 @@ export function installAppMenu(mainWindow: BrowserWindow): void {
         { role: 'copy' },
         { role: 'paste' },
         { type: 'separator' },
-        { label: 'Select All', click: () => send('select-all') },
+        { label: 'Select All', accelerator: 'CmdOrCtrl+A', click: () => send('select-all') },
         { label: 'Add Source', click: () => send('add-source') },
         { label: 'Delete Selection', click: () => send('delete-selection') },
         { label: 'Duplicate', click: () => send('duplicate-selection') },

@@ -90,10 +90,26 @@ export default function App(): JSX.Element {
   // native Electron accelerator — see SetupToolbar.tsx for why (text-field safety + rebindability
   // for every other action); this is the one action that needs its own copy of that match logic
   // because it must work outside the editor too.
+  //
+  // "Select All" carries a real accelerator (menu.ts) unlike every other app-defined action,
+  // since — like cut/copy/paste — the OS needs an actual menu accelerator to route Cmd/Ctrl+A to
+  // a focused text field at all; without one, pressing it does nothing anywhere in the app. That
+  // means (unlike open-settings) it fires from every screen, not just inside an open setup, so the
+  // "select all text in the focused field" half of the behavior lives here where it always runs.
+  // SetupToolbar's own handleSelectAll does the identical check for the same reason when a setup
+  // is open, then falls through to selecting every row/block if no text field has focus.
   useEffect(() => {
     return window.api.menu.onAction((action) => {
       if (action === 'open-settings') goToSettings()
       if (action === 'show-whats-new') useWhatsNewStore.getState().openManually()
+      if (action === 'select-all') {
+        const active = document.activeElement
+        if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement) {
+          active.select()
+        } else if ((active as HTMLElement | null)?.isContentEditable) {
+          document.execCommand('selectAll')
+        }
+      }
     })
   }, [goToSettings])
 

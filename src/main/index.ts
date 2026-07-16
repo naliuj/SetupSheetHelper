@@ -42,6 +42,13 @@ function createWindow(): BrowserWindow {
 }
 
 app.whenReady().then(() => {
+  // Packaged builds get their icon from build.mac.icon (electron-builder) — this only covers the
+  // Dock icon during `npm run dev`, since that runs the generic Electron binary rather than a
+  // bundled app.
+  if (!app.isPackaged && process.platform === 'darwin') {
+    app.dock?.setIcon(join(__dirname, '../../build/icon.png'))
+  }
+
   protocol.handle('app-file', (request) => {
     // Registered as a "standard" scheme, so the URL always has a (placeholder) host — see the
     // matching renderer-side construction in LayoutBackground.tsx. Parse properly rather than

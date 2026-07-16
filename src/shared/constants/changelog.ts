@@ -200,5 +200,14 @@ export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
     version: '1.8.12',
     date: '2026-07-15',
     highlights: ['Added an Intel Mac build alongside the Apple Silicon build.']
+  },
+  {
+    version: '1.8.13',
+    date: '2026-07-15',
+    highlights: [
+      'Added a new app icon.',
+      'Fixed Cmd/Ctrl+A not selecting text in most text fields.',
+      'Added a "Donate (If you want)" link to the credits in General settings.'
+    ]
   }
 ]

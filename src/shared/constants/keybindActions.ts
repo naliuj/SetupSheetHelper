@@ -46,7 +46,11 @@ export const KEYBIND_ACTIONS: KeybindActionDef[] = [
   },
   { id: 'undo', label: 'Undo', category: 'Edit', scope: 'global', defaultCombo: 'CmdOrCtrl+Z' },
   { id: 'redo', label: 'Redo', category: 'Edit', scope: 'global', defaultCombo: 'CmdOrCtrl+Shift+Z' },
-  { id: 'select-all', label: 'Select All', category: 'Edit', scope: 'global', defaultCombo: 'CmdOrCtrl+A' },
+  // Select All is NOT here (unlike every other Edit action) — it's a fixed CmdOrCtrl+A native menu
+  // accelerator (menu.ts), same category as cut/copy/paste, because the OS only routes that combo
+  // into a focused text field via a real menu accelerator. A user-rebindable combo would only ever
+  // work for the "select every row/block" half, never the "select all text in this field" half —
+  // see menu.ts's installAppMenu doc comment.
   { id: 'add-source', label: 'Add Source', category: 'Edit', scope: 'global', defaultCombo: 'CmdOrCtrl+N' },
   {
     id: 'delete-selection',

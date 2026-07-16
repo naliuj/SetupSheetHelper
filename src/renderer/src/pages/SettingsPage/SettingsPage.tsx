@@ -231,6 +231,16 @@ export default function SettingsPage(): JSX.Element {
                 @gagekaymusic
               </a>
             </p>
+            <p className="card-sub" style={{ margin: 0 }}>
+              <a
+                href="https://buymeacoffee.com/julianrose"
+                target="_blank"
+                rel="noreferrer"
+                style={{ color: 'var(--color-accent)' }}
+              >
+                Donate (If you want)
+              </a>
+            </p>
           </div>
         </div>
       )}
