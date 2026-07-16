@@ -218,5 +218,14 @@ export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
       'Layout Mode: if a studio has no room layout, you can now continue with a blank sheet instead of only uploading one.',
       'Uploading a room layout from Layout Mode now asks whether to save it to the studio (shared) or just this setup.'
     ]
+  },
+  {
+    version: '1.8.15',
+    date: '2026-07-16',
+    highlights: [
+      'The home screen now leads with studio templates instead of Quick Setup, to make reusable studios easier to find.',
+      "Quick Setup's mic/outboard/preamp fields are now plain text boxes with type-ahead suggestions, not a dropdown.",
+      'PDF export now only offers a "Room layout" option when there\'s actually a layout to include.'
+    ]
   }
 ]
