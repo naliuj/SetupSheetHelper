@@ -227,5 +227,13 @@ export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
       "Quick Setup's mic/outboard/preamp fields are now plain text boxes with type-ahead suggestions, not a dropdown.",
       'PDF export now only offers a "Room layout" option when there\'s actually a layout to include.'
     ]
+  },
+  {
+    version: '1.8.16',
+    date: '2026-07-16',
+    highlights: [
+      'Stereo linking now works on any two adjacent rows — including a pair that lands on an even row, which couldn\'t be linked before.',
+      'The app now re-checks for updates every couple of hours while it\'s open, so leaving it running for days no longer means missing an update.'
+    ]
   }
 ]
