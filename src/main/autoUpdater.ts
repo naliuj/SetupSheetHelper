@@ -9,7 +9,7 @@ autoUpdater.autoInstallOnAppQuit = true
 /** How often to re-check for updates while the app stays open. electron-updater's own check only
  *  runs once at startup, so an app left running for days would never notice a new release — this
  *  keeps polling so a long-lived session still picks one up (and prompts) within a few hours. */
-const UPDATE_CHECK_INTERVAL_MS = 4 * 60 * 60 * 1000 // 4 hours
+const UPDATE_CHECK_INTERVAL_MS = 2 * 60 * 60 * 1000 // 2 hours
 
 /** Wires up electron-updater against the public setup-sheet-helper-releases GitHub Releases,
  *  published directly by `npm run release:mac` (see package.json's `build.publish` config) —
