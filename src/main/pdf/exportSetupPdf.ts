@@ -313,13 +313,17 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
       drawHeaderRow()
     }
 
-    // Which rows are the top/bottom of a linked stereo pair — pairing is positional (row 1 & 2,
-    // row 3 & 4, ...), same rule the table UI uses, independent of what channel numbers are
-    // actually filled in — used to draw a "[" bracket in the left margin beside the pair.
+    // Which rows are the top/bottom of a linked stereo pair — two *adjacent* rows sharing a
+    // non-null groupId, the same adjacency rule the table UI uses (no odd/even bucket) — used to
+    // draw a "[" bracket in the left margin beside the pair. Walking one row at a time (not in
+    // steps of two) lets a pair sit at any position, e.g. rows 2 & 3.
     const pairRoleById = new Map<number, 'top' | 'bottom'>()
-    for (let i = 0; i + 1 < setup.items.length; i += 2) {
+    for (let i = 0; i + 1 < setup.items.length; i++) {
       const top = setup.items[i]
       const bottom = setup.items[i + 1]
+      // Skip the bottom row of a pair we just recorded, so a run of same-group rows doesn't
+      // double-bracket (only pairs are supported; a groupId is shared by exactly two adjacent rows).
+      if (pairRoleById.get(top.id) === 'bottom') continue
       if (top.groupId != null && top.groupId === bottom.groupId) {
         pairRoleById.set(top.id, 'top')
         pairRoleById.set(bottom.id, 'bottom')

@@ -79,21 +79,19 @@ export default function SetupSheetTable(): JSX.Element {
     [selectRangeTo, toggleItem, selectItem]
   )
 
-  // Toggles a mic-group link for the pair straddling `itemId` — pairing is purely positional
-  // (row 1 & 2, row 3 & 4, ...; 1-indexed odd row start), independent of what channel numbers are
-  // actually filled in. Reads the freshest store state at click time via getState() rather than
-  // closing over `items`/`mics` props, so this callback can have a permanently stable identity
-  // (empty deps) without going stale — otherwise every row would lose memoization on every edit,
-  // since this function would need to be recreated whenever `items` changes (i.e. on every
-  // keystroke).
+  // Toggles a mic-group link on the seam *below* `itemId` — i.e. links `itemId`'s row with the one
+  // directly beneath it, whatever position they're at (no odd/even bucket). Reads the freshest
+  // store state at click time via getState() rather than closing over `items`/`mics` props, so this
+  // callback can have a permanently stable identity (empty deps) without going stale — otherwise
+  // every row would lose memoization on every edit, since this function would need to be recreated
+  // whenever `items` changes (i.e. on every keystroke).
   const handleTogglePairLink = useCallback((itemId: number | string): void => {
     const state = useSetupStore.getState()
     const currentItems = state.items
     const idx = currentItems.findIndex((i) => i.id === itemId)
     if (idx === -1) return
-    const topIdx = idx % 2 === 0 ? idx : idx - 1
-    const topItem = currentItems[topIdx]
-    const bottomItem = currentItems[topIdx + 1]
+    const topItem = currentItems[idx]
+    const bottomItem = currentItems[idx + 1]
     if (!topItem || !bottomItem) return
 
     const linked = topItem.groupId != null && topItem.groupId === bottomItem.groupId
@@ -101,6 +99,18 @@ export default function SetupSheetTable(): JSX.Element {
       state.updateItemFields(topItem.id, { groupId: null })
       state.updateItemFields(bottomItem.id, { groupId: null })
       return
+    }
+
+    // A row can only belong to one pair — before linking this seam, break any existing link the two
+    // rows already have with their *other* neighbours (the row above `topItem`, or below
+    // `bottomItem`), so linking (2,3) after (1,2) cleanly moves row 2 into the new pair.
+    const above = currentItems[idx - 1]
+    if (above && above.groupId != null && above.groupId === topItem.groupId) {
+      state.updateItemFields(above.id, { groupId: null })
+    }
+    const below = currentItems[idx + 2]
+    if (below && below.groupId != null && below.groupId === bottomItem.groupId) {
+      state.updateItemFields(below.id, { groupId: null })
     }
 
     // Linking: the top row (first of the pair, by position) is always the "source" for one-time
@@ -175,12 +185,13 @@ export default function SetupSheetTable(): JSX.Element {
   }, [])
 
   /** Shared "is this row part of an actively-linked pair, and who's its partner" check, reused by
-   *  every ongoing-sync handler below. Pairing is positional (row 1 & 2, row 3 & 4, ...), same rule
-   *  as handleTogglePairLink — works from EITHER row of the pair (editing either side updates the
-   *  other), unlike the one-time link-time auto-fill, which always seeds bottom from top.
-   *  `direction` is +1 when `itemId` is the top row (its partner is one below) and -1 when it's the
-   *  bottom row (its partner is one above) — used to keep numeric fields like channel offsetting
-   *  the right way regardless of which row triggered the sync. */
+   *  every ongoing-sync handler below. A row's partner is whichever *adjacent* neighbour (the row
+   *  directly above or below) shares its non-null groupId — no odd/even position rule. A row can
+   *  only be linked to one neighbour (enforced in handleTogglePairLink), so at most one side
+   *  matches. Works from EITHER row of the pair (editing either side updates the other), unlike the
+   *  one-time link-time auto-fill which always seeds bottom from top. `direction` is +1 when the
+   *  partner is below `itemId` and -1 when it's above — used to keep numeric fields like channel
+   *  offsetting the right way regardless of which row triggered the sync. */
   function findLinkedPartner(
     state: ReturnType<typeof useSetupStore.getState>,
     itemId: number | string
@@ -188,12 +199,13 @@ export default function SetupSheetTable(): JSX.Element {
     const currentItems = state.items
     const idx = currentItems.findIndex((i) => i.id === itemId)
     if (idx === -1) return null
-    const isTop = idx % 2 === 0
-    const partnerIdx = isTop ? idx + 1 : idx - 1
     const item = currentItems[idx]
-    const partner = currentItems[partnerIdx]
-    if (!partner || item.groupId == null || item.groupId !== partner.groupId) return null
-    return { partner, direction: isTop ? 1 : -1 }
+    if (item.groupId == null) return null
+    const below = currentItems[idx + 1]
+    if (below && below.groupId === item.groupId) return { partner: below, direction: 1 }
+    const above = currentItems[idx - 1]
+    if (above && above.groupId === item.groupId) return { partner: above, direction: -1 }
+    return null
   }
 
   // Ongoing sync for 48V, polarity, channel, tie line, and cue box: editing any of these on either
@@ -250,18 +262,23 @@ export default function SetupSheetTable(): JSX.Element {
   const preampUsageCounts = useMemo(() => computeUsageCounts(items, 'preampId'), [items])
   const sortableIds = useMemo(() => items.map((item) => item.id), [items])
 
-  // The link toggle appears between every odd-numbered row (1-indexed: row 1, 3, 5, ...) and the
-  // next row — purely positional, independent of what channel numbers are actually filled in. A
-  // trailing unpaired row (odd total row count) gets no toggle. Cheap enough to derive per-render
-  // without memoizing a whole Map, since it's a single array walk.
-  const pairByIndex: ({ role: 'top' | 'bottom'; linked: boolean } | null)[] = new Array(items.length).fill(null)
-  for (let i = 0; i + 1 < items.length; i += 2) {
-    const top = items[i]
-    const bottom = items[i + 1]
-    const linked = top.groupId != null && top.groupId === bottom.groupId
-    pairByIndex[i] = { role: 'top', linked }
-    pairByIndex[i + 1] = { role: 'bottom', linked }
-  }
+  // Per-row link state, derived by adjacency (no odd/even bucket). Every row except the last hosts
+  // a link button on its bottom seam (`hasSeamBelow`), so any adjacent pair can be linked wherever
+  // it sits. `bracket` is 'top' when this row shares its groupId with the row below, 'bottom' when
+  // it shares with the row above — that's what draws the accent bracket around a linked pair.
+  // `seamZIndex` descends with row order so each row's seam button (which straddles the border into
+  // the row below) paints above — and stays clickable over — that next row's gutter cell. Cheap
+  // enough to derive per-render without memoizing, since it's a single array walk.
+  const rowLinkState: { hasSeamBelow: boolean; bracket: 'top' | 'bottom' | null; seamZIndex: number }[] = items.map(
+    (item, i) => {
+      const below = items[i + 1]
+      const above = items[i - 1]
+      let bracket: 'top' | 'bottom' | null = null
+      if (item.groupId != null && below && below.groupId === item.groupId) bracket = 'top'
+      else if (item.groupId != null && above && above.groupId === item.groupId) bracket = 'bottom'
+      return { hasSeamBelow: i < items.length - 1, bracket, seamZIndex: items.length - i }
+    }
+  )
 
   return (
     <div style={{ padding: 12 }}>
@@ -311,8 +328,9 @@ export default function SetupSheetTable(): JSX.Element {
                     outboardSuggestions={outboardSuggestions}
                     preampSuggestions={preampSuggestions}
                     selected={selectedItemIds.has(item.id)}
-                    pairRole={pairByIndex[i]?.role ?? null}
-                    pairLinked={pairByIndex[i]?.linked ?? false}
+                    hasSeamBelow={rowLinkState[i].hasSeamBelow}
+                    bracket={rowLinkState[i].bracket}
+                    seamZIndex={rowLinkState[i].seamZIndex}
                     onTogglePairLink={handleTogglePairLink}
                     onSyncPairMic={handleSyncPairMic}
                     onSyncPairPreamp={handleSyncPairPreamp}

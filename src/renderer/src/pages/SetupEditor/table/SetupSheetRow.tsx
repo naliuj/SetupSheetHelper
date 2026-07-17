@@ -119,11 +119,15 @@ interface Props {
   outboardSuggestions: string[]
   preampSuggestions: string[]
   selected: boolean
-  /** Set only for the two rows straddling a valid odd/even channel pair (e.g. channel 3 and 4) —
-   *  every other row gets `null` and renders no link control at all. 'top' is the odd-channel row
-   *  (which hosts the clickable toggle on the seam), 'bottom' the next row down. */
-  pairRole: 'top' | 'bottom' | null
-  pairLinked: boolean
+  /** Whether this row hosts a link button on its bottom seam (true for every row except the last) —
+   *  clicking it links this row with the one directly below, at any position. */
+  hasSeamBelow: boolean
+  /** Set on the two rows of a linked pair to draw the accent bracket: 'top' shares its groupId with
+   *  the row below, 'bottom' with the row above. `null` for unlinked rows. */
+  bracket: 'top' | 'bottom' | null
+  /** Descending z-index (higher for earlier rows) for the seam gutter cell, so this row's
+   *  border-straddling seam button paints above — and stays clickable over — the next row's cell. */
+  seamZIndex: number
   onTogglePairLink: (id: number | string) => void
   conflict: boolean
   unresolvedGearHint: UnresolvedGearHint | undefined
@@ -169,8 +173,9 @@ function SetupSheetRow({
   outboardSuggestions,
   preampSuggestions,
   selected,
-  pairRole,
-  pairLinked,
+  hasSeamBelow,
+  bracket,
+  seamZIndex,
   onTogglePairLink,
   conflict,
   unresolvedGearHint,
@@ -192,8 +197,8 @@ function SetupSheetRow({
   // Thin id-bound wrappers so the rest of the component keeps its original single-row API. Once a
   // pair is linked, either row pushes its changes to the other — the table resolves which row is
   // "top"/"bottom" to get the channel/tie line/cue box offset direction right regardless of which
-  // side was edited.
-  const isPairSyncSource = pairLinked
+  // side was edited. A non-null `bracket` means this row belongs to a linked pair.
+  const isPairSyncSource = bracket != null
   const onChange = (patch: Partial<SetupItemDraft>): void => {
     onChangeById(item.id, patch)
     if (isPairSyncSource) onSyncPairFields(item.id, patch)
@@ -288,11 +293,12 @@ function SetupSheetRow({
 
   return (
     <tr ref={setNodeRef} style={rowStyle}>
-      {/* Slim leftmost stereo-pair link column (toggleable via the Columns menu). Only an odd/even
-          channel pair (e.g. 3 & 4) gets a control: when linked, a bracket "[" is drawn against the
-          left edge spanning both rows (spine + an inward tick top and bottom, split across the two
-          cells), and the 'top' row hosts a borderless link-icon toggle on the seam. A high z-index
-          on the top cell lets the seam-straddling icon paint over the next row (later in DOM order). */}
+      {/* Slim leftmost stereo-pair link column (toggleable via the Columns menu). Every row except
+          the last hosts a link-icon toggle on its bottom seam (faint at rest, accent on hover), so
+          any two adjacent rows can be paired regardless of position. When a pair is linked, an
+          accent bracket "[" is drawn against the left edge spanning both rows (spine + an inward
+          tick top and bottom, split across the two cells). A high z-index on seam-hosting cells lets
+          the seam-straddling icon paint over the next row (later in DOM order). */}
       {visibleColumns.has('stereoLink') && (
         <td
           style={{
@@ -300,10 +306,10 @@ function SetupSheetRow({
             padding: 0,
             position: 'relative',
             overflow: 'visible',
-            zIndex: pairRole === 'top' ? 1 : undefined
+            zIndex: hasSeamBelow ? seamZIndex : undefined
           }}
         >
-          {pairLinked && (
+          {bracket && (
             <div
               aria-hidden="true"
               style={{
@@ -312,47 +318,57 @@ function SetupSheetRow({
                 width: 6,
                 // Top cell draws the upper half of the "[" (spine down to the seam + top tick);
                 // bottom cell draws the lower half (spine up from the seam + bottom tick).
-                top: pairRole === 'top' ? 3 : 0,
-                bottom: pairRole === 'bottom' ? 3 : 0,
+                top: bracket === 'top' ? 3 : 0,
+                bottom: bracket === 'bottom' ? 3 : 0,
                 borderLeft: '2px solid var(--color-accent)',
-                borderTop: pairRole === 'top' ? '2px solid var(--color-accent)' : undefined,
-                borderBottom: pairRole === 'bottom' ? '2px solid var(--color-accent)' : undefined
+                borderTop: bracket === 'top' ? '2px solid var(--color-accent)' : undefined,
+                borderBottom: bracket === 'bottom' ? '2px solid var(--color-accent)' : undefined
               }}
             />
           )}
-          {pairRole === 'top' && (
-            <button
-              aria-label={pairLinked ? 'Linked stereo pair — click to unlink' : 'Link as a stereo pair'}
-              title={pairLinked ? 'Linked stereo pair — click to unlink' : 'Link as a stereo pair'}
-              onClick={(e) => {
-                e.stopPropagation()
-                onTogglePairLink(item.id)
-              }}
-              onMouseEnter={(e) => {
-                if (!pairLinked) e.currentTarget.style.color = 'var(--color-accent)'
-              }}
-              onMouseLeave={(e) => {
-                if (!pairLinked) e.currentTarget.style.color = 'var(--color-text-dim)'
-              }}
-              style={{
-                position: 'absolute',
-                left: 6,
-                top: '100%',
-                transform: 'translateY(-50%)',
-                zIndex: 2,
-                padding: 2,
-                border: 'none',
-                background: 'transparent',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: pairLinked ? 'var(--color-accent)' : 'var(--color-text-dim)'
-              }}
-            >
-              <Link2 size={13} aria-hidden="true" />
-            </button>
-          )}
+          {hasSeamBelow &&
+            (() => {
+              // The seam below this row is "linked" exactly when this row is the top of a pair.
+              const seamLinked = bracket === 'top'
+              return (
+                <button
+                  aria-label={seamLinked ? 'Linked stereo pair — click to unlink' : 'Link with the row below as a stereo pair'}
+                  title={seamLinked ? 'Linked stereo pair — click to unlink' : 'Link with the row below as a stereo pair'}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onTogglePairLink(item.id)
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.opacity = '1'
+                    e.currentTarget.style.color = 'var(--color-accent)'
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!seamLinked) {
+                      e.currentTarget.style.opacity = '0.5'
+                      e.currentTarget.style.color = 'var(--color-text-dim)'
+                    }
+                  }}
+                  style={{
+                    position: 'absolute',
+                    left: 6,
+                    top: '100%',
+                    transform: 'translateY(-50%)',
+                    zIndex: 2,
+                    padding: 2,
+                    border: 'none',
+                    background: 'transparent',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    opacity: seamLinked ? 1 : 0.5,
+                    color: seamLinked ? 'var(--color-accent)' : 'var(--color-text-dim)'
+                  }}
+                >
+                  <Link2 size={13} aria-hidden="true" />
+                </button>
+              )
+            })()}
         </td>
       )}
       <td
