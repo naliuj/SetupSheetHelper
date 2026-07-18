@@ -77,7 +77,7 @@ export default function ExportOptionsModal({
             checked={coloredRows}
             onChange={setColoredRows}
             disabled={!includeSheet && !includeLayout}
-            label="Colored rows"
+            label="Colored"
           />
         </div>
         <p className="card-sub" style={{ margin: '0 0 12px 24px' }}>
