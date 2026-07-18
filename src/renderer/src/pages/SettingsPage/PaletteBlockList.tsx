@@ -107,7 +107,13 @@ function BlockRow({
       <span className="drag-handle" {...attributes} {...listeners} style={{ cursor: 'grab', color: 'var(--color-text-dim)' }}>
         <GripVertical size={16} aria-hidden="true" />
       </span>
-      <PaletteBlockChip label={item.label} shape={item.shape} color={item.color} />
+      <PaletteBlockChip
+        label={item.label}
+        shape={item.shape}
+        color={item.color}
+        defaultWidth={item.defaultWidth}
+        defaultHeight={item.defaultHeight}
+      />
       <input
         className="palette-input"
         value={item.label}
