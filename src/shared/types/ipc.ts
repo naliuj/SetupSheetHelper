@@ -166,7 +166,8 @@ export const IPC = {
     update: 'palette:update',
     removeCustom: 'palette:removeCustom',
     reorder: 'palette:reorder',
-    renameCategory: 'palette:renameCategory'
+    renameCategory: 'palette:renameCategory',
+    deleteCategory: 'palette:deleteCategory'
   }
 } as const
 
@@ -573,5 +574,8 @@ export interface RendererApi {
     /** Rewrites the category on every item currently in `oldName` (renaming onto an existing
      *  category name merges the two groups). */
     renameCategory(oldName: string, newName: string): Promise<void>
+    /** Removes a whole category: hard-deletes its custom items, soft-hides its built-in items
+     *  (recoverable from the editor's Hidden list). */
+    deleteCategory(category: string): Promise<void>
   }
 }

@@ -92,6 +92,19 @@ export function renameCategoryPaletteItems(oldName: string, newName: string): vo
   getDb().prepare('UPDATE palette_items SET category = ? WHERE category = ?').run(newName, oldName)
 }
 
+/** Removes a whole category. Custom items in it are hard-deleted; built-in items are soft-hidden
+ *  (same custom-vs-built-in split as single-item removal — built-ins survive as hidden so a future
+ *  reseed can't resurrect them, and the user can restore them from the editor's Hidden list). The
+ *  category itself has no separate storage — it disappears once no visible item references it. */
+export function deleteCategoryPaletteItems(category: string): void {
+  const db = getDb()
+  const run = db.transaction(() => {
+    db.prepare('DELETE FROM palette_items WHERE category = ? AND is_builtin = 0').run(category)
+    db.prepare('UPDATE palette_items SET is_hidden = 1 WHERE category = ? AND is_builtin = 1').run(category)
+  })
+  run()
+}
+
 /** Persists a full drag-and-drop reorder — assigns sequential sort_order in the given id order. */
 export function reorderPaletteItems(ids: number[]): void {
   const db = getDb()
