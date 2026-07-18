@@ -76,12 +76,12 @@ export default function ExportOptionsModal({
           <ToggleSwitch
             checked={coloredRows}
             onChange={setColoredRows}
-            disabled={!includeSheet}
-            label="Colored rows"
+            disabled={!includeSheet && !includeLayout}
+            label="Colored"
           />
         </div>
         <p className="card-sub" style={{ margin: '0 0 12px 24px' }}>
-          Tints rows by their color. Leave off for black-and-white printing.
+          Tints rows and layout blocks by color. Leave off for black-and-white printing.
         </p>
 
         {includeSheet && hiddenColumns.length > 0 && (

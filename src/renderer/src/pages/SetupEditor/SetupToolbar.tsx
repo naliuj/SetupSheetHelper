@@ -137,7 +137,7 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode, onOpenSetti
           useLayoutStore.getState().selectBlock(null)
           // let the deselect re-render (hides the resize/rotate handles) before flattening the stage
           await new Promise((resolve) => setTimeout(resolve, 30))
-          dataUrl = exportStageToDataUrl(stageRef.current, 2)
+          dataUrl = exportStageToDataUrl(stageRef.current, 2, !coloredRows)
         }
       }
 
