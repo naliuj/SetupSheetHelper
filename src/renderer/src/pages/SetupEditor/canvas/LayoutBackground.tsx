@@ -86,5 +86,5 @@ export default function LayoutBackground({ studioId, setupId, onSize }: Props): 
     )
   }
   if (!image) return null
-  return <KonvaImage image={image} x={0} y={0} listening={false} />
+  return <KonvaImage image={image} x={0} y={0} listening={false} name="layout-bg-image" />
 }

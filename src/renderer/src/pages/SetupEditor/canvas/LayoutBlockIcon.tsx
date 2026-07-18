@@ -103,6 +103,7 @@ const LayoutBlockIcon = forwardRef<Konva.Group, Props>(function LayoutBlockIcon(
     >
       {block.shape === 'circle' ? (
         <Circle
+          name="block-shape"
           radius={Math.min(block.width, block.height) / 2}
           fill={block.color}
           stroke={strokeColor}
@@ -110,6 +111,7 @@ const LayoutBlockIcon = forwardRef<Konva.Group, Props>(function LayoutBlockIcon(
         />
       ) : (
         <Rect
+          name="block-shape"
           x={-block.width / 2}
           y={-block.height / 2}
           width={block.width}
@@ -123,6 +125,7 @@ const LayoutBlockIcon = forwardRef<Konva.Group, Props>(function LayoutBlockIcon(
       {block.personName ? (
         <>
           <Text
+            name="block-label"
             text={block.label}
             fontSize={fontSize}
             fontStyle="bold"
@@ -141,6 +144,7 @@ const LayoutBlockIcon = forwardRef<Konva.Group, Props>(function LayoutBlockIcon(
             listening={false}
           />
           <Text
+            name="block-label"
             text={block.personName}
             fontSize={Math.max(8, fontSize * 0.6)}
             fill={labelColor}
@@ -160,6 +164,7 @@ const LayoutBlockIcon = forwardRef<Konva.Group, Props>(function LayoutBlockIcon(
         </>
       ) : (
         <Text
+          name="block-label"
           text={block.label}
           fontSize={fontSize}
           fontStyle="bold"
