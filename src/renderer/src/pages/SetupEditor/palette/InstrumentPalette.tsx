@@ -86,7 +86,13 @@ export default function InstrumentPalette(): JSX.Element {
                   onDragStart={(e) =>
                     e.dataTransfer.setData(
                       'application/json',
-                      JSON.stringify({ label: item.label, shape: item.shape, color: item.color })
+                      JSON.stringify({
+                        label: item.label,
+                        shape: item.shape,
+                        color: item.color,
+                        defaultWidth: item.defaultWidth,
+                        defaultHeight: item.defaultHeight
+                      })
                     )
                   }
                   className="card"

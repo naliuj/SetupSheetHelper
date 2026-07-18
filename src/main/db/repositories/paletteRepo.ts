@@ -11,6 +11,8 @@ interface PaletteItemRow {
   is_builtin: number
   is_hidden: number
   sort_order: number
+  default_width: number | null
+  default_height: number | null
 }
 
 function mapRow(row: PaletteItemRow): PaletteItem {
@@ -23,7 +25,9 @@ function mapRow(row: PaletteItemRow): PaletteItem {
     category: row.category,
     isBuiltin: row.is_builtin === 1,
     isHidden: row.is_hidden === 1,
-    sortOrder: row.sort_order
+    sortOrder: row.sort_order,
+    defaultWidth: row.default_width,
+    defaultHeight: row.default_height
   }
 }
 
