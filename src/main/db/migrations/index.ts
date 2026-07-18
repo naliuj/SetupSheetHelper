@@ -25,6 +25,7 @@ import { run as micGroup } from './023_mic_group'
 import { run as dropOrphanedGroupRole } from './024_drop_orphaned_group_role'
 import { run as consolidateNiceDi } from './025_consolidate_nice_di'
 import { run as setupLayoutOverrides } from './026_setup_layout_overrides'
+import { run as refreshBerkleeLayoutPdfs } from './027_refresh_berklee_layout_pdfs'
 
 export interface SqlMigration {
   version: number
@@ -64,5 +65,6 @@ export const MIGRATIONS: Migration[] = [
   { version: 23, run: micGroup },
   { version: 24, run: dropOrphanedGroupRole },
   { version: 25, run: consolidateNiceDi },
-  { version: 26, run: setupLayoutOverrides }
+  { version: 26, run: setupLayoutOverrides },
+  { version: 27, run: refreshBerkleeLayoutPdfs }
 ]
