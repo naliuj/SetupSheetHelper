@@ -3,6 +3,7 @@ import type { PdfExportInclude, PdfExportOrientation, PdfExportDensity } from '@
 import { useEscapeToClose } from '@renderer/hooks/useEscapeToClose'
 import ToggleSwitch from '@renderer/components/ToggleSwitch'
 import { useSetupStore } from '@renderer/state/setupStore'
+import { useNavigationStore } from '@renderer/state/navigationStore'
 import { TOGGLEABLE_COLUMNS } from '@shared/constants/setupColumns'
 
 export interface ExportOptions {
@@ -48,6 +49,16 @@ export default function ExportOptionsModal({
   const visibleSet = new Set(visibleColumns)
   const hiddenColumns = TOGGLEABLE_COLUMNS.filter((c) => !visibleSet.has(c.key))
 
+  const goToSettings = useNavigationStore((s) => s.goToSettings)
+
+  // Grid lines/zebra stripes/header shading/accent color aren't per-export options — they're
+  // global preferences (see PdfLayoutEditor.tsx's own doc comment) — so this just deep-links
+  // there rather than duplicating those controls in the modal.
+  function handleOpenPdfSettings(): void {
+    onClose()
+    goToSettings('pdfLayout')
+  }
+
   async function handleExport(): Promise<void> {
     const include: PdfExportInclude = includeSheet && includeLayout ? 'both' : includeSheet ? 'sheet' : 'layout'
     setExporting(true)
@@ -62,7 +73,15 @@ export default function ExportOptionsModal({
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 340 }}>
-        <h2 style={{ marginTop: 0 }}>Export to PDF</h2>
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
+          <h2 style={{ margin: 0 }}>Export to PDF</h2>
+          <span
+            onClick={handleOpenPdfSettings}
+            style={{ fontSize: 12, color: 'var(--color-accent)', cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap' }}
+          >
+            PDF style settings
+          </span>
+        </div>
         <p className="card-sub" style={{ marginTop: 0 }}>What should the PDF include?</p>
         <div style={{ marginBottom: 8 }}>
           <ToggleSwitch checked={includeSheet} onChange={setIncludeSheet} label="Setup sheet" />
