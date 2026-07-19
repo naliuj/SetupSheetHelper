@@ -247,5 +247,13 @@ export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
       'Added a built-in "Gobo" block to the Utility category.',
       'Dragging multiple selected blocks in Layout Mode now moves them together smoothly instead of the rest snapping into place at the end.'
     ]
+  },
+  {
+    version: '1.9.0',
+    date: '2026-07-19',
+    highlights: [
+      'Added a "PDF style settings" link to the Export to PDF dialog, jumping straight to Settings.',
+      'Added a session date format setting to PDF Layout settings (MM/DD/YYYY, Month D YYYY, YYYY-MM-DD, or DD/MM/YYYY).'
+    ]
   }
 ]
