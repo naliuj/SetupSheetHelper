@@ -9,6 +9,9 @@ interface Props {
   selected: boolean
   imageSize: { width: number; height: number }
   onSelect: (additive: boolean) => void
+  /** Fired on every drag tick (not just at the end) so a multi-selection can be mirrored live —
+   *  see LayoutStage.tsx's handleBlockDragMove. */
+  onDragMove: (x: number, y: number) => void
   onDragEnd: (x: number, y: number) => void
   onContextMenu: (clientX: number, clientY: number) => void
 }
@@ -34,7 +37,7 @@ export function clampCenterToRoom(
  *  uniform scale multiplier, so independent-axis resize (via the Transformer in
  *  LayoutStage.tsx) works naturally. */
 const LayoutBlockIcon = forwardRef<Konva.Group, Props>(function LayoutBlockIcon(
-  { block, selected, imageSize, onSelect, onDragEnd, onContextMenu },
+  { block, selected, imageSize, onSelect, onDragMove, onDragEnd, onContextMenu },
   ref
 ) {
   const strokeColor = '#ffffff'
@@ -49,6 +52,10 @@ const LayoutBlockIcon = forwardRef<Konva.Group, Props>(function LayoutBlockIcon(
   const textWidth = isCircle ? boxSize! : Math.max(block.width - 8, 4)
   const textHeight = isCircle ? boxSize! : Math.max(block.height - 8, 4)
   const fontSize = Math.max(9, Math.min(36, Math.min(block.width, block.height) / 4))
+
+  function handleDragMove(e: Konva.KonvaEventObject<DragEvent>): void {
+    onDragMove(e.target.x(), e.target.y())
+  }
 
   function handleDragEnd(e: Konva.KonvaEventObject<DragEvent>): void {
     onDragEnd(e.target.x(), e.target.y())
@@ -98,6 +105,7 @@ const LayoutBlockIcon = forwardRef<Konva.Group, Props>(function LayoutBlockIcon(
       dragBoundFunc={dragBoundFunc}
       onClick={handleClick}
       onTap={() => onSelect(false)}
+      onDragMove={handleDragMove}
       onDragEnd={handleDragEnd}
       onContextMenu={handleContextMenu}
     >
