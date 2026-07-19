@@ -125,6 +125,8 @@ export const APP_SETTINGS_KEYS = {
   pdfHeaderShaded: 'pdf_header_shaded',
   /** Hex string '#rrggbb', or absent/blank → no accent tint anywhere in the export. */
   pdfAccentColor: 'pdf_accent_color',
+  /** PdfDateFormat: 'us' | 'us-long' | 'iso' | 'eu'. Absent/garbage → 'us'. */
+  pdfDateFormat: 'pdf_date_format',
   /** JSON object { [keybindActionId]: comboString } — only entries that differ from
    *  KEYBIND_ACTIONS' defaults are stored. Absent/garbage → {} (every action at its default). */
   keybindOverrides: 'keybind_overrides',

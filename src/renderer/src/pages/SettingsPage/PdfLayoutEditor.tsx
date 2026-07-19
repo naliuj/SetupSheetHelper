@@ -1,5 +1,5 @@
 import { usePdfLayoutPrefsStore } from '@renderer/state/pdfLayoutPrefsStore'
-import { PDF_GRID_STYLES, type PdfGridStyle } from '@shared/constants/pdfLayout'
+import { PDF_GRID_STYLES, PDF_DATE_FORMATS, formatPdfDate, type PdfGridStyle, type PdfDateFormat } from '@shared/constants/pdfLayout'
 import ToggleSwitch from '@renderer/components/ToggleSwitch'
 import SwatchPicker from '@renderer/components/SwatchPicker'
 
@@ -10,10 +10,12 @@ export default function PdfLayoutEditor(): JSX.Element {
   const zebraStripes = usePdfLayoutPrefsStore((s) => s.zebraStripes)
   const headerShaded = usePdfLayoutPrefsStore((s) => s.headerShaded)
   const accentColor = usePdfLayoutPrefsStore((s) => s.accentColor)
+  const dateFormat = usePdfLayoutPrefsStore((s) => s.dateFormat)
   const setGridStyle = usePdfLayoutPrefsStore((s) => s.setGridStyle)
   const setZebraStripes = usePdfLayoutPrefsStore((s) => s.setZebraStripes)
   const setHeaderShaded = usePdfLayoutPrefsStore((s) => s.setHeaderShaded)
   const setAccentColor = usePdfLayoutPrefsStore((s) => s.setAccentColor)
+  const setDateFormat = usePdfLayoutPrefsStore((s) => s.setDateFormat)
 
   return (
     <div>
@@ -50,11 +52,30 @@ export default function PdfLayoutEditor(): JSX.Element {
         </p>
       </div>
 
-      <div>
+      <div style={{ marginBottom: 20 }}>
         <label style={{ display: 'block', marginBottom: 4 }}>Accent color</label>
         <SwatchPicker value={accentColor} onChange={setAccentColor} allowNone title="PDF accent color" />
         <p className="card-sub" style={{ marginTop: 4 }}>
           Tints the header shading, grid lines, and title text. "No color" keeps everything neutral gray/black.
+        </p>
+      </div>
+
+      <div>
+        <label style={{ display: 'block', marginBottom: 4 }}>Session date format</label>
+        <select
+          value={dateFormat}
+          onChange={(e) => setDateFormat(e.target.value as PdfDateFormat)}
+          style={{ width: 260 }}
+        >
+          {PDF_DATE_FORMATS.map((f) => (
+            <option key={f.value} value={f.value}>
+              {f.label}
+            </option>
+          ))}
+        </select>
+        <p className="card-sub" style={{ marginTop: 4 }}>
+          How the setup's session date reads in the PDF title, e.g. "
+          {formatPdfDate(new Date().toLocaleDateString('en-CA'), dateFormat)}" for today.
         </p>
       </div>
     </div>

@@ -8,7 +8,13 @@ import type {
   PdfExportOrientation
 } from '@shared/types/ipc'
 import { APP_SETTINGS_KEYS } from '@shared/types/entities'
-import { parsePdfAccentColor, parsePdfBoolSetting, parsePdfGridStyle } from '@shared/constants/pdfLayout'
+import {
+  formatPdfDate,
+  parsePdfAccentColor,
+  parsePdfBoolSetting,
+  parsePdfDateFormat,
+  parsePdfGridStyle
+} from '@shared/constants/pdfLayout'
 import { getSetupWithItems } from '../db/repositories/setupsRepo'
 import { getLayoutFileForStudio } from '../db/repositories/roomLayoutFileRepo'
 import { getMicsByIds } from '../db/repositories/micsRepo'
@@ -141,6 +147,7 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
   const zebraStripes = parsePdfBoolSetting(getSetting(APP_SETTINGS_KEYS.pdfZebraStripes))
   const headerShaded = parsePdfBoolSetting(getSetting(APP_SETTINGS_KEYS.pdfHeaderShaded))
   const accentColor = parsePdfAccentColor(getSetting(APP_SETTINGS_KEYS.pdfAccentColor))
+  const dateFormat = parsePdfDateFormat(getSetting(APP_SETTINGS_KEYS.pdfDateFormat))
   const gridLineColor = accentColor ? hexToAccentRgb(accentColor) : rgb(0.6, 0.6, 0.6)
 
   const pdfDoc = await PDFDocument.create()
@@ -228,7 +235,8 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
     let tableTopY = 0
 
     const drawTitle = (): void => {
-      page.drawText(`${setup.name}${setup.sessionDate ? `  —  ${setup.sessionDate}` : ''}`, {
+      const formattedDate = setup.sessionDate ? formatPdfDate(setup.sessionDate, dateFormat) : null
+      page.drawText(`${setup.name}${formattedDate ? `  —  ${formattedDate}` : ''}`, {
         x: MARGIN,
         y: cursorY,
         size: 14,
