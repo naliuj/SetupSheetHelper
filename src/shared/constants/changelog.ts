@@ -235,5 +235,17 @@ export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
       'Stereo linking now works on any two adjacent rows — including a pair that lands on an even row, which couldn\'t be linked before.',
       'The app now re-checks for updates every couple of hours while it\'s open, so leaving it running for days no longer means missing an update.'
     ]
+  },
+  {
+    version: '1.8.17',
+    date: '2026-07-18',
+    highlights: [
+      'Fixed the app icon\'s corners getting clipped by macOS\'s rounded-icon mask.',
+      'Refreshed the Studio A, B, and E room-layout PDFs to the updated floor plans for installs that had already loaded the old ones.',
+      'PDF export\'s "Colored" option now also applies to Layout Mode — turn it off for a black-and-white room layout with lightly shaded blocks.',
+      'Redesigned the Layout Palette editor in Settings with categories on one side and that category\'s blocks on the other, plus an easy way to remove blocks and whole categories.',
+      'Added a built-in "Gobo" block to the Utility category.',
+      'Dragging multiple selected blocks in Layout Mode now moves them together smoothly instead of the rest snapping into place at the end.'
+    ]
   }
 ]
