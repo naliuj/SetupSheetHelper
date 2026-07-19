@@ -255,6 +255,26 @@ export default function LayoutStage({ studioId, stageRef, active }: Props): JSX.
     setCanvasMenu({ x: e.evt.clientX, y: e.evt.clientY, canvasX: pos.x, canvasY: pos.y })
   }
 
+  // While dragging one block of a larger selection, mirror the same delta onto the other
+  // selected blocks' Konva nodes directly (bypassing React/the store) so they visually move in
+  // lockstep instead of snapping into place only once the drag ends and moveBlocksBy commits.
+  // `block.x/y` is each block's pre-drag position — untouched in the store until dragend, so it's
+  // a stable base for the delta throughout the whole gesture. Followers are intentionally
+  // unclamped (matching moveBlocksBy's own accepted simplification for group moves) — only the
+  // actively dragged node is clamped, via its dragBoundFunc.
+  function handleBlockDragMove(block: { id: number | string; x: number; y: number }, x: number, y: number): void {
+    if (selectedBlockIds.size <= 1 || !selectedBlockIds.has(block.id)) return
+    const dx = x - block.x
+    const dy = y - block.y
+    selectedBlockIds.forEach((id) => {
+      if (id === block.id) return
+      const node = nodeRefs.current.get(id)
+      const other = blocks.find((b) => b.id === id)
+      if (node && other) node.position({ x: other.x + dx, y: other.y + dy })
+    })
+    stageRef.current?.batchDraw()
+  }
+
   // Dragging one block that's part of a larger selection carries the rest of the selection
   // along by the same delta; dragging a lone (or unselected) block just moves itself.
   function handleBlockDragEnd(block: { id: number | string; x: number; y: number }, x: number, y: number): void {
@@ -429,6 +449,7 @@ export default function LayoutStage({ studioId, stageRef, active }: Props): JSX.
               selected={selectedBlockIds.has(block.id)}
               imageSize={imageSize}
               onSelect={(additive) => (additive ? toggleBlock(block.id) : selectBlock(block.id))}
+              onDragMove={(x, y) => handleBlockDragMove(block, x, y)}
               onDragEnd={(x, y) => handleBlockDragEnd(block, x, y)}
               onContextMenu={(clientX, clientY) => setBlockMenu({ blockId: block.id, x: clientX, y: clientY })}
             />
