@@ -26,6 +26,9 @@ interface PaletteDragPayload {
   label: string
   shape: 'rect' | 'circle'
   color: string
+  /** Optional default placed size from the palette item (null/absent → addBlock's square default). */
+  defaultWidth?: number | null
+  defaultHeight?: number | null
 }
 
 const ZOOM_STEP = 1.05
@@ -241,7 +244,15 @@ export default function LayoutStage({ studioId, stageRef, active }: Props): JSX.
 
       const pos = toCanvasCoords(e.clientX, e.clientY)
       if (!pos) return
-      addBlock(payload.label, payload.shape, payload.color, pos.x, pos.y)
+      addBlock(
+        payload.label,
+        payload.shape,
+        payload.color,
+        pos.x,
+        pos.y,
+        payload.defaultWidth ?? undefined,
+        payload.defaultHeight ?? undefined
+      )
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [addBlock, stageRef]

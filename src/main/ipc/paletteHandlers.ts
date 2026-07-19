@@ -16,4 +16,7 @@ export function registerPaletteHandlers(): void {
   ipcMain.handle(IPC.palette.renameCategory, (_e, oldName: string, newName: string) =>
     paletteRepo.renameCategoryPaletteItems(oldName, newName)
   )
+  ipcMain.handle(IPC.palette.deleteCategory, (_e, category: string) =>
+    paletteRepo.deleteCategoryPaletteItems(category)
+  )
 }

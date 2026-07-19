@@ -16,6 +16,9 @@ interface PaletteState {
   reorder(ids: number[]): Promise<void>
   /** Renames a category, rewriting the string on every item currently in it. */
   renameCategory(oldName: string, newName: string): Promise<void>
+  /** Removes a whole category: hard-deletes its custom items, soft-hides its built-in items
+   *  (restorable via `update(id, { isHidden: false })`). */
+  deleteCategory(category: string): Promise<void>
   /** Moves an item into `category` and persists the full new order in one optimistic step —
    *  used when dragging an item into a different category section. `ids` is the full flat id
    *  order after the move (kept contiguous per category by the caller). */
@@ -71,6 +74,12 @@ export const usePaletteStore = create<PaletteState>((set, get) => ({
 
   renameCategory: async (oldName, newName) => {
     await window.api.palette.renameCategory(oldName, newName)
+    await get().load()
+    await get().loadAll()
+  },
+
+  deleteCategory: async (category) => {
+    await window.api.palette.deleteCategory(category)
     await get().load()
     await get().loadAll()
   },
