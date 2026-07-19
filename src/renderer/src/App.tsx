@@ -16,6 +16,7 @@ import SetupEditor from './pages/SetupEditor/SetupEditor'
 import StudioSetupPage from './pages/StudioSetup/StudioSetupPage'
 import BerkleeOnboardingModal from './components/BerkleeOnboardingModal'
 import WhatsNewModal from './components/WhatsNewModal'
+import appIcon from './assets/app-icon.png'
 
 export default function App(): JSX.Element {
   const view = useNavigationStore((s) => s.view)
@@ -141,6 +142,7 @@ export default function App(): JSX.Element {
   return (
     <div className="app-shell">
       <div className="top-bar">
+        <img src={appIcon} alt="" className="top-bar-icon" />
         <h1>Setup Sheet Helper</h1>
         <button className="btn small" onClick={goToHome}>
           Home

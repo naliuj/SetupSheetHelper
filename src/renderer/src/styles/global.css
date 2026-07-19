@@ -165,6 +165,13 @@ input[type='checkbox']:disabled {
   font-weight: 600;
 }
 
+.top-bar-icon {
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  flex-shrink: 0;
+}
+
 .top-bar .spacer {
   flex: 1;
 }
