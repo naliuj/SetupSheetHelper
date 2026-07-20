@@ -237,7 +237,7 @@ export default function SettingsPage(): JSX.Element {
             </p>
             <p className="card-sub" style={{ margin: 0 }}>
               <a
-                href="https://buymeacoffee.com/julianrose"
+                href="https://paypal.me/julianrose27"
                 target="_blank"
                 rel="noreferrer"
                 style={{ color: 'var(--color-accent)' }}
