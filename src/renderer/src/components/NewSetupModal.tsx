@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useFolderPicker } from '@renderer/state/useFolderPicker'
+import { useBerkleeFeaturesStore } from '@renderer/state/berkleeFeaturesStore'
 import FolderPicker from '@renderer/components/FolderPicker'
+import ToggleSwitch from '@renderer/components/ToggleSwitch'
 import { useEscapeToClose } from '@renderer/hooks/useEscapeToClose'
 
 export interface NewSetupDetails {
@@ -9,6 +11,7 @@ export interface NewSetupDetails {
   engineer: string | null
   artist: string | null
   folderId: number | null
+  facultyReserveEnabled: boolean
 }
 
 interface Props {
@@ -26,8 +29,10 @@ export default function NewSetupModal({ onClose, onCreate }: Props): JSX.Element
   const [sessionDate, setSessionDate] = useState(today())
   const [engineer, setEngineer] = useState('')
   const [artist, setArtist] = useState('')
+  const [facultyReserveEnabled, setFacultyReserveEnabled] = useState(false)
   const [creating, setCreating] = useState(false)
   const { folders, selectedFolderId, setSelectedFolderId, createFolder } = useFolderPicker('setup')
+  const berkleeFeaturesEnabled = useBerkleeFeaturesStore((s) => s.enabled)
 
   async function handleCreate(): Promise<void> {
     if (!name.trim()) return
@@ -38,7 +43,8 @@ export default function NewSetupModal({ onClose, onCreate }: Props): JSX.Element
         sessionDate: sessionDate || null,
         engineer: engineer.trim() || null,
         artist: artist.trim() || null,
-        folderId: selectedFolderId
+        folderId: selectedFolderId,
+        facultyReserveEnabled
       })
       onClose()
     } finally {
@@ -68,6 +74,15 @@ export default function NewSetupModal({ onClose, onCreate }: Props): JSX.Element
         <div className="inline-form">
           <input placeholder="Artist (optional)" value={artist} onChange={(e) => setArtist(e.target.value)} />
         </div>
+        {berkleeFeaturesEnabled && (
+          <div className="inline-form">
+            <ToggleSwitch
+              checked={facultyReserveEnabled}
+              onChange={setFacultyReserveEnabled}
+              label="Show Berklee faculty reserve mics"
+            />
+          </div>
+        )}
         <div className="folder-picker-field-label">Folder</div>
         <FolderPicker
           folders={folders}

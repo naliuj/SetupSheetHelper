@@ -13,12 +13,12 @@ interface Props {
 }
 
 const TABS: { key: Tab; label: string }[] = [
-  { key: 'gear', label: 'Session Gear' },
-  { key: 'general', label: 'General' }
+  { key: 'general', label: 'General' },
+  { key: 'gear', label: 'Session Gear' }
 ]
 
 export default function SetupSettingsPage({ setupId, onBack }: Props): JSX.Element {
-  const [tab, setTab] = useState<Tab>('gear')
+  const [tab, setTab] = useState<Tab>('general')
   const facultyReserveEnabled = useSetupStore((s) => s.facultyReserveEnabled)
   const setFacultyReserveEnabled = useSetupStore((s) => s.setFacultyReserveEnabled)
   const berkleeFeaturesEnabled = useBerkleeFeaturesStore((s) => s.enabled)

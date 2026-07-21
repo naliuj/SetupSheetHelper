@@ -102,7 +102,7 @@ export default function Home(): JSX.Element {
       details.folderId,
       details.engineer,
       details.artist,
-      false
+      details.facultyReserveEnabled
     )
     goToSetup(pendingSelection.buildingId, pendingSelection.studioId, setup.id)
     setPendingSelection(null)
