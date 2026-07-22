@@ -54,7 +54,8 @@ export default function StudioImportPage({ file, onBack, onDone }: Props): JSX.E
             <input type="checkbox" checked={selectedIndexes.has(index)} onChange={() => toggle(index)} />
             {studio.name}
             <span className="card-sub">
-              ({studio.mics.length} mics, {studio.outboardGear.length} outboard)
+              ({studio.mics.length} mics, {studio.outboardGear.length} outboard
+              {studio.roomLayoutFile ? ', layout included' : ''})
             </span>
           </label>
         ))}
