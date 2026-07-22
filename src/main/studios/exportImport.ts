@@ -1,17 +1,38 @@
 import { dialog } from 'electron'
-import { readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { extname, join } from 'node:path'
 import type {
+  ExportedRoomLayoutFile,
   ExportedStudio,
   ExportStudiosResult,
   PickImportFileResult,
   StudioExportFile
 } from '@shared/types/ipc'
+import { getLayoutsDir } from '../userDataPaths'
 import * as studiosRepo from '../db/repositories/studiosRepo'
 import { listStudioMics, upsertMic } from '../db/repositories/micsRepo'
 import { listOutboardByStudio, upsertOutboard } from '../db/repositories/outboardRepo'
 import { listPreampsByStudio, upsertPreamp } from '../db/repositories/preampRepo'
+import { getLayoutFileForStudio, upsertLayoutFile } from '../db/repositories/roomLayoutFileRepo'
 
-const EXPORT_VERSION = 2
+const EXPORT_VERSION = 3
+
+function exportRoomLayoutFile(studioId: number): ExportedRoomLayoutFile | null {
+  const layoutFile = getLayoutFileForStudio(studioId)
+  if (!layoutFile || !existsSync(layoutFile.filePath)) return null
+  try {
+    const dataBase64 = readFileSync(layoutFile.filePath).toString('base64')
+    return {
+      originalName: layoutFile.originalName,
+      extension: extname(layoutFile.filePath).toLowerCase(),
+      pageWidthPt: layoutFile.pageWidthPt,
+      pageHeightPt: layoutFile.pageHeightPt,
+      dataBase64
+    }
+  } catch {
+    return null
+  }
+}
 
 export async function exportStudiosToFile(studioIds: number[]): Promise<ExportStudiosResult> {
   const studios: ExportedStudio[] = studioIds.flatMap((id) => {
@@ -37,7 +58,8 @@ export async function exportStudiosToFile(studioIds: number[]): Promise<ExportSt
           manufacturer: preamp.manufacturer,
           category: preamp.category,
           channels: preamp.channels
-        }))
+        })),
+        roomLayoutFile: exportRoomLayoutFile(id)
       }
     ]
   })
@@ -76,7 +98,8 @@ export async function pickAndParseImportFile(): Promise<PickImportFileResult> {
 }
 
 /** Imported studios always land as new, ungrouped Custom Studios — building IDs aren't portable
- *  across installations. preamps defaults safely (empty) for older export files that predate it. */
+ *  across installations. preamps/roomLayoutFile default safely (empty/null) for older export files
+ *  that predate them. */
 export function importStudios(studios: ExportedStudio[]): void {
   for (const studio of studios) {
     const created = studiosRepo.createCustomStudio(studio.name, null)
@@ -117,6 +140,18 @@ export function importStudios(studios: ExportedStudio[]): void {
         category: preamp.category,
         notes: null,
         channels: preamp.channels
+      })
+    }
+    const layoutFile = studio.roomLayoutFile ?? null
+    if (layoutFile) {
+      const destPath = join(getLayoutsDir(), `studio_${created.id}${layoutFile.extension}`)
+      writeFileSync(destPath, Buffer.from(layoutFile.dataBase64, 'base64'))
+      upsertLayoutFile({
+        studioId: created.id,
+        filePath: destPath,
+        originalName: layoutFile.originalName,
+        pageWidthPt: layoutFile.pageWidthPt,
+        pageHeightPt: layoutFile.pageHeightPt
       })
     }
   }

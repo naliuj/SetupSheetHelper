@@ -275,11 +275,23 @@ export interface ExportedPreamp {
   channels: number
 }
 
+export interface ExportedRoomLayoutFile {
+  originalName: string | null
+  /** e.g. '.pdf', '.png' — matches node:path extname() output, dot included. */
+  extension: string
+  pageWidthPt: number | null
+  pageHeightPt: number | null
+  dataBase64: string
+}
+
 export interface ExportedStudio {
   name: string
   mics: ExportedStudioGear[]
   outboardGear: ExportedStudioGear[]
   preamps: ExportedPreamp[]
+  /** Present (possibly null) in exports from v3+; absent entirely in older files — always read as
+   *  `studio.roomLayoutFile ?? null` on import. */
+  roomLayoutFile: ExportedRoomLayoutFile | null
 }
 
 export interface StudioExportFile {
