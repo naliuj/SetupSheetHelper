@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { Studio } from '@shared/types/entities'
-import type { Folder } from '@shared/types/setup'
+import type { Folder, Setup } from '@shared/types/setup'
 import { buildFolderTree } from '@renderer/state/folderTree'
 import ExportFolderTreeNode from '@renderer/components/ExportFolderTreeNode'
 
@@ -8,31 +7,29 @@ interface Props {
   onBack: () => void
 }
 
-export default function StudioExportPage({ onBack }: Props): JSX.Element {
-  const [studios, setStudios] = useState<Studio[]>([])
+export default function SetupExportPage({ onBack }: Props): JSX.Element {
+  const [setups, setSetups] = useState<Setup[]>([])
   const [folders, setFolders] = useState<Folder[]>([])
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [exporting, setExporting] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
 
   useEffect(() => {
-    // Only custom studios support folders — the real building-bound studios are built-in app
-    // content, not user-created studios meant to be shared/exported.
-    window.api.studios.listCustom().then(setStudios)
-    window.api.folders.list('studio').then(setFolders)
+    window.api.setups.list().then(setSetups)
+    window.api.folders.list('setup').then(setFolders)
   }, [])
 
   const tree = useMemo(() => buildFolderTree(folders), [folders])
-  const studiosByFolder = useMemo(() => {
-    const map = new Map<number | null, Studio[]>()
-    for (const studio of studios) {
-      const list = map.get(studio.folderId) ?? []
-      list.push(studio)
-      map.set(studio.folderId, list)
+  const setupsByFolder = useMemo(() => {
+    const map = new Map<number | null, Setup[]>()
+    for (const setup of setups) {
+      const list = map.get(setup.folderId) ?? []
+      list.push(setup)
+      map.set(setup.folderId, list)
     }
     return map
-  }, [studios])
-  const unfiledStudios = studiosByFolder.get(null) ?? []
+  }, [setups])
+  const unfiledSetups = setupsByFolder.get(null) ?? []
 
   function toggle(id: number): void {
     setSelectedIds((prev) => {
@@ -51,7 +48,7 @@ export default function StudioExportPage({ onBack }: Props): JSX.Element {
     setExporting(true)
     setMessage(null)
     try {
-      const result = await window.api.studios.exportToFile([...selectedIds])
+      const result = await window.api.setups.exportToFile([...selectedIds])
       setMessage(result.canceled ? null : `Exported to ${result.filePath}`)
     } finally {
       setExporting(false)
@@ -61,24 +58,24 @@ export default function StudioExportPage({ onBack }: Props): JSX.Element {
   return (
     <div>
       <div className="nav-crumbs">
-        <button onClick={onBack}>Settings</button> / Export Studios
+        <button onClick={onBack}>Settings</button> / Export Setups
       </div>
       <div className="inline-form" style={{ marginTop: 0 }}>
-        <button className="btn small" onClick={() => setSelectedIds(new Set(studios.map((s) => s.id)))}>
+        <button className="btn small" onClick={() => setSelectedIds(new Set(setups.map((s) => s.id)))}>
           Select all
         </button>
         <button className="btn small" onClick={() => setSelectedIds(new Set())}>
           Deselect all
         </button>
       </div>
-      {studios.length === 0 ? (
-        <div className="empty-state">No studios to export yet.</div>
+      {setups.length === 0 ? (
+        <div className="empty-state">No setups to export yet.</div>
       ) : (
         <div className="panel" style={{ maxHeight: 320, overflow: 'auto' }}>
-          {unfiledStudios.map((studio) => (
-            <label key={studio.id} className="folder-tree-row" style={{ paddingLeft: 20, cursor: 'pointer' }}>
-              <input type="checkbox" checked={selectedIds.has(studio.id)} onChange={() => toggle(studio.id)} />
-              {studio.name}
+          {unfiledSetups.map((setup) => (
+            <label key={setup.id} className="folder-tree-row" style={{ paddingLeft: 20, cursor: 'pointer' }}>
+              <input type="checkbox" checked={selectedIds.has(setup.id)} onChange={() => toggle(setup.id)} />
+              {setup.name}
             </label>
           ))}
           {tree.map((node) => (
@@ -86,7 +83,7 @@ export default function StudioExportPage({ onBack }: Props): JSX.Element {
               key={node.id}
               node={node}
               depth={0}
-              itemsByFolder={studiosByFolder}
+              itemsByFolder={setupsByFolder}
               selectedIds={selectedIds}
               onToggleItem={toggle}
               onSelectFolder={selectFolder}

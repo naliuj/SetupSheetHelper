@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { APP_SETTINGS_KEYS } from '@shared/types/entities'
-import type { StudioExportFile } from '@shared/types/ipc'
+import type { SetupExportFile, StudioExportFile } from '@shared/types/ipc'
 import { useNavigationStore } from '@renderer/state/navigationStore'
 import { useThemeStore } from '@renderer/state/themeStore'
 import { useBerkleeFeaturesStore } from '@renderer/state/berkleeFeaturesStore'
@@ -16,10 +16,17 @@ import PdfLayoutEditor from './PdfLayoutEditor'
 import KeybindsEditor from './KeybindsEditor'
 import StudioExportPage from './StudioExportPage'
 import StudioImportPage from './StudioImportPage'
+import SetupExportPage from './SetupExportPage'
+import SetupImportPage from './SetupImportPage'
 import FeedbackForm from './FeedbackForm'
 import ManagePresetsModal from '../PresetManager/ManagePresetsModal'
 
-type Subview = { kind: 'main' } | { kind: 'export' } | { kind: 'import'; file: StudioExportFile }
+type Subview =
+  | { kind: 'main' }
+  | { kind: 'export' }
+  | { kind: 'import'; file: StudioExportFile }
+  | { kind: 'exportSetups' }
+  | { kind: 'importSetups'; file: SetupExportFile }
 type Tab =
   | 'general'
   | 'columns'
@@ -113,6 +120,19 @@ export default function SettingsPage(): JSX.Element {
     setSubview({ kind: 'import', file: result.data })
   }
 
+  // Unlike studio import, this always shows the picker page — even a single exported setup
+  // still needs a target studio chosen, so there's no "just import it" shortcut to take.
+  async function handleImportSetupsClick(): Promise<void> {
+    setImportMessage(null)
+    const result = await window.api.setups.pickImportFile()
+    if (result.canceled) return
+    if (result.error || !result.data) {
+      setImportMessage(result.error ?? 'Could not read that file.')
+      return
+    }
+    setSubview({ kind: 'importSetups', file: result.data })
+  }
+
   // Escape backs out one level at a time — closes an open Export/Import subview back to the
   // main tabs first, only closes Settings entirely once already on the main tabs.
   useEffect(() => {
@@ -135,6 +155,18 @@ export default function SettingsPage(): JSX.Element {
   if (subview.kind === 'import') {
     return (
       <StudioImportPage
+        file={subview.file}
+        onBack={() => setSubview({ kind: 'main' })}
+        onDone={() => setSubview({ kind: 'main' })}
+      />
+    )
+  }
+  if (subview.kind === 'exportSetups') {
+    return <SetupExportPage onBack={() => setSubview({ kind: 'main' })} />
+  }
+  if (subview.kind === 'importSetups') {
+    return (
+      <SetupImportPage
         file={subview.file}
         onBack={() => setSubview({ kind: 'main' })}
         onDone={() => setSubview({ kind: 'main' })}
@@ -299,6 +331,14 @@ export default function SettingsPage(): JSX.Element {
             </button>
             <button className="btn" onClick={handleImportClick}>
               Import Studios…
+            </button>
+          </div>
+          <div className="inline-form">
+            <button className="btn" onClick={() => setSubview({ kind: 'exportSetups' })}>
+              Export setups…
+            </button>
+            <button className="btn" onClick={handleImportSetupsClick}>
+              Import Setups…
             </button>
           </div>
           {importMessage && <p className="card-sub">{importMessage}</p>}
