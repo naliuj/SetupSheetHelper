@@ -256,5 +256,14 @@ export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
       'Added a session date format setting to PDF Layout settings (MM/DD/YYYY, Month D YYYY, YYYY-MM-DD, or DD/MM/YYYY).',
       'Added the app icon next to the title in the top bar.'
     ]
+  },
+  {
+    version: '1.10.0',
+    date: '2026-07-22',
+    highlights: [
+      'Added a faculty reserve toggle to the New Setup dialog, and reordered Setup Settings tabs so General comes first.',
+      'Studio export now includes the room layout file, so importing a studio restores its floor plan too.',
+      'Manage Studios, Manage Setups, and Manage channel presets now support selecting multiple items and deleting them all at once.'
+    ]
   }
 ]
