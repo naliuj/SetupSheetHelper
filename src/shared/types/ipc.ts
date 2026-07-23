@@ -45,6 +45,7 @@ export const IPC = {
     updateCustomDetails: 'studios:updateCustomDetails',
     rename: 'studios:rename',
     remove: 'studios:remove',
+    removeMany: 'studios:removeMany',
     exportToFile: 'studios:exportToFile',
     pickImportFile: 'studios:pickImportFile',
     importStudios: 'studios:importStudios',
@@ -102,6 +103,7 @@ export const IPC = {
     create: 'presets:create',
     update: 'presets:update',
     remove: 'presets:remove',
+    removeMany: 'presets:removeMany',
     rename: 'presets:rename',
     moveToFolder: 'presets:moveToFolder',
     reorder: 'presets:reorder'
@@ -124,6 +126,7 @@ export const IPC = {
     setOutboardColumnCount: 'setups:setOutboardColumnCount',
     setVisibleColumns: 'setups:setVisibleColumns',
     remove: 'setups:remove',
+    removeMany: 'setups:removeMany',
     instantiateFromTemplate: 'setups:instantiateFromTemplate',
     saveAsTemplate: 'setups:saveAsTemplate',
     moveToFolder: 'setups:moveToFolder',
@@ -427,6 +430,7 @@ export interface RendererApi {
     updateCustomDetails(id: number, name: string, folderId: number | null): Promise<Studio>
     rename(id: number, name: string): Promise<void>
     remove(id: number): Promise<void>
+    removeMany(ids: number[]): Promise<void>
     exportToFile(studioIds: number[]): Promise<ExportStudiosResult>
     pickImportFile(): Promise<PickImportFileResult>
     importStudios(studios: ExportedStudio[]): Promise<void>
@@ -496,6 +500,7 @@ export interface RendererApi {
     create(input: ChannelPresetCreateInput): Promise<ChannelPreset>
     update(id: number, input: ChannelPresetCreateInput): Promise<ChannelPreset>
     remove(id: number): Promise<void>
+    removeMany(ids: number[]): Promise<void>
     rename(id: number, name: string, description: string | null): Promise<ChannelPreset>
     moveToFolder(id: number, folderId: number | null): Promise<void>
     reorder(ids: number[]): Promise<void>
@@ -535,6 +540,7 @@ export interface RendererApi {
     setOutboardColumnCount(setupId: number, count: number): Promise<void>
     setVisibleColumns(setupId: number, columns: SetupColumnKey[]): Promise<void>
     remove(id: number): Promise<void>
+    removeMany(ids: number[]): Promise<void>
     instantiateFromTemplate(templateId: number): Promise<Setup>
     saveAsTemplate(input: SaveAsTemplateInput): Promise<Setup>
     moveToFolder(id: number, folderId: number | null): Promise<void>

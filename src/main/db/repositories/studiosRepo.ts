@@ -118,6 +118,16 @@ export function removeStudioCascade(id: number): void {
   run()
 }
 
+/** Bulk variant of removeStudioCascade — one outer transaction wrapping the per-id cascade (each
+ *  removeStudioCascade opens its own transaction too, but better-sqlite3 nests these as savepoints). */
+export function removeStudiosCascade(ids: number[]): void {
+  const db = getDb()
+  const run = db.transaction(() => {
+    for (const id of ids) removeStudioCascade(id)
+  })
+  run()
+}
+
 /** Lightweight reparent for drag-to-folder — unlike updateCustomStudio, doesn't touch name. */
 export function moveStudioToFolder(id: number, folderId: number | null): void {
   getDb().prepare('UPDATE studios SET folder_id = ? WHERE id = ?').run(folderId, id)

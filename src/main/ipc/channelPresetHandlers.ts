@@ -12,6 +12,7 @@ export function registerChannelPresetHandlers(): void {
     channelPresetsRepo.updateChannelPreset(id, input)
   )
   ipcMain.handle(IPC.presets.remove, (_e, id: number) => channelPresetsRepo.removeChannelPreset(id))
+  ipcMain.handle(IPC.presets.removeMany, (_e, ids: number[]) => channelPresetsRepo.removeChannelPresets(ids))
   ipcMain.handle(IPC.presets.rename, (_e, id: number, name: string, description: string | null) =>
     channelPresetsRepo.renameChannelPreset(id, name, description)
   )

@@ -59,6 +59,7 @@ export function registerSetupHandlers(): void {
     setupsRepo.setVisibleColumns(setupId, columns)
   )
   ipcMain.handle(IPC.setups.remove, (_e, id: number) => setupsRepo.removeSetup(id))
+  ipcMain.handle(IPC.setups.removeMany, (_e, ids: number[]) => setupsRepo.removeSetups(ids))
   ipcMain.handle(IPC.setups.instantiateFromTemplate, (_e, templateId: number) =>
     setupsRepo.instantiateFromTemplate(templateId)
   )

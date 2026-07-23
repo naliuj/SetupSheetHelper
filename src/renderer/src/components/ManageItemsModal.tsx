@@ -36,6 +36,7 @@ interface Props {
   onMoveToFolder: (kind: string, id: number, folderId: number | null) => Promise<void>
   onReorder: (kind: string, folderId: number | null, orderedIds: number[]) => Promise<void>
   onDelete: (kind: string, item: ManagedItem) => Promise<void>
+  onBulkDelete: (items: ManagedItem[]) => Promise<void>
   onCreateFolder: (name: string, parentFolderId: number | null) => Promise<void>
   onRenameFolder: (id: number, name: string) => Promise<void>
   onGetFolderDeleteImpact: (id: number) => Promise<FolderDeleteImpact>
@@ -144,10 +145,14 @@ function describeFolderImpact(impact: FolderDeleteImpact): string {
 
 function SortableItemRow({
   item,
+  selected,
+  onToggleSelect,
   onDelete,
   onEdit
 }: {
   item: ManagedItem
+  selected: boolean
+  onToggleSelect: () => void
   onDelete: () => void
   onEdit?: () => void
 }): JSX.Element {
@@ -160,6 +165,13 @@ function SortableItemRow({
   }
   return (
     <div ref={setNodeRef} style={style} className="manage-item-row">
+      <input
+        type="checkbox"
+        checked={selected}
+        onChange={onToggleSelect}
+        onClick={(e) => e.stopPropagation()}
+        aria-label={`Select ${item.label}`}
+      />
       <span className="drag-handle" {...attributes} {...listeners}>
         <GripVertical size={16} aria-hidden="true" />
       </span>
@@ -186,6 +198,7 @@ export default function ManageItemsModal({
   onMoveToFolder,
   onReorder,
   onDelete,
+  onBulkDelete,
   onCreateFolder,
   onRenameFolder,
   onGetFolderDeleteImpact,
@@ -204,14 +217,28 @@ export default function ManageItemsModal({
     item: ManagedItem
     studioImpact: { setupCount: number; templateCount: number } | null
   } | null>(null)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [bulkDeleteDialog, setBulkDeleteDialog] = useState<{
+    items: ManagedItem[]
+    studioImpact: { setupCount: number; templateCount: number }
+  } | null>(null)
 
-  // Escape closes whichever layer is on top: a delete/folder dialog if one's open, otherwise this
-  // modal — never two layers from a single keypress. (folderDialog and itemDialog are mutually
-  // exclusive; only one confirm dialog is ever open at a time.)
-  const anyDialogOpen = folderDialog !== null || itemDialog !== null
-  useEscapeToClose(onClose, !anyDialogOpen && !disableEscapeClose)
+  // Escape closes whichever layer is on top: a delete/folder dialog if one's open, else clears an
+  // active bulk selection, else closes the modal — never two layers from a single keypress.
+  // (folderDialog/itemDialog/bulkDeleteDialog are mutually exclusive; only one confirm dialog is
+  // ever open at a time.)
+  const anyDialogOpen = folderDialog !== null || itemDialog !== null || bulkDeleteDialog !== null
+  const hasSelection = selectedIds.size > 0
+  useEscapeToClose(onClose, !anyDialogOpen && !hasSelection && !disableEscapeClose)
+  useEscapeToClose(() => setSelectedIds(new Set()), !anyDialogOpen && hasSelection)
   useEscapeToClose(() => setFolderDialog(null), folderDialog !== null)
   useEscapeToClose(() => setItemDialog(null), itemDialog !== null)
+  useEscapeToClose(() => setBulkDeleteDialog(null), bulkDeleteDialog !== null)
+
+  function selectFolder(id: number | null): void {
+    setSelectedFolderId(id)
+    setSelectedIds(new Set())
+  }
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }))
   const tree = buildFolderTree(folders)
@@ -270,6 +297,46 @@ export default function ManageItemsModal({
     if (!itemDialog) return
     await onDelete(itemDialog.item.kind, itemDialog.item)
     setItemDialog(null)
+  }
+
+  function toggleItemSelect(item: ManagedItem): void {
+    const key = `${item.kind}-${item.id}`
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
+  function selectAllHere(): void {
+    setSelectedIds(new Set(itemsHere.map((item) => `${item.kind}-${item.id}`)))
+  }
+
+  function deselectAllHere(): void {
+    setSelectedIds(new Set())
+  }
+
+  async function handleBulkDeleteClick(): Promise<void> {
+    const selected = itemsHere.filter((item) => selectedIds.has(`${item.kind}-${item.id}`))
+    if (selected.length === 0) return
+    const studioIds = selected.filter((item) => item.kind === 'studio').map((item) => item.id)
+    const impacts = await Promise.all(studioIds.map((id) => window.api.studios.getDeleteImpact(id)))
+    const studioImpact = impacts.reduce(
+      (sum, impact) => ({
+        setupCount: sum.setupCount + impact.setupCount,
+        templateCount: sum.templateCount + impact.templateCount
+      }),
+      { setupCount: 0, templateCount: 0 }
+    )
+    setBulkDeleteDialog({ items: selected, studioImpact })
+  }
+
+  async function confirmBulkDelete(): Promise<void> {
+    if (!bulkDeleteDialog) return
+    await onBulkDelete(bulkDeleteDialog.items)
+    setSelectedIds(new Set())
+    setBulkDeleteDialog(null)
   }
 
   function openCreateDialog(parentId: number | null): void {
@@ -338,7 +405,7 @@ export default function ManageItemsModal({
                       id={folder.id}
                       name={folder.name}
                       selected={selectedFolderId === folder.id}
-                      onSelect={() => setSelectedFolderId(folder.id)}
+                      onSelect={() => selectFolder(folder.id)}
                       onCreateSubfolder={() => openCreateDialog(folder.id)}
                       onRename={() => openRenameDialog(folder.id, folder.name)}
                       onDelete={() => handleDeleteClick(folder.id)}
@@ -349,14 +416,14 @@ export default function ManageItemsModal({
                 )
               ) : (
                 <>
-                  <RootFolderRow selected={selectedFolderId === null} onSelect={() => setSelectedFolderId(null)} />
+                  <RootFolderRow selected={selectedFolderId === null} onSelect={() => selectFolder(null)} />
                   {tree.map((node) => (
                     <FolderTreeNode
                       key={node.id}
                       node={node}
                       depth={0}
                       selectedFolderId={selectedFolderId}
-                      onSelect={setSelectedFolderId}
+                      onSelect={selectFolder}
                       onCreateSubfolder={openCreateDialog}
                       onRename={openRenameDialog}
                       onDelete={handleDeleteClick}
@@ -369,6 +436,23 @@ export default function ManageItemsModal({
               )}
             </div>
             <div className="manage-list-pane">
+              {itemsHere.length > 0 && (
+                <div
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}
+                >
+                  <button className="btn small" onClick={selectAllHere}>
+                    Select all
+                  </button>
+                  <button className="btn small" onClick={deselectAllHere}>
+                    Deselect all
+                  </button>
+                  {selectedIds.size > 0 && (
+                    <button className="btn small danger" onClick={handleBulkDeleteClick}>
+                      Delete {selectedIds.size} selected
+                    </button>
+                  )}
+                </div>
+              )}
               {itemsHere.length === 0 ? (
                 <div className="empty-state">Nothing in this folder yet.</div>
               ) : (
@@ -389,6 +473,8 @@ export default function ManageItemsModal({
                           <SortableItemRow
                             key={`${item.kind}-${item.id}`}
                             item={item}
+                            selected={selectedIds.has(`${item.kind}-${item.id}`)}
+                            onToggleSelect={() => toggleItemSelect(item)}
                             onDelete={() => handleItemDelete(item)}
                             onEdit={onEditItem ? () => onEditItem(item) : undefined}
                           />
@@ -472,6 +558,30 @@ export default function ManageItemsModal({
               </button>
               <button className="btn danger" onClick={confirmItemDelete}>
                 Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {bulkDeleteDialog && (
+        <div className="modal-overlay" onClick={() => setBulkDeleteDialog(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 420 }}>
+            <h2 style={{ marginTop: 0 }}>Delete {pluralize(bulkDeleteDialog.items.length, 'item')}?</h2>
+            <p className="card-sub">
+              {bulkDeleteDialog.studioImpact.setupCount + bulkDeleteDialog.studioImpact.templateCount > 0
+                ? `This also deletes ${pluralize(bulkDeleteDialog.studioImpact.setupCount, 'setup')} and ${pluralize(
+                    bulkDeleteDialog.studioImpact.templateCount,
+                    'template'
+                  )} across the selected studios. This can't be undone.`
+                : "This can't be undone."}
+            </p>
+            <div className="modal-actions">
+              <button className="btn" onClick={() => setBulkDeleteDialog(null)}>
+                Cancel
+              </button>
+              <button className="btn danger" onClick={confirmBulkDelete}>
+                Delete {bulkDeleteDialog.items.length}
               </button>
             </div>
           </div>

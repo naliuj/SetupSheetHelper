@@ -75,6 +75,10 @@ export default function ManagePresetsModal({ onClose }: { onClose: () => void })
           await window.api.presets.remove(item.id)
           await reload()
         }}
+        onBulkDelete={async (items) => {
+          await window.api.presets.removeMany(items.map((item) => item.id))
+          await reload()
+        }}
         onCreateFolder={async (name, parentFolderId) => {
           await window.api.presetFolders.create(name, parentFolderId)
           await reload()

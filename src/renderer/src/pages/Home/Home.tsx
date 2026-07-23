@@ -243,6 +243,13 @@ export default function Home(): JSX.Element {
     else await window.api.setups.remove(item.id)
     reload()
   }
+  async function handleStudioItemBulkDelete(items: ManagedItem[]): Promise<void> {
+    const studioIds = items.filter((item) => item.kind === 'studio').map((item) => item.id)
+    const templateIds = items.filter((item) => item.kind === 'template').map((item) => item.id)
+    if (studioIds.length > 0) await window.api.studios.removeMany(studioIds)
+    if (templateIds.length > 0) await window.api.setups.removeMany(templateIds)
+    reload()
+  }
 
   const manageSetupItems: ManagedItem[] = savedSetups.map((s) => ({
     kind: 'setup',
@@ -261,6 +268,10 @@ export default function Home(): JSX.Element {
   }
   async function handleSetupItemDelete(_kind: string, item: ManagedItem): Promise<void> {
     await window.api.setups.remove(item.id)
+    reload()
+  }
+  async function handleSetupItemBulkDelete(items: ManagedItem[]): Promise<void> {
+    await window.api.setups.removeMany(items.map((item) => item.id))
     reload()
   }
 
@@ -337,6 +348,7 @@ export default function Home(): JSX.Element {
           onMoveToFolder={handleStudioItemMoveToFolder}
           onReorder={handleStudioItemReorder}
           onDelete={handleStudioItemDelete}
+          onBulkDelete={handleStudioItemBulkDelete}
           onCreateFolder={(name, parentFolderId) => handleCreateFolder(name, parentFolderId, 'studio')}
           onRenameFolder={handleRenameFolder}
           onGetFolderDeleteImpact={handleGetFolderDeleteImpact}
@@ -354,6 +366,7 @@ export default function Home(): JSX.Element {
           onMoveToFolder={handleSetupItemMoveToFolder}
           onReorder={handleSetupItemReorder}
           onDelete={handleSetupItemDelete}
+          onBulkDelete={handleSetupItemBulkDelete}
           onCreateFolder={(name, parentFolderId) => handleCreateFolder(name, parentFolderId, 'setup')}
           onRenameFolder={handleRenameFolder}
           onGetFolderDeleteImpact={handleGetFolderDeleteImpact}
