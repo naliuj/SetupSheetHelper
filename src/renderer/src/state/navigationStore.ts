@@ -1,7 +1,8 @@
 import { create } from 'zustand'
+import type { EditorMode } from '@shared/types/setup'
 
 export type View = 'home' | 'setup' | 'studioSetup' | 'settings'
-export type EditorMode = 'table' | 'layout'
+export type { EditorMode }
 
 interface NavigationState {
   view: View

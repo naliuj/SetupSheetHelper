@@ -1,6 +1,7 @@
 import { ipcMain } from 'electron'
 import { IPC, type SaveAsTemplateInput, type SetupItemInput, type SetupsListFilter } from '@shared/types/ipc'
 import type { SetupColumnKey } from '@shared/constants/setupColumns'
+import type { EditorMode } from '@shared/types/setup'
 import * as setupsRepo from '../db/repositories/setupsRepo'
 import * as setupItemsRepo from '../db/repositories/setupItemsRepo'
 
@@ -57,6 +58,9 @@ export function registerSetupHandlers(): void {
   )
   ipcMain.handle(IPC.setups.setVisibleColumns, (_e, setupId: number, columns: SetupColumnKey[]) =>
     setupsRepo.setVisibleColumns(setupId, columns)
+  )
+  ipcMain.handle(IPC.setups.setLastEditorMode, (_e, id: number, mode: EditorMode) =>
+    setupsRepo.setLastEditorMode(id, mode)
   )
   ipcMain.handle(IPC.setups.remove, (_e, id: number) => setupsRepo.removeSetup(id))
   ipcMain.handle(IPC.setups.removeMany, (_e, ids: number[]) => setupsRepo.removeSetups(ids))

@@ -29,6 +29,7 @@ import { run as refreshBerkleeLayoutPdfs } from './027_refresh_berklee_layout_pd
 import { run as utilitiesGobo } from './028_utilities_gobo'
 import { run as paletteBlockDefaultSize } from './029_palette_block_default_size'
 import { run as goboHeight } from './030_gobo_height'
+import { run as setupEditorMode } from './031_setup_editor_mode'
 
 export interface SqlMigration {
   version: number
@@ -72,5 +73,6 @@ export const MIGRATIONS: Migration[] = [
   { version: 27, run: refreshBerkleeLayoutPdfs },
   { version: 28, run: utilitiesGobo },
   { version: 29, run: paletteBlockDefaultSize },
-  { version: 30, run: goboHeight }
+  { version: 30, run: goboHeight },
+  { version: 31, run: setupEditorMode }
 ]
