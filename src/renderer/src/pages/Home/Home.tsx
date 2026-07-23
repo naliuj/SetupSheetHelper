@@ -21,6 +21,7 @@ interface PendingStudioSelection {
 export default function Home(): JSX.Element {
   const goToSetup = useNavigationStore((s) => s.goToSetup)
   const goToStudioSetup = useNavigationStore((s) => s.goToStudioSetup)
+  const setEditorMode = useNavigationStore((s) => s.setEditorMode)
   const berkleeFeaturesEnabled = useBerkleeFeaturesStore((s) => s.enabled)
   const homeLayout = useHomeLayoutStore((s) => s.layout)
 
@@ -104,6 +105,7 @@ export default function Home(): JSX.Element {
       details.artist,
       details.facultyReserveEnabled
     )
+    setEditorMode('table')
     goToSetup(pendingSelection.buildingId, pendingSelection.studioId, setup.id)
     setPendingSelection(null)
   }
@@ -122,6 +124,7 @@ export default function Home(): JSX.Element {
     const newSetup = await window.api.setups.instantiateFromTemplate(template.id)
     const studio = await window.api.studios.get(newSetup.studioId)
     if (!studio) return
+    setEditorMode('table')
     goToSetup(studio.buildingId, newSetup.studioId, newSetup.id)
   }
 
