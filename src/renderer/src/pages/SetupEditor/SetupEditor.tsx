@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import type Konva from 'konva'
 import { APP_SETTINGS_KEYS } from '@shared/types/entities'
-import { useNavigationStore } from '@renderer/state/navigationStore'
+import { useNavigationStore, type EditorMode } from '@renderer/state/navigationStore'
 import { useSetupStore } from '@renderer/state/setupStore'
 import { useLayoutStore } from '@renderer/state/layoutStore'
 import { useCatalogStore } from '@renderer/state/catalogStore'
@@ -51,6 +51,13 @@ export default function SetupEditor(): JSX.Element {
 
   const stageRef = useRef<Konva.Stage>(null)
 
+  // Persists the setup's own mode choice, independent of any other setup, so reopening it later
+  // restores this exact view instead of whatever mode was last used elsewhere.
+  function handleToggleMode(newMode: EditorMode): void {
+    setMode(newMode)
+    if (setupId) window.api.setups.setLastEditorMode(setupId, newMode)
+  }
+
   // Whether the setup itself has finished loading into the store — gates the catalog load below
   // so it doesn't fire a full (and immediately stale) load with the store's default
   // facultyReserveEnabled before the persisted value arrives.
@@ -63,7 +70,10 @@ export default function SetupEditor(): JSX.Element {
 
     if (setupId) {
       window.api.setups.getWithItems(setupId).then((setup) => {
-        if (setup) loadFromSetup(setup)
+        if (setup) {
+          loadFromSetup(setup)
+          setMode(setup.lastEditorMode)
+        }
         setSetupLoaded(true)
       })
     } else {
@@ -75,6 +85,7 @@ export default function SetupEditor(): JSX.Element {
           null,
           defaultEngineer || null
         )
+        setMode('table')
         setSetupLoaded(true)
       })
     }
@@ -147,7 +158,7 @@ export default function SetupEditor(): JSX.Element {
       <SetupToolbar
         stageRef={stageRef}
         mode={mode}
-        onToggleMode={setMode}
+        onToggleMode={handleToggleMode}
         onOpenSettings={() => setSettingsOpen(true)}
       />
       <div style={{ flex: 1, minHeight: 0, overflow: 'auto', display: mode === 'table' ? 'block' : 'none' }}>

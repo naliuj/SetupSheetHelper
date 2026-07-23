@@ -2,6 +2,8 @@ import type { SetupColumnKey } from '../constants/setupColumns'
 
 export type SetupKind = 'setup' | 'template'
 export type TemplateSource = 'berklee' | 'custom'
+/** Table vs. Layout mode in the Setup Editor. */
+export type EditorMode = 'table' | 'layout'
 
 /** Which entity a `folders` row organizes. Studio folders and setup folders are independent
  *  namespaces — a folder created in one never appears in the other. (Channel presets have their
@@ -96,6 +98,9 @@ export interface Setup {
   /** How many "Outboard" columns this setup's table currently has — every row conceptually has
    *  this many slots (see SetupItemOutboardSlot), though a given row may not have filled in
    *  every one yet. Defaults to 1; "+ Add Outboard Column" increments it. */
+  /** Which mode (table/layout) this setup was last viewed in — restored when the setup is
+   *  reopened, independent of any other setup's mode. New setups start at 'table'. */
+  lastEditorMode: EditorMode
   outboardColumnCount: number
   /** Which toggleable columns this setup shows (see SetupColumnKey). Snapshotted from the global
    *  default when the setup is created, then owned by the setup. Always resolved to a concrete

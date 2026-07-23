@@ -17,6 +17,7 @@ import type { ChannelPreset, ChannelPresetItemInput, ChannelPresetWithItems } fr
 import type { PaletteItem } from './palette'
 import type { SetupColumnKey } from '../constants/setupColumns'
 import type {
+  EditorMode,
   Folder,
   FolderScope,
   RoomLayoutBlock,
@@ -125,6 +126,7 @@ export const IPC = {
     saveItems: 'setups:saveItems',
     setOutboardColumnCount: 'setups:setOutboardColumnCount',
     setVisibleColumns: 'setups:setVisibleColumns',
+    setLastEditorMode: 'setups:setLastEditorMode',
     remove: 'setups:remove',
     removeMany: 'setups:removeMany',
     instantiateFromTemplate: 'setups:instantiateFromTemplate',
@@ -539,6 +541,7 @@ export interface RendererApi {
     saveItems(setupId: number, items: SetupItemInput[]): Promise<SetupItem[]>
     setOutboardColumnCount(setupId: number, count: number): Promise<void>
     setVisibleColumns(setupId: number, columns: SetupColumnKey[]): Promise<void>
+    setLastEditorMode(id: number, mode: EditorMode): Promise<void>
     remove(id: number): Promise<void>
     removeMany(ids: number[]): Promise<void>
     instantiateFromTemplate(templateId: number): Promise<Setup>

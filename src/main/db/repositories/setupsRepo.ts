@@ -1,4 +1,4 @@
-import type { Setup, SetupKind, SetupWithItems, TemplateSource } from '@shared/types/setup'
+import type { EditorMode, Setup, SetupKind, SetupWithItems, TemplateSource } from '@shared/types/setup'
 import type { SetupsListFilter } from '@shared/types/ipc'
 import type { SetupColumnKey } from '@shared/constants/setupColumns'
 import { parseVisibleColumns, serializeVisibleColumns } from '@shared/constants/setupColumns'
@@ -24,6 +24,7 @@ interface SetupRow {
   outboard_column_count: number
   visible_columns: string | null
   session_notes: string | null
+  last_editor_mode: EditorMode
 }
 
 function mapRow(row: SetupRow): Setup {
@@ -43,7 +44,8 @@ function mapRow(row: SetupRow): Setup {
     facultyReserveEnabled: row.faculty_reserve_enabled === 1,
     outboardColumnCount: row.outboard_column_count,
     visibleColumns: parseVisibleColumns(row.visible_columns),
-    sessionNotes: row.session_notes
+    sessionNotes: row.session_notes,
+    lastEditorMode: row.last_editor_mode
   }
 }
 
@@ -128,6 +130,10 @@ export function createSetup(
 
 export function setVisibleColumns(id: number, columns: SetupColumnKey[]): void {
   getDb().prepare('UPDATE setups SET visible_columns = ? WHERE id = ?').run(serializeVisibleColumns(columns), id)
+}
+
+export function setLastEditorMode(id: number, mode: EditorMode): void {
+  getDb().prepare('UPDATE setups SET last_editor_mode = ? WHERE id = ?').run(mode, id)
 }
 
 export function renameSetup(
