@@ -27,6 +27,7 @@ export function registerStudioHandlers(): void {
   )
   ipcMain.handle(IPC.studios.rename, (_e, id: number, name: string) => studiosRepo.renameStudio(id, name))
   ipcMain.handle(IPC.studios.remove, (_e, id: number) => studiosRepo.removeStudioCascade(id))
+  ipcMain.handle(IPC.studios.removeMany, (_e, ids: number[]) => studiosRepo.removeStudiosCascade(ids))
   ipcMain.handle(IPC.studios.exportToFile, (_e, studioIds: number[]) => exportStudiosToFile(studioIds))
   ipcMain.handle(IPC.studios.pickImportFile, () => pickAndParseImportFile())
   ipcMain.handle(IPC.studios.importStudios, (_e, studios: ExportedStudio[]) => importStudios(studios))

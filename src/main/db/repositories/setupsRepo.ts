@@ -160,6 +160,14 @@ export function removeSetup(id: number): void {
   getDb().prepare('DELETE FROM setups WHERE id = ?').run(id)
 }
 
+export function removeSetups(ids: number[]): void {
+  if (ids.length === 0) return
+  const placeholders = ids.map(() => '?').join(',')
+  getDb()
+    .prepare(`DELETE FROM setups WHERE id IN (${placeholders})`)
+    .run(...ids)
+}
+
 /** Lightweight reparent for drag-to-folder — doesn't touch name/updated_at. */
 export function moveSetupToFolder(id: number, folderId: number | null): void {
   getDb().prepare('UPDATE setups SET folder_id = ? WHERE id = ?').run(folderId, id)

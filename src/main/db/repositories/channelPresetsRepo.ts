@@ -153,6 +153,14 @@ export function removeChannelPreset(id: number): void {
   getDb().prepare('DELETE FROM channel_presets WHERE id = ?').run(id)
 }
 
+export function removeChannelPresets(ids: number[]): void {
+  if (ids.length === 0) return
+  const placeholders = ids.map(() => '?').join(',')
+  getDb()
+    .prepare(`DELETE FROM channel_presets WHERE id IN (${placeholders})`)
+    .run(...ids)
+}
+
 /** Lightweight name/description edit — updates only those, without touching the captured items
  *  (unlike updateChannelPreset, which does a full item replace). */
 export function renameChannelPreset(id: number, name: string, description: string | null): ChannelPreset {

@@ -19,6 +19,7 @@ const api: RendererApi = {
       ipcRenderer.invoke(IPC.studios.updateCustomDetails, id, name, folderId),
     rename: (id, name) => ipcRenderer.invoke(IPC.studios.rename, id, name),
     remove: (id) => ipcRenderer.invoke(IPC.studios.remove, id),
+    removeMany: (ids) => ipcRenderer.invoke(IPC.studios.removeMany, ids),
     exportToFile: (studioIds) => ipcRenderer.invoke(IPC.studios.exportToFile, studioIds),
     pickImportFile: () => ipcRenderer.invoke(IPC.studios.pickImportFile),
     importStudios: (studios) => ipcRenderer.invoke(IPC.studios.importStudios, studios),
@@ -82,6 +83,7 @@ const api: RendererApi = {
     create: (input) => ipcRenderer.invoke(IPC.presets.create, input),
     update: (id, input) => ipcRenderer.invoke(IPC.presets.update, id, input),
     remove: (id) => ipcRenderer.invoke(IPC.presets.remove, id),
+    removeMany: (ids) => ipcRenderer.invoke(IPC.presets.removeMany, ids),
     rename: (id, name, description) => ipcRenderer.invoke(IPC.presets.rename, id, name, description),
     moveToFolder: (id, folderId) => ipcRenderer.invoke(IPC.presets.moveToFolder, id, folderId),
     reorder: (ids) => ipcRenderer.invoke(IPC.presets.reorder, ids)
@@ -126,6 +128,7 @@ const api: RendererApi = {
       ipcRenderer.invoke(IPC.setups.setOutboardColumnCount, setupId, count),
     setVisibleColumns: (setupId, columns) => ipcRenderer.invoke(IPC.setups.setVisibleColumns, setupId, columns),
     remove: (id) => ipcRenderer.invoke(IPC.setups.remove, id),
+    removeMany: (ids) => ipcRenderer.invoke(IPC.setups.removeMany, ids),
     instantiateFromTemplate: (templateId) => ipcRenderer.invoke(IPC.setups.instantiateFromTemplate, templateId),
     saveAsTemplate: (input) => ipcRenderer.invoke(IPC.setups.saveAsTemplate, input),
     moveToFolder: (id, folderId) => ipcRenderer.invoke(IPC.setups.moveToFolder, id, folderId),
