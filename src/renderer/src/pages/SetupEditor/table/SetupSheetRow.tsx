@@ -95,11 +95,19 @@ function OutboardSlotCell({
           clearLabel="No Outboard"
         />
       )}
-      {hintText && (
+      {hintText ? (
         <div className="warning-badge inline-icon-text">
           <AlertTriangle size={12} aria-hidden="true" />
           Preset expected: {hintText}
         </div>
+      ) : (
+        !slot?.outboardId &&
+        slot?.outboardText && (
+          <div className="warning-badge inline-icon-text">
+            <AlertTriangle size={12} aria-hidden="true" />
+            Unresolved: {slot.outboardText}
+          </div>
+        )
       )}
     </td>
   )
@@ -412,11 +420,19 @@ function SetupSheetRow({
               clearLabel="No Mic"
             />
           )}
-          {unresolvedGearHint?.mic && (
+          {unresolvedGearHint?.mic ? (
             <div className="warning-badge inline-icon-text">
               <AlertTriangle size={12} aria-hidden="true" />
               Preset expected: {unresolvedGearHint.mic}
             </div>
+          ) : (
+            !item.micId &&
+            item.micText && (
+              <div className="warning-badge inline-icon-text">
+                <AlertTriangle size={12} aria-hidden="true" />
+                Unresolved: {item.micText}
+              </div>
+            )
           )}
         </td>
       )}
@@ -478,11 +494,19 @@ function SetupSheetRow({
               clearLabel="No Preamp"
             />
           )}
-          {unresolvedGearHint?.preamp && (
+          {unresolvedGearHint?.preamp ? (
             <div className="warning-badge inline-icon-text">
               <AlertTriangle size={12} aria-hidden="true" />
               Preset expected: {unresolvedGearHint.preamp}
             </div>
+          ) : (
+            !item.preampId &&
+            item.preampText && (
+              <div className="warning-badge inline-icon-text">
+                <AlertTriangle size={12} aria-hidden="true" />
+                Unresolved: {item.preampText}
+              </div>
+            )
           )}
         </td>
       )}

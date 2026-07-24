@@ -1,9 +1,10 @@
 import { ipcMain } from 'electron'
-import { IPC, type SaveAsTemplateInput, type SetupItemInput, type SetupsListFilter } from '@shared/types/ipc'
+import { IPC, type ExportedSetup, type SaveAsTemplateInput, type SetupItemInput, type SetupsListFilter } from '@shared/types/ipc'
 import type { SetupColumnKey } from '@shared/constants/setupColumns'
 import type { EditorMode } from '@shared/types/setup'
 import * as setupsRepo from '../db/repositories/setupsRepo'
 import * as setupItemsRepo from '../db/repositories/setupItemsRepo'
+import { exportSetupsToFile, importSetups, pickAndParseSetupImportFile } from '../setups/exportImport'
 
 export function registerSetupHandlers(): void {
   ipcMain.handle(IPC.setups.list, (_e, studioId?: number) => setupsRepo.listSetups(studioId))
@@ -64,6 +65,11 @@ export function registerSetupHandlers(): void {
   )
   ipcMain.handle(IPC.setups.remove, (_e, id: number) => setupsRepo.removeSetup(id))
   ipcMain.handle(IPC.setups.removeMany, (_e, ids: number[]) => setupsRepo.removeSetups(ids))
+  ipcMain.handle(IPC.setups.exportToFile, (_e, setupIds: number[]) => exportSetupsToFile(setupIds))
+  ipcMain.handle(IPC.setups.pickImportFile, () => pickAndParseSetupImportFile())
+  ipcMain.handle(IPC.setups.importSetups, (_e, setups: ExportedSetup[], targetStudioId: number) =>
+    importSetups(setups, targetStudioId)
+  )
   ipcMain.handle(IPC.setups.instantiateFromTemplate, (_e, templateId: number) =>
     setupsRepo.instantiateFromTemplate(templateId)
   )

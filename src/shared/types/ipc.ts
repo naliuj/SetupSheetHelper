@@ -129,6 +129,9 @@ export const IPC = {
     setLastEditorMode: 'setups:setLastEditorMode',
     remove: 'setups:remove',
     removeMany: 'setups:removeMany',
+    exportToFile: 'setups:exportToFile',
+    pickImportFile: 'setups:pickImportFile',
+    importSetups: 'setups:importSetups',
     instantiateFromTemplate: 'setups:instantiateFromTemplate',
     saveAsTemplate: 'setups:saveAsTemplate',
     moveToFolder: 'setups:moveToFolder',
@@ -312,6 +315,65 @@ export interface ExportStudiosResult {
 export interface PickImportFileResult {
   canceled: boolean
   data?: StudioExportFile
+  error?: string
+}
+
+export interface ExportedSetupItemOutboardSlot {
+  slotIndex: number
+  outboardName: string | null
+  outboardManufacturer: string | null
+}
+
+/** Gear FKs (micId/outboardId/preampId) become name/manufacturer pairs — same portability
+ *  approach as ChannelPresetItem — since a live catalog id is meaningless outside the
+ *  exporting install. Re-resolved by name against the target studio's catalog on import;
+ *  unmatched gear is left as plain text rather than auto-created (see importSetups). */
+export interface ExportedSetupItem {
+  instrumentType: string
+  sourceName: string
+  micName: string | null
+  micManufacturer: string | null
+  phantomPower: boolean
+  channel: number | null
+  tieLine: number | null
+  cueBox: number | null
+  outboards: ExportedSetupItemOutboardSlot[]
+  preampName: string | null
+  preampManufacturer: string | null
+  polarityFlip: boolean
+  notes: string | null
+  color: string | null
+  groupId: string | null
+}
+
+export interface ExportedSetup {
+  name: string
+  sessionDate: string | null
+  engineer: string | null
+  artist: string | null
+  facultyReserveEnabled: boolean
+  outboardColumnCount: number
+  visibleColumns: SetupColumnKey[]
+  sessionNotes: string | null
+  items: ExportedSetupItem[]
+  /** This setup's own layout override (rare — most setups use their studio's shared layout and
+   *  have no override row at all), not the studio's shared layout file. */
+  layoutOverride: ExportedRoomLayoutFile | null
+}
+
+export interface SetupExportFile {
+  version: number
+  setups: ExportedSetup[]
+}
+
+export interface ExportSetupsResult {
+  canceled: boolean
+  filePath?: string
+}
+
+export interface PickSetupImportFileResult {
+  canceled: boolean
+  data?: SetupExportFile
   error?: string
 }
 
@@ -544,6 +606,9 @@ export interface RendererApi {
     setLastEditorMode(id: number, mode: EditorMode): Promise<void>
     remove(id: number): Promise<void>
     removeMany(ids: number[]): Promise<void>
+    exportToFile(setupIds: number[]): Promise<ExportSetupsResult>
+    pickImportFile(): Promise<PickSetupImportFileResult>
+    importSetups(setups: ExportedSetup[], targetStudioId: number): Promise<void>
     instantiateFromTemplate(templateId: number): Promise<Setup>
     saveAsTemplate(input: SaveAsTemplateInput): Promise<Setup>
     moveToFolder(id: number, folderId: number | null): Promise<void>

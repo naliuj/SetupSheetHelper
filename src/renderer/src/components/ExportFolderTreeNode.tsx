@@ -1,38 +1,47 @@
 import { useState } from 'react'
 import { ChevronDown, ChevronRight, Folder } from 'lucide-react'
-import type { Studio } from '@shared/types/entities'
 import type { FolderTreeNode as FolderTreeNodeType } from '@shared/types/setup'
 
-interface Props {
+interface ExportableItem {
+  id: number
+  name: string
+}
+
+interface Props<T extends ExportableItem> {
   node: FolderTreeNodeType
   depth: number
-  studiosByFolder: Map<number | null, Studio[]>
+  itemsByFolder: Map<number | null, T[]>
   selectedIds: Set<number>
-  onToggleStudio: (id: number) => void
+  onToggleItem: (id: number) => void
   onSelectFolder: (ids: number[]) => void
 }
 
-/** Collects every studio id in this folder's subtree (itself + all descendant folders), for the
+/** Collects every item id in this folder's subtree (itself + all descendant folders), for the
  *  "Select folder" bulk-select action. Purely client-side — no backend call needed. */
-function collectSubtreeStudioIds(node: FolderTreeNodeType, studiosByFolder: Map<number | null, Studio[]>): number[] {
-  const own = (studiosByFolder.get(node.id) ?? []).map((s) => s.id)
-  return [...own, ...node.children.flatMap((child) => collectSubtreeStudioIds(child, studiosByFolder))]
+function collectSubtreeItemIds<T extends ExportableItem>(
+  node: FolderTreeNodeType,
+  itemsByFolder: Map<number | null, T[]>
+): number[] {
+  const own = (itemsByFolder.get(node.id) ?? []).map((item) => item.id)
+  return [...own, ...node.children.flatMap((child) => collectSubtreeItemIds(child, itemsByFolder))]
 }
 
-/** Read-only folder-tree row for the studio export picker — a simpler sibling of FolderTreeNode.tsx
- *  (no drag-and-drop, no create/rename/delete) since this tree only browses and selects, never
- *  reorganizes. Renders this folder's own studios as checkbox leaves, then recurses into children. */
-export default function ExportFolderTreeNode({
+/** Read-only folder-tree row for export pickers (studios, setups) — a simpler sibling of
+ *  FolderTreeNode.tsx (no drag-and-drop, no create/rename/delete) since this tree only browses
+ *  and selects, never reorganizes. Renders this folder's own items as checkbox leaves, then
+ *  recurses into children. Generic over any `{id, name}` item so both the studio and setup
+ *  export pickers share it. */
+export default function ExportFolderTreeNode<T extends ExportableItem>({
   node,
   depth,
-  studiosByFolder,
+  itemsByFolder,
   selectedIds,
-  onToggleStudio,
+  onToggleItem,
   onSelectFolder
-}: Props): JSX.Element {
+}: Props<T>): JSX.Element {
   const [expanded, setExpanded] = useState(true)
-  const studiosHere = studiosByFolder.get(node.id) ?? []
-  const hasContent = node.children.length > 0 || studiosHere.length > 0
+  const itemsHere = itemsByFolder.get(node.id) ?? []
+  const hasContent = node.children.length > 0 || itemsHere.length > 0
 
   return (
     <div>
@@ -50,26 +59,22 @@ export default function ExportFolderTreeNode({
         </span>
         <button
           className="folder-tree-action"
-          title="Select all studios in this folder"
-          onClick={() => onSelectFolder(collectSubtreeStudioIds(node, studiosByFolder))}
+          title="Select all in this folder"
+          onClick={() => onSelectFolder(collectSubtreeItemIds(node, itemsByFolder))}
         >
           Select
         </button>
       </div>
       {expanded && (
         <>
-          {studiosHere.map((studio) => (
+          {itemsHere.map((item) => (
             <label
-              key={studio.id}
+              key={item.id}
               className="folder-tree-row"
               style={{ paddingLeft: (depth + 1) * 16 + 20, cursor: 'pointer' }}
             >
-              <input
-                type="checkbox"
-                checked={selectedIds.has(studio.id)}
-                onChange={() => onToggleStudio(studio.id)}
-              />
-              {studio.name}
+              <input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => onToggleItem(item.id)} />
+              {item.name}
             </label>
           ))}
           {node.children.map((child) => (
@@ -77,9 +82,9 @@ export default function ExportFolderTreeNode({
               key={child.id}
               node={child}
               depth={depth + 1}
-              studiosByFolder={studiosByFolder}
+              itemsByFolder={itemsByFolder}
               selectedIds={selectedIds}
-              onToggleStudio={onToggleStudio}
+              onToggleItem={onToggleItem}
               onSelectFolder={onSelectFolder}
             />
           ))}
