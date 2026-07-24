@@ -4,20 +4,37 @@ import { DEFAULT_SWATCH } from '@shared/constants/swatches'
 import SwatchPicker from '@renderer/components/SwatchPicker'
 
 interface Props {
+  initialTitle?: string
+  initialColor?: string
+  initialPersonName?: string | null
+  heading?: string
+  description?: string | null
+  confirmLabel?: string
   onClose: () => void
   onConfirm: (title: string, color: string, personName: string | null) => void
 }
 
 const DEFAULT_COLOR = DEFAULT_SWATCH
 
-/** One-off custom block creation — title, color, and optional musician name, per design.
- *  Confirming places a single block directly on the canvas; nothing gets added to the
- *  palette/sidebar. */
-export default function CustomBlockModal({ onClose, onConfirm }: Props): JSX.Element {
+/** Title/color/musician-name form, shared by one-off custom block creation (canvas "Add
+ *  Instrument" and the sidebar's "+ Add custom block") and editing an existing block (Layout
+ *  Mode's right-click "Edit") — same dialogue either way, just seeded with the block's current
+ *  values and a different heading/confirm label. Confirming a fresh one places a block directly
+ *  on the canvas; nothing gets added to the palette/sidebar. */
+export default function CustomBlockModal({
+  initialTitle = '',
+  initialColor = DEFAULT_COLOR,
+  initialPersonName = '',
+  heading = 'Add custom block',
+  description = 'Placed directly on the layout — not added to the sidebar.',
+  confirmLabel = 'Add block',
+  onClose,
+  onConfirm
+}: Props): JSX.Element {
   useEscapeToClose(onClose)
-  const [title, setTitle] = useState('')
-  const [color, setColor] = useState(DEFAULT_COLOR)
-  const [personName, setPersonName] = useState('')
+  const [title, setTitle] = useState(initialTitle)
+  const [color, setColor] = useState(initialColor)
+  const [personName, setPersonName] = useState(initialPersonName ?? '')
 
   function handleConfirm(): void {
     if (!title.trim()) return
@@ -28,10 +45,12 @@ export default function CustomBlockModal({ onClose, onConfirm }: Props): JSX.Ele
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 320 }}>
-        <h2 style={{ marginTop: 0 }}>Add custom block</h2>
-        <p className="card-sub" style={{ marginTop: 0 }}>
-          Placed directly on the layout — not added to the sidebar.
-        </p>
+        <h2 style={{ marginTop: 0 }}>{heading}</h2>
+        {description && (
+          <p className="card-sub" style={{ marginTop: 0 }}>
+            {description}
+          </p>
+        )}
         <input
           placeholder="Title (e.g. Cello, Conductor)"
           value={title}
@@ -39,6 +58,7 @@ export default function CustomBlockModal({ onClose, onConfirm }: Props): JSX.Ele
           onKeyDown={(e) => e.key === 'Enter' && handleConfirm()}
           style={{ width: '100%', marginBottom: 8 }}
           autoFocus
+          onFocus={(e) => e.target.select()}
         />
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
           Color
@@ -59,7 +79,7 @@ export default function CustomBlockModal({ onClose, onConfirm }: Props): JSX.Ele
             Cancel
           </button>
           <button className="btn primary" onClick={handleConfirm} disabled={!title.trim()}>
-            Add block
+            {confirmLabel}
           </button>
         </div>
       </div>

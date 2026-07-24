@@ -6,8 +6,6 @@ import { useSetupStore } from '@renderer/state/setupStore'
 import LayoutBackground from './LayoutBackground'
 import LayoutBlockIcon, { clampCenterToRoom } from './LayoutBlockIcon'
 import ContextMenu from './ContextMenu'
-import RenameBlockModal from './RenameBlockModal'
-import ChangeColorPopover from './ChangeColorPopover'
 import CustomBlockModal from '../palette/CustomBlockModal'
 import Icon from '@renderer/components/Icon'
 
@@ -42,6 +40,7 @@ export default function LayoutStage({ studioId, stageRef, active }: Props): JSX.
   const renameBlock = useLayoutStore((s) => s.renameBlock)
   const updateBlockColor = useLayoutStore((s) => s.updateBlockColor)
   const removeBlocks = useLayoutStore((s) => s.removeBlocks)
+  const duplicateBlocks = useLayoutStore((s) => s.duplicateBlocks)
   const moveBlocksBy = useLayoutStore((s) => s.moveBlocksBy)
   const selectBlock = useLayoutStore((s) => s.selectBlock)
   const toggleBlock = useLayoutStore((s) => s.toggleBlock)
@@ -67,8 +66,7 @@ export default function LayoutStage({ studioId, stageRef, active }: Props): JSX.
   const [canvasMenu, setCanvasMenu] = useState<{ x: number; y: number; canvasX: number; canvasY: number } | null>(
     null
   )
-  const [renamingBlockId, setRenamingBlockId] = useState<number | string | null>(null)
-  const [colorPicker, setColorPicker] = useState<{ blockId: number | string; x: number; y: number } | null>(null)
+  const [editingBlockId, setEditingBlockId] = useState<number | string | null>(null)
   const [addInstrumentAt, setAddInstrumentAt] = useState<{ x: number; y: number } | null>(null)
   const [spaceHeld, setSpaceHeld] = useState(false)
   const [marquee, setMarquee] = useState<{ startX: number; startY: number; x: number; y: number } | null>(null)
@@ -295,7 +293,7 @@ export default function LayoutStage({ studioId, stageRef, active }: Props): JSX.
     }
   }, [selectedBlockIds, active, blocks, imageSize, updateBlockTransform, moveBlocksBy])
 
-  const renamingBlock = renamingBlockId != null ? blocks.find((b) => b.id === renamingBlockId) : null
+  const editingBlock = editingBlockId != null ? blocks.find((b) => b.id === editingBlockId) : null
 
   // Screen (clientX/Y) -> canvas coordinates, accounting for the stage's current scale/offset
   // (fit-to-container combined with user zoom/pan). Shared by drag-drop placement, the
@@ -584,11 +582,11 @@ export default function LayoutStage({ studioId, stageRef, active }: Props): JSX.
           x={blockMenu.x}
           y={blockMenu.y}
           items={[
-            { label: 'Rename', onClick: () => setRenamingBlockId(blockMenu.blockId) },
-            {
-              label: 'Change Color',
-              onClick: () => setColorPicker({ blockId: blockMenu.blockId, x: blockMenu.x, y: blockMenu.y })
-            },
+            { label: 'Edit', onClick: () => setEditingBlockId(blockMenu.blockId) },
+            // Right-clicking a block always leaves it selected (see LayoutBlockIcon's
+            // handleContextMenu), so selectedBlockIds already reflects the intended target —
+            // mirrors the cmd+d "duplicate-selection" keybind exactly.
+            { label: 'Duplicate', onClick: () => duplicateBlocks([...selectedBlockIds]) },
             {
               label: 'Delete',
               onClick: () =>
@@ -615,28 +613,21 @@ export default function LayoutStage({ studioId, stageRef, active }: Props): JSX.
           onClose={() => setCanvasMenu(null)}
         />
       )}
-      {renamingBlock && (
-        <RenameBlockModal
-          initialLabel={renamingBlock.label}
-          initialPersonName={renamingBlock.personName}
-          onClose={() => setRenamingBlockId(null)}
-          onConfirm={(label, personName) => renameBlock(renamingBlock.id, label, personName)}
+      {editingBlock && (
+        <CustomBlockModal
+          initialTitle={editingBlock.label}
+          initialColor={editingBlock.color}
+          initialPersonName={editingBlock.personName}
+          heading="Edit block"
+          description={null}
+          confirmLabel="Save"
+          onClose={() => setEditingBlockId(null)}
+          onConfirm={(title, color, personName) => {
+            renameBlock(editingBlock.id, title, personName)
+            updateBlockColor(editingBlock.id, color)
+          }}
         />
       )}
-      {colorPicker &&
-        (() => {
-          const block = blocks.find((b) => b.id === colorPicker.blockId)
-          if (!block) return null
-          return (
-            <ChangeColorPopover
-              x={colorPicker.x}
-              y={colorPicker.y}
-              initialColor={block.color}
-              onChange={(color) => updateBlockColor(colorPicker.blockId, color)}
-              onClose={() => setColorPicker(null)}
-            />
-          )
-        })()}
       {addInstrumentAt && (
         <CustomBlockModal
           onClose={() => setAddInstrumentAt(null)}
