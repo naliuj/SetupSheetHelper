@@ -102,14 +102,22 @@ export default function LayoutStage({ studioId, stageRef, active }: Props): JSX.
 
   // Attach the resize/rotate handles only when exactly one block is selected — multi-select
   // group-resize semantics aren't part of this feature set, only group-drag.
+  const onlySelectedId = selectedBlockIds.size === 1 ? [...selectedBlockIds][0] : null
+  const onlySelectedBlock = onlySelectedId != null ? blocks.find((b) => b.id === onlySelectedId) : null
   useEffect(() => {
     const transformer = transformerRef.current
     if (!transformer) return
-    const onlyId = selectedBlockIds.size === 1 ? [...selectedBlockIds][0] : null
-    const node = onlyId != null ? nodeRefs.current.get(onlyId) : null
+    const node = onlySelectedId != null ? nodeRefs.current.get(onlySelectedId) : null
+    // Konva's Transformer only auto-tracks attribute changes on the node it's directly attached
+    // to (this Group) — but width/height actually live on the child Rect/Circle inside it (see
+    // LayoutBlockIcon.tsx), so a resize's width/height commit never fires the Group-level
+    // listeners Transformer relies on to recompute its handle box. Re-calling .nodes() (which
+    // resets Transformer's internal bounding-box cache) whenever the selected block's own
+    // width/height change works around that — without this, handles only refresh on
+    // deselect/reselect.
     transformer.nodes(node ? [node] : [])
     transformer.getLayer()?.batchDraw()
-  }, [selectedBlockIds, blocks.length])
+  }, [selectedBlockIds, blocks.length, onlySelectedId, onlySelectedBlock?.width, onlySelectedBlock?.height])
 
   // Live-clamps the block during resize (called on every "transform" tick, unlike boundBoxFunc
   // which only sees the proposed box before Konva applies it): caps size so a block can never
