@@ -40,7 +40,11 @@ const LayoutBlockIcon = forwardRef<Konva.Group, Props>(function LayoutBlockIcon(
   { block, selected, imageSize, onSelect, onDragMove, onDragEnd, onContextMenu },
   ref
 ) {
-  const strokeColor = '#ffffff'
+  // Matches Konva Transformer's own default anchor/border color (rgb(0, 161, 255)) so a
+  // selected block's own outline reads as part of the same "this is selected" visual language
+  // as the resize handles — white was invisible against light/white-colored blocks (e.g. plain
+  // "Chair" blocks), which is why a selection could look completely unmarked.
+  const strokeColor = '#00a1ff'
   const strokeWidth = selected ? 3 : 0
   const labelColor = readableTextColor(block.color)
   const labelShadow = labelColor === '#ffffff' ? '#000000' : '#ffffff'

@@ -100,69 +100,79 @@ export default function LayoutStage({ studioId, stageRef, active }: Props): JSX.
   const finalX = offsetX + panX
   const finalY = offsetY + panY
 
-  // Attach the resize/rotate handles only when exactly one block is selected — multi-select
-  // group-resize semantics aren't part of this feature set, only group-drag.
-  const onlySelectedId = selectedBlockIds.size === 1 ? [...selectedBlockIds][0] : null
-  const onlySelectedBlock = onlySelectedId != null ? blocks.find((b) => b.id === onlySelectedId) : null
+  // Attach the resize/rotate handles to every selected block — Konva's Transformer natively
+  // supports multiple attached nodes, computing one shared bounding box and updating each
+  // node's own x/y/scale/rotation as the group is resized/rotated together.
+  const selectedBlocksSizeKey = [...selectedBlockIds]
+    .map((id) => {
+      const b = blocks.find((bl) => bl.id === id)
+      return b ? `${id}:${b.width}x${b.height}` : ''
+    })
+    .join('|')
   useEffect(() => {
     const transformer = transformerRef.current
     if (!transformer) return
-    const node = onlySelectedId != null ? nodeRefs.current.get(onlySelectedId) : null
-    // Konva's Transformer only auto-tracks attribute changes on the node it's directly attached
-    // to (this Group) — but width/height actually live on the child Rect/Circle inside it (see
-    // LayoutBlockIcon.tsx), so a resize's width/height commit never fires the Group-level
-    // listeners Transformer relies on to recompute its handle box. Re-calling .nodes() (which
-    // resets Transformer's internal bounding-box cache) whenever the selected block's own
-    // width/height change works around that — without this, handles only refresh on
-    // deselect/reselect.
-    transformer.nodes(node ? [node] : [])
+    const nodes = [...selectedBlockIds]
+      .map((id) => nodeRefs.current.get(id))
+      .filter((node): node is Konva.Group => node != null)
+    // Konva's Transformer only auto-tracks attribute changes on the nodes it's directly attached
+    // to (these Groups) — but width/height actually live on the child Rect/Circle inside each one
+    // (see LayoutBlockIcon.tsx), so a resize's width/height commit never fires the listeners
+    // Transformer relies on to recompute its handle box. Re-calling .nodes() (which resets its
+    // internal bounding-box cache) whenever any selected block's own width/height change works
+    // around that — without this, handles only refresh on deselect/reselect.
+    transformer.nodes(nodes)
     transformer.getLayer()?.batchDraw()
-  }, [selectedBlockIds, blocks.length, onlySelectedId, onlySelectedBlock?.width, onlySelectedBlock?.height])
+  }, [selectedBlockIds, blocks.length, selectedBlocksSizeKey])
 
-  // Live-clamps the block during resize (called on every "transform" tick, unlike boundBoxFunc
-  // which only sees the proposed box before Konva applies it): caps size so a block can never
-  // end up larger than the room, then clamps position so the (possibly size-capped) box stays
-  // within the room bounds. getClientRect gives the axis-aligned bounding box in the parent
-  // Layer's local (room-pixel) space directly, accounting for the node's current rotation —
-  // sidesteps hand-rolling rotated-box trig for this same "close enough" approximation the drag
-  // clamp already uses (see clampCenterToRoom's doc comment in LayoutBlockIcon.tsx).
+  // Live-clamps each selected block during resize (called on every "transform" tick, unlike
+  // boundBoxFunc which only sees the proposed box before Konva applies it, and only for the
+  // combined multi-node bounding box, not per block): caps size so a block can never end up
+  // larger than the room, then clamps position so the (possibly size-capped) box stays within
+  // the room bounds. When multiple blocks are selected, Konva's Transformer resizes/rotates them
+  // together as a group but still updates each attached node's own x/y/scale/rotation
+  // individually, so this loops the same per-node logic over every selected node rather than
+  // assuming exactly one. getClientRect gives the axis-aligned bounding box in the parent Layer's
+  // local (room-pixel) space directly, accounting for the node's current rotation — sidesteps
+  // hand-rolling rotated-box trig for this same "close enough" approximation the drag clamp
+  // already uses (see clampCenterToRoom's doc comment in LayoutBlockIcon.tsx).
   function handleTransform(): void {
-    if (selectedBlockIds.size !== 1) return
-    const id = [...selectedBlockIds][0]
-    const node = nodeRefs.current.get(id)
-    const parent = node?.getParent()
-    if (!node || !parent) return
+    for (const id of selectedBlockIds) {
+      const node = nodeRefs.current.get(id)
+      const parent = node?.getParent()
+      if (!node || !parent) continue
 
-    const rawRect = node.getClientRect({ relativeTo: parent })
-    if (rawRect.width > imageSize.width || rawRect.height > imageSize.height) {
-      const capScale = Math.min(imageSize.width / rawRect.width, imageSize.height / rawRect.height)
-      node.scaleX(node.scaleX() * capScale)
-      node.scaleY(node.scaleY() * capScale)
+      const rawRect = node.getClientRect({ relativeTo: parent })
+      if (rawRect.width > imageSize.width || rawRect.height > imageSize.height) {
+        const capScale = Math.min(imageSize.width / rawRect.width, imageSize.height / rawRect.height)
+        node.scaleX(node.scaleX() * capScale)
+        node.scaleY(node.scaleY() * capScale)
+      }
+
+      const rect = node.getClientRect({ relativeTo: parent })
+      const center = { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 }
+      const clampedCenter = clampCenterToRoom(center, rect.width / 2, rect.height / 2, imageSize)
+      node.x(node.x() + (clampedCenter.x - center.x))
+      node.y(node.y() + (clampedCenter.y - center.y))
     }
-
-    const rect = node.getClientRect({ relativeTo: parent })
-    const center = { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 }
-    const clampedCenter = clampCenterToRoom(center, rect.width / 2, rect.height / 2, imageSize)
-    node.x(node.x() + (clampedCenter.x - center.x))
-    node.y(node.y() + (clampedCenter.y - center.y))
   }
 
   function handleTransformEnd(): void {
-    if (selectedBlockIds.size !== 1) return
-    const id = [...selectedBlockIds][0]
-    const node = nodeRefs.current.get(id)
-    const block = blocks.find((b) => b.id === id)
-    if (!node || !block) return
-    // Konva accumulates resize as node scale — bake it into explicit width/height and reset
-    // scale to 1 so the next transform doesn't compound on top of this one.
-    const width = Math.max(8, block.width * node.scaleX())
-    const height = Math.max(8, block.height * node.scaleY())
-    node.scaleX(1)
-    node.scaleY(1)
-    // Resizing from a non-bottom-right handle moves the node's position live (to keep the
-    // opposite anchor fixed) — previously this was never persisted, so the store's x/y silently
-    // went stale and the block could snap back to its old position on the next re-render.
-    updateBlockTransform(id, { x: node.x(), y: node.y(), width, height, rotation: node.rotation() })
+    for (const id of selectedBlockIds) {
+      const node = nodeRefs.current.get(id)
+      const block = blocks.find((b) => b.id === id)
+      if (!node || !block) continue
+      // Konva accumulates resize as node scale — bake it into explicit width/height and reset
+      // scale to 1 so the next transform doesn't compound on top of this one.
+      const width = Math.max(8, block.width * node.scaleX())
+      const height = Math.max(8, block.height * node.scaleY())
+      node.scaleX(1)
+      node.scaleY(1)
+      // Resizing from a non-bottom-right handle moves the node's position live (to keep the
+      // opposite anchor fixed) — previously this was never persisted, so the store's x/y silently
+      // went stale and the block could snap back to its old position on the next re-render.
+      updateBlockTransform(id, { x: node.x(), y: node.y(), width, height, rotation: node.rotation() })
+    }
   }
 
   // Space toggles pan-drag mode for the canvas; arrow keys nudge the selection by 1px (10px with
@@ -428,7 +438,7 @@ export default function LayoutStage({ studioId, stageRef, active }: Props): JSX.
         }}
       >
         {selectedBlockIds.size >= 2
-          ? `${selectedBlockIds.size} selected — drag to move together; resize one at a time`
+          ? `${selectedBlockIds.size} selected — drag or resize together`
           : 'Scroll to zoom · Space-drag to pan · Drag to select'}
       </div>
       <Stage
