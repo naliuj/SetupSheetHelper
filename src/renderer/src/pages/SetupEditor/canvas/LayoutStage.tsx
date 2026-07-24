@@ -132,9 +132,17 @@ export default function LayoutStage({ studioId, stageRef, active }: Props): JSX.
   // the room bounds. getClientRect gives the axis-aligned bounding box in the parent Layer's local
   // (room-pixel) space directly, accounting for the node's current rotation — sidesteps
   // hand-rolling rotated-box trig for this same "close enough" approximation the drag clamp
-  // already uses (see clampCenterToRoom's doc comment in LayoutBlockIcon.tsx). Only the actively
-  // transformed block's own Transformer fires this — other selected blocks aren't touched until
-  // handleTransformEnd mirrors the finished resize onto them.
+  // already uses (see clampCenterToRoom's doc comment in LayoutBlockIcon.tsx).
+  //
+  // If this block is part of a larger selection, every other selected block's scale/rotation is
+  // mirrored live too (direct Konva mutation, bypassing React/the store, same approach as
+  // handleBlockDragMove) so the whole selection visibly resizes/rotates together in real time
+  // instead of the rest jumping into place only once the gesture ends. Followers aren't clamped
+  // live here (matching the existing drag-follower simplification) — handleTransformEnd caps each
+  // one to the room bounds once the gesture finishes. Each follower scales/rotates around its own
+  // center automatically (LayoutBlockIcon's offsetX/offsetY makes a node's own x/y the pivot for
+  // both), so mirroring the same scale/rotation values onto a different-sized block elsewhere just
+  // works without extra math.
   function handleTransform(id: number | string): void {
     const node = nodeRefs.current.get(id)
     const parent = node?.getParent()
@@ -152,13 +160,29 @@ export default function LayoutStage({ studioId, stageRef, active }: Props): JSX.
     const clampedCenter = clampCenterToRoom(center, rect.width / 2, rect.height / 2, imageSize)
     node.x(node.x() + (clampedCenter.x - center.x))
     node.y(node.y() + (clampedCenter.y - center.y))
+
+    if (selectedBlockIds.size > 1 && selectedBlockIds.has(id)) {
+      const block = blocks.find((b) => b.id === id)
+      if (block) {
+        const rotationDelta = node.rotation() - block.rotation
+        for (const otherId of selectedBlockIds) {
+          if (otherId === id) continue
+          const otherNode = nodeRefs.current.get(otherId)
+          const other = blocks.find((b) => b.id === otherId)
+          if (!otherNode || !other) continue
+          otherNode.scaleX(node.scaleX())
+          otherNode.scaleY(node.scaleY())
+          otherNode.rotation(other.rotation + rotationDelta)
+        }
+      }
+    }
+    stageRef.current?.batchDraw()
   }
 
-  // Bakes the active block's resize into width/height, then — if it's part of a larger
-  // selection — mirrors the same proportional scale factor onto every other selected block (each
-  // keeping its own center fixed), so "resize together" means "resize by the same amount," not
-  // "share one bounding box." Each other block is capped/clamped the same way the active one was
-  // live, just applied once here instead of per-tick.
+  // Bakes the active block's resize/rotation into width/height/rotation, then — if it's part of a
+  // larger selection — commits the same proportional scale factor and rotation delta to the
+  // store for every other selected block (each capped to the room bounds individually), matching
+  // what handleTransform already mirrored live.
   function handleTransformEnd(id: number | string): void {
     const node = nodeRefs.current.get(id)
     const block = blocks.find((b) => b.id === id)
@@ -167,30 +191,48 @@ export default function LayoutStage({ studioId, stageRef, active }: Props): JSX.
     // scale to 1 so the next transform doesn't compound on top of this one.
     const width = Math.max(8, block.width * node.scaleX())
     const height = Math.max(8, block.height * node.scaleY())
+    const rotation = node.rotation()
     node.scaleX(1)
     node.scaleY(1)
     // Resizing from a non-bottom-right handle moves the node's position live (to keep the
     // opposite anchor fixed) — previously this was never persisted, so the store's x/y silently
     // went stale and the block could snap back to its old position on the next re-render.
-    updateBlockTransform(id, { x: node.x(), y: node.y(), width, height, rotation: node.rotation() })
+    updateBlockTransform(id, { x: node.x(), y: node.y(), width, height, rotation })
 
     if (selectedBlockIds.size <= 1 || !selectedBlockIds.has(id)) return
     const scaleX = width / block.width
     const scaleY = height / block.height
-    if (scaleX === 1 && scaleY === 1) return
+    const rotationDelta = rotation - block.rotation
+    if (scaleX === 1 && scaleY === 1 && rotationDelta === 0) return
     for (const otherId of selectedBlockIds) {
       if (otherId === id) continue
+      const otherNode = nodeRefs.current.get(otherId)
       const other = blocks.find((b) => b.id === otherId)
       if (!other) continue
       const otherWidth = Math.max(8, Math.min(imageSize.width, other.width * scaleX))
       const otherHeight = Math.max(8, Math.min(imageSize.height, other.height * scaleY))
+      const otherRotation = other.rotation + rotationDelta
       const clampedCenter = clampCenterToRoom(
         { x: other.x, y: other.y },
         otherWidth / 2,
         otherHeight / 2,
         imageSize
       )
-      updateBlockTransform(otherId, { ...clampedCenter, width: otherWidth, height: otherHeight })
+      updateBlockTransform(otherId, {
+        ...clampedCenter,
+        width: otherWidth,
+        height: otherHeight,
+        rotation: otherRotation
+      })
+      // handleTransform left this node's scale/rotation set imperatively mid-mirror — reset scale
+      // now that the resize is baked into width/height in the store (matching the active node's
+      // own reset above), so the next render's width/height props aren't compounded with leftover
+      // scale. Rotation stays as the final committed value rather than resetting.
+      if (otherNode) {
+        otherNode.scaleX(1)
+        otherNode.scaleY(1)
+        otherNode.rotation(otherRotation)
+      }
     }
   }
 

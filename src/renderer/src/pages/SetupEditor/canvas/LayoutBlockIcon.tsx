@@ -65,10 +65,10 @@ const LayoutBlockIcon = forwardRef<Konva.Group, Props>(function LayoutBlockIcon(
     onDragEnd(e.target.x(), e.target.y())
   }
 
-  // block.x/y is the shape's CENTER (children are drawn offset by -width/2/-height/2, or a
-  // circle radius, from the Group's origin) — clamp the center so the un-rotated bounding box
-  // stays within the room image, a close-enough approximation without needing full rotated-bbox
-  // math for this UX (a rotated block may visually poke out slightly at extreme angles).
+  // block.x/y is the shape's CENTER (the Group's offsetX/offsetY above make that the rotation/
+  // position pivot) — clamp the center so the un-rotated bounding box stays within the room
+  // image, a close-enough approximation without needing full rotated-bbox math for this UX (a
+  // rotated block may visually poke out slightly at extreme angles).
   //
   // Konva calls dragBoundFunc with `pos` in ABSOLUTE (stage-pixel) coordinates, not the node's
   // local/parent space — but the Stage here is scaled by finalScale (fitScale * zoomScale, see
@@ -99,11 +99,24 @@ const LayoutBlockIcon = forwardRef<Konva.Group, Props>(function LayoutBlockIcon(
     onContextMenu(e.evt.clientX, e.evt.clientY)
   }
 
+  // offsetX/offsetY (rather than manually centering each child) is what makes rotation AND
+  // scale pivot around the shape's visual center while keeping the Group's own local coordinate
+  // system top-left-origin — Konva's Transformer reads a node's own offsetX/offsetY to compute
+  // the position adjustment that keeps the opposite edge/corner fixed during a resize. Manually
+  // offsetting children instead (the previous approach) is invisible to the Transformer, which
+  // then assumes local (0,0) is the top-left corner it isn't — harmless for a corner drag (both
+  // axes move together, masking the mismatch) but visibly nudges the block sideways on a
+  // single-axis side-handle drag.
+  const centerX = block.width / 2
+  const centerY = block.height / 2
+
   return (
     <Group
       ref={ref}
       x={block.x}
       y={block.y}
+      offsetX={centerX}
+      offsetY={centerY}
       rotation={block.rotation}
       draggable
       dragBoundFunc={dragBoundFunc}
@@ -116,6 +129,8 @@ const LayoutBlockIcon = forwardRef<Konva.Group, Props>(function LayoutBlockIcon(
       {block.shape === 'circle' ? (
         <Circle
           name="block-shape"
+          x={centerX}
+          y={centerY}
           radius={Math.min(block.width, block.height) / 2}
           fill={block.color}
           stroke={strokeColor}
@@ -124,8 +139,6 @@ const LayoutBlockIcon = forwardRef<Konva.Group, Props>(function LayoutBlockIcon(
       ) : (
         <Rect
           name="block-shape"
-          x={-block.width / 2}
-          y={-block.height / 2}
           width={block.width}
           height={block.height}
           fill={block.color}
@@ -147,8 +160,8 @@ const LayoutBlockIcon = forwardRef<Konva.Group, Props>(function LayoutBlockIcon(
             shadowOpacity={0.9}
             width={textWidth}
             height={textHeight * 0.6}
-            x={-textWidth / 2}
-            y={-textHeight / 2}
+            x={centerX - textWidth / 2}
+            y={centerY - textHeight / 2}
             align="center"
             verticalAlign="bottom"
             wrap="word"
@@ -165,8 +178,8 @@ const LayoutBlockIcon = forwardRef<Konva.Group, Props>(function LayoutBlockIcon(
             shadowOpacity={0.9}
             width={textWidth}
             height={textHeight * 0.4}
-            x={-textWidth / 2}
-            y={-textHeight / 2 + textHeight * 0.6}
+            x={centerX - textWidth / 2}
+            y={centerY - textHeight / 2 + textHeight * 0.6}
             align="center"
             verticalAlign="top"
             wrap="word"
@@ -186,8 +199,8 @@ const LayoutBlockIcon = forwardRef<Konva.Group, Props>(function LayoutBlockIcon(
           shadowOpacity={0.9}
           width={textWidth}
           height={textHeight}
-          x={-textWidth / 2}
-          y={-textHeight / 2}
+          x={centerX - textWidth / 2}
+          y={centerY - textHeight / 2}
           align="center"
           verticalAlign="middle"
           wrap="word"
