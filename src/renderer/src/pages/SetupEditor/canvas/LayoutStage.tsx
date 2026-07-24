@@ -552,6 +552,11 @@ export default function LayoutStage({ studioId, stageRef, active }: Props): JSX.
                 else transformerRefs.current.delete(id)
               }}
               rotateEnabled
+              // Bigger than Konva's default (10) — blocks are small (many start at 44x44) and,
+              // once multi-selected, sit close enough together that the default hit area made it
+              // easy to miss a handle and grab the neighboring block's body instead, turning an
+              // intended resize into an accidental single-select + move.
+              anchorSize={16}
               // Each block already draws its own outline (LayoutBlockIcon's blue stroke) — the
               // Transformer here only supplies the resize/rotate anchors, not a second border.
               borderEnabled={false}
