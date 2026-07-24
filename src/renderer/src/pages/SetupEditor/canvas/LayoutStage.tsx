@@ -486,6 +486,12 @@ export default function LayoutStage({ studioId, stageRef, active }: Props): JSX.
           <Transformer
             ref={transformerRef}
             rotateEnabled
+            // Each selected block already draws its own outline (LayoutBlockIcon's blue stroke) —
+            // Konva's default connecting border around the *combined* bounding box reads as one
+            // shared selection when multiple non-adjacent blocks are selected, which is
+            // misleading (it visually spans the gap between them). The resize/rotate anchors
+            // still appear at the group's bounding box either way.
+            borderEnabled={false}
             boundBoxFunc={(oldBox, newBox) => (newBox.width < 8 || newBox.height < 8 ? oldBox : newBox)}
             onTransform={handleTransform}
             onTransformEnd={handleTransformEnd}
