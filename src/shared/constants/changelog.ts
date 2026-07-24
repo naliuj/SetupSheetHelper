@@ -265,5 +265,15 @@ export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
       'Studio export now includes the room layout file, so importing a studio restores its floor plan too.',
       'Manage Studios, Manage Setups, and Manage channel presets now support selecting multiple items and deleting them all at once.'
     ]
+  },
+  {
+    version: '1.10.1',
+    date: '2026-07-24',
+    highlights: [
+      'Layout Mode: multi-selected blocks can now be resized and rotated together, live, with each block keeping its own handles.',
+      'Fixed several Layout Mode resize bugs: stale handles after resizing, a side-handle nudge, and hard-to-grab handles (now bigger).',
+      'Right-click Delete on a multi-selected block now removes the whole selection, not just the one you clicked.',
+      "Layout Mode's right-click menu: Rename and Change Color are now one Edit item, plus a new Duplicate item."
+    ]
   }
 ]
