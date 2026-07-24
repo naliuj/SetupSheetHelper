@@ -584,7 +584,15 @@ export default function LayoutStage({ studioId, stageRef, active }: Props): JSX.
               label: 'Change Color',
               onClick: () => setColorPicker({ blockId: blockMenu.blockId, x: blockMenu.x, y: blockMenu.y })
             },
-            { label: 'Delete', onClick: () => removeBlocks([blockMenu.blockId]) }
+            {
+              label: 'Delete',
+              onClick: () =>
+                removeBlocks(
+                  selectedBlockIds.size > 1 && selectedBlockIds.has(blockMenu.blockId)
+                    ? [...selectedBlockIds]
+                    : [blockMenu.blockId]
+                )
+            }
           ]}
           onClose={() => setBlockMenu(null)}
         />
