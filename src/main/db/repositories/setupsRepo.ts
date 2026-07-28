@@ -27,6 +27,7 @@ interface SetupRow {
   visible_columns: string | null
   session_notes: string | null
   last_editor_mode: EditorMode
+  multi_setup_id: number | null
 }
 
 function mapRow(row: SetupRow): Setup {
@@ -47,7 +48,8 @@ function mapRow(row: SetupRow): Setup {
     outboardColumnCount: row.outboard_column_count,
     visibleColumns: parseVisibleColumns(row.visible_columns),
     sessionNotes: row.session_notes,
-    lastEditorMode: row.last_editor_mode
+    lastEditorMode: row.last_editor_mode,
+    multiSetupId: row.multi_setup_id
   }
 }
 

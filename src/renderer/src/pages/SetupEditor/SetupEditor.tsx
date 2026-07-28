@@ -11,6 +11,7 @@ import TableModeToolbar from './table/TableModeToolbar'
 import SelectionActionBar from './table/SelectionActionBar'
 import SetupToolbar from './SetupToolbar'
 import SetupSettingsPage from './SetupSettingsPage'
+import MultiSetupTabs from './MultiSetupTabs'
 import Toast from '@renderer/components/Toast'
 
 const AUTOSAVE_DELAY_MS = 1000
@@ -155,6 +156,7 @@ export default function SetupEditor(): JSX.Element {
       <div className="nav-crumbs" style={{ padding: '10px 16px 0' }}>
         <button onClick={goToHome}>Home</button> / Setup Editor
       </div>
+      <MultiSetupTabs />
       <SetupToolbar
         stageRef={stageRef}
         mode={mode}

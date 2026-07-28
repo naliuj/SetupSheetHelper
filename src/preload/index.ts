@@ -139,6 +139,16 @@ const api: RendererApi = {
     moveToFolder: (id, folderId) => ipcRenderer.invoke(IPC.setups.moveToFolder, id, folderId),
     reorder: (ids) => ipcRenderer.invoke(IPC.setups.reorder, ids)
   },
+  multiSetups: {
+    listAll: () => ipcRenderer.invoke(IPC.multiSetups.listAll),
+    getForSetup: (setupId) => ipcRenderer.invoke(IPC.multiSetups.getForSetup, setupId),
+    listMembers: (multiSetupId) => ipcRenderer.invoke(IPC.multiSetups.listMembers, multiSetupId),
+    createFromSetup: (setupId, name) => ipcRenderer.invoke(IPC.multiSetups.createFromSetup, setupId, name),
+    addExisting: (multiSetupId, setupId) => ipcRenderer.invoke(IPC.multiSetups.addExisting, multiSetupId, setupId),
+    createAndAdd: (multiSetupId, name) => ipcRenderer.invoke(IPC.multiSetups.createAndAdd, multiSetupId, name),
+    removeSetup: (setupId) => ipcRenderer.invoke(IPC.multiSetups.removeSetup, setupId),
+    rename: (id, name) => ipcRenderer.invoke(IPC.multiSetups.rename, id, name)
+  },
   settings: {
     get: (key) => ipcRenderer.invoke(IPC.settings.get, key),
     set: (key, value) => ipcRenderer.invoke(IPC.settings.set, key, value)

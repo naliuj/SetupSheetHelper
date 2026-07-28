@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Speaker, FileText } from 'lucide-react'
 import type { Building, Studio } from '@shared/types/entities'
-import type { Folder, FolderScope, Setup } from '@shared/types/setup'
+import type { Folder, FolderScope, MultiSetup, Setup } from '@shared/types/setup'
 import type { FolderDeleteImpact } from '@shared/types/ipc'
 import { useNavigationStore } from '@renderer/state/navigationStore'
 import { useBerkleeFeaturesStore } from '@renderer/state/berkleeFeaturesStore'
@@ -34,6 +34,7 @@ export default function Home(): JSX.Element {
   const [selectedCustomFolderId, setSelectedCustomFolderId] = useState<number | null>(null)
   const [selectedSetupFolderId, setSelectedSetupFolderId] = useState<number | null>(null)
   const [savedSetups, setSavedSetups] = useState<Setup[]>([])
+  const [multiSetups, setMultiSetups] = useState<MultiSetup[]>([])
   const [buildingIdByStudio, setBuildingIdByStudio] = useState<Map<number, number | null>>(new Map())
   const [pendingSelection, setPendingSelection] = useState<PendingStudioSelection | null>(null)
   const [duplicateOf, setDuplicateOf] = useState<Setup | null>(null)
@@ -47,6 +48,7 @@ export default function Home(): JSX.Element {
     window.api.folders.list('studio').then(setStudioFolders)
     window.api.folders.list('setup').then(setSetupFolders)
     window.api.setups.listByKind({ kind: 'setup' }).then(setSavedSetups)
+    window.api.multiSetups.listAll().then(setMultiSetups)
   }
 
   useEffect(reload, [])
@@ -159,12 +161,15 @@ export default function Home(): JSX.Element {
         }
   )
 
+  const multiSetupsById = new Map(multiSetups.map((m) => [m.id, m]))
+
   const setupEntries: HomeEntry[] = savedSetups.map((setup) => ({
     id: `setup-${setup.id}`,
     kind: 'setup',
     folderId: setup.folderId,
     label: setup.name,
     meta: setup.sessionDate ?? 'no date',
+    badge: setup.multiSetupId != null ? multiSetupsById.get(setup.multiSetupId)?.name : undefined,
     onActivate: () => openSavedSetup(setup)
   }))
 

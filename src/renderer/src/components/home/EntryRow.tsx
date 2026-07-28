@@ -19,6 +19,7 @@ export default function EntryRow({
       <button type="button" className="home-row-main" onClick={entry.onActivate}>
         {entry.icon && <entry.icon className="home-icon" size={15} aria-hidden="true" />}
         <span className="home-row-label">{entry.label}</span>
+        {entry.badge && <span className="multi-setup-badge">{entry.badge}</span>}
         {entry.meta && <span className="home-row-meta">{entry.meta}</span>}
       </button>
       {entry.secondaryAction && (

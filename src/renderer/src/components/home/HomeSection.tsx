@@ -17,6 +17,8 @@ export interface HomeEntry {
   label: string
   /** Secondary line — "Studio", "Gear list", a session date, etc. */
   meta?: string
+  /** Small label — currently only used for a setup's Multi Setup name. */
+  badge?: string
   /** Lucide icon component shown before the label. */
   icon?: LucideIcon
   onActivate: () => void

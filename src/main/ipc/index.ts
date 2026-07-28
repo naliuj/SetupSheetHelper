@@ -2,6 +2,7 @@ import { registerStudioHandlers } from './studioHandlers'
 import { registerCatalogHandlers } from './catalogHandlers'
 import { registerChannelPresetHandlers } from './channelPresetHandlers'
 import { registerSetupHandlers } from './setupHandlers'
+import { registerMultiSetupHandlers } from './multiSetupHandlers'
 import { registerLayoutFileHandlers } from './layoutFileHandlers'
 import { registerExportHandlers } from './exportHandlers'
 import { registerFolderHandlers } from './folderHandlers'
@@ -17,6 +18,7 @@ export function registerAllIpcHandlers(): void {
   registerCatalogHandlers()
   registerChannelPresetHandlers()
   registerSetupHandlers()
+  registerMultiSetupHandlers()
   registerLayoutFileHandlers()
   registerExportHandlers()
   registerFolderHandlers()

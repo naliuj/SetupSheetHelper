@@ -20,6 +20,8 @@ import type {
   EditorMode,
   Folder,
   FolderScope,
+  MultiSetup,
+  MultiSetupMember,
   RoomLayoutBlock,
   Setup,
   SetupItem,
@@ -137,6 +139,16 @@ export const IPC = {
     duplicate: 'setups:duplicate',
     moveToFolder: 'setups:moveToFolder',
     reorder: 'setups:reorder'
+  },
+  multiSetups: {
+    listAll: 'multiSetups:listAll',
+    getForSetup: 'multiSetups:getForSetup',
+    listMembers: 'multiSetups:listMembers',
+    createFromSetup: 'multiSetups:createFromSetup',
+    addExisting: 'multiSetups:addExisting',
+    createAndAdd: 'multiSetups:createAndAdd',
+    removeSetup: 'multiSetups:removeSetup',
+    rename: 'multiSetups:rename'
   },
   settings: {
     get: 'settings:get',
@@ -625,6 +637,16 @@ export interface RendererApi {
     duplicate(input: DuplicateSetupInput): Promise<Setup>
     moveToFolder(id: number, folderId: number | null): Promise<void>
     reorder(ids: number[]): Promise<void>
+  }
+  multiSetups: {
+    listAll(): Promise<MultiSetup[]>
+    getForSetup(setupId: number): Promise<MultiSetup | null>
+    listMembers(multiSetupId: number): Promise<MultiSetupMember[]>
+    createFromSetup(setupId: number, name: string): Promise<MultiSetup>
+    addExisting(multiSetupId: number, setupId: number): Promise<void>
+    createAndAdd(multiSetupId: number, name: string): Promise<Setup>
+    removeSetup(setupId: number): Promise<void>
+    rename(id: number, name: string): Promise<void>
   }
   settings: {
     get(key: string): Promise<string | null>

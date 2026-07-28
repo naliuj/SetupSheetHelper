@@ -61,6 +61,7 @@ function EntryCard({ entry }: { entry: HomeEntry }): JSX.Element {
       <div className={`card-title${entry.icon ? ' card-title-icon' : ''}`}>
         {entry.icon && <entry.icon size={16} aria-hidden="true" />}
         {entry.label}
+        {entry.badge && <span className="multi-setup-badge">{entry.badge}</span>}
       </div>
       {entry.meta && <div className="card-sub">{entry.meta}</div>}
     </>

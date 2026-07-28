@@ -109,10 +109,29 @@ export interface Setup {
   /** Free-text session notes (tuning reference, mic-array spacing, or anything else) — deliberately
    *  unstructured. Null/blank means nothing to show in Setup Settings or on the PDF export. */
   sessionNotes: string | null
+  /** Which Multi Setup (see MultiSetup below) this setup is grouped into, if any. Null for a
+   *  standalone setup. */
+  multiSetupId: number | null
 }
 
 export interface SetupWithItems extends Setup {
   items: SetupItem[]
+}
+
+/** Groups several independent Setups (e.g. one per band in a multi-act recording session) that
+ *  share a studio, so the editor can offer a tab strip between them — see MultiSetupTabs.tsx.
+ *  Deliberately not called "session": Setup already owns sessionDate/sessionNotes. */
+export interface MultiSetup {
+  id: number
+  studioId: number
+  name: string
+  createdAt: string
+}
+
+/** Ordered member of a Multi Setup — just enough to render a tab strip button. */
+export interface MultiSetupMember {
+  id: number
+  name: string
 }
 
 /** Renderer-side working copy of a SetupItem. Unsaved items carry a client-generated string id. */

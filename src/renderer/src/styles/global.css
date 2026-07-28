@@ -383,6 +383,15 @@ table.data-table td select {
   font-size: 11px;
 }
 
+.multi-setup-badge {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-dim);
+  white-space: nowrap;
+}
+
 .empty-state {
   color: var(--color-text-dim);
   font-size: 13px;
