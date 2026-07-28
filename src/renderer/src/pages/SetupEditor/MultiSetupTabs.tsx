@@ -94,7 +94,7 @@ export default function MultiSetupTabs({ onOpenCompare }: Props): JSX.Element | 
 
   async function handleNewSetup(name: string): Promise<void> {
     if (!group) return
-    await window.api.multiSetups.createAndAdd(group.id, name, currentSetupId)
+    await window.api.multiSetups.createAndAdd(group.id, name)
     reload(currentSetupId)
   }
 

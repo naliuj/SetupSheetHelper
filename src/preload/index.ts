@@ -145,8 +145,7 @@ const api: RendererApi = {
     listMembers: (multiSetupId) => ipcRenderer.invoke(IPC.multiSetups.listMembers, multiSetupId),
     createWithSetups: (input) => ipcRenderer.invoke(IPC.multiSetups.createWithSetups, input),
     addExisting: (multiSetupId, setupId) => ipcRenderer.invoke(IPC.multiSetups.addExisting, multiSetupId, setupId),
-    createAndAdd: (multiSetupId, name, inheritFromSetupId) =>
-      ipcRenderer.invoke(IPC.multiSetups.createAndAdd, multiSetupId, name, inheritFromSetupId),
+    createAndAdd: (multiSetupId, name) => ipcRenderer.invoke(IPC.multiSetups.createAndAdd, multiSetupId, name),
     removeSetup: (setupId) => ipcRenderer.invoke(IPC.multiSetups.removeSetup, setupId),
     rename: (id, name) => ipcRenderer.invoke(IPC.multiSetups.rename, id, name),
     recordLastOpened: (setupId) => ipcRenderer.invoke(IPC.multiSetups.recordLastOpened, setupId),

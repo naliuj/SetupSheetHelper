@@ -263,23 +263,33 @@ export function duplicateSetup(
     facultyReserveEnabled,
     source.sessionNotes
   )
-  setOutboardColumnCount(setup.id, source.outboardColumnCount)
-  setVisibleColumns(setup.id, source.visibleColumns)
-  copyItemsToSetup(sourceSetupId, setup.id)
-  copyBlocksToSetup(sourceSetupId, setup.id)
+  copySetupContentTo(sourceSetupId, setup.id)
+  return setup
+}
+
+/** Copies everything that makes up a setup's *content* — column config, table rows, layout blocks,
+ *  and the room layout override — from one existing setup into another already-created one.
+ *  Deliberately touches nothing identifying (name, date, engineer, artist, folder): the caller owns
+ *  those. Shared by duplicateSetup and by Multi Setup's "a new band starts from the previous one". */
+export function copySetupContentTo(sourceSetupId: number, targetSetupId: number): void {
+  const source = getSetupWithItems(sourceSetupId)
+  if (!source) throw new Error('Setup not found')
+  setOutboardColumnCount(targetSetupId, source.outboardColumnCount)
+  setVisibleColumns(targetSetupId, source.visibleColumns)
+  copyItemsToSetup(sourceSetupId, targetSetupId)
+  copyBlocksToSetup(sourceSetupId, targetSetupId)
   const override = getSetupLayoutOverride(sourceSetupId)
   if (override?.kind === 'blank') {
-    upsertBlankLayoutOverride(setup.id)
+    upsertBlankLayoutOverride(targetSetupId)
   } else if (override?.kind === 'file' && override.filePath) {
     upsertFileLayoutOverride({
-      setupId: setup.id,
+      setupId: targetSetupId,
       filePath: override.filePath,
       originalName: override.originalName,
       pageWidthPt: override.pageWidthPt,
       pageHeightPt: override.pageHeightPt
     })
   }
-  return setup
 }
 
 /** Instantiates a brand-new editable Setup from a template's item list. */

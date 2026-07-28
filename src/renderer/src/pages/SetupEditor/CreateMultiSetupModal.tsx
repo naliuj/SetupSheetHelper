@@ -77,6 +77,9 @@ export default function CreateMultiSetupModal({
         <label className="card-sub" style={{ display: 'block', margin: '14px 0 4px' }}>
           Setups in this Multi Setup
         </label>
+        <p className="card-sub" style={{ margin: '0 0 8px' }}>
+          Each new setup starts as a copy of the one above it, without the artist name.
+        </p>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
           <input value={sourceName} onChange={(e) => setSourceName(e.target.value)} style={{ flex: 1 }} />
           <span className="card-sub" style={{ flexShrink: 0 }}>

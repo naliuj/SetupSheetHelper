@@ -670,7 +670,7 @@ export interface RendererApi {
     listMembers(multiSetupId: number): Promise<MultiSetupMember[]>
     createWithSetups(input: CreateMultiSetupInput): Promise<MultiSetup>
     addExisting(multiSetupId: number, setupId: number): Promise<void>
-    createAndAdd(multiSetupId: number, name: string, inheritFromSetupId: number): Promise<Setup>
+    createAndAdd(multiSetupId: number, name: string): Promise<Setup>
     removeSetup(setupId: number): Promise<void>
     rename(id: number, name: string): Promise<void>
     recordLastOpened(setupId: number): Promise<void>

@@ -8,7 +8,7 @@ import type {
 } from '@shared/types/setup'
 import { normalizeSourceName } from '@shared/utils/normalizeSourceName'
 import { getDb } from '../index'
-import { createSetup, removeSetups } from './setupsRepo'
+import { copySetupContentTo, createSetup, removeSetups } from './setupsRepo'
 
 interface MultiSetupRow {
   id: number
@@ -71,31 +71,49 @@ interface SessionContext {
   session_date: string | null
   engineer: string | null
   faculty_reserve_enabled: number
+  folder_id: number | null
+  session_notes: string | null
 }
 
-/** The bits a sibling setup should inherit from the one it's being grouped with. Bands in one
- *  Multi Setup play the same session in the same room, so date/engineer/faculty-reserve carry
- *  over; `artist` deliberately does not — that's the thing that differs per band. */
+/** The header fields a sibling setup inherits from the one it's being added alongside. Bands in one
+ *  Multi Setup play the same session in the same room, so date/engineer/faculty-reserve/notes carry
+ *  over, and folder does too (Home derives a group's folder from its members, so they have to
+ *  agree). `artist` deliberately does NOT — that's the one thing that differs per band. */
 function readSessionContext(db: ReturnType<typeof getDb>, setupId: number): SessionContext {
   const row = db
-    .prepare('SELECT studio_id, session_date, engineer, faculty_reserve_enabled FROM setups WHERE id = ?')
+    .prepare(
+      `SELECT studio_id, session_date, engineer, faculty_reserve_enabled, folder_id, session_notes
+         FROM setups WHERE id = ?`
+    )
     .get(setupId) as SessionContext | undefined
   if (!row) throw new Error('Setup not found')
   return row
 }
 
-function createInheritingSetup(context: SessionContext, name: string): Setup {
-  return createSetup(
+/** Creates a sibling setup as a full copy of `sourceSetupId` — same sheet, same layout, same column
+ *  config — under a new name and with the artist cleared.
+ *
+ *  Bands in one session overlap heavily (the drum kit, the room mics, the tie line plan), so
+ *  starting a new band from the previous one's sheet is far closer to the truth than starting
+ *  blank: the engineer deletes what this band doesn't need instead of retyping what it shares.
+ *  That's also the whole point of the Compare view — the less that drifts between bands, the less
+ *  there is to re-patch at changeover. */
+function createSiblingSetupFrom(db: ReturnType<typeof getDb>, sourceSetupId: number, name: string): Setup {
+  const context = readSessionContext(db, sourceSetupId)
+  const setup = createSetup(
     context.studio_id,
     name,
     context.session_date,
     'setup',
     null,
-    null,
+    context.folder_id,
     context.engineer,
     null,
-    context.faculty_reserve_enabled === 1
+    context.faculty_reserve_enabled === 1,
+    context.session_notes
   )
+  copySetupContentTo(sourceSetupId, setup.id)
+  return setup
 }
 
 export interface CreateMultiSetupWithSetupsInput {
@@ -103,8 +121,8 @@ export interface CreateMultiSetupWithSetupsInput {
   name: string
   /** Row 1's (possibly edited) name — renames the source setup in place. */
   sourceSetupName: string
-  /** One new blank setup per entry. Must be non-empty: a Multi Setup of one setup is just a
-   *  setup, and removeSetupFromMultiSetup would dissolve it right back. */
+  /** One new setup per entry, each a copy of the one before it. Must be non-empty: a Multi Setup
+   *  of one setup is just a setup, and removeSetupFromMultiSetup would dissolve it right back. */
   newSetupNames: string[]
 }
 
@@ -129,9 +147,14 @@ export function createMultiSetupWithSetups(input: CreateMultiSetupWithSetupsInpu
       multiSetupId,
       input.sourceSetupId
     )
+    // Chained: each new setup copies the one before it, starting from the setup being promoted.
+    // With all of them created at once that's the same content either way, but it keeps "a new
+    // setup inherits from the previous" true as the single rule for both creation paths.
+    let previousSetupId = input.sourceSetupId
     for (const name of names) {
-      const sibling = createInheritingSetup(context, name)
+      const sibling = createSiblingSetupFrom(db, previousSetupId, name)
       db.prepare('UPDATE setups SET multi_setup_id = ? WHERE id = ?').run(multiSetupId, sibling.id)
+      previousSetupId = sibling.id
     }
     return multiSetupId
   })
@@ -155,19 +178,19 @@ export function addSetupToMultiSetup(multiSetupId: number, setupId: number): voi
   db.prepare('UPDATE setups SET multi_setup_id = ? WHERE id = ?').run(multiSetupId, setupId)
 }
 
-/** Creates a brand-new blank setup and links it straight into a Multi Setup — the tab strip's
- *  "New setup" action. Inherits session context from `inheritFromSetupId` (the setup the user has
- *  open), since "add another one alongside this" is the intent — stamping today's date would be
- *  wrong for a session being prepped days ahead. */
-export function createSetupInMultiSetup(multiSetupId: number, name: string, inheritFromSetupId: number): Setup {
+/** Adds a setup to an existing Multi Setup — the tab strip's "New setup" action. Copies the LAST
+ *  member (the previous band in tab order), not whichever tab happens to be open: the group reads
+ *  left to right, so "the one before this new one" is the last one in it. */
+export function createSetupInMultiSetup(multiSetupId: number, name: string): Setup {
   const db = getDb()
-  const group = db.prepare('SELECT studio_id FROM multi_setups WHERE id = ?').get(multiSetupId) as
-    | { studio_id: number }
-    | undefined
-  if (!group) throw new Error('Multi Setup not found')
-  const setup = createInheritingSetup(readSessionContext(db, inheritFromSetupId), name)
-  db.prepare('UPDATE setups SET multi_setup_id = ? WHERE id = ?').run(multiSetupId, setup.id)
-  return { ...setup, multiSetupId }
+  const create = db.transaction(() => {
+    const members = listMultiSetupMembers(multiSetupId)
+    if (members.length === 0) throw new Error('Multi Setup not found')
+    const setup = createSiblingSetupFrom(db, members[members.length - 1].id, name)
+    db.prepare('UPDATE setups SET multi_setup_id = ? WHERE id = ?').run(multiSetupId, setup.id)
+    return setup
+  })
+  return { ...create(), multiSetupId }
 }
 
 /** Unlinks one setup from its Multi Setup. A group of 0-1 members means nothing (a "Multi Setup" of

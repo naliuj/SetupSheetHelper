@@ -14,10 +14,8 @@ export function registerMultiSetupHandlers(): void {
   ipcMain.handle(IPC.multiSetups.addExisting, (_e, multiSetupId: number, setupId: number) =>
     multiSetupsRepo.addSetupToMultiSetup(multiSetupId, setupId)
   )
-  ipcMain.handle(
-    IPC.multiSetups.createAndAdd,
-    (_e, multiSetupId: number, name: string, inheritFromSetupId: number) =>
-      multiSetupsRepo.createSetupInMultiSetup(multiSetupId, name, inheritFromSetupId)
+  ipcMain.handle(IPC.multiSetups.createAndAdd, (_e, multiSetupId: number, name: string) =>
+    multiSetupsRepo.createSetupInMultiSetup(multiSetupId, name)
   )
   ipcMain.handle(IPC.multiSetups.removeSetup, (_e, setupId: number) =>
     multiSetupsRepo.removeSetupFromMultiSetup(setupId)
