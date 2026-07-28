@@ -148,7 +148,18 @@ const api: RendererApi = {
     createAndAdd: (multiSetupId, name, inheritFromSetupId) =>
       ipcRenderer.invoke(IPC.multiSetups.createAndAdd, multiSetupId, name, inheritFromSetupId),
     removeSetup: (setupId) => ipcRenderer.invoke(IPC.multiSetups.removeSetup, setupId),
-    rename: (id, name) => ipcRenderer.invoke(IPC.multiSetups.rename, id, name)
+    rename: (id, name) => ipcRenderer.invoke(IPC.multiSetups.rename, id, name),
+    recordLastOpened: (setupId) => ipcRenderer.invoke(IPC.multiSetups.recordLastOpened, setupId),
+    getDeleteImpact: (id) => ipcRenderer.invoke(IPC.multiSetups.getDeleteImpact, id),
+    moveToFolder: (multiSetupId, folderId) =>
+      ipcRenderer.invoke(IPC.multiSetups.moveToFolder, multiSetupId, folderId),
+    removeManyCascade: (ids) => ipcRenderer.invoke(IPC.multiSetups.removeManyCascade, ids),
+    getComparison: (multiSetupId) => ipcRenderer.invoke(IPC.multiSetups.getComparison, multiSetupId),
+    linkSources: (multiSetupId, sourceNames) =>
+      ipcRenderer.invoke(IPC.multiSetups.linkSources, multiSetupId, sourceNames),
+    unlinkSource: (multiSetupId, sourceName) =>
+      ipcRenderer.invoke(IPC.multiSetups.unlinkSource, multiSetupId, sourceName),
+    alignRow: (input) => ipcRenderer.invoke(IPC.multiSetups.alignRow, input)
   },
   settings: {
     get: (key) => ipcRenderer.invoke(IPC.settings.get, key),

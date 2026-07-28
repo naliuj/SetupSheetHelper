@@ -126,12 +126,45 @@ export interface MultiSetup {
   studioId: number
   name: string
   createdAt: string
+  /** Member the group was last opened at — Home's grouped card reopens here. Null until the first
+   *  open, or after that member is deleted (the FK is ON DELETE SET NULL). */
+  lastSetupId: number | null
 }
 
 /** Ordered member of a Multi Setup — just enough to render a tab strip button. */
 export interface MultiSetupMember {
   id: number
   name: string
+}
+
+/** One member's row, flattened to just what the Compare grid renders and aligns on. */
+export interface MultiSetupComparisonItem {
+  itemId: number
+  sourceName: string
+  channel: number | null
+  /** Resolved main-side (the catalog mic's name, else the free-text micText). Must be resolved
+   *  there, not in the renderer: catalogStore only holds mics available to the OPEN setup, and a
+   *  sibling band can reference one filtered out of that list. */
+  micLabel: string | null
+}
+
+export interface MultiSetupComparisonMember {
+  setupId: number
+  name: string
+  items: MultiSetupComparisonItem[]
+}
+
+/** A set of source names the user has declared equivalent within one Multi Setup. */
+export interface MultiSetupSourceLink {
+  linkKey: string
+  sourceNames: string[]
+}
+
+export interface MultiSetupComparison {
+  multiSetup: MultiSetup
+  /** Column order — matches the editor's tab strip (sort_order, id). */
+  members: MultiSetupComparisonMember[]
+  links: MultiSetupSourceLink[]
 }
 
 /** Renderer-side working copy of a SetupItem. Unsaved items carry a client-generated string id. */

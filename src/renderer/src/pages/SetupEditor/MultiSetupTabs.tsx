@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { MoreHorizontal } from 'lucide-react'
+import { GitCompare, MoreHorizontal } from 'lucide-react'
 import type { MultiSetup, MultiSetupMember } from '@shared/types/setup'
 import { useNavigationStore } from '@renderer/state/navigationStore'
 import { useSetupStore } from '@renderer/state/setupStore'
@@ -15,7 +15,13 @@ import AddExistingSetupModal from './AddExistingSetupModal'
  *  Reuses the app's existing single-document navigation — clicking a tab just calls goToSetup, the
  *  same action Home's "open a saved setup" uses, so SetupEditor's normal load effect picks up the
  *  new setup with no extra plumbing. */
-export default function MultiSetupTabs(): JSX.Element | null {
+interface Props {
+  /** Opens the Compare page. Lives here rather than in SetupEditor because the group id is only
+   *  known once this component has resolved it. */
+  onOpenCompare: (multiSetupId: number) => void
+}
+
+export default function MultiSetupTabs({ onOpenCompare }: Props): JSX.Element | null {
   const buildingId = useNavigationStore((s) => s.buildingId)
   const studioId = useNavigationStore((s) => s.studioId)
   const setupId = useNavigationStore((s) => s.setupId)
@@ -137,7 +143,7 @@ export default function MultiSetupTabs(): JSX.Element | null {
         <button
           key={m.id}
           className={`multi-setup-tab${m.id === currentSetupId ? ' active' : ''}`}
-          onClick={() => m.id !== currentSetupId && goToSetup(buildingId, studioId, m.id)}
+          onClick={() => m.id !== currentSetupId && goToSetup(buildingId, studioId, m.id, { keepEditorMode: true })}
         >
           {m.name}
         </button>
@@ -206,6 +212,15 @@ export default function MultiSetupTabs(): JSX.Element | null {
           </div>
         )}
       </div>
+
+      {/* A button, not a .multi-setup-tab — it isn't a setup you navigate to. */}
+      <button
+        className="btn small"
+        onClick={() => onOpenCompare(group.id)}
+        style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+      >
+        <GitCompare size={14} aria-hidden="true" /> Compare
+      </button>
 
       {renameOpen && (
         <MultiSetupNamePromptModal

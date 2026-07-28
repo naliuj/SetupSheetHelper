@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Speaker, FileText } from 'lucide-react'
+import { Speaker, FileText, Layers } from 'lucide-react'
 import type { Building, Studio } from '@shared/types/entities'
 import type { Folder, FolderScope, MultiSetup, Setup } from '@shared/types/setup'
 import type { FolderDeleteImpact } from '@shared/types/ipc'
@@ -161,17 +161,58 @@ export default function Home(): JSX.Element {
         }
   )
 
-  const multiSetupsById = new Map(multiSetups.map((m) => [m.id, m]))
+  // A Multi Setup is one thing on Home, not N — its members are the same session in the same room,
+  // so listing them individually buries every standalone setup under a wall of band names. Derived
+  // from the savedSetups fetch already in hand; member order matches the editor's tab strip
+  // (listMultiSetupMembers orders by sort_order, id).
+  const membersByMultiSetup = new Map<number, Setup[]>()
+  for (const setup of savedSetups) {
+    if (setup.multiSetupId == null) continue
+    const members = membersByMultiSetup.get(setup.multiSetupId) ?? []
+    members.push(setup)
+    membersByMultiSetup.set(setup.multiSetupId, members)
+  }
+  for (const members of membersByMultiSetup.values()) {
+    members.sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id)
+  }
+  const standaloneSetups = savedSetups.filter((s) => s.multiSetupId == null)
 
-  const setupEntries: HomeEntry[] = savedSetups.map((setup) => ({
-    id: `setup-${setup.id}`,
-    kind: 'setup',
-    folderId: setup.folderId,
-    label: setup.name,
-    meta: setup.sessionDate ?? 'no date',
-    badge: setup.multiSetupId != null ? multiSetupsById.get(setup.multiSetupId)?.name : undefined,
-    onActivate: () => openSavedSetup(setup)
-  }))
+  // A group owns no folder of its own — its members do (there's no multi_setups.folder_id, so
+  // setups.folder_id stays the single source of truth). First member wins, and moving a group from
+  // Manage Setups moves every member, so the derivation and reality stay in step.
+  const groupedMultiSetups = multiSetups
+    .map((group) => ({ group, members: membersByMultiSetup.get(group.id) ?? [] }))
+    .filter(({ members }) => members.length > 0)
+
+  /** Opens the band the user was last in, falling back to the first member. */
+  function openMultiSetup(group: MultiSetup, members: Setup[]): Promise<void> {
+    return openSavedSetup(members.find((m) => m.id === group.lastSetupId) ?? members[0])
+  }
+
+  const setupEntries: HomeEntry[] = [
+    ...standaloneSetups.map(
+      (setup): HomeEntry => ({
+        id: `setup-${setup.id}`,
+        kind: 'setup',
+        folderId: setup.folderId,
+        label: setup.name,
+        meta: setup.sessionDate ?? 'no date',
+        onActivate: () => openSavedSetup(setup)
+      })
+    ),
+    ...groupedMultiSetups.map(
+      ({ group, members }): HomeEntry => ({
+        id: `multiSetup-${group.id}`,
+        kind: 'multiSetup',
+        folderId: members[0].folderId,
+        label: group.name,
+        meta: `${members.length} setup${members.length === 1 ? '' : 's'} · ${members[0].sessionDate ?? 'no date'}`,
+        badge: 'Multi Setup',
+        icon: Layers,
+        onActivate: () => openMultiSetup(group, members)
+      })
+    )
+  ]
 
   // Berklee lives inline in the templates section as a folder subtree: a "Berklee" root folder,
   // one subfolder per building, studios as entries under their building. Synthetic negative folder
@@ -260,31 +301,56 @@ export default function Home(): JSX.Element {
     reload()
   }
 
-  const manageSetupItems: ManagedItem[] = savedSetups.map((s) => ({
-    kind: 'setup',
-    id: s.id,
-    folderId: s.folderId,
-    label: s.name
-  }))
+  // Mirrors the Home grouping so both surfaces agree on what a Multi Setup is: one row, not N.
+  const manageSetupItems: ManagedItem[] = [
+    ...standaloneSetups.map((s) => ({ kind: 'setup', id: s.id, folderId: s.folderId, label: s.name })),
+    ...groupedMultiSetups.map(({ group, members }) => ({
+      kind: 'multiSetup',
+      id: group.id,
+      folderId: members[0].folderId,
+      label: group.name,
+      icon: Layers,
+      kindLabel: 'Multi Setups',
+      // Duplicating a whole Multi Setup isn't supported, and leaving the button on would let the
+      // parent's id-based lookup match an unrelated setup that happens to share the group's id.
+      disableDuplicate: true
+    }))
+  ]
 
-  async function handleSetupItemMoveToFolder(_kind: string, id: number, folderId: number | null): Promise<void> {
-    await window.api.setups.moveToFolder(id, folderId)
+  async function handleSetupItemMoveToFolder(kind: string, id: number, folderId: number | null): Promise<void> {
+    // Main-side and atomic for a group — N renderer round-trips could half-apply.
+    if (kind === 'multiSetup') await window.api.multiSetups.moveToFolder(id, folderId)
+    else await window.api.setups.moveToFolder(id, folderId)
     reload()
   }
-  async function handleSetupItemReorder(_kind: string, _folderId: number | null, orderedIds: number[]): Promise<void> {
-    await window.api.setups.reorder(orderedIds)
+  async function handleSetupItemReorder(kind: string, _folderId: number | null, orderedIds: number[]): Promise<void> {
+    // Expand groups back to their member ids — sort_order lives on setups, and keeping each group's
+    // members contiguous is what makes the derived group position stable.
+    const expanded =
+      kind === 'multiSetup'
+        ? orderedIds.flatMap((groupId) => (membersByMultiSetup.get(groupId) ?? []).map((m) => m.id))
+        : orderedIds
+    await window.api.setups.reorder(expanded)
     reload()
   }
-  async function handleSetupItemDelete(_kind: string, item: ManagedItem): Promise<void> {
-    await window.api.setups.remove(item.id)
+  async function handleSetupItemDelete(kind: string, item: ManagedItem): Promise<void> {
+    if (kind === 'multiSetup') await window.api.multiSetups.removeManyCascade([item.id])
+    else await window.api.setups.remove(item.id)
     reload()
   }
   async function handleSetupItemBulkDelete(items: ManagedItem[]): Promise<void> {
-    await window.api.setups.removeMany(items.map((item) => item.id))
+    const setupIds = items.filter((i) => i.kind === 'setup').map((i) => i.id)
+    const groupIds = items.filter((i) => i.kind === 'multiSetup').map((i) => i.id)
+    if (setupIds.length > 0) await window.api.setups.removeMany(setupIds)
+    if (groupIds.length > 0) await window.api.multiSetups.removeManyCascade(groupIds)
     reload()
   }
 
   function handleDuplicateItemClick(item: ManagedItem): void {
+    // Belt-and-braces alongside disableDuplicate on group rows: this lookup is by id alone, and a
+    // Multi Setup id can coincidentally equal a real setup's id — which would open the Duplicate
+    // dialog for an unrelated setup.
+    if (item.kind !== 'setup') return
     const setup = savedSetups.find((s) => s.id === item.id)
     if (setup) setDuplicateOf(setup)
   }

@@ -167,15 +167,41 @@ export function setOutboardColumnCount(id: number, count: number): void {
 }
 
 export function removeSetup(id: number): void {
-  getDb().prepare('DELETE FROM setups WHERE id = ?').run(id)
+  removeSetups([id])
 }
 
+/** Deletes setups and dissolves any Multi Setup left with 0-1 members afterward.
+ *
+ *  A group of one is meaningless (see multiSetupsRepo.removeSetupFromMultiSetup, which dissolves on
+ *  unlink for the same reason) — but that only covers unlinking, not deleting. Without this,
+ *  deleting 2 of 3 members left a live one-member group behind. The dissolve lives here rather than
+ *  in multiSetupsRepo because every delete path funnels through this one function: Manage Setups
+ *  (setupHandlers), the studio cascade (studiosRepo) and the folder cascade (foldersRepo). The
+ *  survivor's own multi_setup_id is cleared for free by the column's ON DELETE SET NULL. */
 export function removeSetups(ids: number[]): void {
   if (ids.length === 0) return
+  const db = getDb()
   const placeholders = ids.map(() => '?').join(',')
-  getDb()
-    .prepare(`DELETE FROM setups WHERE id IN (${placeholders})`)
-    .run(...ids)
+  const remove = db.transaction(() => {
+    const affectedGroups = (
+      db
+        .prepare(
+          `SELECT DISTINCT multi_setup_id AS id FROM setups
+            WHERE id IN (${placeholders}) AND multi_setup_id IS NOT NULL`
+        )
+        .all(...ids) as { id: number }[]
+    ).map((r) => r.id)
+
+    db.prepare(`DELETE FROM setups WHERE id IN (${placeholders})`).run(...ids)
+
+    for (const multiSetupId of affectedGroups) {
+      const remaining = (
+        db.prepare('SELECT COUNT(*) c FROM setups WHERE multi_setup_id = ?').get(multiSetupId) as { c: number }
+      ).c
+      if (remaining <= 1) db.prepare('DELETE FROM multi_setups WHERE id = ?').run(multiSetupId)
+    }
+  })
+  remove()
 }
 
 /** Lightweight reparent for drag-to-folder — doesn't touch name/updated_at. */

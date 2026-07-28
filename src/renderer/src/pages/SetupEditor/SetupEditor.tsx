@@ -12,6 +12,7 @@ import SelectionActionBar from './table/SelectionActionBar'
 import SetupToolbar from './SetupToolbar'
 import SetupSettingsPage from './SetupSettingsPage'
 import MultiSetupTabs from './MultiSetupTabs'
+import MultiSetupComparePage from './MultiSetupComparePage'
 import Toast from '@renderer/components/Toast'
 
 const AUTOSAVE_DELAY_MS = 1000
@@ -31,6 +32,7 @@ export default function SetupEditor(): JSX.Element {
   const setMode = useNavigationStore((s) => s.setEditorMode)
 
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [compareMultiSetupId, setCompareMultiSetupId] = useState<number | null>(null)
 
   const startNewSetup = useSetupStore((s) => s.startNewSetup)
   const loadFromSetup = useSetupStore((s) => s.loadFromSetup)
@@ -68,12 +70,21 @@ export default function SetupEditor(): JSX.Element {
     if (!studioId) return
     setSetupLoaded(false)
     loadLayoutBlocks(setupId)
+    // Consumed synchronously, before the async load — if a second Multi Setup tab click lands while
+    // the first getWithItems is still in flight, consuming inside the .then would steal the wrong
+    // navigation's flag.
+    const keepMode = useNavigationStore.getState().consumeKeepEditorMode()
 
     if (setupId) {
       window.api.setups.getWithItems(setupId).then((setup) => {
         if (setup) {
           loadFromSetup(setup)
-          setMode(setup.lastEditorMode)
+          // A Multi Setup tab switch keeps whatever mode the user is in; every other way of opening
+          // a setup honors that setup's own remembered mode.
+          if (!keepMode) setMode(setup.lastEditorMode)
+          // Lets Home's grouped card reopen at the band actually being worked in. No-ops for a
+          // standalone setup.
+          if (setup.multiSetupId != null) void window.api.multiSetups.recordLastOpened(setup.id)
         }
         setSetupLoaded(true)
       })
@@ -139,6 +150,24 @@ export default function SetupEditor(): JSX.Element {
     }
   }, [])
 
+  // Compare reads straight from the DB, but autosave is debounced — without flushing first, an edit
+  // made a beat ago would show stale, and worse, that pending save would land on top of any
+  // alignment write afterwards.
+  async function openCompare(multiSetupId: number): Promise<void> {
+    const state = useSetupStore.getState()
+    if (state.isDirty) await state.save()
+    setCompareMultiSetupId(multiSetupId)
+  }
+
+  // An alignment may have rewritten the open setup behind setupStore's back — reload it, or the
+  // next autosave pushes the pre-alignment items back over the write.
+  async function closeCompare(didAlign: boolean): Promise<void> {
+    setCompareMultiSetupId(null)
+    if (!didAlign || !setupId) return
+    const setup = await window.api.setups.getWithItems(setupId)
+    if (setup) loadFromSetup(setup)
+  }
+
   if (!studioId) {
     return (
       <div className="page">
@@ -151,12 +180,16 @@ export default function SetupEditor(): JSX.Element {
     return <SetupSettingsPage setupId={setupId} onBack={() => setSettingsOpen(false)} />
   }
 
+  if (compareMultiSetupId != null) {
+    return <MultiSetupComparePage multiSetupId={compareMultiSetupId} onBack={closeCompare} />
+  }
+
   return (
     <div className="page" style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: 0 }}>
       <div className="nav-crumbs" style={{ padding: '10px 16px 0' }}>
         <button onClick={goToHome}>Home</button> / Setup Editor
       </div>
-      <MultiSetupTabs />
+      <MultiSetupTabs onOpenCompare={openCompare} />
       <SetupToolbar
         stageRef={stageRef}
         mode={mode}

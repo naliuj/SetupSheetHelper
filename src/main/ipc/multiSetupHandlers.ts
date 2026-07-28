@@ -1,5 +1,5 @@
 import { ipcMain } from 'electron'
-import { IPC, type CreateMultiSetupInput } from '@shared/types/ipc'
+import { IPC, type AlignMultiSetupRowInput, type CreateMultiSetupInput } from '@shared/types/ipc'
 import * as multiSetupsRepo from '../db/repositories/multiSetupsRepo'
 
 export function registerMultiSetupHandlers(): void {
@@ -23,4 +23,26 @@ export function registerMultiSetupHandlers(): void {
     multiSetupsRepo.removeSetupFromMultiSetup(setupId)
   )
   ipcMain.handle(IPC.multiSetups.rename, (_e, id: number, name: string) => multiSetupsRepo.renameMultiSetup(id, name))
+  ipcMain.handle(IPC.multiSetups.recordLastOpened, (_e, setupId: number) =>
+    multiSetupsRepo.recordLastOpenedSetup(setupId)
+  )
+  ipcMain.handle(IPC.multiSetups.getDeleteImpact, (_e, id: number) => multiSetupsRepo.getMultiSetupDeleteImpact(id))
+  ipcMain.handle(IPC.multiSetups.moveToFolder, (_e, multiSetupId: number, folderId: number | null) =>
+    multiSetupsRepo.moveMultiSetupToFolder(multiSetupId, folderId)
+  )
+  ipcMain.handle(IPC.multiSetups.removeManyCascade, (_e, ids: number[]) =>
+    multiSetupsRepo.removeMultiSetupsCascade(ids)
+  )
+  ipcMain.handle(IPC.multiSetups.getComparison, (_e, multiSetupId: number) =>
+    multiSetupsRepo.getMultiSetupComparison(multiSetupId)
+  )
+  ipcMain.handle(IPC.multiSetups.linkSources, (_e, multiSetupId: number, sourceNames: string[]) =>
+    multiSetupsRepo.linkSources(multiSetupId, sourceNames)
+  )
+  ipcMain.handle(IPC.multiSetups.unlinkSource, (_e, multiSetupId: number, sourceName: string) =>
+    multiSetupsRepo.unlinkSource(multiSetupId, sourceName)
+  )
+  ipcMain.handle(IPC.multiSetups.alignRow, (_e, input: AlignMultiSetupRowInput) =>
+    multiSetupsRepo.alignMultiSetupRow(input)
+  )
 }

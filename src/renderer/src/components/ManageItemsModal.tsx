@@ -27,6 +27,13 @@ export interface ManagedItem {
   label: string
   /** Optional Lucide icon shown before the label. */
   icon?: LucideIcon
+  /** Already-plural heading for this kind's group, for kinds whose raw string doesn't capitalize
+   *  into something readable ("MultiSetups"). Falls back to the capitalized kind + "s". */
+  kindLabel?: string
+  /** Hides the Duplicate button for this row. Set on kinds where duplication is meaningless (a
+   *  Multi Setup), which also keeps the parent's id-based lookup from matching an unrelated
+   *  same-numbered setup. */
+  disableDuplicate?: boolean
 }
 
 interface Props {
@@ -225,15 +232,15 @@ export default function ManageItemsModal({
   const [activeDndId, setActiveDndId] = useState<string | null>(null)
   const [folderDialog, setFolderDialog] = useState<FolderDialog | null>(null)
   const [dialogName, setDialogName] = useState('')
-  const [itemDialog, setItemDialog] = useState<{
-    item: ManagedItem
-    studioImpact: { setupCount: number; templateCount: number } | null
-  } | null>(null)
+  // Impact is a ready-made sentence rather than a per-kind count shape: only some kinds own
+  // children (a studio's setups/templates, a Multi Setup's member setups), and a mixed-kind bulk
+  // delete would otherwise need one nullable count field per kind. Same approach as
+  // describeFolderImpact above.
+  const [itemDialog, setItemDialog] = useState<{ item: ManagedItem; impact: string | null } | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
-  const [bulkDeleteDialog, setBulkDeleteDialog] = useState<{
-    items: ManagedItem[]
-    studioImpact: { setupCount: number; templateCount: number }
-  } | null>(null)
+  const [bulkDeleteDialog, setBulkDeleteDialog] = useState<{ items: ManagedItem[]; impact: string | null } | null>(
+    null
+  )
 
   // Escape closes whichever layer is on top: a delete/folder dialog if one's open, else clears an
   // active bulk selection, else closes the modal — never two layers from a single keypress.
@@ -300,9 +307,47 @@ export default function ManageItemsModal({
     setFolderDialog({ kind: 'delete', id, name: folder.name, impact })
   }
 
+  /** What else a delete takes with it, as a sentence — or null when it's just the one thing. */
+  async function describeItemImpact(items: ManagedItem[]): Promise<string | null> {
+    const studioIds = items.filter((i) => i.kind === 'studio').map((i) => i.id)
+    const multiSetupIds = items.filter((i) => i.kind === 'multiSetup').map((i) => i.id)
+    const parts: string[] = []
+
+    if (studioIds.length > 0) {
+      const impacts = await Promise.all(studioIds.map((id) => window.api.studios.getDeleteImpact(id)))
+      const { setupCount, templateCount } = impacts.reduce(
+        (sum, i) => ({
+          setupCount: sum.setupCount + i.setupCount,
+          templateCount: sum.templateCount + i.templateCount
+        }),
+        { setupCount: 0, templateCount: 0 }
+      )
+      if (setupCount + templateCount > 0) {
+        parts.push(
+          `This also deletes ${pluralize(setupCount, 'setup')} and ${pluralize(templateCount, 'template')}${
+            studioIds.length > 1 ? ' across the selected studios' : ' in this studio'
+          }.`
+        )
+      }
+    }
+
+    if (multiSetupIds.length > 0) {
+      const impacts = await Promise.all(multiSetupIds.map((id) => window.api.multiSetups.getDeleteImpact(id)))
+      const setupCount = impacts.reduce((sum, i) => sum + i.setupCount, 0)
+      if (setupCount > 0) {
+        parts.push(
+          `This also deletes ${pluralize(setupCount, 'setup')}${
+            multiSetupIds.length > 1 ? ' across the selected Multi Setups' : ' in this Multi Setup'
+          }.`
+        )
+      }
+    }
+
+    return parts.length > 0 ? parts.join(' ') : null
+  }
+
   async function handleItemDelete(item: ManagedItem): Promise<void> {
-    const studioImpact = item.kind === 'studio' ? await window.api.studios.getDeleteImpact(item.id) : null
-    setItemDialog({ item, studioImpact })
+    setItemDialog({ item, impact: await describeItemImpact([item]) })
   }
 
   async function confirmItemDelete(): Promise<void> {
@@ -332,16 +377,7 @@ export default function ManageItemsModal({
   async function handleBulkDeleteClick(): Promise<void> {
     const selected = itemsHere.filter((item) => selectedIds.has(`${item.kind}-${item.id}`))
     if (selected.length === 0) return
-    const studioIds = selected.filter((item) => item.kind === 'studio').map((item) => item.id)
-    const impacts = await Promise.all(studioIds.map((id) => window.api.studios.getDeleteImpact(id)))
-    const studioImpact = impacts.reduce(
-      (sum, impact) => ({
-        setupCount: sum.setupCount + impact.setupCount,
-        templateCount: sum.templateCount + impact.templateCount
-      }),
-      { setupCount: 0, templateCount: 0 }
-    )
-    setBulkDeleteDialog({ items: selected, studioImpact })
+    setBulkDeleteDialog({ items: selected, impact: await describeItemImpact(selected) })
   }
 
   async function confirmBulkDelete(): Promise<void> {
@@ -474,7 +510,7 @@ export default function ManageItemsModal({
                     <div key={kind}>
                       {kinds.length > 1 && (
                         <div className="manage-kind-heading">
-                          {kind.charAt(0).toUpperCase() + kind.slice(1)}s
+                          {groupItems[0].kindLabel ?? `${kind.charAt(0).toUpperCase() + kind.slice(1)}s`}
                         </div>
                       )}
                       <SortableContext
@@ -489,7 +525,9 @@ export default function ManageItemsModal({
                             onToggleSelect={() => toggleItemSelect(item)}
                             onDelete={() => handleItemDelete(item)}
                             onEdit={onEditItem ? () => onEditItem(item) : undefined}
-                            onDuplicate={onDuplicateItem ? () => onDuplicateItem(item) : undefined}
+                            onDuplicate={
+                              onDuplicateItem && !item.disableDuplicate ? () => onDuplicateItem(item) : undefined
+                            }
                           />
                         ))}
                       </SortableContext>
@@ -557,13 +595,7 @@ export default function ManageItemsModal({
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 420 }}>
             <h2 style={{ marginTop: 0 }}>Delete "{itemDialog.item.label}"?</h2>
             <p className="card-sub">
-              {itemDialog.studioImpact && itemDialog.studioImpact.setupCount + itemDialog.studioImpact.templateCount > 0
-                ? `This also deletes ${itemDialog.studioImpact.setupCount} setup${
-                    itemDialog.studioImpact.setupCount === 1 ? '' : 's'
-                  } and ${itemDialog.studioImpact.templateCount} template${
-                    itemDialog.studioImpact.templateCount === 1 ? '' : 's'
-                  } in this studio. This can't be undone.`
-                : "This can't be undone."}
+              {itemDialog.impact ? `${itemDialog.impact} This can't be undone.` : "This can't be undone."}
             </p>
             <div className="modal-actions">
               <button className="btn" onClick={() => setItemDialog(null)}>
@@ -582,12 +614,7 @@ export default function ManageItemsModal({
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 420 }}>
             <h2 style={{ marginTop: 0 }}>Delete {pluralize(bulkDeleteDialog.items.length, 'item')}?</h2>
             <p className="card-sub">
-              {bulkDeleteDialog.studioImpact.setupCount + bulkDeleteDialog.studioImpact.templateCount > 0
-                ? `This also deletes ${pluralize(bulkDeleteDialog.studioImpact.setupCount, 'setup')} and ${pluralize(
-                    bulkDeleteDialog.studioImpact.templateCount,
-                    'template'
-                  )} across the selected studios. This can't be undone.`
-                : "This can't be undone."}
+              {bulkDeleteDialog.impact ? `${bulkDeleteDialog.impact} This can't be undone.` : "This can't be undone."}
             </p>
             <div className="modal-actions">
               <button className="btn" onClick={() => setBulkDeleteDialog(null)}>

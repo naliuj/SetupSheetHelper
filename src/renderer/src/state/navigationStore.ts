@@ -21,15 +21,27 @@ interface NavigationState {
    *  by SettingsPage's initial activeTab state and cleared so a later plain "Cmd+," open (or
    *  clicking a tab button) doesn't keep bouncing back to it. */
   settingsInitialTab: string | null
+  /** Set by a navigation that must NOT re-apply the target setup's own lastEditorMode — currently
+   *  only the Multi Setup tab strip, where being flipped Table↔Layout mid-comparison is
+   *  disorienting. Consumed once by SetupEditor's load effect (same one-shot shape as
+   *  settingsInitialTab) and rewritten by EVERY goToSetup, so a plain Home → setup open can never
+   *  inherit a stale `true`. */
+  keepEditorMode: boolean
 
   goToHome(): void
   /** buildingId is null for custom (buildingless) studios. */
-  goToSetup(buildingId: number | null, studioId: number, setupId: number | null): void
+  goToSetup(
+    buildingId: number | null,
+    studioId: number,
+    setupId: number | null,
+    options?: { keepEditorMode?: boolean }
+  ): void
   goToStudioSetup(studioId: number | null): void
   goToSettings(initialTab?: string): void
   closeSettings(): void
   setEditorMode(mode: EditorMode): void
   consumeSettingsInitialTab(): string | null
+  consumeKeepEditorMode(): boolean
 }
 
 export const useNavigationStore = create<NavigationState>((set, get) => ({
@@ -41,9 +53,11 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
   previousView: null,
   editorMode: 'table',
   settingsInitialTab: null,
+  keepEditorMode: false,
 
   goToHome: () => set({ view: 'home', setupId: null }),
-  goToSetup: (buildingId, studioId, setupId) => set({ view: 'setup', buildingId, studioId, setupId }),
+  goToSetup: (buildingId, studioId, setupId, options) =>
+    set({ view: 'setup', buildingId, studioId, setupId, keepEditorMode: options?.keepEditorMode ?? false }),
   goToStudioSetup: (studioId) => set({ view: 'studioSetup', studioSetupId: studioId }),
   goToSettings: (initialTab) => {
     const current = get().view
@@ -59,5 +73,10 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
     const tab = get().settingsInitialTab
     set({ settingsInitialTab: null })
     return tab
+  },
+  consumeKeepEditorMode: () => {
+    const keep = get().keepEditorMode
+    set({ keepEditorMode: false })
+    return keep
   }
 }))

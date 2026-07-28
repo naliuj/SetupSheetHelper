@@ -12,12 +12,12 @@ import MillerColumnsLayout from './MillerColumnsLayout'
 export interface HomeEntry {
   /** Unique within a section, e.g. "studio-3" / "template-5" / "setup-2". */
   id: string
-  kind: 'studio' | 'template' | 'setup'
+  kind: 'studio' | 'template' | 'setup' | 'multiSetup'
   folderId: number | null
   label: string
   /** Secondary line — "Studio", "Gear list", a session date, etc. */
   meta?: string
-  /** Small label — currently only used for a setup's Multi Setup name. */
+  /** Small label — currently only marks an entry as being a Multi Setup rather than a lone setup. */
   badge?: string
   /** Lucide icon component shown before the label. */
   icon?: LucideIcon
