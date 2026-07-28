@@ -8,6 +8,7 @@ import { useGearCatalogueSuggestions } from '@renderer/state/useGearCatalogueSug
 import { computeTieLineConflicts } from '@renderer/state/tieLineConflicts'
 import { computeUsageCounts, computeOutboardUsageCounts } from '@renderer/state/usageCounts'
 import SetupSheetRow from './SetupSheetRow'
+import { GENERIC_INSTRUMENT_TYPE } from './tableConstants'
 
 function toLabels(items: { name: string; manufacturer: string | null }[]): string[] {
   const set = new Set<string>()
@@ -17,6 +18,7 @@ function toLabels(items: { name: string; manufacturer: string | null }[]): strin
 
 export default function SetupSheetTable(): JSX.Element {
   const items = useSetupStore((s) => s.items)
+  const addItem = useSetupStore((s) => s.addItem)
   const outboardColumnCount = useSetupStore((s) => s.outboardColumnCount)
   const visibleColumns = useSetupStore((s) => s.visibleColumns)
   const updateItemOutboardSlot = useSetupStore((s) => s.updateItemOutboardSlot)
@@ -280,13 +282,23 @@ export default function SetupSheetTable(): JSX.Element {
     }
   )
 
+  // Double-clicking blank page space (below/around the table, or the empty-state message when
+  // there are no rows yet) adds a row the same way the toolbar's "Add source" button does with an
+  // empty name field. Gated on `e.target === e.currentTarget` so a double-click on the table
+  // itself (a row, a cell, an input) doesn't bubble up and add an unwanted row — only genuinely
+  // blank space triggers it.
+  function handleBlankAreaDoubleClick(e: React.MouseEvent): void {
+    if (e.target !== e.currentTarget) return
+    addItem(GENERIC_INSTRUMENT_TYPE, { sourceName: 'Untitled Source' })
+  }
+
   return (
-    <div style={{ padding: 12 }}>
+    <div style={{ padding: 12, height: '100%', boxSizing: 'border-box' }} onDoubleClick={handleBlankAreaDoubleClick}>
       <div className="section-title" style={{ marginTop: 0 }}>
         Setup sheet
       </div>
       {items.length === 0 ? (
-        <div className="empty-state">
+        <div className="empty-state" onDoubleClick={() => addItem(GENERIC_INSTRUMENT_TYPE, { sourceName: 'Untitled Source' })}>
           No sources yet — use Add source above, or switch to Layout Mode to drag instruments onto the room layout.
         </div>
       ) : (
