@@ -42,18 +42,73 @@ export function listMultiSetupMembers(multiSetupId: number): MultiSetupMember[] 
     .all(multiSetupId) as MultiSetupMember[]
 }
 
-/** v1's only creation path: "promote this existing setup into a new Multi Setup" — a group always
- *  starts from one setup, never created empty. */
-export function createMultiSetupFromSetup(setupId: number, name: string): MultiSetup {
+interface SessionContext {
+  studio_id: number
+  session_date: string | null
+  engineer: string | null
+  faculty_reserve_enabled: number
+}
+
+/** The bits a sibling setup should inherit from the one it's being grouped with. Bands in one
+ *  Multi Setup play the same session in the same room, so date/engineer/faculty-reserve carry
+ *  over; `artist` deliberately does not — that's the thing that differs per band. */
+function readSessionContext(db: ReturnType<typeof getDb>, setupId: number): SessionContext {
+  const row = db
+    .prepare('SELECT studio_id, session_date, engineer, faculty_reserve_enabled FROM setups WHERE id = ?')
+    .get(setupId) as SessionContext | undefined
+  if (!row) throw new Error('Setup not found')
+  return row
+}
+
+function createInheritingSetup(context: SessionContext, name: string): Setup {
+  return createSetup(
+    context.studio_id,
+    name,
+    context.session_date,
+    'setup',
+    null,
+    null,
+    context.engineer,
+    null,
+    context.faculty_reserve_enabled === 1
+  )
+}
+
+export interface CreateMultiSetupWithSetupsInput {
+  sourceSetupId: number
+  name: string
+  /** Row 1's (possibly edited) name — renames the source setup in place. */
+  sourceSetupName: string
+  /** One new blank setup per entry. Must be non-empty: a Multi Setup of one setup is just a
+   *  setup, and removeSetupFromMultiSetup would dissolve it right back. */
+  newSetupNames: string[]
+}
+
+/** The only creation path: promotes an existing setup into a new Multi Setup AND creates its
+ *  siblings in one transaction, so the group is never persisted in the degenerate one-member
+ *  state that removeSetupFromMultiSetup treats as meaningless. */
+export function createMultiSetupWithSetups(input: CreateMultiSetupWithSetupsInput): MultiSetup {
+  const names = input.newSetupNames.map((n) => n.trim()).filter(Boolean)
+  if (names.length === 0) throw new Error('A Multi Setup needs at least one more setup')
+
   const db = getDb()
   const create = db.transaction(() => {
-    const setup = db.prepare('SELECT studio_id FROM setups WHERE id = ?').get(setupId) as
-      | { studio_id: number }
-      | undefined
-    if (!setup) throw new Error('Setup not found')
-    const info = db.prepare('INSERT INTO multi_setups (studio_id, name) VALUES (?, ?)').run(setup.studio_id, name)
+    const context = readSessionContext(db, input.sourceSetupId)
+    const info = db
+      .prepare('INSERT INTO multi_setups (studio_id, name) VALUES (?, ?)')
+      .run(context.studio_id, input.name)
     const multiSetupId = Number(info.lastInsertRowid)
-    db.prepare('UPDATE setups SET multi_setup_id = ? WHERE id = ?').run(multiSetupId, setupId)
+    // Name-only update rather than renameSetup(), which rewrites every field and would clobber
+    // the source's artist/notes with whatever defaults the caller didn't send.
+    db.prepare('UPDATE setups SET name = ?, multi_setup_id = ? WHERE id = ?').run(
+      input.sourceSetupName,
+      multiSetupId,
+      input.sourceSetupId
+    )
+    for (const name of names) {
+      const sibling = createInheritingSetup(context, name)
+      db.prepare('UPDATE setups SET multi_setup_id = ? WHERE id = ?').run(multiSetupId, sibling.id)
+    }
     return multiSetupId
   })
   return getMultiSetup(create()) as MultiSetup
@@ -76,15 +131,17 @@ export function addSetupToMultiSetup(multiSetupId: number, setupId: number): voi
   db.prepare('UPDATE setups SET multi_setup_id = ? WHERE id = ?').run(multiSetupId, setupId)
 }
 
-/** Creates a brand-new blank setup (band name only, today's date, no folder) and links it straight
- *  into a Multi Setup — the tab strip's "+ New band" action. */
-export function createSetupInMultiSetup(multiSetupId: number, name: string): Setup {
+/** Creates a brand-new blank setup and links it straight into a Multi Setup — the tab strip's
+ *  "New setup" action. Inherits session context from `inheritFromSetupId` (the setup the user has
+ *  open), since "add another one alongside this" is the intent — stamping today's date would be
+ *  wrong for a session being prepped days ahead. */
+export function createSetupInMultiSetup(multiSetupId: number, name: string, inheritFromSetupId: number): Setup {
   const db = getDb()
   const group = db.prepare('SELECT studio_id FROM multi_setups WHERE id = ?').get(multiSetupId) as
     | { studio_id: number }
     | undefined
   if (!group) throw new Error('Multi Setup not found')
-  const setup = createSetup(group.studio_id, name, new Date().toISOString().slice(0, 10))
+  const setup = createInheritingSetup(readSessionContext(db, inheritFromSetupId), name)
   db.prepare('UPDATE setups SET multi_setup_id = ? WHERE id = ?').run(multiSetupId, setup.id)
   return { ...setup, multiSetupId }
 }

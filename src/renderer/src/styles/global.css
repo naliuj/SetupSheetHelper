@@ -326,8 +326,16 @@ input[type='checkbox']:disabled {
   font-size: 13px;
 }
 
-.btn:hover {
+.btn:hover:not(:disabled) {
   border-color: var(--color-accent);
+}
+
+/* Buttons all over the app gate on `disabled` (modal confirms on an empty name, the outboard
+   column minus at 1, zoom at its limits) but nothing ever styled that state, so an unavailable
+   action looked identical to an available one. */
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .btn.primary {
@@ -381,6 +389,43 @@ table.data-table td select {
 .warning-badge {
   color: var(--color-warning);
   font-size: 11px;
+}
+
+/* Multi Setup tab strip. The app had no tab styling at all before this (Settings' "tabs" are just
+   .btn/.btn.primary) — these give the editor's setup tabs a real connected-to-content look, so a
+   tab reads as a place you're navigating to rather than as another action button. */
+.multi-setup-tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.multi-setup-tab {
+  padding: 6px 12px;
+  border: 1px solid transparent;
+  border-radius: var(--radius) var(--radius) 0 0;
+  background: none;
+  color: var(--color-text-dim);
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+  /* Sit on the strip's bottom border so the active tab can paint over it. */
+  margin-bottom: -1px;
+}
+
+.multi-setup-tab:hover {
+  background: color-mix(in srgb, var(--color-accent) 16%, var(--color-bg));
+  color: var(--color-text);
+}
+
+.multi-setup-tab.active {
+  background: var(--color-bg);
+  border-color: var(--color-border);
+  border-bottom-color: var(--color-bg);
+  color: var(--color-text);
+  font-weight: 600;
 }
 
 .multi-setup-badge {

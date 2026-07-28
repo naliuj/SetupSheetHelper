@@ -1,5 +1,5 @@
 import { ipcMain } from 'electron'
-import { IPC } from '@shared/types/ipc'
+import { IPC, type CreateMultiSetupInput } from '@shared/types/ipc'
 import * as multiSetupsRepo from '../db/repositories/multiSetupsRepo'
 
 export function registerMultiSetupHandlers(): void {
@@ -8,14 +8,16 @@ export function registerMultiSetupHandlers(): void {
   ipcMain.handle(IPC.multiSetups.listMembers, (_e, multiSetupId: number) =>
     multiSetupsRepo.listMultiSetupMembers(multiSetupId)
   )
-  ipcMain.handle(IPC.multiSetups.createFromSetup, (_e, setupId: number, name: string) =>
-    multiSetupsRepo.createMultiSetupFromSetup(setupId, name)
+  ipcMain.handle(IPC.multiSetups.createWithSetups, (_e, input: CreateMultiSetupInput) =>
+    multiSetupsRepo.createMultiSetupWithSetups(input)
   )
   ipcMain.handle(IPC.multiSetups.addExisting, (_e, multiSetupId: number, setupId: number) =>
     multiSetupsRepo.addSetupToMultiSetup(multiSetupId, setupId)
   )
-  ipcMain.handle(IPC.multiSetups.createAndAdd, (_e, multiSetupId: number, name: string) =>
-    multiSetupsRepo.createSetupInMultiSetup(multiSetupId, name)
+  ipcMain.handle(
+    IPC.multiSetups.createAndAdd,
+    (_e, multiSetupId: number, name: string, inheritFromSetupId: number) =>
+      multiSetupsRepo.createSetupInMultiSetup(multiSetupId, name, inheritFromSetupId)
   )
   ipcMain.handle(IPC.multiSetups.removeSetup, (_e, setupId: number) =>
     multiSetupsRepo.removeSetupFromMultiSetup(setupId)

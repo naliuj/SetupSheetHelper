@@ -144,7 +144,7 @@ export const IPC = {
     listAll: 'multiSetups:listAll',
     getForSetup: 'multiSetups:getForSetup',
     listMembers: 'multiSetups:listMembers',
-    createFromSetup: 'multiSetups:createFromSetup',
+    createWithSetups: 'multiSetups:createWithSetups',
     addExisting: 'multiSetups:addExisting',
     createAndAdd: 'multiSetups:createAndAdd',
     removeSetup: 'multiSetups:removeSetup',
@@ -436,6 +436,15 @@ export interface SaveAsTemplateInput {
   folderId: number | null
 }
 
+export interface CreateMultiSetupInput {
+  sourceSetupId: number
+  name: string
+  /** The current setup's (possibly edited) name — renames it in place. */
+  sourceSetupName: string
+  /** One new blank setup per entry; at least one is required. */
+  newSetupNames: string[]
+}
+
 export interface DuplicateSetupInput {
   sourceSetupId: number
   name: string
@@ -642,9 +651,9 @@ export interface RendererApi {
     listAll(): Promise<MultiSetup[]>
     getForSetup(setupId: number): Promise<MultiSetup | null>
     listMembers(multiSetupId: number): Promise<MultiSetupMember[]>
-    createFromSetup(setupId: number, name: string): Promise<MultiSetup>
+    createWithSetups(input: CreateMultiSetupInput): Promise<MultiSetup>
     addExisting(multiSetupId: number, setupId: number): Promise<void>
-    createAndAdd(multiSetupId: number, name: string): Promise<Setup>
+    createAndAdd(multiSetupId: number, name: string, inheritFromSetupId: number): Promise<Setup>
     removeSetup(setupId: number): Promise<void>
     rename(id: number, name: string): Promise<void>
   }

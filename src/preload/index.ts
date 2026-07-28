@@ -143,9 +143,10 @@ const api: RendererApi = {
     listAll: () => ipcRenderer.invoke(IPC.multiSetups.listAll),
     getForSetup: (setupId) => ipcRenderer.invoke(IPC.multiSetups.getForSetup, setupId),
     listMembers: (multiSetupId) => ipcRenderer.invoke(IPC.multiSetups.listMembers, multiSetupId),
-    createFromSetup: (setupId, name) => ipcRenderer.invoke(IPC.multiSetups.createFromSetup, setupId, name),
+    createWithSetups: (input) => ipcRenderer.invoke(IPC.multiSetups.createWithSetups, input),
     addExisting: (multiSetupId, setupId) => ipcRenderer.invoke(IPC.multiSetups.addExisting, multiSetupId, setupId),
-    createAndAdd: (multiSetupId, name) => ipcRenderer.invoke(IPC.multiSetups.createAndAdd, multiSetupId, name),
+    createAndAdd: (multiSetupId, name, inheritFromSetupId) =>
+      ipcRenderer.invoke(IPC.multiSetups.createAndAdd, multiSetupId, name, inheritFromSetupId),
     removeSetup: (setupId) => ipcRenderer.invoke(IPC.multiSetups.removeSetup, setupId),
     rename: (id, name) => ipcRenderer.invoke(IPC.multiSetups.rename, id, name)
   },

@@ -1,32 +1,40 @@
 import { useEffect, useRef, useState } from 'react'
-import { Pencil } from 'lucide-react'
+import { MoreHorizontal } from 'lucide-react'
 import type { MultiSetup, MultiSetupMember } from '@shared/types/setup'
 import { useNavigationStore } from '@renderer/state/navigationStore'
+import { useSetupStore } from '@renderer/state/setupStore'
 import Icon from '@renderer/components/Icon'
+import CreateMultiSetupModal from './CreateMultiSetupModal'
 import MultiSetupNamePromptModal from './MultiSetupNamePromptModal'
 import AddExistingSetupModal from './AddExistingSetupModal'
 
-type PromptMode = 'create' | 'newBand' | 'rename'
-
-/** Lets the editor hop between the setups grouped into one Multi Setup (e.g. one tab per band in a
+/** Lets the editor hop between the setups grouped into one Multi Setup (e.g. one per band in a
  *  multi-act recording session) without detouring through Home, and is the entry point for
- *  grouping a standalone setup into one in the first place. Reuses the app's existing
- *  single-document navigation — clicking a tab just calls goToSetup, the same action Home's "open
- *  a saved setup" already uses, so SetupEditor's normal load effect picks up the new setup with no
- *  extra plumbing. */
+ *  grouping a standalone setup in the first place.
+ *
+ *  Reuses the app's existing single-document navigation — clicking a tab just calls goToSetup, the
+ *  same action Home's "open a saved setup" uses, so SetupEditor's normal load effect picks up the
+ *  new setup with no extra plumbing. */
 export default function MultiSetupTabs(): JSX.Element | null {
   const buildingId = useNavigationStore((s) => s.buildingId)
   const studioId = useNavigationStore((s) => s.studioId)
   const setupId = useNavigationStore((s) => s.setupId)
   const goToSetup = useNavigationStore((s) => s.goToSetup)
+  const setupName = useSetupStore((s) => s.name)
+  const sessionDate = useSetupStore((s) => s.sessionDate)
+  const setSetupName = useSetupStore((s) => s.setName)
 
   const [group, setGroup] = useState<MultiSetup | null>(null)
   const [members, setMembers] = useState<MultiSetupMember[]>([])
   const [loaded, setLoaded] = useState(false)
   const [addMenuOpen, setAddMenuOpen] = useState(false)
-  const [prompt, setPrompt] = useState<{ mode: PromptMode; initialValue?: string } | null>(null)
+  const [overflowOpen, setOverflowOpen] = useState(false)
+  const [createOpen, setCreateOpen] = useState(false)
+  const [renameOpen, setRenameOpen] = useState(false)
+  const [newSetupOpen, setNewSetupOpen] = useState(false)
   const [addExistingOpen, setAddExistingOpen] = useState(false)
   const addMenuRef = useRef<HTMLDivElement>(null)
+  const overflowRef = useRef<HTMLDivElement>(null)
 
   function reload(id: number): void {
     window.api.multiSetups.getForSetup(id).then((g) => {
@@ -49,58 +57,71 @@ export default function MultiSetupTabs(): JSX.Element | null {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [setupId])
 
-  // Close the "+" menu on an outside click.
+  // Close either floating menu on an outside click.
   useEffect(() => {
-    if (!addMenuOpen) return
+    if (!addMenuOpen && !overflowOpen) return
     function onDown(e: MouseEvent): void {
-      if (addMenuRef.current && !addMenuRef.current.contains(e.target as Node)) setAddMenuOpen(false)
+      const target = e.target as Node
+      if (addMenuRef.current && !addMenuRef.current.contains(target)) setAddMenuOpen(false)
+      if (overflowRef.current && !overflowRef.current.contains(target)) setOverflowOpen(false)
     }
     document.addEventListener('mousedown', onDown)
     return () => document.removeEventListener('mousedown', onDown)
-  }, [addMenuOpen])
+  }, [addMenuOpen, overflowOpen])
 
   if (!loaded || setupId == null || studioId == null) return null
+  const currentSetupId = setupId
 
-  async function handleCreateGroup(name: string): Promise<void> {
-    await window.api.multiSetups.createFromSetup(setupId as number, name)
-    reload(setupId as number)
+  async function handleCreate(input: {
+    name: string
+    sourceSetupName: string
+    newSetupNames: string[]
+  }): Promise<void> {
+    await window.api.multiSetups.createWithSetups({ sourceSetupId: currentSetupId, ...input })
+    // Renaming row 1 wrote straight to the DB, so the open setup's store is now stale. It has to be
+    // told, or the next autosave would push the old in-memory name back over the new one —
+    // setupStore.save() sends state.name to setups.rename on every dirty flush.
+    if (input.sourceSetupName !== setupName) setSetupName(input.sourceSetupName)
+    // Stay on the setup the user was already working in — the siblings just appear as tabs.
+    reload(currentSetupId)
   }
 
-  async function handleNewBand(name: string): Promise<void> {
+  async function handleNewSetup(name: string): Promise<void> {
     if (!group) return
-    await window.api.multiSetups.createAndAdd(group.id, name)
-    reload(setupId as number)
+    await window.api.multiSetups.createAndAdd(group.id, name, currentSetupId)
+    reload(currentSetupId)
   }
 
   async function handleRename(name: string): Promise<void> {
     if (!group) return
     await window.api.multiSetups.rename(group.id, name)
-    reload(setupId as number)
+    reload(currentSetupId)
   }
 
   async function handleRemove(): Promise<void> {
-    await window.api.multiSetups.removeSetup(setupId as number)
-    reload(setupId as number)
+    await window.api.multiSetups.removeSetup(currentSetupId)
+    reload(currentSetupId)
   }
 
   async function handleAddExisting(existingSetupId: number): Promise<void> {
     if (!group) return
     await window.api.multiSetups.addExisting(group.id, existingSetupId)
-    reload(setupId as number)
+    reload(currentSetupId)
   }
 
   if (!group) {
     return (
-      <div className="quick-setup-row" style={{ padding: '0 16px' }}>
-        <button className="link-button" onClick={() => setPrompt({ mode: 'create' })}>
-          + Group into Multi Setup…
+      <div className="quick-setup-row" style={{ padding: '0 16px', marginTop: 6 }}>
+        <button className="link-button" onClick={() => setCreateOpen(true)}>
+          + Add another setup…
         </button>
-        {prompt && (
-          <MultiSetupNamePromptModal
-            heading="Group into Multi Setup"
-            confirmLabel="Group"
-            onClose={() => setPrompt(null)}
-            onSubmit={handleCreateGroup}
+        {createOpen && (
+          <CreateMultiSetupModal
+            studioId={studioId}
+            currentSetupName={setupName}
+            currentSessionDate={sessionDate}
+            onClose={() => setCreateOpen(false)}
+            onCreate={handleCreate}
           />
         )}
       </div>
@@ -108,29 +129,22 @@ export default function MultiSetupTabs(): JSX.Element | null {
   }
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '0 16px 8px', flexWrap: 'wrap' }}>
-      <span className="card-sub" style={{ fontWeight: 600 }}>
+    <div className="multi-setup-tabs">
+      <span className="card-sub" style={{ marginRight: 8, whiteSpace: 'nowrap' }}>
         {group.name}
       </span>
-      <button
-        className="folder-tree-action"
-        title="Rename Multi Setup"
-        aria-label="Rename Multi Setup"
-        onClick={() => setPrompt({ mode: 'rename', initialValue: group.name })}
-      >
-        <Pencil size={13} aria-hidden="true" />
-      </button>
       {members.map((m) => (
         <button
           key={m.id}
-          className={`btn small${m.id === setupId ? ' primary' : ''}`}
-          onClick={() => m.id !== setupId && goToSetup(buildingId, studioId, m.id)}
+          className={`multi-setup-tab${m.id === currentSetupId ? ' active' : ''}`}
+          onClick={() => m.id !== currentSetupId && goToSetup(buildingId, studioId, m.id)}
         >
           {m.name}
         </button>
       ))}
-      <div ref={addMenuRef} style={{ position: 'relative' }}>
-        <button className="btn small" onClick={() => setAddMenuOpen((v) => !v)} aria-label="Add band">
+
+      <div ref={addMenuRef} style={{ position: 'relative', marginLeft: 4 }}>
+        <button className="btn small" onClick={() => setAddMenuOpen((v) => !v)} aria-label="Add a setup">
           <Icon name="plus" size={14} />
         </button>
         {addMenuOpen && (
@@ -142,10 +156,10 @@ export default function MultiSetupTabs(): JSX.Element | null {
               className="picker-menu-row"
               onClick={() => {
                 setAddMenuOpen(false)
-                setPrompt({ mode: 'newBand' })
+                setNewSetupOpen(true)
               }}
             >
-              New band
+              New setup…
             </div>
             <div
               className="picker-menu-row"
@@ -154,28 +168,66 @@ export default function MultiSetupTabs(): JSX.Element | null {
                 setAddExistingOpen(true)
               }}
             >
-              Add existing setup
+              Add existing setup…
             </div>
           </div>
         )}
       </div>
-      <button className="btn small" onClick={handleRemove}>
-        Remove from group
-      </button>
 
-      {prompt && (
+      {/* Rename and unlink live behind an overflow menu rather than inline, so a destructive
+          action never sits in the tab row looking like just another tab. */}
+      <div ref={overflowRef} style={{ position: 'relative' }}>
+        <button className="btn small" onClick={() => setOverflowOpen((v) => !v)} aria-label="Multi Setup actions">
+          <MoreHorizontal size={14} aria-hidden="true" />
+        </button>
+        {overflowOpen && (
+          <div
+            className="picker-menu"
+            style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, minWidth: 240 }}
+          >
+            <div
+              className="picker-menu-row"
+              onClick={() => {
+                setOverflowOpen(false)
+                setRenameOpen(true)
+              }}
+            >
+              Rename Multi Setup…
+            </div>
+            <div
+              className="picker-menu-row"
+              onClick={() => {
+                setOverflowOpen(false)
+                handleRemove()
+              }}
+            >
+              Remove this setup from the Multi Setup
+            </div>
+          </div>
+        )}
+      </div>
+
+      {renameOpen && (
         <MultiSetupNamePromptModal
-          heading={prompt.mode === 'newBand' ? 'New band' : 'Rename Multi Setup'}
-          confirmLabel={prompt.mode === 'newBand' ? 'Add' : 'Rename'}
-          initialValue={prompt.initialValue}
-          onClose={() => setPrompt(null)}
-          onSubmit={prompt.mode === 'newBand' ? handleNewBand : handleRename}
+          heading="Rename Multi Setup"
+          confirmLabel="Rename"
+          initialValue={group.name}
+          onClose={() => setRenameOpen(false)}
+          onSubmit={handleRename}
+        />
+      )}
+      {newSetupOpen && (
+        <MultiSetupNamePromptModal
+          heading="New setup"
+          confirmLabel="Add"
+          onClose={() => setNewSetupOpen(false)}
+          onSubmit={handleNewSetup}
         />
       )}
       {addExistingOpen && (
         <AddExistingSetupModal
           studioId={studioId}
-          excludeSetupId={setupId}
+          excludeSetupId={currentSetupId}
           onClose={() => setAddExistingOpen(false)}
           onAdd={handleAddExisting}
         />
