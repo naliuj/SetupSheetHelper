@@ -5,14 +5,17 @@ import type { Folder, FolderScope } from '@shared/types/setup'
  *  scope ('studio' | 'setup'). Pairs with the FolderPicker component: this owns the scoped folder
  *  list + selection, FolderPicker renders it. Folders created here are stamped with `scope` and
  *  land at the top level. */
-export function useFolderPicker(scope: FolderScope): {
+export function useFolderPicker(
+  scope: FolderScope,
+  initialFolderId: number | null = null
+): {
   folders: Folder[]
   selectedFolderId: number | null
   setSelectedFolderId: (id: number | null) => void
   createFolder: (name: string, parentFolderId: number | null) => Promise<Folder>
 } {
   const [folders, setFolders] = useState<Folder[]>([])
-  const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null)
+  const [selectedFolderId, setSelectedFolderId] = useState<number | null>(initialFolderId)
 
   useEffect(() => {
     window.api.folders.list(scope).then(setFolders)

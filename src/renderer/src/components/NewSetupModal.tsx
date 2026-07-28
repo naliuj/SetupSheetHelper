@@ -15,6 +15,17 @@ export interface NewSetupDetails {
 }
 
 interface Props {
+  /** Seeds every field from an existing setup — used by the "Duplicate" flow in Manage Setups so
+   *  this same dialog doubles as the rename prompt for a copy, instead of a separate one. Omitted
+   *  fields fall back to the blank-new-setup defaults. */
+  initialName?: string
+  initialSessionDate?: string | null
+  initialEngineer?: string | null
+  initialArtist?: string | null
+  initialFolderId?: number | null
+  initialFacultyReserveEnabled?: boolean
+  heading?: string
+  confirmLabel?: string
   onClose: () => void
   onCreate: (details: NewSetupDetails) => Promise<void>
 }
@@ -23,15 +34,26 @@ function today(): string {
   return new Date().toISOString().slice(0, 10)
 }
 
-export default function NewSetupModal({ onClose, onCreate }: Props): JSX.Element {
+export default function NewSetupModal({
+  initialName = '',
+  initialSessionDate,
+  initialEngineer = '',
+  initialArtist = '',
+  initialFolderId = null,
+  initialFacultyReserveEnabled = false,
+  heading = 'New setup',
+  confirmLabel = 'Create setup',
+  onClose,
+  onCreate
+}: Props): JSX.Element {
   useEscapeToClose(onClose)
-  const [name, setName] = useState('')
-  const [sessionDate, setSessionDate] = useState(today())
-  const [engineer, setEngineer] = useState('')
-  const [artist, setArtist] = useState('')
-  const [facultyReserveEnabled, setFacultyReserveEnabled] = useState(false)
+  const [name, setName] = useState(initialName)
+  const [sessionDate, setSessionDate] = useState(initialSessionDate ?? today())
+  const [engineer, setEngineer] = useState(initialEngineer ?? '')
+  const [artist, setArtist] = useState(initialArtist ?? '')
+  const [facultyReserveEnabled, setFacultyReserveEnabled] = useState(initialFacultyReserveEnabled)
   const [creating, setCreating] = useState(false)
-  const { folders, selectedFolderId, setSelectedFolderId, createFolder } = useFolderPicker('setup')
+  const { folders, selectedFolderId, setSelectedFolderId, createFolder } = useFolderPicker('setup', initialFolderId)
   const berkleeFeaturesEnabled = useBerkleeFeaturesStore((s) => s.enabled)
 
   async function handleCreate(): Promise<void> {
@@ -55,7 +77,7 @@ export default function NewSetupModal({ onClose, onCreate }: Props): JSX.Element
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 380 }}>
-        <h2>New setup</h2>
+        <h2>{heading}</h2>
         <div className="inline-form" style={{ marginTop: 0 }}>
           <input
             placeholder="Setup name"
@@ -95,7 +117,7 @@ export default function NewSetupModal({ onClose, onCreate }: Props): JSX.Element
             Cancel
           </button>
           <button className="btn primary" onClick={handleCreate} disabled={creating || !name.trim()}>
-            {creating ? 'Creating…' : 'Create setup'}
+            {creating ? 'Creating…' : confirmLabel}
           </button>
         </div>
       </div>

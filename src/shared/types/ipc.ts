@@ -134,6 +134,7 @@ export const IPC = {
     importSetups: 'setups:importSetups',
     instantiateFromTemplate: 'setups:instantiateFromTemplate',
     saveAsTemplate: 'setups:saveAsTemplate',
+    duplicate: 'setups:duplicate',
     moveToFolder: 'setups:moveToFolder',
     reorder: 'setups:reorder'
   },
@@ -423,6 +424,16 @@ export interface SaveAsTemplateInput {
   folderId: number | null
 }
 
+export interface DuplicateSetupInput {
+  sourceSetupId: number
+  name: string
+  sessionDate: string | null
+  folderId: number | null
+  engineer: string | null
+  artist: string | null
+  facultyReserveEnabled: boolean
+}
+
 /** What deleting a folder's subtree would remove, for the confirmation prompt. `items` lists the
  *  non-folder contents by singular noun ("studio", "setup", "preset") so the same modal can serve
  *  different item namespaces (studios/setups vs preset folders). */
@@ -611,6 +622,7 @@ export interface RendererApi {
     importSetups(setups: ExportedSetup[], targetStudioId: number): Promise<void>
     instantiateFromTemplate(templateId: number): Promise<Setup>
     saveAsTemplate(input: SaveAsTemplateInput): Promise<Setup>
+    duplicate(input: DuplicateSetupInput): Promise<Setup>
     moveToFolder(id: number, folderId: number | null): Promise<void>
     reorder(ids: number[]): Promise<void>
   }

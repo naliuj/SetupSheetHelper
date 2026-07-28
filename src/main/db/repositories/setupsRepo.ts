@@ -6,6 +6,8 @@ import { APP_SETTINGS_KEYS } from '@shared/types/entities'
 import { getDb } from '../index'
 import { getSetting } from './settingsRepo'
 import { listItemsBySetup, copyItemsToSetup } from './setupItemsRepo'
+import { copyBlocksToSetup } from './roomLayoutBlocksRepo'
+import { getSetupLayoutOverride, upsertBlankLayoutOverride, upsertFileLayoutOverride } from './setupLayoutOverrideRepo'
 
 interface SetupRow {
   id: number
@@ -200,6 +202,56 @@ export function saveAsTemplate(setupId: number, name: string, folderId: number |
   const template = createSetup(source.studioId, name, null, 'template', 'custom', folderId)
   copyItemsToSetup(setupId, template.id, { blankRoomSpecificFields: true })
   return template
+}
+
+/**
+ * Full copy of an existing setup, under a new name/date/folder — unlike saveAsTemplate/
+ * instantiateFromTemplate (which deliberately blank room-specific fields for a reusable
+ * template), this carries every table field verbatim, plus the source's Layout Mode blocks and
+ * room layout override, so the duplicate opens looking exactly like the setup it was copied
+ * from. outboardColumnCount/visibleColumns are copied explicitly since createSetup only seeds
+ * those from the global default, not from the source.
+ */
+export function duplicateSetup(
+  sourceSetupId: number,
+  name: string,
+  sessionDate: string | null,
+  folderId: number | null,
+  engineer: string | null,
+  artist: string | null,
+  facultyReserveEnabled: boolean
+): Setup {
+  const source = getSetupWithItems(sourceSetupId)
+  if (!source) throw new Error('Setup not found')
+  const setup = createSetup(
+    source.studioId,
+    name,
+    sessionDate,
+    'setup',
+    null,
+    folderId,
+    engineer,
+    artist,
+    facultyReserveEnabled,
+    source.sessionNotes
+  )
+  setOutboardColumnCount(setup.id, source.outboardColumnCount)
+  setVisibleColumns(setup.id, source.visibleColumns)
+  copyItemsToSetup(sourceSetupId, setup.id)
+  copyBlocksToSetup(sourceSetupId, setup.id)
+  const override = getSetupLayoutOverride(sourceSetupId)
+  if (override?.kind === 'blank') {
+    upsertBlankLayoutOverride(setup.id)
+  } else if (override?.kind === 'file' && override.filePath) {
+    upsertFileLayoutOverride({
+      setupId: setup.id,
+      filePath: override.filePath,
+      originalName: override.originalName,
+      pageWidthPt: override.pageWidthPt,
+      pageHeightPt: override.pageHeightPt
+    })
+  }
+  return setup
 }
 
 /** Instantiates a brand-new editable Setup from a template's item list. */

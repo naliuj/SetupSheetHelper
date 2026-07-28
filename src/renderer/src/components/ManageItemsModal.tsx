@@ -45,6 +45,10 @@ interface Props {
   /** When provided, each item row shows an "Edit" button that calls this — the parent renders
    *  its own editor. Omitted for callers (studios/setups) that edit elsewhere. */
   onEditItem?: (item: ManagedItem) => void
+  /** When provided, each item row shows a "Duplicate" button that calls this — the parent
+   *  renders its own copy flow (e.g. Setups' rename-then-copy dialog). Omitted for callers that
+   *  don't support duplication. */
+  onDuplicateItem?: (item: ManagedItem) => void
   /** Lets a parent-owned dialog (e.g. an edit modal layered on top) suppress this modal's own
    *  Escape-to-close while it's open, so Escape only closes the topmost layer. */
   disableEscapeClose?: boolean
@@ -148,13 +152,15 @@ function SortableItemRow({
   selected,
   onToggleSelect,
   onDelete,
-  onEdit
+  onEdit,
+  onDuplicate
 }: {
   item: ManagedItem
   selected: boolean
   onToggleSelect: () => void
   onDelete: () => void
   onEdit?: () => void
+  onDuplicate?: () => void
 }): JSX.Element {
   const dndId = `${item.kind}-${item.id}`
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: dndId })
@@ -184,6 +190,11 @@ function SortableItemRow({
           Edit
         </button>
       )}
+      {onDuplicate && (
+        <button className="btn small" onClick={onDuplicate}>
+          Duplicate
+        </button>
+      )}
       <button className="btn small danger" onClick={onDelete}>
         Delete
       </button>
@@ -205,6 +216,7 @@ export default function ManageItemsModal({
   onDeleteFolderRecursive,
   onDeleteFolderPromoteContents,
   onEditItem,
+  onDuplicateItem,
   disableEscapeClose,
   onClose
 }: Props): JSX.Element {
@@ -477,6 +489,7 @@ export default function ManageItemsModal({
                             onToggleSelect={() => toggleItemSelect(item)}
                             onDelete={() => handleItemDelete(item)}
                             onEdit={onEditItem ? () => onEditItem(item) : undefined}
+                            onDuplicate={onDuplicateItem ? () => onDuplicateItem(item) : undefined}
                           />
                         ))}
                       </SortableContext>

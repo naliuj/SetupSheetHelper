@@ -41,6 +41,36 @@ export function listBlocksBySetup(setupId: number): RoomLayoutBlock[] {
   return rows.map(mapRow)
 }
 
+/** Copies every block from one setup to another, generating fresh ids — used by
+ *  setupsRepo.duplicateSetup so a duplicated setup's Layout Mode starts out identical to its
+ *  source. */
+export function copyBlocksToSetup(sourceSetupId: number, targetSetupId: number): void {
+  const db = getDb()
+  const blocks = listBlocksBySetup(sourceSetupId)
+  const insert = db.prepare(
+    `INSERT INTO room_layout_blocks (setup_id, label, shape, color, x, y, width, height, rotation, z_index, person_name)
+     VALUES (@setupId, @label, @shape, @color, @x, @y, @width, @height, @rotation, @zIndex, @personName)`
+  )
+  const copy = db.transaction(() => {
+    for (const block of blocks) {
+      insert.run({
+        setupId: targetSetupId,
+        label: block.label,
+        shape: block.shape,
+        color: block.color,
+        x: block.x,
+        y: block.y,
+        width: block.width,
+        height: block.height,
+        rotation: block.rotation,
+        zIndex: block.zIndex,
+        personName: block.personName
+      })
+    }
+  })
+  copy()
+}
+
 /** Upserts all blocks for a setup in one transaction — same id-preserving pattern as
  *  setupItemsRepo.replaceItemsForSetup (existing numeric ids UPDATE in place so they survive
  *  autosave without remounting; client-generated string ids INSERT; anything missing from the

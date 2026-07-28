@@ -36,6 +36,7 @@ export default function Home(): JSX.Element {
   const [savedSetups, setSavedSetups] = useState<Setup[]>([])
   const [buildingIdByStudio, setBuildingIdByStudio] = useState<Map<number, number | null>>(new Map())
   const [pendingSelection, setPendingSelection] = useState<PendingStudioSelection | null>(null)
+  const [duplicateOf, setDuplicateOf] = useState<Setup | null>(null)
   const [berkleeBuildings, setBerkleeBuildings] = useState<Building[]>([])
   const [berkleeStudios, setBerkleeStudios] = useState<Studio[]>([])
   const [manageMode, setManageMode] = useState<'studios' | 'setups' | null>(null)
@@ -278,6 +279,29 @@ export default function Home(): JSX.Element {
     reload()
   }
 
+  function handleDuplicateItemClick(item: ManagedItem): void {
+    const setup = savedSetups.find((s) => s.id === item.id)
+    if (setup) setDuplicateOf(setup)
+  }
+
+  // The rename prompt is NewSetupModal itself, seeded from the source setup — confirming it
+  // calls setups.duplicate (full copy: table items, layout blocks, and room layout override)
+  // rather than setups.create. Manage Setups stays open underneath (same layering pattern as
+  // ManagePresetsModal's edit dialog).
+  async function handleDuplicateCreate(details: NewSetupDetails): Promise<void> {
+    if (!duplicateOf) return
+    await window.api.setups.duplicate({
+      sourceSetupId: duplicateOf.id,
+      name: details.name,
+      sessionDate: details.sessionDate,
+      folderId: details.folderId,
+      engineer: details.engineer,
+      artist: details.artist,
+      facultyReserveEnabled: details.facultyReserveEnabled
+    })
+    reload()
+  }
+
   const templateSectionTitle = 'New Setup From Studio Template'
 
   return (
@@ -375,7 +399,24 @@ export default function Home(): JSX.Element {
           onGetFolderDeleteImpact={handleGetFolderDeleteImpact}
           onDeleteFolderRecursive={handleDeleteFolderRecursive}
           onDeleteFolderPromoteContents={handleDeleteFolderPromoteContents}
+          onDuplicateItem={handleDuplicateItemClick}
+          disableEscapeClose={duplicateOf !== null}
           onClose={() => setManageMode(null)}
+        />
+      )}
+
+      {duplicateOf && (
+        <NewSetupModal
+          initialName={`Copy of ${duplicateOf.name}`}
+          initialSessionDate={duplicateOf.sessionDate}
+          initialEngineer={duplicateOf.engineer}
+          initialArtist={duplicateOf.artist}
+          initialFolderId={duplicateOf.folderId}
+          initialFacultyReserveEnabled={duplicateOf.facultyReserveEnabled}
+          heading="Duplicate setup"
+          confirmLabel="Duplicate"
+          onClose={() => setDuplicateOf(null)}
+          onCreate={handleDuplicateCreate}
         />
       )}
     </div>

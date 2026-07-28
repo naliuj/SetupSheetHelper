@@ -135,6 +135,7 @@ const api: RendererApi = {
     importSetups: (setups, targetStudioId) => ipcRenderer.invoke(IPC.setups.importSetups, setups, targetStudioId),
     instantiateFromTemplate: (templateId) => ipcRenderer.invoke(IPC.setups.instantiateFromTemplate, templateId),
     saveAsTemplate: (input) => ipcRenderer.invoke(IPC.setups.saveAsTemplate, input),
+    duplicate: (input) => ipcRenderer.invoke(IPC.setups.duplicate, input),
     moveToFolder: (id, folderId) => ipcRenderer.invoke(IPC.setups.moveToFolder, id, folderId),
     reorder: (ids) => ipcRenderer.invoke(IPC.setups.reorder, ids)
   },

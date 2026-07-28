@@ -1,5 +1,12 @@
 import { ipcMain } from 'electron'
-import { IPC, type ExportedSetup, type SaveAsTemplateInput, type SetupItemInput, type SetupsListFilter } from '@shared/types/ipc'
+import {
+  IPC,
+  type DuplicateSetupInput,
+  type ExportedSetup,
+  type SaveAsTemplateInput,
+  type SetupItemInput,
+  type SetupsListFilter
+} from '@shared/types/ipc'
 import type { SetupColumnKey } from '@shared/constants/setupColumns'
 import type { EditorMode } from '@shared/types/setup'
 import * as setupsRepo from '../db/repositories/setupsRepo'
@@ -75,6 +82,17 @@ export function registerSetupHandlers(): void {
   )
   ipcMain.handle(IPC.setups.saveAsTemplate, (_e, input: SaveAsTemplateInput) =>
     setupsRepo.saveAsTemplate(input.setupId, input.name, input.folderId)
+  )
+  ipcMain.handle(IPC.setups.duplicate, (_e, input: DuplicateSetupInput) =>
+    setupsRepo.duplicateSetup(
+      input.sourceSetupId,
+      input.name,
+      input.sessionDate,
+      input.folderId,
+      input.engineer,
+      input.artist,
+      input.facultyReserveEnabled
+    )
   )
   ipcMain.handle(IPC.setups.moveToFolder, (_e, id: number, folderId: number | null) =>
     setupsRepo.moveSetupToFolder(id, folderId)
