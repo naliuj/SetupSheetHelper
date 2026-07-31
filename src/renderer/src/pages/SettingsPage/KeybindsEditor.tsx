@@ -9,7 +9,9 @@ import {
   type KeybindActionDef
 } from '@shared/constants/keybindActions'
 
-const CATEGORY_ORDER = ['App', 'File', 'Edit', 'Table', 'Layout']
+// A whitelist, not just an ordering: a category missing from this array is silently dropped from
+// the UI, leaving its actions working but invisible and unrebindable. Add new categories here.
+const CATEGORY_ORDER = ['App', 'File', 'Edit', 'Table', 'Layout', 'Multi Setup']
 
 function groupByCategory(actions: KeybindActionDef[]): [string, KeybindActionDef[]][] {
   const groups = new Map<string, KeybindActionDef[]>()

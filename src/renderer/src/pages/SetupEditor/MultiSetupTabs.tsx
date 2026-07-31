@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { GitCompare, MoreHorizontal } from 'lucide-react'
-import type { MultiSetup, MultiSetupMember } from '@shared/types/setup'
 import { useNavigationStore } from '@renderer/state/navigationStore'
+import { useMultiSetupStore } from '@renderer/state/multiSetupStore'
 import { useSetupStore } from '@renderer/state/setupStore'
 import Icon from '@renderer/components/Icon'
 import CreateMultiSetupModal from './CreateMultiSetupModal'
@@ -26,39 +26,31 @@ export default function MultiSetupTabs({ onOpenCompare }: Props): JSX.Element | 
   const studioId = useNavigationStore((s) => s.studioId)
   const setupId = useNavigationStore((s) => s.setupId)
   const goToSetup = useNavigationStore((s) => s.goToSetup)
+  const goToHome = useNavigationStore((s) => s.goToHome)
   const setupName = useSetupStore((s) => s.name)
   const sessionDate = useSetupStore((s) => s.sessionDate)
   const setSetupName = useSetupStore((s) => s.setName)
 
-  const [group, setGroup] = useState<MultiSetup | null>(null)
-  const [members, setMembers] = useState<MultiSetupMember[]>([])
-  const [loaded, setLoaded] = useState(false)
+  // Group + members live in a store, not here, so SetupToolbar's Cmd/Ctrl+1..9 handlers can reach
+  // the member list — it's a sibling component with no path to this one's state.
+  const group = useMultiSetupStore((s) => s.group)
+  const members = useMultiSetupStore((s) => s.members)
+  const loaded = useMultiSetupStore((s) => s.loaded)
+  const reload = useMultiSetupStore((s) => s.reload)
+  const beginReload = useMultiSetupStore((s) => s.beginReload)
+
   const [addMenuOpen, setAddMenuOpen] = useState(false)
   const [overflowOpen, setOverflowOpen] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
   const [renameOpen, setRenameOpen] = useState(false)
   const [newSetupOpen, setNewSetupOpen] = useState(false)
   const [addExistingOpen, setAddExistingOpen] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
   const addMenuRef = useRef<HTMLDivElement>(null)
   const overflowRef = useRef<HTMLDivElement>(null)
 
-  function reload(id: number): void {
-    window.api.multiSetups.getForSetup(id).then((g) => {
-      setGroup(g)
-      setLoaded(true)
-      if (g) window.api.multiSetups.listMembers(g.id).then(setMembers)
-      else setMembers([])
-    })
-  }
-
   useEffect(() => {
-    if (setupId == null) {
-      setLoaded(true)
-      setGroup(null)
-      setMembers([])
-      return
-    }
-    setLoaded(false)
+    beginReload()
     reload(setupId)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [setupId])
@@ -104,9 +96,27 @@ export default function MultiSetupTabs({ onOpenCompare }: Props): JSX.Element | 
     reload(currentSetupId)
   }
 
-  async function handleRemove(): Promise<void> {
-    await window.api.multiSetups.removeSetup(currentSetupId)
-    reload(currentSetupId)
+  /** Deletes the open setup outright — sheet, items, layout and all. Routed through the ordinary
+   *  setups.remove, which is where the group-dissolve rule already lives (setupsRepo.removeSetups:
+   *  "every delete path funnels through this one function"), so a group left with one member
+   *  dissolves for free.
+   *
+   *  Navigates to a neighbour rather than reloading in place: after a real delete the open setup no
+   *  longer exists, so staying put would leave the editor on a phantom. A group always has at least
+   *  two members (creation requires two, the dissolve rule fires at one), so the fallback Home is
+   *  unreachable in practice — it's there so a future single-member group can't strand the user. */
+  async function handleDelete(): Promise<void> {
+    const index = members.findIndex((m) => m.id === currentSetupId)
+    const neighbour = members[index - 1] ?? members[index + 1] ?? null
+    // Flush first, exactly as openCompare does. Autosave is debounced, so deleting a sheet with an
+    // edit still in flight would leave a timer pointing at a row that no longer exists — and its
+    // items-table replace would then fail on the foreign key.
+    const state = useSetupStore.getState()
+    if (state.isDirty) await state.save()
+    await window.api.setups.remove(currentSetupId)
+    setDeleteOpen(false)
+    if (neighbour && studioId != null) goToSetup(buildingId, studioId, neighbour.id, { keepEditorMode: true })
+    else goToHome()
   }
 
   async function handleAddExisting(existingSetupId: number): Promise<void> {
@@ -180,7 +190,7 @@ export default function MultiSetupTabs({ onOpenCompare }: Props): JSX.Element | 
         )}
       </div>
 
-      {/* Rename and unlink live behind an overflow menu rather than inline, so a destructive
+      {/* Rename and delete live behind an overflow menu rather than inline, so a destructive
           action never sits in the tab row looking like just another tab. */}
       <div ref={overflowRef} style={{ position: 'relative' }}>
         <button className="btn small" onClick={() => setOverflowOpen((v) => !v)} aria-label="Multi Setup actions">
@@ -204,10 +214,10 @@ export default function MultiSetupTabs({ onOpenCompare }: Props): JSX.Element | 
               className="picker-menu-row"
               onClick={() => {
                 setOverflowOpen(false)
-                handleRemove()
+                setDeleteOpen(true)
               }}
             >
-              Remove this setup from the Multi Setup
+              Delete this setup…
             </div>
           </div>
         )}
@@ -246,6 +256,26 @@ export default function MultiSetupTabs({ onOpenCompare }: Props): JSX.Element | 
           onClose={() => setAddExistingOpen(false)}
           onAdd={handleAddExisting}
         />
+      )}
+      {deleteOpen && (
+        <div className="modal-overlay" onClick={() => setDeleteOpen(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 420 }}>
+            <h2 style={{ marginTop: 0 }}>Delete &quot;{setupName}&quot;?</h2>
+            <p className="card-sub">
+              {members.length <= 2
+                ? `This setup and everything on it will be deleted, and "${group.name}" will dissolve back into a single setup. This can't be undone.`
+                : "This setup and everything on it will be deleted. This can't be undone."}
+            </p>
+            <div className="modal-actions">
+              <button className="btn" onClick={() => setDeleteOpen(false)}>
+                Cancel
+              </button>
+              <button className="btn danger" onClick={handleDelete}>
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

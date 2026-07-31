@@ -106,7 +106,23 @@ export const KEYBIND_ACTIONS: KeybindActionDef[] = [
     scope: 'layout',
     defaultCombo: 'Delete',
     allowBareKey: true
-  }
+  },
+  // Jump straight to the Nth tab in the Multi Setup strip. Generated rather than hand-written
+  // because they're nine copies of one idea — but they are still nine ordinary entries, since
+  // `resolve()` compares whole combo strings and the Keybinds editor renders one row per entry,
+  // so there's no such thing as a parameterized binding here.
+  //
+  // 1..9 map to tab positions literally; there's deliberately no browser-style "9 = last tab".
+  // The range starts at 1 and stops at 9 for a reason: Cmd/Ctrl+0 is Electron's built-in viewMenu
+  // "Reset Zoom" accelerator, and native accelerators fire before the DOM, so a 0 binding here
+  // would look bound in Settings but never actually fire.
+  ...Array.from({ length: 9 }, (_, i) => ({
+    id: `go-to-setup-${i + 1}`,
+    label: `Go to Setup ${i + 1}`,
+    category: 'Multi Setup',
+    scope: 'global' as const,
+    defaultCombo: `CmdOrCtrl+${i + 1}`
+  }))
 ]
 
 export const KEYBIND_ACTIONS_BY_ID: Record<string, KeybindActionDef> = Object.fromEntries(

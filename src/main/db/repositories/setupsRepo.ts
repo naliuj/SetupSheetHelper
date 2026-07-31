@@ -172,11 +172,11 @@ export function removeSetup(id: number): void {
 
 /** Deletes setups and dissolves any Multi Setup left with 0-1 members afterward.
  *
- *  A group of one is meaningless (see multiSetupsRepo.removeSetupFromMultiSetup, which dissolves on
- *  unlink for the same reason) — but that only covers unlinking, not deleting. Without this,
- *  deleting 2 of 3 members left a live one-member group behind. The dissolve lives here rather than
- *  in multiSetupsRepo because every delete path funnels through this one function: Manage Setups
- *  (setupHandlers), the studio cascade (studiosRepo) and the folder cascade (foldersRepo). The
+ *  A group of one is meaningless — a "Multi Setup" of one band is just a setup — so deleting 2 of
+ *  3 members must not leave a live one-member group behind. The dissolve lives here because every
+ *  delete path funnels through this one function: Manage Setups (setupHandlers), the Multi Setup
+ *  tab strip's "Delete this setup", the studio cascade (studiosRepo) and the folder cascade
+ *  (foldersRepo). The
  *  survivor's own multi_setup_id is cleared for free by the column's ON DELETE SET NULL. */
 export function removeSetups(ids: number[]): void {
   if (ids.length === 0) return

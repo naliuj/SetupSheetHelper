@@ -7,6 +7,7 @@ import { KEYBIND_ACTIONS, formatCombo, normalizeKeyEvent } from '@shared/constan
 import { useSetupStore } from '@renderer/state/setupStore'
 import { useLayoutStore } from '@renderer/state/layoutStore'
 import { useKeybindPrefsStore } from '@renderer/state/keybindPrefsStore'
+import { useMultiSetupStore } from '@renderer/state/multiSetupStore'
 import { useNavigationStore, type EditorMode } from '@renderer/state/navigationStore'
 import { exportStageToDataUrl } from './canvas/konvaExport'
 import SaveAsTemplateModal from './SaveAsTemplateModal'
@@ -62,6 +63,8 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode, onOpenSetti
 
   const resolveKeybind = useKeybindPrefsStore((s) => s.resolve)
   const goToSettings = useNavigationStore((s) => s.goToSettings)
+  const goToSetup = useNavigationStore((s) => s.goToSetup)
+  const buildingId = useNavigationStore((s) => s.buildingId)
 
   const nameField = useBufferedField(name, setName)
   const sessionDateField = useBufferedField(sessionDate ?? '', (v) => setSessionDate(v || null))
@@ -288,7 +291,23 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode, onOpenSetti
     },
     'delete-selection-layout': () => {
       if (mode === 'layout' && selectedBlockIds.size > 0) removeBlocks([...selectedBlockIds])
-    }
+    },
+    // Cmd/Ctrl+1..9. Read from the store rather than closed over, so the handler map doesn't need
+    // to re-subscribe to the member list. A no-op when the setup isn't in a Multi Setup, when
+    // there's no Nth member, or when N is already the open setup — exactly what clicking the
+    // corresponding tab does (MultiSetupTabs guards `m.id !== currentSetupId` the same way).
+    // Registering all nine is mandatory, not optional: the dispatcher is first-match-wins and
+    // returns even when no handler exists, so an unregistered id would swallow the keystroke.
+    ...Object.fromEntries(
+      Array.from({ length: 9 }, (_, i) => [
+        `go-to-setup-${i + 1}`,
+        () => {
+          const target = useMultiSetupStore.getState().members[i]
+          if (!target || target.id === setupId || studioId == null) return
+          goToSetup(buildingId, studioId, target.id, { keepEditorMode: true })
+        }
+      ])
+    )
   }
 
   // Mouse-click path: the native menu's items still send these over IPC when clicked — this
@@ -300,7 +319,7 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode, onOpenSetti
       handlers[action]?.()
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, selectedItemIds, selectedBlockIds, studioId, onOpenSettings])
+  }, [mode, selectedItemIds, selectedBlockIds, studioId, setupId, buildingId, onOpenSettings])
 
   // Keyboard path: matches every KEYBIND_ACTIONS entry (except open-settings, see above) against
   // its user-configured (or default) combo. isTextField bails out before matching ANY action —
@@ -337,7 +356,7 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode, onOpenSetti
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, selectedItemIds, selectedBlockIds, studioId, onOpenSettings])
+  }, [mode, selectedItemIds, selectedBlockIds, studioId, setupId, buildingId, onOpenSettings])
 
   return (
     <div className="top-bar" style={{ borderTop: '1px solid var(--color-border)' }}>

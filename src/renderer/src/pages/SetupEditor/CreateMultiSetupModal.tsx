@@ -12,7 +12,7 @@ interface Props {
 }
 
 /** One-step Multi Setup creation: names the group and every sibling setup at once, so the group is
- *  never created in the one-member state that removeSetupFromMultiSetup treats as meaningless.
+ *  never created in the one-member state that the dissolve rule treats as meaningless.
  *
  *  Unlike every other "add" form in the app (which commits each row to the DB immediately), the
  *  rows here are staged locally and submitted together — deliberately kept local to this component
