@@ -17,9 +17,6 @@ export function registerMultiSetupHandlers(): void {
   ipcMain.handle(IPC.multiSetups.createAndAdd, (_e, multiSetupId: number, name: string) =>
     multiSetupsRepo.createSetupInMultiSetup(multiSetupId, name)
   )
-  ipcMain.handle(IPC.multiSetups.removeSetup, (_e, setupId: number) =>
-    multiSetupsRepo.removeSetupFromMultiSetup(setupId)
-  )
   ipcMain.handle(IPC.multiSetups.rename, (_e, id: number, name: string) => multiSetupsRepo.renameMultiSetup(id, name))
   ipcMain.handle(IPC.multiSetups.recordLastOpened, (_e, setupId: number) =>
     multiSetupsRepo.recordLastOpenedSetup(setupId)
@@ -34,11 +31,19 @@ export function registerMultiSetupHandlers(): void {
   ipcMain.handle(IPC.multiSetups.getComparison, (_e, multiSetupId: number) =>
     multiSetupsRepo.getMultiSetupComparison(multiSetupId)
   )
-  ipcMain.handle(IPC.multiSetups.linkSources, (_e, multiSetupId: number, sourceNames: string[]) =>
-    multiSetupsRepo.linkSources(multiSetupId, sourceNames)
+  ipcMain.handle(IPC.multiSetups.renameItemSource, (_e, itemId: number, sourceName: string) =>
+    multiSetupsRepo.renameComparisonItem(itemId, sourceName)
   )
-  ipcMain.handle(IPC.multiSetups.unlinkSource, (_e, multiSetupId: number, sourceName: string) =>
-    multiSetupsRepo.unlinkSource(multiSetupId, sourceName)
+  ipcMain.handle(
+    IPC.multiSetups.setItemMic,
+    (_e, itemId: number, micId: number | null, micText: string | null, notes: string | null) =>
+      multiSetupsRepo.setComparisonItemMic(itemId, micId, micText, notes)
+  )
+  ipcMain.handle(IPC.multiSetups.linkItems, (_e, itemIds: number[], groupId: string) =>
+    multiSetupsRepo.linkComparisonItems(itemIds, groupId)
+  )
+  ipcMain.handle(IPC.multiSetups.unlinkGroup, (_e, setupId: number, groupId: string) =>
+    multiSetupsRepo.unlinkComparisonGroup(setupId, groupId)
   )
   ipcMain.handle(IPC.multiSetups.alignRow, (_e, input: AlignMultiSetupRowInput) =>
     multiSetupsRepo.alignMultiSetupRow(input)

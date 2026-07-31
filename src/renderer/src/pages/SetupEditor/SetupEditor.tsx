@@ -159,11 +159,12 @@ export default function SetupEditor(): JSX.Element {
     setCompareMultiSetupId(multiSetupId)
   }
 
-  // An alignment may have rewritten the open setup behind setupStore's back — reload it, or the
-  // next autosave pushes the pre-alignment items back over the write.
-  async function closeCompare(didAlign: boolean): Promise<void> {
+  // An alignment or an in-place source rename may have rewritten the open setup behind
+  // setupStore's back — reload it, or the next autosave pushes the pre-Compare items back over
+  // the write.
+  async function closeCompare(didWrite: boolean): Promise<void> {
     setCompareMultiSetupId(null)
-    if (!didAlign || !setupId) return
+    if (!didWrite || !setupId) return
     const setup = await window.api.setups.getWithItems(setupId)
     if (setup) loadFromSetup(setup)
   }

@@ -146,7 +146,6 @@ const api: RendererApi = {
     createWithSetups: (input) => ipcRenderer.invoke(IPC.multiSetups.createWithSetups, input),
     addExisting: (multiSetupId, setupId) => ipcRenderer.invoke(IPC.multiSetups.addExisting, multiSetupId, setupId),
     createAndAdd: (multiSetupId, name) => ipcRenderer.invoke(IPC.multiSetups.createAndAdd, multiSetupId, name),
-    removeSetup: (setupId) => ipcRenderer.invoke(IPC.multiSetups.removeSetup, setupId),
     rename: (id, name) => ipcRenderer.invoke(IPC.multiSetups.rename, id, name),
     recordLastOpened: (setupId) => ipcRenderer.invoke(IPC.multiSetups.recordLastOpened, setupId),
     getDeleteImpact: (id) => ipcRenderer.invoke(IPC.multiSetups.getDeleteImpact, id),
@@ -154,11 +153,13 @@ const api: RendererApi = {
       ipcRenderer.invoke(IPC.multiSetups.moveToFolder, multiSetupId, folderId),
     removeManyCascade: (ids) => ipcRenderer.invoke(IPC.multiSetups.removeManyCascade, ids),
     getComparison: (multiSetupId) => ipcRenderer.invoke(IPC.multiSetups.getComparison, multiSetupId),
-    linkSources: (multiSetupId, sourceNames) =>
-      ipcRenderer.invoke(IPC.multiSetups.linkSources, multiSetupId, sourceNames),
-    unlinkSource: (multiSetupId, sourceName) =>
-      ipcRenderer.invoke(IPC.multiSetups.unlinkSource, multiSetupId, sourceName),
-    alignRow: (input) => ipcRenderer.invoke(IPC.multiSetups.alignRow, input)
+    alignRow: (input) => ipcRenderer.invoke(IPC.multiSetups.alignRow, input),
+    renameItemSource: (itemId, sourceName) =>
+      ipcRenderer.invoke(IPC.multiSetups.renameItemSource, itemId, sourceName),
+    setItemMic: (itemId, micId, micText, notes) =>
+      ipcRenderer.invoke(IPC.multiSetups.setItemMic, itemId, micId, micText, notes),
+    linkItems: (itemIds, groupId) => ipcRenderer.invoke(IPC.multiSetups.linkItems, itemIds, groupId),
+    unlinkGroup: (setupId, groupId) => ipcRenderer.invoke(IPC.multiSetups.unlinkGroup, setupId, groupId)
   },
   settings: {
     get: (key) => ipcRenderer.invoke(IPC.settings.get, key),

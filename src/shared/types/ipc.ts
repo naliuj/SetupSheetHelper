@@ -148,15 +148,16 @@ export const IPC = {
     createWithSetups: 'multiSetups:createWithSetups',
     addExisting: 'multiSetups:addExisting',
     createAndAdd: 'multiSetups:createAndAdd',
-    removeSetup: 'multiSetups:removeSetup',
     rename: 'multiSetups:rename',
     recordLastOpened: 'multiSetups:recordLastOpened',
     getDeleteImpact: 'multiSetups:getDeleteImpact',
     moveToFolder: 'multiSetups:moveToFolder',
     removeManyCascade: 'multiSetups:removeManyCascade',
     getComparison: 'multiSetups:getComparison',
-    linkSources: 'multiSetups:linkSources',
-    unlinkSource: 'multiSetups:unlinkSource',
+    renameItemSource: 'multiSetups:renameItemSource',
+    setItemMic: 'multiSetups:setItemMic',
+    linkItems: 'multiSetups:linkItems',
+    unlinkGroup: 'multiSetups:unlinkGroup',
     alignRow: 'multiSetups:alignRow'
   },
   settings: {
@@ -447,10 +448,9 @@ export interface SaveAsTemplateInput {
 
 export interface AlignMultiSetupRowInput {
   multiSetupId: number
-  /** The row whose patch fields every other member's matching row is copied FROM. */
+  /** The row whose patch fields every other member's matching row is copied FROM. Compare is a
+   *  channel-keyed grid, so "the matching row" is the row on the same channel in each target. */
   referenceItemId: number
-  /** Which Compare pivot the user was on — decides what "the matching row" means in each target. */
-  matchBy: 'channel' | 'source'
 }
 
 export interface CreateMultiSetupInput {
@@ -671,16 +671,17 @@ export interface RendererApi {
     createWithSetups(input: CreateMultiSetupInput): Promise<MultiSetup>
     addExisting(multiSetupId: number, setupId: number): Promise<void>
     createAndAdd(multiSetupId: number, name: string): Promise<Setup>
-    removeSetup(setupId: number): Promise<void>
     rename(id: number, name: string): Promise<void>
     recordLastOpened(setupId: number): Promise<void>
     getDeleteImpact(id: number): Promise<{ setupCount: number }>
     moveToFolder(multiSetupId: number, folderId: number | null): Promise<void>
     removeManyCascade(ids: number[]): Promise<void>
     getComparison(multiSetupId: number): Promise<MultiSetupComparison | null>
-    linkSources(multiSetupId: number, sourceNames: string[]): Promise<void>
-    unlinkSource(multiSetupId: number, sourceName: string): Promise<void>
     alignRow(input: AlignMultiSetupRowInput): Promise<{ updatedItemIds: number[] }>
+    renameItemSource(itemId: number, sourceName: string): Promise<void>
+    setItemMic(itemId: number, micId: number | null, micText: string | null, notes: string | null): Promise<void>
+    linkItems(itemIds: number[], groupId: string): Promise<void>
+    unlinkGroup(setupId: number, groupId: string): Promise<void>
   }
   settings: {
     get(key: string): Promise<string | null>

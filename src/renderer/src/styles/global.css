@@ -428,8 +428,10 @@ table.data-table td select {
   font-weight: 600;
 }
 
-/* Compare view. Matching rows are deliberately the QUIET ones — the eye should land on changeover
-   work, not on the two-thirds of the sheet that's already consistent between bands. */
+/* Compare view. Three row states, loudest last: `same` rows are dimmed, `renamed` rows (identical
+   patch, different label — a jazz sax and a bluegrass fiddle on the same mic and channel) get a
+   quiet accent marker because they're worth seeing but cost no changeover time, and only `changed`
+   rows carry the warning tint. The eye should land on actual patch work. */
 .compare-table {
   width: 100%;
   border-collapse: collapse;
@@ -451,16 +453,44 @@ table.data-table td select {
   vertical-align: top;
 }
 
-.compare-row.match td {
+.compare-row.same td {
   color: var(--color-text-dim);
 }
 
-.compare-row.mismatch {
+.compare-row.renamed td:first-child {
+  box-shadow: inset 2px 0 0 color-mix(in srgb, var(--color-accent) 55%, transparent);
+}
+
+.compare-row.changed {
   background: color-mix(in srgb, var(--color-warning) 10%, var(--color-bg));
 }
 
-.compare-row.mismatch td:first-child {
+.compare-row.changed td:first-child {
   box-shadow: inset 2px 0 0 var(--color-warning);
+}
+
+/* Editable source name in the By-channel pivot. Chromeless until hovered or focused so a grid of
+   them still reads as a table rather than a form. */
+.compare-name-input {
+  width: 100%;
+  min-width: 120px;
+  padding: 2px 4px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+
+.compare-name-input:hover {
+  border-color: var(--color-border);
+}
+
+.compare-name-input:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  background: var(--color-surface);
+  color: var(--color-text);
 }
 
 .compare-cell-absent {
@@ -472,6 +502,117 @@ table.data-table td select {
   display: block;
   font-size: 11px;
   color: var(--color-text-dim);
+}
+
+/* Split columns: each band owns a Source + Mic pair under one spanning header. The rule at the
+   start of each pair is what makes the grouping readable — without it two bands' four columns
+   read as one undifferentiated run. */
+.compare-table-split th.compare-band-start,
+.compare-table-split td.compare-band-start {
+  border-left: 1px solid var(--color-border);
+}
+
+.compare-table-split .compare-subhead {
+  font-size: 11px;
+  font-weight: 400;
+  padding-top: 0;
+}
+
+/* Wide enough that a mic name and a source name don't wrap at two bands, and the panel scrolls
+   rather than crushing them at three or more. */
+.compare-table-split td,
+.compare-table-split th {
+  min-width: 130px;
+}
+
+.compare-table-split td:first-child,
+.compare-table-split th:first-child {
+  min-width: 0;
+}
+
+/* The picker's own trigger is sized for the setup sheet's roomier cells. */
+.compare-table-split .picker-trigger {
+  width: 100%;
+}
+
+/* Stereo-pair link gutter, one per band column. The setup sheet gives this its own slim column;
+   here that would mean a third sub-column per band, so it lives inside the Source cell's left
+   padding instead. Same accent bracket and seam icon, so the two screens read alike. */
+.compare-link-cell {
+  position: relative;
+  overflow: visible;
+  padding-left: 16px;
+}
+
+.compare-bracket {
+  position: absolute;
+  left: 4px;
+  width: 5px;
+  border-left: 2px solid var(--color-accent);
+  pointer-events: none;
+}
+
+/* Split across the pair: the upper row draws the spine down to the seam plus the top tick, the
+   lower row draws the spine up from it plus the bottom tick. Together they form one "[". */
+.compare-bracket-top {
+  top: 4px;
+  bottom: 0;
+  border-top: 2px solid var(--color-accent);
+}
+
+.compare-bracket-bottom {
+  top: 0;
+  bottom: 4px;
+  border-bottom: 2px solid var(--color-accent);
+}
+
+/* A pair whose halves aren't next to each other in this view — real, but unbracketable. */
+.compare-link-apart {
+  position: absolute;
+  left: 2px;
+  top: 8px;
+  color: var(--color-accent);
+  opacity: 0.75;
+  pointer-events: none;
+}
+
+/* Straddles the cell's bottom border, so it reads as acting on the gap rather than on either row. */
+.compare-seam-btn {
+  position: absolute;
+  left: 0;
+  top: 100%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border: none;
+  border-radius: 3px;
+  background: var(--color-surface);
+  color: var(--color-text-dim);
+  opacity: 0.45;
+  cursor: pointer;
+}
+
+.compare-seam-btn:hover {
+  opacity: 1;
+  color: var(--color-accent);
+}
+
+.compare-seam-btn.linked {
+  opacity: 1;
+  color: var(--color-accent);
+}
+
+/* Divider introducing the unpatched rows. A caption, not data — it must not read as a comparison
+   row, so no status colour and no left bar. */
+.compare-section-row td {
+  padding-top: 16px;
+  font-size: 11px;
+  color: var(--color-text-dim);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .multi-setup-badge {

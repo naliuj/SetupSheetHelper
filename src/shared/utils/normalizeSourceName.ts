@@ -7,7 +7,7 @@
  *
  *  Deliberately no fuzzier than this. "Kick" and "Kick In" are different sources, and silently
  *  merging them is worse than showing two rows — genuinely different names that mean the same
- *  thing ("Gtr 1" / "Guitar 1") are handled by explicit links instead (multi_setup_source_links). */
+ *  thing ("Gtr 1" / "Guitar 1") read as a rename in Compare, which costs no changeover time. */
 export function normalizeSourceName(name: string): string {
   return name.trim().toLowerCase().replace(/\s+/g, ' ')
 }

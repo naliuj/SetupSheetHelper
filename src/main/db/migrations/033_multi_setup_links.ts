@@ -7,11 +7,12 @@ import type Database from 'better-sqlite3'
  *  setups.updated_at: that tracks edits, and opening a band just to read it doesn't change it.
  *  ON DELETE SET NULL means deleting the remembered band silently falls back to the first member.
  *
- *  `multi_setup_source_links` — manually-declared "these names mean the same source" (e.g. one band
- *  calls it "Gtr 1", another "Guitar 1"), so the Compare view can treat them as one row. Keyed by
- *  NAME rather than setup_item id: it's a statement about names, not about particular rows, so it
- *  survives a row being deleted and retyped. The UNIQUE constraint keeps a name in at most one
- *  link group. */
+ *  `multi_setup_source_links` — CURRENTLY UNUSED. It backed a "these names mean the same source"
+ *  declaration for Compare's old by-source pivot, where rows were keyed on the source name and a
+ *  band renaming its source would otherwise split into two half-empty rows. Compare is now keyed on
+ *  the channel, which makes a rename one row with two labels and leaves nothing for a link to fix.
+ *  The table is left in place rather than dropped by a follow-up migration — it holds no data any
+ *  code reads, and keeping it costs nothing if the idea comes back. */
 export function run(db: Database.Database): void {
   db.exec(
     'ALTER TABLE multi_setups ADD COLUMN last_setup_id INTEGER REFERENCES setups(id) ON DELETE SET NULL'

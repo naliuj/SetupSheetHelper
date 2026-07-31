@@ -3,7 +3,6 @@ import type {
   MultiSetupComparison,
   MultiSetupComparisonItem,
   MultiSetupMember,
-  MultiSetupSourceLink,
   Setup
 } from '@shared/types/setup'
 import { normalizeSourceName } from '@shared/utils/normalizeSourceName'
@@ -122,13 +121,14 @@ export interface CreateMultiSetupWithSetupsInput {
   /** Row 1's (possibly edited) name — renames the source setup in place. */
   sourceSetupName: string
   /** One new setup per entry, each a copy of the one before it. Must be non-empty: a Multi Setup
-   *  of one setup is just a setup, and removeSetupFromMultiSetup would dissolve it right back. */
+   *  of one setup is just a setup, and the dissolve rule in setupsRepo.removeSetups would collapse
+   *  it right back. */
   newSetupNames: string[]
 }
 
 /** The only creation path: promotes an existing setup into a new Multi Setup AND creates its
  *  siblings in one transaction, so the group is never persisted in the degenerate one-member
- *  state that removeSetupFromMultiSetup treats as meaningless. */
+ *  state that the dissolve rule treats as meaningless. */
 export function createMultiSetupWithSetups(input: CreateMultiSetupWithSetupsInput): MultiSetup {
   const names = input.newSetupNames.map((n) => n.trim()).filter(Boolean)
   if (names.length === 0) throw new Error('A Multi Setup needs at least one more setup')
@@ -193,136 +193,98 @@ export function createSetupInMultiSetup(multiSetupId: number, name: string): Set
   return { ...create(), multiSetupId }
 }
 
-/** Unlinks one setup from its Multi Setup. A group of 0-1 members means nothing (a "Multi Setup" of
- *  one band is just a setup) — dissolve it; ON DELETE SET NULL clears the last remaining member's
- *  multi_setup_id for free. */
-export function removeSetupFromMultiSetup(setupId: number): void {
-  const db = getDb()
-  const remove = db.transaction(() => {
-    const setup = db.prepare('SELECT multi_setup_id FROM setups WHERE id = ?').get(setupId) as
-      | { multi_setup_id: number | null }
-      | undefined
-    if (!setup?.multi_setup_id) return
-    const multiSetupId = setup.multi_setup_id
-    db.prepare('UPDATE setups SET multi_setup_id = NULL WHERE id = ?').run(setupId)
-    const remaining = (
-      db.prepare('SELECT COUNT(*) c FROM setups WHERE multi_setup_id = ?').get(multiSetupId) as { c: number }
-    ).c
-    if (remaining <= 1) db.prepare('DELETE FROM multi_setups WHERE id = ?').run(multiSetupId)
-  })
-  remove()
-}
-
 export function renameMultiSetup(id: number, name: string): void {
   getDb().prepare('UPDATE multi_setups SET name = ? WHERE id = ?').run(name, id)
 }
 
-export function listSourceLinks(multiSetupId: number): MultiSetupSourceLink[] {
-  const rows = getDb()
-    .prepare('SELECT link_key, source_name FROM multi_setup_source_links WHERE multi_setup_id = ? ORDER BY link_key')
-    .all(multiSetupId) as { link_key: string; source_name: string }[]
-  const byKey = new Map<string, string[]>()
-  for (const row of rows) {
-    const names = byKey.get(row.link_key) ?? []
-    names.push(row.source_name)
-    byKey.set(row.link_key, names)
-  }
-  return [...byKey].map(([linkKey, sourceNames]) => ({ linkKey, sourceNames }))
-}
-
-/** Declares a set of source names equivalent. Merges into any link group the names already belong
- *  to, so linking A→B then B→C leaves one group of three rather than two overlapping pairs (the
- *  UNIQUE(multi_setup_id, source_name) constraint makes overlapping groups impossible anyway). */
-export function linkSources(multiSetupId: number, sourceNames: string[]): void {
-  const names = [...new Set(sourceNames.map(normalizeSourceName).filter(Boolean))]
-  if (names.length < 2) return
-  const db = getDb()
-  const placeholders = names.map(() => '?').join(',')
-  const link = db.transaction(() => {
-    const existing = db
-      .prepare(
-        `SELECT DISTINCT link_key FROM multi_setup_source_links
-          WHERE multi_setup_id = ? AND source_name IN (${placeholders})`
-      )
-      .all(multiSetupId, ...names) as { link_key: string }[]
-    // Reuse an existing group's key when there is one, so a name joining an established set doesn't
-    // orphan the rest of it.
-    const linkKey = existing[0]?.link_key ?? `link-${names[0]}-${Date.now()}`
-    if (existing.length > 1) {
-      const keys = existing.map((e) => e.link_key)
-      db.prepare(
-        `UPDATE multi_setup_source_links SET link_key = ?
-          WHERE multi_setup_id = ? AND link_key IN (${keys.map(() => '?').join(',')})`
-      ).run(linkKey, multiSetupId, ...keys)
-    }
-    const insert = db.prepare(
-      `INSERT INTO multi_setup_source_links (multi_setup_id, link_key, source_name) VALUES (?, ?, ?)
-       ON CONFLICT(multi_setup_id, source_name) DO UPDATE SET link_key = excluded.link_key`
-    )
-    for (const name of names) insert.run(multiSetupId, linkKey, name)
-  })
-  link()
-}
-
-/** Drops one name out of its link group. Any group left with a single name is removed outright —
- *  a "these are the same" set of one says nothing. */
-export function unlinkSource(multiSetupId: number, sourceName: string): void {
-  const db = getDb()
-  const normalized = normalizeSourceName(sourceName)
-  const unlink = db.transaction(() => {
-    const row = db
-      .prepare('SELECT link_key FROM multi_setup_source_links WHERE multi_setup_id = ? AND source_name = ?')
-      .get(multiSetupId, normalized) as { link_key: string } | undefined
-    if (!row) return
-    db.prepare('DELETE FROM multi_setup_source_links WHERE multi_setup_id = ? AND source_name = ?').run(
-      multiSetupId,
-      normalized
-    )
-    const remaining = (
-      db
-        .prepare('SELECT COUNT(*) c FROM multi_setup_source_links WHERE multi_setup_id = ? AND link_key = ?')
-        .get(multiSetupId, row.link_key) as { c: number }
-    ).c
-    if (remaining <= 1) {
-      db.prepare('DELETE FROM multi_setup_source_links WHERE multi_setup_id = ? AND link_key = ?').run(
-        multiSetupId,
-        row.link_key
-      )
-    }
-  })
-  unlink()
-}
-
 /** Every member's sheet in one round trip — the Compare grid needs all of them at once, and N×
- *  getSetupWithItems would ship full SetupItems (outboards, notes, colors) it never renders.
- *  Two statements regardless of member count. */
+ *  getSetupWithItems would ship full SetupItems (notes, colors, group ids) it never renders.
+ *  Two statements regardless of member count: the rows and their outboard slots.
+ *
+ *  The selected column set is the full patch, matching alignMultiSetupRow's write list exactly (see
+ *  MultiSetupComparisonItem). Anything narrower and Compare would show rows as matched that Match
+ *  then rewrites. */
 export function getMultiSetupComparison(multiSetupId: number): MultiSetupComparison | null {
   const db = getDb()
   const multiSetup = getMultiSetup(multiSetupId)
   if (!multiSetup) return null
 
+  const studioIsTemporary =
+    ((db.prepare('SELECT is_temporary FROM studios WHERE id = ?').get(multiSetup.studioId) as
+      | { is_temporary: number }
+      | undefined)?.is_temporary ?? 0) === 1
+
   const members = listMultiSetupMembers(multiSetupId)
   if (members.length === 0) {
-    return { multiSetup, members: [], links: listSourceLinks(multiSetupId) }
+    return { multiSetup, members: [], studioIsTemporary }
   }
 
-  const placeholders = members.map(() => '?').join(',')
+  const setupIds = members.map((m) => m.id)
+  const placeholders = setupIds.map(() => '?').join(',')
+
+  // Not folded into listMultiSetupMembers: that feeds the tab strip, which has no use for the flag.
+  const facultyBySetup = new Map(
+    (
+      db
+        .prepare(`SELECT id, faculty_reserve_enabled FROM setups WHERE id IN (${placeholders})`)
+        .all(...setupIds) as { id: number; faculty_reserve_enabled: number }[]
+    ).map((r) => [r.id, r.faculty_reserve_enabled === 1])
+  )
+
   const rows = db
     .prepare(
-      `SELECT si.setup_id, si.id, si.source_name, si.channel, si.mic_text, m.name AS mic_name
+      `SELECT si.setup_id, si.id, si.source_name, si.channel, si.tie_line, si.cue_box,
+              si.phantom_power, si.polarity_flip, si.notes, si.group_id, si.sort_order,
+              si.mic_id, si.mic_text, m.name AS mic_name,
+              si.preamp_text, p.name AS preamp_name
          FROM setup_items si
          LEFT JOIN mics m ON m.id = si.mic_id
+         LEFT JOIN preamps p ON p.id = si.preamp_id
         WHERE si.setup_id IN (${placeholders})
         ORDER BY si.setup_id, si.sort_order, si.id`
     )
-    .all(...members.map((m) => m.id)) as {
+    .all(...setupIds) as {
     setup_id: number
     id: number
     source_name: string
     channel: number | null
+    tie_line: number | null
+    cue_box: number | null
+    phantom_power: number
+    polarity_flip: number
+    notes: string | null
+    group_id: string | null
+    sort_order: number
+    mic_id: number | null
     mic_text: string | null
     mic_name: string | null
+    preamp_text: string | null
+    preamp_name: string | null
   }[]
+
+  // Slots for every member's rows in one statement, keyed by item. Ordered by slot_index so the
+  // resulting label lists compare positionally.
+  const outboardRows = db
+    .prepare(
+      `SELECT so.setup_item_id, so.outboard_text, o.name AS outboard_name
+         FROM setup_item_outboards so
+         JOIN setup_items si ON si.id = so.setup_item_id
+         LEFT JOIN outboard_gear o ON o.id = so.outboard_id
+        WHERE si.setup_id IN (${placeholders})
+        ORDER BY so.setup_item_id, so.slot_index`
+    )
+    .all(...setupIds) as { setup_item_id: number; outboard_text: string | null; outboard_name: string | null }[]
+
+  const outboardsByItem = new Map<number, string[]>()
+  for (const row of outboardRows) {
+    const label = row.outboard_name ?? row.outboard_text
+    // Empty slots carry no changeover meaning — a row with slot 0 blank and one with no slot at all
+    // are the same patch, so they must produce the same list.
+    if (!label) continue
+    const list = outboardsByItem.get(row.setup_item_id) ?? []
+    list.push(label)
+    outboardsByItem.set(row.setup_item_id, list)
+  }
 
   const itemsBySetup = new Map<number, MultiSetupComparisonItem[]>()
   for (const row of rows) {
@@ -331,27 +293,162 @@ export function getMultiSetupComparison(multiSetupId: number): MultiSetupCompari
       itemId: row.id,
       sourceName: row.source_name,
       channel: row.channel,
-      micLabel: row.mic_name ?? row.mic_text
+      micLabel: row.mic_name ?? row.mic_text,
+      micId: row.mic_id,
+      notes: row.notes,
+      groupId: row.group_id,
+      sortOrder: row.sort_order,
+      preampLabel: row.preamp_name ?? row.preamp_text,
+      tieLine: row.tie_line,
+      cueBox: row.cue_box,
+      phantomPower: row.phantom_power !== 0,
+      polarityFlip: row.polarity_flip !== 0,
+      outboardLabels: outboardsByItem.get(row.id) ?? []
     })
     itemsBySetup.set(row.setup_id, items)
   }
 
   return {
     multiSetup,
-    members: members.map((m) => ({ setupId: m.id, name: m.name, items: itemsBySetup.get(m.id) ?? [] })),
-    links: listSourceLinks(multiSetupId)
+    members: members.map((m) => ({
+      setupId: m.id,
+      name: m.name,
+      facultyReserveEnabled: facultyBySetup.get(m.id) ?? false,
+      items: itemsBySetup.get(m.id) ?? []
+    })),
+    studioIsTemporary
   }
+}
+
+/** Renames one row's source, straight from the Compare grid.
+ *
+ *  Narrow on purpose. Ordinary item persistence is the wholesale replaceItemsForSetup, which needs
+ *  a full loaded sheet — Compare has none of the member sheets open, and touching the name is the
+ *  one edit it offers. Sits here beside alignMultiSetupRow, which does the same kind of scoped
+ *  cross-sheet write. */
+export function renameComparisonItem(itemId: number, sourceName: string): void {
+  const db = getDb()
+  const rename = db.transaction(() => {
+    const info = db
+      .prepare(`UPDATE setup_items SET source_name = ?, updated_at = datetime('now') WHERE id = ?`)
+      .run(sourceName, itemId)
+    if (info.changes === 0) return
+    db.prepare(`UPDATE setups SET updated_at = datetime('now') WHERE id = (SELECT setup_id FROM setup_items WHERE id = ?)`).run(
+      itemId
+    )
+  })
+  rename()
+}
+
+/** Sets one row's mic, straight from the Compare grid. Same narrow-write reasoning as
+ *  renameComparisonItem above.
+ *
+ *  micId and micText are mutually exclusive by construction, not by accident: display precedence is
+ *  id-first, so leaving a stale micText behind a catalog pick would hide it until the mic was later
+ *  cleared and then resurface it as an "Unresolved" badge. Picking from the catalog passes
+ *  (id, null); a Quick Setup studio's free-text field passes (null, text); "No Mic" passes
+ *  (null, null).
+ *
+ *  `notes` arrives already tagged by the caller — the renderer owns applyMicPoolNotesTag and knows
+ *  the chosen mic's pool, so a mic picked here ends up indistinguishable from one picked in the
+ *  setup sheet. */
+export function setComparisonItemMic(
+  itemId: number,
+  micId: number | null,
+  micText: string | null,
+  notes: string | null
+): void {
+  const db = getDb()
+  const setMic = db.transaction(() => {
+    const info = db
+      .prepare(
+        `UPDATE setup_items SET mic_id = ?, mic_text = ?, notes = ?, updated_at = datetime('now')
+          WHERE id = ?`
+      )
+      .run(micId, micText, notes, itemId)
+    if (info.changes === 0) return
+    db.prepare(
+      `UPDATE setups SET updated_at = datetime('now') WHERE id = (SELECT setup_id FROM setup_items WHERE id = ?)`
+    ).run(itemId)
+  })
+  setMic()
+}
+
+/** Bumps the owning setups' updated_at after a targeted item write, so the editor's autosave can't
+ *  quietly win a race against it. Shared by the Compare-side writers below. */
+function touchSetupsForItems(db: ReturnType<typeof getDb>, itemIds: number[]): void {
+  if (itemIds.length === 0) return
+  const placeholders = itemIds.map(() => '?').join(',')
+  db.prepare(
+    `UPDATE setups SET updated_at = datetime('now')
+      WHERE id IN (SELECT DISTINCT setup_id FROM setup_items WHERE id IN (${placeholders}))`
+  ).run(...itemIds)
+}
+
+/** Links rows into a mic group (a stereo pair), straight from the Compare grid.
+ *
+ *  Only the group id is written — no mic/preamp/48V/outboard auto-fill. The setup sheet does copy
+ *  those on link, but there the two rows are side by side under the cursor; in a grid of several
+ *  bands a click that silently rewrote gear in another column would be unpredictable, and the mic
+ *  is directly editable in Compare anyway.
+ *
+ *  A row belongs to at most one group, so any group the incoming rows already sit in is dissolved
+ *  first — otherwise linking (2,3) after (1,2) would strand row 1 holding a group id with nobody
+ *  left in it. That mirrors the sheet's own steal-from-neighbour rule. */
+export function linkComparisonItems(itemIds: number[], groupId: string): void {
+  if (itemIds.length < 2) return
+  const db = getDb()
+  const link = db.transaction(() => {
+    const placeholders = itemIds.map(() => '?').join(',')
+    const existing = db
+      .prepare(`SELECT DISTINCT setup_id, group_id FROM setup_items WHERE id IN (${placeholders}) AND group_id IS NOT NULL`)
+      .all(...itemIds) as { setup_id: number; group_id: string }[]
+    // Scoped by (setup_id, group_id), never group_id alone: sibling setups are created by copying,
+    // and copyItemsToSetup carries group_id across verbatim, so the same uuid is routinely live in
+    // more than one band. Clearing on the id alone would unlink an unrelated band's pair.
+    for (const row of existing) {
+      db.prepare('UPDATE setup_items SET group_id = NULL WHERE setup_id = ? AND group_id = ?').run(
+        row.setup_id,
+        row.group_id
+      )
+    }
+    db.prepare(
+      `UPDATE setup_items SET group_id = ?, updated_at = datetime('now') WHERE id IN (${placeholders})`
+    ).run(groupId, ...itemIds)
+    touchSetupsForItems(db, itemIds)
+  })
+  link()
+}
+
+/** Dissolves one band's mic group. Takes the setup id as well as the group id for the same reason
+ *  as above — the uuid alone is not unique across bands.
+ *
+ *  Clears every member rather than just the two the caller can see: duplicating a linked row copies
+ *  its group id, so a group of three does occur in the wild, and leaving a stray third row holding
+ *  a dead id would be worse than the link the user just asked to remove. */
+export function unlinkComparisonGroup(setupId: number, groupId: string): void {
+  const db = getDb()
+  const unlink = db.transaction(() => {
+    const members = db
+      .prepare('SELECT id FROM setup_items WHERE setup_id = ? AND group_id = ?')
+      .all(setupId, groupId) as { id: number }[]
+    if (members.length === 0) return
+    db.prepare(
+      `UPDATE setup_items SET group_id = NULL, updated_at = datetime('now')
+        WHERE setup_id = ? AND group_id = ?`
+    ).run(setupId, groupId)
+    touchSetupsForItems(
+      db,
+      members.map((m) => m.id)
+    )
+  })
+  unlink()
 }
 
 export interface AlignMultiSetupRowInput {
   multiSetupId: number
   /** The row whose patch fields every other member's matching row is copied FROM. */
   referenceItemId: number
-  /** Which Compare pivot the user was looking at — decides what "the matching row" means.
-   *  'channel': rows at the same channel number (fixes the mic/preamp/outboard on a channel that's
-   *  already agreed). 'source': rows with the same source key (fixes WHICH channel a source lands
-   *  on — the one that actually moves patch work). */
-  matchBy: 'channel' | 'source'
 }
 
 interface AlignSourceRow {
@@ -398,34 +495,17 @@ export function alignMultiSetupRow(input: AlignMultiSetupRowInput): { updatedIte
     const targetSetupIds = memberIds.filter((id) => id !== reference.setup_id)
     if (targetSetupIds.length === 0) return []
 
+    // Matched by channel number: Compare is a channel-keyed grid, so "the corresponding row" is
+    // the row on the same channel. A row with no channel has no counterpart to align.
+    if (reference.channel == null) return []
     const placeholders = targetSetupIds.map(() => '?').join(',')
-    let targets: AlignSourceRow[]
-    if (input.matchBy === 'channel') {
-      if (reference.channel == null) return []
-      targets = db
-        .prepare(
-          `SELECT id, setup_id, source_name, channel, tie_line, cue_box, mic_id, mic_text,
-                  preamp_id, preamp_text, phantom_power, polarity_flip
-             FROM setup_items WHERE setup_id IN (${placeholders}) AND channel = ?`
-        )
-        .all(...targetSetupIds, reference.channel) as AlignSourceRow[]
-    } else {
-      // Filtered in JS with the shared normalizer rather than LOWER()/TRIM() in SQL — SQL can't
-      // collapse internal whitespace runs, and a second definition of "same source" is exactly what
-      // the shared helper exists to prevent.
-      const key = normalizeSourceName(reference.source_name)
-      const candidates = db
-        .prepare(
-          `SELECT id, setup_id, source_name, channel, tie_line, cue_box, mic_id, mic_text,
-                  preamp_id, preamp_text, phantom_power, polarity_flip
-             FROM setup_items WHERE setup_id IN (${placeholders})`
-        )
-        .all(...targetSetupIds) as AlignSourceRow[]
-      const linkedNames = new Set(
-        listSourceLinks(input.multiSetupId).find((l) => l.sourceNames.includes(key))?.sourceNames ?? [key]
+    const targets = db
+      .prepare(
+        `SELECT id, setup_id, source_name, channel, tie_line, cue_box, mic_id, mic_text,
+                preamp_id, preamp_text, phantom_power, polarity_flip
+           FROM setup_items WHERE setup_id IN (${placeholders}) AND channel = ?`
       )
-      targets = candidates.filter((c) => linkedNames.has(normalizeSourceName(c.source_name)))
-    }
+      .all(...targetSetupIds, reference.channel) as AlignSourceRow[]
 
     const update = db.prepare(
       `UPDATE setup_items SET

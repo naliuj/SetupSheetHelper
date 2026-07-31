@@ -137,7 +137,12 @@ export interface MultiSetupMember {
   name: string
 }
 
-/** One member's row, flattened to just what the Compare grid renders and aligns on. */
+/** One member's row, flattened to just what the Compare grid renders and aligns on.
+ *
+ *  Everything below `sourceName` is a *patch* field — how the source is physically plugged in — and
+ *  the set is deliberately identical to what alignMultiSetupRow writes. Compare's "needs
+ *  changeover" test runs over exactly these, so the grid can never call a row matched while the
+ *  Match action would silently rewrite it. Adding a field to one means adding it to the other. */
 export interface MultiSetupComparisonItem {
   itemId: number
   sourceName: string
@@ -146,25 +151,51 @@ export interface MultiSetupComparisonItem {
    *  there, not in the renderer: catalogStore only holds mics available to the OPEN setup, and a
    *  sibling band can reference one filtered out of that list. */
   micLabel: string | null
+  /** The catalog mic itself, for the picker's selected state and per-column usage counts. Null for
+   *  an unset mic OR a free-text one — micLabel is what to display, this is what to edit. */
+  micId: number | null
+  /** Carried solely so a mic picked here can keep the row's "[Faculty Reserve]"-style pool tag in
+   *  step, exactly as picking one in the setup sheet does (see applyMicPoolNotesTag). Never
+   *  compared and never displayed. */
+  notes: string | null
+  /** Mic-group (stereo pair) membership. Deliberately NOT part of the changeover comparison —
+   *  unlinking a pair re-labels a sheet, it doesn't move a cable.
+   *
+   *  Never compare this across columns. Sibling setups are created by copying, and copyItemsToSetup
+   *  copies group_id verbatim, so two different bands routinely hold the SAME uuid by accident.
+   *  Group identity is only ever `(setupId, groupId)`. */
+  groupId: string | null
+  /** The row's position in its own sheet. Compare orders rows by channel, so this is the only way
+   *  to know whether two rows are actually neighbours in the band they belong to — which is what
+   *  linking a stereo pair requires. */
+  sortOrder: number
+  /** Same resolution rule as micLabel, against the preamps catalog. */
+  preampLabel: string | null
+  tieLine: number | null
+  cueBox: number | null
+  phantomPower: boolean
+  polarityFlip: boolean
+  /** One entry per filled outboard slot, in slot order, each resolved like micLabel. Slots have no
+   *  identity of their own (align replaces them wholesale), so this is a plain ordered list. */
+  outboardLabels: string[]
 }
 
 export interface MultiSetupComparisonMember {
   setupId: number
   name: string
+  /** Per-setup, and independently togglable after the group is created — so two bands in one Multi
+   *  Setup can genuinely see different mic pools. Compare fetches each column's pool with this. */
+  facultyReserveEnabled: boolean
   items: MultiSetupComparisonItem[]
-}
-
-/** A set of source names the user has declared equivalent within one Multi Setup. */
-export interface MultiSetupSourceLink {
-  linkKey: string
-  sourceNames: string[]
 }
 
 export interface MultiSetupComparison {
   multiSetup: MultiSetup
   /** Column order — matches the editor's tab strip (sort_order, id). */
   members: MultiSetupComparisonMember[]
-  links: MultiSetupSourceLink[]
+  /** Quick Setup studios have no gear catalog, so their sheets take free-text mics instead of a
+   *  picker. Studio-level, and one Multi Setup is one studio, so it's a single flag for the group. */
+  studioIsTemporary: boolean
 }
 
 /** Renderer-side working copy of a SetupItem. Unsaved items carry a client-generated string id. */

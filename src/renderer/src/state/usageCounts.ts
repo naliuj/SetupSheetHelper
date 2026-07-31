@@ -2,8 +2,14 @@ import type { SetupItemDraft } from '@shared/types/setup'
 
 /** Counts how many setup items reference each id for a given field (mic or preamp — outboard
  *  usage is computed separately by computeOutboardUsageCounts since it spans multiple slots
- *  per item rather than being a single scalar field). */
-export function computeUsageCounts(items: SetupItemDraft[], key: 'micId' | 'preampId'): Map<number, number> {
+ *  per item rather than being a single scalar field).
+ *
+ *  Typed on the two fields it reads rather than on SetupItemDraft, so Compare can pass its slimmer
+ *  comparison items (which carry micId but no preampId) without inventing a full draft. */
+export function computeUsageCounts(
+  items: readonly { micId?: number | null; preampId?: number | null }[],
+  key: 'micId' | 'preampId'
+): Map<number, number> {
   const counts = new Map<number, number>()
   for (const item of items) {
     const id = item[key]
