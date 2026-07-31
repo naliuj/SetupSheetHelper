@@ -330,6 +330,14 @@ input[type='checkbox']:disabled {
   border-color: var(--color-accent);
 }
 
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  /* Blocks :hover's accent border too, not just clicks — a disabled button that still lights up
+     on mouseover reads as clickable. */
+  pointer-events: none;
+}
+
 .btn.primary {
   background: var(--color-accent);
   border-color: var(--color-accent);

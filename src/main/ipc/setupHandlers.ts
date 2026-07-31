@@ -97,5 +97,8 @@ export function registerSetupHandlers(): void {
   ipcMain.handle(IPC.setups.moveToFolder, (_e, id: number, folderId: number | null) =>
     setupsRepo.moveSetupToFolder(id, folderId)
   )
+  ipcMain.handle(IPC.setups.moveManyToFolder, (_e, ids: number[], folderId: number | null) =>
+    setupsRepo.moveSetupsToFolder(ids, folderId)
+  )
   ipcMain.handle(IPC.setups.reorder, (_e, ids: number[]) => setupsRepo.reorderSetups(ids))
 }

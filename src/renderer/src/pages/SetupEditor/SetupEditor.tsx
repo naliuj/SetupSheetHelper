@@ -5,6 +5,7 @@ import { useNavigationStore, type EditorMode } from '@renderer/state/navigationS
 import { useSetupStore } from '@renderer/state/setupStore'
 import { useLayoutStore } from '@renderer/state/layoutStore'
 import { useCatalogStore } from '@renderer/state/catalogStore'
+import { useLayoutWindowStore } from '@renderer/state/layoutWindowStore'
 import InstrumentPalette from './palette/InstrumentPalette'
 import SetupSheetTable from './table/SetupSheetTable'
 import TableModeToolbar from './table/TableModeToolbar'
@@ -51,6 +52,26 @@ export default function SetupEditor(): JSX.Element {
 
   const stageRef = useRef<Konva.Stage>(null)
 
+  // True while this exact setup's layout is open in the standalone Layout Mode window — see
+  // layoutWindowStore.ts. Drives two things below: skipping the local LayoutStage mount (it has
+  // nothing to show; the popped-out window is the only editor) and the load effect not pulling
+  // this setup's blocks into the local layoutStore at all, since nothing here will render or edit
+  // them and the popped-out window is the sole writer.
+  const layoutPoppedOut = useLayoutWindowStore((s) => setupId != null && s.openForSetupId === setupId)
+
+  // The main window's local layoutStore was never told to load this setup's blocks while it was
+  // popped out (see the load effect below), and the standalone window is the sole writer for as
+  // long as that's true — so the moment it closes (or retargets to a different setup), this
+  // window's own copy is either empty or stale relative to whatever got saved over there. Refetch
+  // right on that false-transition rather than waiting for some other reason to reload.
+  const wasLayoutPoppedOutRef = useRef(false)
+  useEffect(() => {
+    if (wasLayoutPoppedOutRef.current && !layoutPoppedOut && setupId) {
+      loadLayoutBlocks(setupId)
+    }
+    wasLayoutPoppedOutRef.current = layoutPoppedOut
+  }, [layoutPoppedOut, setupId, loadLayoutBlocks])
+
   // Persists the setup's own mode choice, independent of any other setup, so reopening it later
   // restores this exact view instead of whatever mode was last used elsewhere.
   function handleToggleMode(newMode: EditorMode): void {
@@ -66,13 +87,22 @@ export default function SetupEditor(): JSX.Element {
   useEffect(() => {
     if (!studioId) return
     setSetupLoaded(false)
-    loadLayoutBlocks(setupId)
+    // Read fresh rather than depending on the reactive `layoutPoppedOut` above: this effect
+    // intentionally doesn't re-run on every push update (see the exhaustive-deps disable below),
+    // so by the time it fires here it wants the latest answer, not a stale closed-over one.
+    if (useLayoutWindowStore.getState().openForSetupId !== setupId) {
+      loadLayoutBlocks(setupId)
+    }
 
     if (setupId) {
       window.api.setups.getWithItems(setupId).then((setup) => {
         if (setup) {
           loadFromSetup(setup)
-          setMode(setup.lastEditorMode)
+          // A setup whose lastEditorMode was 'layout' before it got popped out would otherwise
+          // reopen the main window straight into a blank/unmounted Layout Mode — snap to Table
+          // instead when its layout is currently owned by the other window.
+          const poppedOut = useLayoutWindowStore.getState().openForSetupId === setup.id
+          setMode(poppedOut ? 'table' : setup.lastEditorMode)
         }
         setSetupLoaded(true)
       })
@@ -160,23 +190,35 @@ export default function SetupEditor(): JSX.Element {
         mode={mode}
         onToggleMode={handleToggleMode}
         onOpenSettings={() => setSettingsOpen(true)}
+        layoutPoppedOut={layoutPoppedOut}
       />
-      <div style={{ flex: 1, minHeight: 0, overflow: 'auto', display: mode === 'table' ? 'block' : 'none' }}>
+      <div
+        style={{
+          flex: 1,
+          minHeight: 0,
+          overflow: 'auto',
+          display: mode === 'table' || layoutPoppedOut ? 'block' : 'none'
+        }}
+      >
         <TableModeToolbar />
         <SelectionActionBar />
         <SetupSheetTable />
       </div>
-      {/* Kept mounted (just hidden) in Table Mode, rather than unmounted, so its Konva stage
-          stays available for PDF export's "room layout" capture regardless of which mode the
-          editor is currently in — see performExport in SetupToolbar.tsx. */}
-      <div style={{ flex: 1, display: mode === 'table' ? 'none' : 'flex', minHeight: 0 }}>
-        <InstrumentPalette />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <Suspense fallback={null}>
-            <LayoutStage studioId={studioId} stageRef={stageRef} active={mode === 'layout'} />
-          </Suspense>
+      {/* Kept mounted (just hidden) in Table Mode, rather than unmounted, so its Konva stage stays
+          available for PDF export's "room layout" capture regardless of which mode the editor is
+          currently in — see performExport in SetupToolbar.tsx. Not mounted at all while this
+          setup's layout is popped out: the standalone window is the sole editor and the sole
+          source of that capture in that case (see requestExportImage in performExport). */}
+      {!layoutPoppedOut && (
+        <div style={{ flex: 1, display: mode === 'table' ? 'none' : 'flex', minHeight: 0 }}>
+          <InstrumentPalette />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <Suspense fallback={null}>
+              <LayoutStage studioId={studioId} stageRef={stageRef} active={mode === 'layout'} />
+            </Suspense>
+          </div>
         </div>
-      </div>
+      )}
       <Toast />
     </div>
   )

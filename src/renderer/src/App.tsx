@@ -9,6 +9,7 @@ import { useColumnPrefsStore } from './state/columnPrefsStore'
 import { usePdfLayoutPrefsStore } from './state/pdfLayoutPrefsStore'
 import { useKeybindPrefsStore } from './state/keybindPrefsStore'
 import { useHomeLayoutStore } from './state/homeLayoutStore'
+import { useLayoutWindowStore } from './state/layoutWindowStore'
 import { normalizeKeyEvent } from '@shared/constants/keybindActions'
 import Home from './pages/Home/Home'
 import SettingsPage from './pages/SettingsPage/SettingsPage'
@@ -82,6 +83,12 @@ export default function App(): JSX.Element {
   // General.
   useEffect(() => {
     useHomeLayoutStore.getState().load()
+  }, [])
+
+  // Whether the standalone Layout Mode window is currently open, and for which setup — read by
+  // SetupToolbar (grey out the local toggle) and SetupEditor (skip mounting its own LayoutStage).
+  useEffect(() => {
+    useLayoutWindowStore.getState().hydrate()
   }, [])
 
   // App-wide "App Settings…" — mouse-click path (native menu item, still sends this MenuAction)

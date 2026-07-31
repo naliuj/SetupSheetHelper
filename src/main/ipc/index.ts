@@ -11,6 +11,7 @@ import { registerPaletteHandlers } from './paletteHandlers'
 import { registerBerkleeHandlers } from './berkleeHandlers'
 import { registerAppHandlers } from './appHandlers'
 import { registerFeedbackHandlers } from './feedbackHandlers'
+import { registerLayoutWindowHandlers } from '../layoutWindow'
 
 export function registerAllIpcHandlers(): void {
   registerStudioHandlers()
@@ -26,4 +27,5 @@ export function registerAllIpcHandlers(): void {
   registerBerkleeHandlers()
   registerAppHandlers()
   registerFeedbackHandlers()
+  registerLayoutWindowHandlers()
 }

@@ -34,6 +34,11 @@ interface Props {
   items: ManagedItem[]
   folders: FolderType[]
   onMoveToFolder: (kind: string, id: number, folderId: number | null) => Promise<void>
+  /** Dragging a row that's part of the current checkbox selection moves the WHOLE selection —
+   *  see handleDragEnd. Dragging an unselected row still calls onMoveToFolder for just that one.
+   *  Optional: callers with no bulk-move IPC of their own (e.g. presets) can omit it, and the
+   *  group drag still works — handleDragEnd falls back to one onMoveToFolder call per item. */
+  onBulkMoveToFolder?: (items: ManagedItem[], folderId: number | null) => Promise<void>
   onReorder: (kind: string, folderId: number | null, orderedIds: number[]) => Promise<void>
   onDelete: (kind: string, item: ManagedItem) => Promise<void>
   onBulkDelete: (items: ManagedItem[]) => Promise<void>
@@ -207,6 +212,7 @@ export default function ManageItemsModal({
   items,
   folders,
   onMoveToFolder,
+  onBulkMoveToFolder,
   onReorder,
   onDelete,
   onBulkDelete,
@@ -262,6 +268,10 @@ export default function ManageItemsModal({
   const itemsHere = items.filter((item) => item.folderId === selectedFolderId)
   const kinds = [...new Set(itemsHere.map((item) => item.kind))]
   const activeItem = activeDndId ? items.find((i) => `${i.kind}-${i.id}` === activeDndId) : null
+  // Dragging any row that's part of a multi-item selection carries the whole selection along —
+  // this only kicks in above 1 so ticking a single checkbox and dragging it still shows that
+  // item's own label, not "1 item".
+  const isDraggingSelection = activeDndId != null && selectedIds.size > 1 && selectedIds.has(activeDndId)
 
   function handleDragStart(event: DragStartEvent): void {
     setActiveDndId(String(event.active.id))
@@ -277,7 +287,21 @@ export default function ManageItemsModal({
 
     if (overId.startsWith('folder-')) {
       const targetFolderId = overId === 'folder-root' ? null : Number(overId.replace('folder-', ''))
-      await onMoveToFolder(activeKind, activeId, targetFolderId)
+      // Same rule as isDraggingSelection above: only treat this as a group move once there's
+      // actually a group (>1) and the dragged row is one of its members. Otherwise a stray
+      // single-item selection would silently upgrade an ordinary single-item drag into a
+      // (harmless but surprising) call through the bulk path instead of onMoveToFolder.
+      if (selectedIds.size > 1 && selectedIds.has(String(active.id))) {
+        const selected = itemsHere.filter((item) => selectedIds.has(`${item.kind}-${item.id}`))
+        if (onBulkMoveToFolder) {
+          await onBulkMoveToFolder(selected, targetFolderId)
+        } else {
+          await Promise.all(selected.map((item) => onMoveToFolder(item.kind, item.id, targetFolderId)))
+        }
+        setSelectedIds(new Set())
+      } else {
+        await onMoveToFolder(activeKind, activeId, targetFolderId)
+      }
       return
     }
 
@@ -463,6 +487,9 @@ export default function ManageItemsModal({
                       Delete {selectedIds.size} selected
                     </button>
                   )}
+                  {selectedIds.size > 1 && (
+                    <span className="card-sub">Drag any selected row onto a folder to move all {selectedIds.size}</span>
+                  )}
                 </div>
               )}
               {itemsHere.length === 0 ? (
@@ -499,7 +526,13 @@ export default function ManageItemsModal({
               )}
             </div>
           </div>
-          <DragOverlay>{activeItem ? <div className="manage-item-row">{activeItem.label}</div> : null}</DragOverlay>
+          <DragOverlay>
+            {activeItem ? (
+              <div className="manage-item-row">
+                {isDraggingSelection ? pluralize(selectedIds.size, 'item') : activeItem.label}
+              </div>
+            ) : null}
+          </DragOverlay>
         </DndContext>
         <div className="modal-actions">
           <button className="btn primary" onClick={onClose}>

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type Konva from 'konva'
-import { Check, FileText, Keyboard } from 'lucide-react'
+import { Check, ExternalLink, FileText, Keyboard } from 'lucide-react'
 import { APP_SETTINGS_KEYS } from '@shared/types/entities'
 import type { MenuAction, PdfExportInclude } from '@shared/types/ipc'
 import { KEYBIND_ACTIONS, formatCombo, normalizeKeyEvent } from '@shared/constants/keybindActions'
@@ -20,9 +20,19 @@ interface Props {
   mode: EditorMode
   onToggleMode: (mode: EditorMode) => void
   onOpenSettings: () => void
+  /** True while this exact setup's layout is open in the standalone Layout Mode window — see
+   *  layoutWindowStore.ts. Greys out the local Layout Mode toggle (there's nothing to switch to
+   *  locally) and changes what the pop-out button does (focus the existing window vs. open one). */
+  layoutPoppedOut: boolean
 }
 
-export default function SetupToolbar({ stageRef, mode, onToggleMode, onOpenSettings }: Props): JSX.Element {
+export default function SetupToolbar({
+  stageRef,
+  mode,
+  onToggleMode,
+  onOpenSettings,
+  layoutPoppedOut
+}: Props): JSX.Element {
   const setupId = useSetupStore((s) => s.setupId)
   const studioId = useSetupStore((s) => s.studioId)
   const name = useSetupStore((s) => s.name)
@@ -57,6 +67,10 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode, onOpenSetti
   const [defaultExportColoredRows, setDefaultExportColoredRows] = useState(false)
   const [exportHasLayout, setExportHasLayout] = useState(false)
   const [layoutGateOpen, setLayoutGateOpen] = useState(false)
+  // Which action the "no room layout yet" gate should complete once the user picks/commits a
+  // file — toggling Layout Mode locally, or opening it in the standalone window. Set right before
+  // the gate opens; read once in its onResolved handler below.
+  const [layoutGatePurpose, setLayoutGatePurpose] = useState<'local' | 'popout'>('local')
   const [notesOpen, setNotesOpen] = useState(false)
   const notesRef = useRef<HTMLDivElement>(null)
 
@@ -129,20 +143,34 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode, onOpenSetti
       // capturing it no longer requires switching modes first — but it can still be genuinely
       // empty if there's no effective room layout (this setup's own override, or the studio's
       // shared file) at all, which is what actually needs checking here (stageRef.current itself
-      // is basically always populated now).
+      // is basically always populated now) UNLESS this setup's layout is popped out into its own
+      // window, in which case there's no local stage at all — see the relay fallback below.
       let dataUrl: string | null = null
-      if (include !== 'sheet' && stageRef.current) {
+      let layoutUnreachable = false
+      if (include !== 'sheet') {
         const layout = studioId ? await window.api.layoutFile.getEffectiveForSetup(currentSetupId, studioId) : null
         if (layout) {
-          useLayoutStore.getState().selectBlock(null)
-          // let the deselect re-render (hides the resize/rotate handles) before flattening the stage
-          await new Promise((resolve) => setTimeout(resolve, 30))
-          dataUrl = exportStageToDataUrl(stageRef.current, 2, !coloredRows)
+          if (stageRef.current) {
+            useLayoutStore.getState().selectBlock(null)
+            // let the deselect re-render (hides the resize/rotate handles) before flattening the stage
+            await new Promise((resolve) => setTimeout(resolve, 30))
+            dataUrl = exportStageToDataUrl(stageRef.current, 2, !coloredRows)
+          } else {
+            // Popped out: ask the standalone Layout window to render its own live stage and send
+            // back the PNG (see main/layoutWindow.ts's requestExportImage relay). Null means it
+            // didn't respond in time (closed mid-request, or hung) rather than "no layout exists".
+            dataUrl = await window.api.layoutWindow.requestExportImage(currentSetupId, 2, !coloredRows)
+            layoutUnreachable = !dataUrl
+          }
         }
       }
 
       if (include === 'layout' && !dataUrl) {
-        setExportMessage('This studio has no room layout assigned yet — nothing to export.')
+        setExportMessage(
+          layoutUnreachable
+            ? "Couldn't reach the Layout window to capture the room layout — bring it to the front and try again."
+            : 'This studio has no room layout assigned yet — nothing to export.'
+        )
         return
       }
 
@@ -154,7 +182,13 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode, onOpenSetti
         orientation,
         density
       })
-      setExportMessage(result.canceled ? null : `Exported to ${result.filePath}`)
+      if (result.canceled) {
+        setExportMessage(null)
+      } else if (layoutUnreachable) {
+        setExportMessage(`Exported to ${result.filePath} — the room layout page was skipped (couldn't reach the Layout window).`)
+      } else {
+        setExportMessage(`Exported to ${result.filePath}`)
+      }
       if (!result.canceled) {
         await window.api.settings.set(APP_SETTINGS_KEYS.defaultPdfExportInclude, include)
         await window.api.settings.set(APP_SETTINGS_KEYS.defaultPdfExportColoredRows, coloredRows ? '1' : '0')
@@ -218,13 +252,48 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode, onOpenSetti
   // studio's shared file) — leaving Layout Mode is always allowed, but entering it checks and, if
   // neither exists, opens a blocking prompt instead of switching.
   async function requestToggleMode(): Promise<void> {
+    // Belt-and-suspenders alongside the disabled toggle button below: the keyboard shortcut
+    // (Cmd+L) routes through this same function regardless of the button's disabled state, and
+    // entering 'layout' locally while popped out would set a mode SetupEditor deliberately
+    // doesn't mount anything for.
+    if (layoutPoppedOut) return
     if (mode === 'layout') {
       onToggleMode('table')
       return
     }
     const effective = studioId ? await window.api.layoutFile.getEffectiveForSetup(setupId, studioId) : null
-    if (effective) onToggleMode('layout')
-    else setLayoutGateOpen(true)
+    if (effective) {
+      onToggleMode('layout')
+    } else {
+      setLayoutGatePurpose('local')
+      setLayoutGateOpen(true)
+    }
+  }
+
+  /** Opens this setup's layout in the standalone window, or focuses it if it's already open —
+   *  same "no room layout yet" gate as the local toggle above, reusing the same modal rather than
+   *  duplicating the check. */
+  async function requestPopOut(): Promise<void> {
+    if (layoutPoppedOut) {
+      await window.api.layoutWindow.focus()
+      return
+    }
+    if (!studioId || !setupId) return
+    const effective = await window.api.layoutFile.getEffectiveForSetup(setupId, studioId)
+    if (effective) {
+      openLayoutWindow(setupId, studioId)
+    } else {
+      setLayoutGatePurpose('popout')
+      setLayoutGateOpen(true)
+    }
+  }
+
+  function openLayoutWindow(targetSetupId: number, targetStudioId: number): void {
+    // Popping out hands editing to the new window entirely — snap out of a local Layout Mode view
+    // that has nothing left to show, and persist that as the setup's resting mode so reopening it
+    // later (with the window closed) resumes on Table Mode rather than an empty canvas.
+    if (mode === 'layout') onToggleMode('table')
+    window.api.layoutWindow.open(targetSetupId, targetStudioId)
   }
 
   // `mode` is global nav state, not reset per-setup — if the user was in Layout Mode on a
@@ -418,9 +487,24 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode, onOpenSetti
           Setup settings
         </button>
       )}
-      <button className="btn" onClick={requestToggleMode} title={formatCombo(resolveKeybind('toggle-mode'))}>
+      <button
+        className="btn"
+        onClick={requestToggleMode}
+        disabled={layoutPoppedOut}
+        title={layoutPoppedOut ? 'Open on your other display' : formatCombo(resolveKeybind('toggle-mode'))}
+      >
         {mode === 'table' ? 'Layout Mode' : 'Table Mode'}
       </button>
+      {setupId && (
+        <button
+          className="btn"
+          onClick={requestPopOut}
+          title={layoutPoppedOut ? 'Bring the Layout window to the front' : 'Open Layout Mode in a new window'}
+          aria-label={layoutPoppedOut ? 'Bring the Layout window to the front' : 'Open Layout Mode in a new window'}
+        >
+          <ExternalLink size={16} aria-hidden="true" />
+        </button>
+      )}
       <button
         className="btn"
         onClick={() => goToSettings('keybinds')}
@@ -450,8 +534,14 @@ export default function SetupToolbar({ stageRef, mode, onToggleMode, onOpenSetti
             // studioId/setupId don't change just because the gate resolved (a fresh setup's id
             // may already exist, and the studio's id never changes) — LayoutBackground's own
             // fetch effect wouldn't otherwise know to re-run and pick up the newly-set layout.
-            useLayoutStore.getState().bumpLayoutBackgroundVersion()
-            onToggleMode('layout')
+            // Only matters for the local-toggle path: the standalone window fetches its own
+            // effective layout fresh when it opens, so it has no stale version to bump.
+            if (layoutGatePurpose === 'popout' && setupId && studioId) {
+              openLayoutWindow(setupId, studioId)
+            } else {
+              useLayoutStore.getState().bumpLayoutBackgroundVersion()
+              onToggleMode('layout')
+            }
           }}
           onCancel={() => {
             setLayoutGateOpen(false)

@@ -133,6 +133,17 @@ export function moveStudioToFolder(id: number, folderId: number | null): void {
   getDb().prepare('UPDATE studios SET folder_id = ? WHERE id = ?').run(folderId, id)
 }
 
+/** Bulk variant — dragging a multi-selection onto a folder in Manage Studios. Reparenting has no
+ *  cascade concern (unlike delete), so this is a single statement rather than removeStudiosCascade's
+ *  per-id transaction loop. */
+export function moveStudiosToFolder(ids: number[], folderId: number | null): void {
+  if (ids.length === 0) return
+  const placeholders = ids.map(() => '?').join(',')
+  getDb()
+    .prepare(`UPDATE studios SET folder_id = ? WHERE id IN (${placeholders})`)
+    .run(folderId, ...ids)
+}
+
 /** Batch reorder within a folder — assigns sequential sort_order in the given id order. */
 export function reorderStudios(ids: number[]): void {
   const db = getDb()

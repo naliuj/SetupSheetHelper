@@ -181,6 +181,17 @@ export function moveSetupToFolder(id: number, folderId: number | null): void {
   getDb().prepare('UPDATE setups SET folder_id = ? WHERE id = ?').run(folderId, id)
 }
 
+/** Bulk variant — dragging a multi-selection onto a folder in Manage Setups. Same single
+ *  statement shape as removeSetups above, since reparenting (unlike delete) has no cascade to
+ *  worry about. */
+export function moveSetupsToFolder(ids: number[], folderId: number | null): void {
+  if (ids.length === 0) return
+  const placeholders = ids.map(() => '?').join(',')
+  getDb()
+    .prepare(`UPDATE setups SET folder_id = ? WHERE id IN (${placeholders})`)
+    .run(folderId, ...ids)
+}
+
 /** Batch reorder within a folder — assigns sequential sort_order in the given id order. */
 export function reorderSetups(ids: number[]): void {
   const db = getDb()
