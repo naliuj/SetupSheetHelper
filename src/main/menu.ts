@@ -1,4 +1,4 @@
-import { Menu, type BrowserWindow, type MenuItemConstructorOptions } from 'electron'
+import { BrowserWindow, Menu, type MenuItemConstructorOptions } from 'electron'
 import { MENU_CHANNEL, type MenuAction } from '@shared/types/ipc'
 import { checkForUpdatesManually } from './autoUpdater'
 
@@ -17,11 +17,16 @@ import { checkForUpdatesManually } from './autoUpdater'
  *  the OS only routes Cmd/Ctrl+A into a focused text field via an actual menu accelerator, so
  *  without one it's not a "text field loses default behavior" case, it's "nothing happens at all,
  *  anywhere in the app". See App.tsx/SetupToolbar.tsx's handleSelectAll for the renderer side. */
-export function installAppMenu(mainWindow: BrowserWindow): void {
+export function installAppMenu(updateDialogParent: BrowserWindow): void {
   const isMac = process.platform === 'darwin'
 
+  // Targets whichever window is actually focused, not a window captured at menu-build time —
+  // with a second (Layout Mode) window now possible, a menu click or its matching keyboard
+  // shortcut has to act on whatever the user is looking at. A window with no handler for a given
+  // action (e.g. "Save Setup" while the Layout window is focused) just no-ops silently; there's no
+  // per-window menu-item enabling here, only per-window action dispatch on the renderer side.
   function send(action: MenuAction): void {
-    mainWindow.webContents.send(MENU_CHANNEL, action)
+    BrowserWindow.getFocusedWindow()?.webContents.send(MENU_CHANNEL, action)
   }
 
   // Reproduces Electron's default `role: 'appMenu'` template exactly, plus a "Check for
@@ -30,7 +35,7 @@ export function installAppMenu(mainWindow: BrowserWindow): void {
     label: 'Setup Sheet Helper',
     submenu: [
       { role: 'about' },
-      { label: 'Check for Updates…', click: () => checkForUpdatesManually(mainWindow) },
+      { label: 'Check for Updates…', click: () => checkForUpdatesManually(updateDialogParent) },
       { label: "What's New…", click: () => send('show-whats-new') },
       { type: 'separator' },
       { label: 'Settings…', click: () => send('open-settings') },

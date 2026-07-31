@@ -134,5 +134,10 @@ export const APP_SETTINGS_KEYS = {
   homeLayout: 'home_layout',
   /** Last app version (from app.getVersion()) the user has seen the "What's New" changelog for.
    *  Absent → fresh install; the current version is recorded silently without showing the modal. */
-  lastSeenVersion: 'last_seen_version'
+  lastSeenVersion: 'last_seen_version',
+  /** JSON {x, y, width, height} for the main window. Read/written entirely main-process-side (see
+   *  windowBounds.ts) — never through the renderer settings IPC. Absent → today's fixed 1400x900. */
+  mainWindowBounds: 'main_window_bounds',
+  /** Same shape as mainWindowBounds, for the standalone Layout Mode window (see layoutWindow.ts). */
+  layoutWindowBounds: 'layout_window_bounds'
 } as const

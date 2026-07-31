@@ -168,6 +168,12 @@ export const IPC = {
     listBySetup: 'roomLayoutBlocks:listBySetup',
     saveForSetup: 'roomLayoutBlocks:saveForSetup'
   },
+  layoutWindow: {
+    open: 'layoutWindow:open',
+    focus: 'layoutWindow:focus',
+    getState: 'layoutWindow:getState',
+    requestExportImage: 'layoutWindow:requestExportImage'
+  },
   palette: {
     listVisible: 'palette:listVisible',
     listAll: 'palette:listAll',
@@ -487,6 +493,43 @@ export type MenuAction =
   | 'redo'
   | 'show-whats-new'
 
+export interface LayoutWindowState {
+  /** The setup currently open in the standalone Layout Mode window, or null if it's closed. The
+   *  main window uses this to grey out its own Layout Mode toggle for that one setup — see
+   *  layoutWindowStore.ts. */
+  openForSetupId: number | null
+}
+
+// Push channels for the main <-> standalone-Layout-window relay (main/layoutWindow.ts). Raw
+// channel constants rather than IPC.layoutWindow entries, same reasoning as MENU_CHANNEL above:
+// these are ipcRenderer.on subscriptions and main-process-initiated sends, not request/response
+// invoke calls, so they don't fit the IPC map's invoke-wrapper shape.
+export const LAYOUT_WINDOW_STATE_CHANNEL = 'layoutWindow:stateChanged'
+export const LAYOUT_WINDOW_EXPORT_REQUEST_CHANNEL = 'layoutWindow:exportImageRequested'
+export const LAYOUT_WINDOW_EXPORT_RESULT_CHANNEL = 'layoutWindow:exportImageResult'
+export const LAYOUT_WINDOW_FLUSH_REQUEST_CHANNEL = 'layoutWindow:flushRequested'
+export const LAYOUT_WINDOW_FLUSH_ACK_CHANNEL = 'layoutWindow:flushAck'
+
+export interface LayoutWindowExportRequest {
+  requestId: string
+  pixelRatio: number
+  monochrome: boolean
+}
+
+export interface LayoutWindowExportResult {
+  requestId: string
+  /** Null when the stage wasn't ready to render (e.g. the window is mid-close). */
+  dataUrl: string | null
+}
+
+export interface LayoutWindowFlushRequest {
+  requestId: string
+}
+
+export interface LayoutWindowFlushAck {
+  requestId: string
+}
+
 /** Renderer-facing API surface, exposed on window.api via contextBridge. */
 export interface RendererApi {
   buildings: {
@@ -661,6 +704,30 @@ export interface RendererApi {
   roomLayoutBlocks: {
     listBySetup(setupId: number): Promise<RoomLayoutBlock[]>
     saveForSetup(setupId: number, blocks: RoomLayoutBlockInput[]): Promise<RoomLayoutBlock[]>
+  }
+  /** The standalone Layout Mode window — see main/layoutWindow.ts. `open`/`focus`/`getState` and
+   *  `requestExportImage` are called from the MAIN window; the four `on*` subscriptions are only
+   *  ever wired up inside the standalone window itself (LayoutWindowApp.tsx). Both live on the
+   *  same api object since preload is one shared bundle — each window just uses the half it needs. */
+  layoutWindow: {
+    /** Opens the standalone window for this setup, or focuses + retargets it if one is already
+     *  open. Resolves once the window exists (not once it's finished loading). */
+    open(setupId: number, studioId: number): Promise<void>
+    focus(): Promise<void>
+    getState(): Promise<LayoutWindowState>
+    /** Main-window side of the export relay: asks the standalone window (if one is open for
+     *  `setupId`) to render its current canvas and return the PNG data URL. Resolves null if no
+     *  window is open for that setup, or if it doesn't respond within the relay's timeout. */
+    requestExportImage(setupId: number, pixelRatio: number, monochrome: boolean): Promise<string | null>
+    /** Standalone-window side: pushed whenever openForSetupId changes (open/retarget/close). */
+    onStateChanged(callback: (state: LayoutWindowState) => void): () => void
+    onExportImageRequested(callback: (request: LayoutWindowExportRequest) => void): () => void
+    onFlushRequested(callback: (request: LayoutWindowFlushRequest) => void): () => void
+    /** Standalone-window side: replies to an export-image request with the rendered PNG (or null
+     *  if the stage wasn't ready). Fire-and-forget — main correlates by requestId. */
+    sendExportImageResult(result: LayoutWindowExportResult): void
+    /** Standalone-window side: acks a flush-before-close request once autosave has settled. */
+    sendFlushAck(ack: LayoutWindowFlushAck): void
   }
   palette: {
     listVisible(): Promise<PaletteItem[]>

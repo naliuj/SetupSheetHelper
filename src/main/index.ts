@@ -4,6 +4,7 @@ import { pathToFileURL } from 'node:url'
 import { registerAllIpcHandlers } from './ipc'
 import { installAppMenu } from './menu'
 import { initAutoUpdater } from './autoUpdater'
+import { restoreBounds, saveBounds } from './windowBounds'
 
 // Registered before app ready so the scheme is treated as secure/standard,
 // letting pdfjs-dist fetch() the layout PDF bytes in the renderer without
@@ -13,9 +14,12 @@ protocol.registerSchemesAsPrivileged([
 ])
 
 function createWindow(): BrowserWindow {
+  const savedBounds = restoreBounds('main')
   const mainWindow = new BrowserWindow({
-    width: 1400,
-    height: 900,
+    width: savedBounds?.width ?? 1400,
+    height: savedBounds?.height ?? 900,
+    x: savedBounds?.x,
+    y: savedBounds?.y,
     show: false,
     webPreferences: {
       preload: join(__dirname, '../preload/index.mjs'),
@@ -24,6 +28,7 @@ function createWindow(): BrowserWindow {
       sandbox: false
     }
   })
+  saveBounds('main', mainWindow)
 
   mainWindow.once('ready-to-show', () => mainWindow.show())
 
@@ -64,11 +69,10 @@ app.whenReady().then(() => {
   installAppMenu(mainWindow)
   initAutoUpdater(mainWindow)
 
+  // installAppMenu is deliberately called only once: menu actions now target whichever window is
+  // focused at click time (see menu.ts), so a later window doesn't need its own menu install.
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      const newWindow = createWindow()
-      installAppMenu(newWindow)
-    }
+    if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
 })
 

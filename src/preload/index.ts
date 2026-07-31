@@ -1,5 +1,20 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import { IPC, MENU_CHANNEL, type MenuAction, type RendererApi } from '@shared/types/ipc'
+import {
+  IPC,
+  MENU_CHANNEL,
+  LAYOUT_WINDOW_STATE_CHANNEL,
+  LAYOUT_WINDOW_EXPORT_REQUEST_CHANNEL,
+  LAYOUT_WINDOW_EXPORT_RESULT_CHANNEL,
+  LAYOUT_WINDOW_FLUSH_REQUEST_CHANNEL,
+  LAYOUT_WINDOW_FLUSH_ACK_CHANNEL,
+  type MenuAction,
+  type LayoutWindowState,
+  type LayoutWindowExportRequest,
+  type LayoutWindowExportResult,
+  type LayoutWindowFlushRequest,
+  type LayoutWindowFlushAck,
+  type RendererApi
+} from '@shared/types/ipc'
 
 const api: RendererApi = {
   buildings: {
@@ -176,6 +191,31 @@ const api: RendererApi = {
   roomLayoutBlocks: {
     listBySetup: (setupId) => ipcRenderer.invoke(IPC.roomLayoutBlocks.listBySetup, setupId),
     saveForSetup: (setupId, blocks) => ipcRenderer.invoke(IPC.roomLayoutBlocks.saveForSetup, setupId, blocks)
+  },
+  layoutWindow: {
+    open: (setupId, studioId) => ipcRenderer.invoke(IPC.layoutWindow.open, setupId, studioId),
+    focus: () => ipcRenderer.invoke(IPC.layoutWindow.focus),
+    getState: () => ipcRenderer.invoke(IPC.layoutWindow.getState),
+    requestExportImage: (setupId, pixelRatio, monochrome) =>
+      ipcRenderer.invoke(IPC.layoutWindow.requestExportImage, setupId, pixelRatio, monochrome),
+    onStateChanged: (callback) => {
+      const listener = (_event: unknown, state: LayoutWindowState): void => callback(state)
+      ipcRenderer.on(LAYOUT_WINDOW_STATE_CHANNEL, listener)
+      return () => ipcRenderer.removeListener(LAYOUT_WINDOW_STATE_CHANNEL, listener)
+    },
+    onExportImageRequested: (callback) => {
+      const listener = (_event: unknown, request: LayoutWindowExportRequest): void => callback(request)
+      ipcRenderer.on(LAYOUT_WINDOW_EXPORT_REQUEST_CHANNEL, listener)
+      return () => ipcRenderer.removeListener(LAYOUT_WINDOW_EXPORT_REQUEST_CHANNEL, listener)
+    },
+    onFlushRequested: (callback) => {
+      const listener = (_event: unknown, request: LayoutWindowFlushRequest): void => callback(request)
+      ipcRenderer.on(LAYOUT_WINDOW_FLUSH_REQUEST_CHANNEL, listener)
+      return () => ipcRenderer.removeListener(LAYOUT_WINDOW_FLUSH_REQUEST_CHANNEL, listener)
+    },
+    sendExportImageResult: (result: LayoutWindowExportResult) =>
+      ipcRenderer.send(LAYOUT_WINDOW_EXPORT_RESULT_CHANNEL, result),
+    sendFlushAck: (ack: LayoutWindowFlushAck) => ipcRenderer.send(LAYOUT_WINDOW_FLUSH_ACK_CHANNEL, ack)
   },
   palette: {
     listVisible: () => ipcRenderer.invoke(IPC.palette.listVisible),
