@@ -254,6 +254,13 @@ export default function Home(): JSX.Element {
     if (templateIds.length > 0) await window.api.setups.removeMany(templateIds)
     reload()
   }
+  async function handleStudioItemBulkMoveToFolder(items: ManagedItem[], folderId: number | null): Promise<void> {
+    const studioIds = items.filter((item) => item.kind === 'studio').map((item) => item.id)
+    const templateIds = items.filter((item) => item.kind === 'template').map((item) => item.id)
+    if (studioIds.length > 0) await window.api.studios.moveManyToFolder(studioIds, folderId)
+    if (templateIds.length > 0) await window.api.setups.moveManyToFolder(templateIds, folderId)
+    reload()
+  }
 
   const manageSetupItems: ManagedItem[] = savedSetups.map((s) => ({
     kind: 'setup',
@@ -276,6 +283,10 @@ export default function Home(): JSX.Element {
   }
   async function handleSetupItemBulkDelete(items: ManagedItem[]): Promise<void> {
     await window.api.setups.removeMany(items.map((item) => item.id))
+    reload()
+  }
+  async function handleSetupItemBulkMoveToFolder(items: ManagedItem[], folderId: number | null): Promise<void> {
+    await window.api.setups.moveManyToFolder(items.map((item) => item.id), folderId)
     reload()
   }
 
@@ -373,6 +384,7 @@ export default function Home(): JSX.Element {
           items={manageStudioItems}
           folders={studioFolders}
           onMoveToFolder={handleStudioItemMoveToFolder}
+          onBulkMoveToFolder={handleStudioItemBulkMoveToFolder}
           onReorder={handleStudioItemReorder}
           onDelete={handleStudioItemDelete}
           onBulkDelete={handleStudioItemBulkDelete}
@@ -391,6 +403,7 @@ export default function Home(): JSX.Element {
           items={manageSetupItems}
           folders={setupFolders}
           onMoveToFolder={handleSetupItemMoveToFolder}
+          onBulkMoveToFolder={handleSetupItemBulkMoveToFolder}
           onReorder={handleSetupItemReorder}
           onDelete={handleSetupItemDelete}
           onBulkDelete={handleSetupItemBulkDelete}

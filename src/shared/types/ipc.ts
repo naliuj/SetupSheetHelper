@@ -51,6 +51,7 @@ export const IPC = {
     pickImportFile: 'studios:pickImportFile',
     importStudios: 'studios:importStudios',
     moveToFolder: 'studios:moveToFolder',
+    moveManyToFolder: 'studios:moveManyToFolder',
     reorder: 'studios:reorder',
     getDeleteImpact: 'studios:getDeleteImpact'
   },
@@ -136,6 +137,7 @@ export const IPC = {
     saveAsTemplate: 'setups:saveAsTemplate',
     duplicate: 'setups:duplicate',
     moveToFolder: 'setups:moveToFolder',
+    moveManyToFolder: 'setups:moveManyToFolder',
     reorder: 'setups:reorder'
   },
   settings: {
@@ -553,6 +555,7 @@ export interface RendererApi {
     pickImportFile(): Promise<PickImportFileResult>
     importStudios(studios: ExportedStudio[]): Promise<void>
     moveToFolder(id: number, folderId: number | null): Promise<void>
+    moveManyToFolder(ids: number[], folderId: number | null): Promise<void>
     reorder(ids: number[]): Promise<void>
     getDeleteImpact(id: number): Promise<StudioDeleteImpact>
   }
@@ -667,6 +670,7 @@ export interface RendererApi {
     saveAsTemplate(input: SaveAsTemplateInput): Promise<Setup>
     duplicate(input: DuplicateSetupInput): Promise<Setup>
     moveToFolder(id: number, folderId: number | null): Promise<void>
+    moveManyToFolder(ids: number[], folderId: number | null): Promise<void>
     reorder(ids: number[]): Promise<void>
   }
   settings: {

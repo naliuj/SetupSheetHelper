@@ -39,6 +39,7 @@ const api: RendererApi = {
     pickImportFile: () => ipcRenderer.invoke(IPC.studios.pickImportFile),
     importStudios: (studios) => ipcRenderer.invoke(IPC.studios.importStudios, studios),
     moveToFolder: (id, folderId) => ipcRenderer.invoke(IPC.studios.moveToFolder, id, folderId),
+    moveManyToFolder: (ids, folderId) => ipcRenderer.invoke(IPC.studios.moveManyToFolder, ids, folderId),
     reorder: (ids) => ipcRenderer.invoke(IPC.studios.reorder, ids),
     getDeleteImpact: (id) => ipcRenderer.invoke(IPC.studios.getDeleteImpact, id)
   },
@@ -152,6 +153,7 @@ const api: RendererApi = {
     saveAsTemplate: (input) => ipcRenderer.invoke(IPC.setups.saveAsTemplate, input),
     duplicate: (input) => ipcRenderer.invoke(IPC.setups.duplicate, input),
     moveToFolder: (id, folderId) => ipcRenderer.invoke(IPC.setups.moveToFolder, id, folderId),
+    moveManyToFolder: (ids, folderId) => ipcRenderer.invoke(IPC.setups.moveManyToFolder, ids, folderId),
     reorder: (ids) => ipcRenderer.invoke(IPC.setups.reorder, ids)
   },
   settings: {

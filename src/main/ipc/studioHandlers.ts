@@ -34,6 +34,9 @@ export function registerStudioHandlers(): void {
   ipcMain.handle(IPC.studios.moveToFolder, (_e, id: number, folderId: number | null) =>
     studiosRepo.moveStudioToFolder(id, folderId)
   )
+  ipcMain.handle(IPC.studios.moveManyToFolder, (_e, ids: number[], folderId: number | null) =>
+    studiosRepo.moveStudiosToFolder(ids, folderId)
+  )
   ipcMain.handle(IPC.studios.reorder, (_e, ids: number[]) => studiosRepo.reorderStudios(ids))
   ipcMain.handle(IPC.studios.getDeleteImpact, (_e, id: number) => studiosRepo.getStudioDeleteImpact(id))
 }
