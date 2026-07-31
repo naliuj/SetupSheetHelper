@@ -275,5 +275,13 @@ export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
       'Right-click Delete on a multi-selected block now removes the whole selection, not just the one you clicked.',
       "Layout Mode's right-click menu: Rename and Change Color are now one Edit item, plus a new Duplicate item."
     ]
+  },
+  {
+    version: '1.10.2',
+    date: '2026-07-31',
+    highlights: [
+      'Layout Mode can now pop out into its own window, so you can edit the room layout on a second monitor while the setup sheet stays open on the first.',
+      'Manage Setups and Manage Studios: drag a multi-selected group of rows to move them all into a folder together.'
+    ]
   }
 ]
