@@ -277,7 +277,7 @@ export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
     ]
   },
   {
-    version: '1.10.2',
+    version: '1.11.0',
     date: '2026-07-31',
     highlights: [
       'Layout Mode can now pop out into its own window, so you can edit the room layout on a second monitor while the setup sheet stays open on the first.',
