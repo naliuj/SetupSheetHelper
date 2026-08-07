@@ -14,11 +14,20 @@ interface Props {
   studioId: number
   stageRef: React.RefObject<Konva.Stage | null>
   /** Whether Layout Mode is the currently-visible mode. The stage stays mounted (hidden) in
-   *  Table Mode too (see SetupEditor.tsx), so the arrow-key nudge below is gated on this — a
+   *  Table Mode too (see SetupEditorPane.tsx), so the arrow-key nudge below is gated on this — a
    *  layout block left selected from a prior visit shouldn't silently move while the user is
    *  looking at the table. (Delete/Backspace here is intentionally NOT gated the same way —
-   *  pre-existing behavior, unrelated to this change.) */
+   *  pre-existing behavior, unrelated to this change.) Deliberately NOT combined with paneActive
+   *  below into one flag — this one also drives Konva's own click/drag/select interactivity via
+   *  downstream props, and an inactive Split View pane must stay clickable so the user can click
+   *  into it to make it the active pane. */
   active: boolean
+  /** False when this stage belongs to Split View's inactive pane — gates window-level keyboard
+   *  input (arrow-nudge, Space-to-pan) so a key press only affects whichever pane the user last
+   *  interacted with, even if both panes are simultaneously in Layout Mode (in which case both
+   *  would otherwise have `active: true` and both listeners would fire on one keypress). Defaults
+   *  to true so every caller outside Split View is unaffected. */
+  paneActive?: boolean
 }
 
 interface PaletteDragPayload {
@@ -33,7 +42,7 @@ interface PaletteDragPayload {
 const ZOOM_STEP = 1.05
 const MARQUEE_THRESHOLD = 5
 
-export default function LayoutStage({ studioId, stageRef, active }: Props): JSX.Element {
+export default function LayoutStage({ studioId, stageRef, active, paneActive = true }: Props): JSX.Element {
   const setupId = useSetupStoreState((s) => s.setupId)
   const blocks = useLayoutStoreState((s) => s.blocks)
   const addBlock = useLayoutStoreState((s) => s.addBlock)
@@ -250,6 +259,10 @@ export default function LayoutStage({ studioId, stageRef, active }: Props): JSX.
     }
     function handleKeyDown(e: KeyboardEvent): void {
       if (isTextField(e.target)) return
+      // Split View: neither Space-to-pan nor arrow-nudge should apply to a pane the user isn't
+      // currently interacting with, even if both panes are in Layout Mode at once (see paneActive's
+      // doc comment on Props above).
+      if (!paneActive) return
       if (e.code === 'Space') {
         e.preventDefault()
         setSpaceHeld(true)
@@ -292,7 +305,7 @@ export default function LayoutStage({ studioId, stageRef, active }: Props): JSX.
       window.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener('keyup', handleKeyUp)
     }
-  }, [selectedBlockIds, active, blocks, imageSize, updateBlockTransform, moveBlocksBy])
+  }, [selectedBlockIds, active, paneActive, blocks, imageSize, updateBlockTransform, moveBlocksBy])
 
   const editingBlock = editingBlockId != null ? blocks.find((b) => b.id === editingBlockId) : null
 

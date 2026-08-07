@@ -8,10 +8,12 @@ import { useSetupStoreApi, useSetupStoreState } from '@renderer/state/setupStore
 import { useLayoutStoreApi, useLayoutStoreState } from '@renderer/state/layoutStoreContext'
 import { useKeybindPrefsStore } from '@renderer/state/keybindPrefsStore'
 import { useNavigationStore, type EditorMode } from '@renderer/state/navigationStore'
+import Icon from '@renderer/components/Icon'
 import { exportStageToDataUrl } from './canvas/konvaExport'
 import SaveAsTemplateModal from './SaveAsTemplateModal'
 import ExportOptionsModal, { type ExportOptions } from './ExportOptionsModal'
 import RequireLayoutFileModal from './RequireLayoutFileModal'
+import OpenAlongsideModal from './OpenAlongsideModal'
 import { useBufferedField } from './table/useBufferedField'
 import { GENERIC_INSTRUMENT_TYPE } from './table/tableConstants'
 
@@ -24,6 +26,11 @@ interface Props {
    *  layoutWindowStore.ts. Greys out the local Layout Mode toggle (there's nothing to switch to
    *  locally) and changes what the pop-out button does (focus the existing window vs. open one). */
   layoutPoppedOut: boolean
+  /** False when this toolbar belongs to Split View's inactive pane — gates the two dispatch
+   *  effects below (native menu clicks, keydown) so undo/redo/delete/duplicate/etc. only ever
+   *  affect whichever pane the user last interacted with. Defaults to true so every caller
+   *  outside Split View is unaffected. */
+  paneActive?: boolean
 }
 
 export default function SetupToolbar({
@@ -31,7 +38,8 @@ export default function SetupToolbar({
   mode,
   onToggleMode,
   onOpenSettings,
-  layoutPoppedOut
+  layoutPoppedOut,
+  paneActive = true
 }: Props): JSX.Element {
   const setupStoreApi = useSetupStoreApi()
   const layoutStoreApi = useLayoutStoreApi()
@@ -75,9 +83,16 @@ export default function SetupToolbar({
   const [layoutGatePurpose, setLayoutGatePurpose] = useState<'local' | 'popout'>('local')
   const [notesOpen, setNotesOpen] = useState(false)
   const notesRef = useRef<HTMLDivElement>(null)
+  const [splitPickerOpen, setSplitPickerOpen] = useState(false)
 
   const resolveKeybind = useKeybindPrefsStore((s) => s.resolve)
   const goToSettings = useNavigationStore((s) => s.goToSettings)
+  const openSplitView = useNavigationStore((s) => s.openSplitView)
+  // This toolbar renders inside BOTH Split View panes once split (see SetupEditorPane.tsx), so
+  // the "Split View" button below is disabled rather than hidden while already split — v1
+  // doesn't support splitting from within an already-split pane, or combining split view with
+  // the dual-monitor pop-out.
+  const splitActive = useNavigationStore((s) => s.splitSetupId != null)
 
   const nameField = useBufferedField(name, setName)
   const sessionDateField = useBufferedField(sessionDate ?? '', (v) => setSessionDate(v || null))
@@ -368,10 +383,11 @@ export default function SetupToolbar({
   // Keybinds tab), so this switch only fires from an actual click now, never a keypress.
   useEffect(() => {
     return window.api.menu.onAction((action: MenuAction) => {
+      if (!paneActive) return
       handlers[action]?.()
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, selectedItemIds, selectedBlockIds, studioId, onOpenSettings])
+  }, [mode, selectedItemIds, selectedBlockIds, studioId, onOpenSettings, paneActive])
 
   // Keyboard path: matches every KEYBIND_ACTIONS entry (except open-settings, see above) against
   // its user-configured (or default) combo. isTextField bails out before matching ANY action —
@@ -388,6 +404,7 @@ export default function SetupToolbar({
       return !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)
     }
     function handleKeyDown(e: KeyboardEvent): void {
+      if (!paneActive) return
       if (isTextField(e.target)) return
       const combo = normalizeKeyEvent(e)
       if (!combo) return
@@ -408,7 +425,7 @@ export default function SetupToolbar({
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, selectedItemIds, selectedBlockIds, studioId, onOpenSettings])
+  }, [mode, selectedItemIds, selectedBlockIds, studioId, onOpenSettings, paneActive])
 
   return (
     <div className="top-bar" style={{ borderTop: '1px solid var(--color-border)' }}>
@@ -509,6 +526,14 @@ export default function SetupToolbar({
       )}
       <button
         className="btn"
+        onClick={() => setSplitPickerOpen(true)}
+        disabled={splitActive || layoutPoppedOut}
+        title={splitActive ? 'Already in Split View' : 'Open another setup alongside this one'}
+      >
+        <Icon name="columns" size={15} /> Split View
+      </button>
+      <button
+        className="btn"
         onClick={() => goToSettings('keybinds')}
         title="Keyboard shortcuts"
         aria-label="Keyboard shortcuts"
@@ -551,6 +576,18 @@ export default function SetupToolbar({
             // mount-time gate above (arrived already in 'layout' with nothing to show) — either
             // way, canceling should never leave an empty Layout Mode canvas on screen.
             onToggleMode('table')
+          }}
+        />
+      )}
+      {splitPickerOpen && studioId && (
+        <OpenAlongsideModal
+          studioId={studioId}
+          currentSetupId={setupId}
+          currentSetupName={name || 'Untitled Setup'}
+          onClose={() => setSplitPickerOpen(false)}
+          onConfirm={(pickedId) => {
+            setSplitPickerOpen(false)
+            openSplitView(pickedId)
           }}
         />
       )}
