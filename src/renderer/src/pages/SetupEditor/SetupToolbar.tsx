@@ -323,7 +323,7 @@ export default function SetupToolbar({
     'save-as-studio': () => setTemplateModalOpen(true),
     'export-pdf': handleExport,
     'toggle-mode': requestToggleMode,
-    'add-source': () => addItem(GENERIC_INSTRUMENT_TYPE, { sourceName: 'Untitled Source' }),
+    'add-source': () => addItem(GENERIC_INSTRUMENT_TYPE),
     'select-all': handleSelectAll,
     'delete-selection': () => {
       if (mode === 'table' && selectedItemIds.size > 0) removeItems([...selectedItemIds])

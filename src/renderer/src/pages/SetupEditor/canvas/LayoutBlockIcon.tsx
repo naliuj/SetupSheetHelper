@@ -3,6 +3,7 @@ import { Circle, Group, Rect, Text } from 'react-konva'
 import type Konva from 'konva'
 import type { RoomLayoutBlockDraft } from '@shared/types/setup'
 import { readableTextColor } from '@shared/constants/swatches'
+import { fitFontSize } from './textFit'
 
 interface Props {
   block: RoomLayoutBlockDraft
@@ -49,13 +50,31 @@ const LayoutBlockIcon = forwardRef<Konva.Group, Props>(function LayoutBlockIcon(
   const labelColor = readableTextColor(block.color)
   const labelShadow = labelColor === '#ffffff' ? '#000000' : '#ffffff'
   // Fit the label inside the shape's bounds — a circle's usable box is its inscribed square,
-  // a rect's is itself minus a small margin. Font size scales down for small blocks so short
-  // labels ("DI") stay legible without overflowing tiny custom blocks.
+  // a rect's is itself minus a small margin.
   const isCircle = block.shape === 'circle'
   const boxSize = isCircle ? Math.min(block.width, block.height) * 0.7 : undefined
   const textWidth = isCircle ? boxSize! : Math.max(block.width - 8, 4)
   const textHeight = isCircle ? boxSize! : Math.max(block.height - 8, 4)
-  const fontSize = Math.max(9, Math.min(36, Math.min(block.width, block.height) / 4))
+  // A cap on how large text is allowed to get, scaled off the block's own size. `fitFontSize`
+  // then shrinks down from that cap based on the label/name's actual measured width, so long
+  // text on a small block scales down to stay fully visible instead of being clipped by Konva's
+  // `ellipsis` — which only truncates at one fixed size rather than fitting the text first.
+  const maxFontSize = Math.max(9, Math.min(36, Math.min(block.width, block.height) / 4))
+  const fontSize = fitFontSize({
+    text: block.label,
+    maxWidth: textWidth,
+    maxHeight: block.personName ? textHeight * 0.6 : textHeight,
+    maxFontSize,
+    fontStyle: 'bold'
+  })
+  const personFontSize = block.personName
+    ? fitFontSize({
+        text: block.personName,
+        maxWidth: textWidth,
+        maxHeight: textHeight * 0.4,
+        maxFontSize: Math.max(8, maxFontSize * 0.6)
+      })
+    : undefined
 
   function handleDragMove(e: Konva.KonvaEventObject<DragEvent>): void {
     onDragMove(e.target.x(), e.target.y())
@@ -171,7 +190,7 @@ const LayoutBlockIcon = forwardRef<Konva.Group, Props>(function LayoutBlockIcon(
           <Text
             name="block-label"
             text={block.personName}
-            fontSize={Math.max(8, fontSize * 0.6)}
+            fontSize={personFontSize}
             fill={labelColor}
             shadowColor={labelShadow}
             shadowBlur={2}

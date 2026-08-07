@@ -289,7 +289,7 @@ export default function SetupSheetTable(): JSX.Element {
   // blank space triggers it.
   function handleBlankAreaDoubleClick(e: React.MouseEvent): void {
     if (e.target !== e.currentTarget) return
-    addItem(GENERIC_INSTRUMENT_TYPE, { sourceName: 'Untitled Source' })
+    addItem(GENERIC_INSTRUMENT_TYPE)
   }
 
   return (
@@ -298,7 +298,7 @@ export default function SetupSheetTable(): JSX.Element {
         Setup sheet
       </div>
       {items.length === 0 ? (
-        <div className="empty-state" onDoubleClick={() => addItem(GENERIC_INSTRUMENT_TYPE, { sourceName: 'Untitled Source' })}>
+        <div className="empty-state" onDoubleClick={() => addItem(GENERIC_INSTRUMENT_TYPE)}>
           No sources yet — use Add source above, or switch to Layout Mode to drag instruments onto the room layout.
         </div>
       ) : (

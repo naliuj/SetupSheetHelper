@@ -32,7 +32,7 @@ export default function TableModeToolbar(): JSX.Element {
   const visibleSet = new Set(visibleColumns)
 
   function handleAdd(): void {
-    addItem(GENERIC_INSTRUMENT_TYPE, { sourceName: sourceName.trim() || 'Untitled Source' })
+    addItem(GENERIC_INSTRUMENT_TYPE, { sourceName: sourceName.trim() })
     setSourceName('')
   }
 
