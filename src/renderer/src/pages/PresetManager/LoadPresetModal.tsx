@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { ChannelPreset } from '@shared/types/channelPreset'
 import { useCatalogStore } from '@renderer/state/catalogStore'
-import { useSetupStore } from '@renderer/state/setupStore'
+import { useSetupStoreState } from '@renderer/state/setupStoreContext'
 import { resolveChannelPresetItems } from '@renderer/state/channelPresetResolution'
 import { useEscapeToClose } from '@renderer/hooks/useEscapeToClose'
 
@@ -10,7 +10,7 @@ export default function LoadPresetModal({ onClose }: { onClose: () => void }): J
   const mics = useCatalogStore((s) => s.mics)
   const outboardGear = useCatalogStore((s) => s.outboardGear)
   const preamps = useCatalogStore((s) => s.preamps)
-  const applyChannelPreset = useSetupStore((s) => s.applyChannelPreset)
+  const applyChannelPreset = useSetupStoreState((s) => s.applyChannelPreset)
 
   const [presets, setPresets] = useState<ChannelPreset[]>([])
   const [selectedId, setSelectedId] = useState<number | null>(null)

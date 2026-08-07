@@ -2,7 +2,7 @@ import { useCallback, useMemo } from 'react'
 import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import type { SetupItemDraft, SetupItemOutboardSlot } from '@shared/types/setup'
-import { useSetupStore } from '@renderer/state/setupStore'
+import { useSetupStoreApi, useSetupStoreState } from '@renderer/state/setupStoreContext'
 import { useCatalogStore } from '@renderer/state/catalogStore'
 import { useGearCatalogueSuggestions } from '@renderer/state/useGearCatalogueSuggestions'
 import { computeTieLineConflicts } from '@renderer/state/tieLineConflicts'
@@ -17,20 +17,21 @@ function toLabels(items: { name: string; manufacturer: string | null }[]): strin
 }
 
 export default function SetupSheetTable(): JSX.Element {
-  const items = useSetupStore((s) => s.items)
-  const addItem = useSetupStore((s) => s.addItem)
-  const outboardColumnCount = useSetupStore((s) => s.outboardColumnCount)
-  const visibleColumns = useSetupStore((s) => s.visibleColumns)
-  const updateItemOutboardSlot = useSetupStore((s) => s.updateItemOutboardSlot)
-  const selectedItemIds = useSetupStore((s) => s.selectedItemIds)
-  const selectItem = useSetupStore((s) => s.selectItem)
-  const selectRangeTo = useSetupStore((s) => s.selectRangeTo)
-  const toggleItem = useSetupStore((s) => s.toggleItem)
-  const reorderItems = useSetupStore((s) => s.reorderItems)
-  const updateItemFields = useSetupStore((s) => s.updateItemFields)
-  const removeItem = useSetupStore((s) => s.removeItem)
-  const unresolvedGearHints = useSetupStore((s) => s.unresolvedGearHints)
-  const clearUnresolvedGearHint = useSetupStore((s) => s.clearUnresolvedGearHint)
+  const setupStoreApi = useSetupStoreApi()
+  const items = useSetupStoreState((s) => s.items)
+  const addItem = useSetupStoreState((s) => s.addItem)
+  const outboardColumnCount = useSetupStoreState((s) => s.outboardColumnCount)
+  const visibleColumns = useSetupStoreState((s) => s.visibleColumns)
+  const updateItemOutboardSlot = useSetupStoreState((s) => s.updateItemOutboardSlot)
+  const selectedItemIds = useSetupStoreState((s) => s.selectedItemIds)
+  const selectItem = useSetupStoreState((s) => s.selectItem)
+  const selectRangeTo = useSetupStoreState((s) => s.selectRangeTo)
+  const toggleItem = useSetupStoreState((s) => s.toggleItem)
+  const reorderItems = useSetupStoreState((s) => s.reorderItems)
+  const updateItemFields = useSetupStoreState((s) => s.updateItemFields)
+  const removeItem = useSetupStoreState((s) => s.removeItem)
+  const unresolvedGearHints = useSetupStoreState((s) => s.unresolvedGearHints)
+  const clearUnresolvedGearHint = useSetupStoreState((s) => s.clearUnresolvedGearHint)
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }))
   const col = useMemo(() => new Set(visibleColumns), [visibleColumns])
@@ -88,7 +89,7 @@ export default function SetupSheetTable(): JSX.Element {
   // every row would lose memoization on every edit, since this function would need to be recreated
   // whenever `items` changes (i.e. on every keystroke).
   const handleTogglePairLink = useCallback((itemId: number | string): void => {
-    const state = useSetupStore.getState()
+    const state = setupStoreApi.getState()
     const currentItems = state.items
     const idx = currentItems.findIndex((i) => i.id === itemId)
     if (idx === -1) return
@@ -159,7 +160,7 @@ export default function SetupSheetTable(): JSX.Element {
   // gate, since there's nothing to run out of. Fires from either row of an actively-linked pair
   // (see SetupSheetRow's handleMicChange) — editing either side updates the other.
   const handleSyncPairMic = useCallback((itemId: number | string, micId: number | null): void => {
-    const state = useSetupStore.getState()
+    const state = setupStoreApi.getState()
     const found = findLinkedPartner(state, itemId)
     if (!found) return
     if (micId == null) {
@@ -174,7 +175,7 @@ export default function SetupSheetTable(): JSX.Element {
   // Same ongoing sync as handleSyncPairMic, for preamp (catalog preamps use `channels` as their
   // quantity — same idea as mic's `quantity`).
   const handleSyncPairPreamp = useCallback((itemId: number | string, preampId: number | null): void => {
-    const state = useSetupStore.getState()
+    const state = setupStoreApi.getState()
     const found = findLinkedPartner(state, itemId)
     if (!found) return
     if (preampId == null) {
@@ -195,7 +196,7 @@ export default function SetupSheetTable(): JSX.Element {
    *  partner is below `itemId` and -1 when it's above — used to keep numeric fields like channel
    *  offsetting the right way regardless of which row triggered the sync. */
   function findLinkedPartner(
-    state: ReturnType<typeof useSetupStore.getState>,
+    state: ReturnType<ReturnType<typeof useSetupStoreApi>['getState']>,
     itemId: number | string
   ): { partner: SetupItemDraft; direction: 1 | -1 } | null {
     const currentItems = state.items
@@ -217,7 +218,7 @@ export default function SetupSheetTable(): JSX.Element {
   // exact number, since two rows can't share one channel/tie line/cue box — clamped to a minimum of
   // 1 either way. Only whichever keys are actually present in `patch` get synced.
   const handleSyncPairFields = useCallback((itemId: number | string, patch: Partial<SetupItemDraft>): void => {
-    const state = useSetupStore.getState()
+    const state = setupStoreApi.getState()
     const found = findLinkedPartner(state, itemId)
     if (!found) return
     const { partner, direction } = found
@@ -234,7 +235,7 @@ export default function SetupSheetTable(): JSX.Element {
   // mirrors the same slot on its partner.
   const handleSyncPairOutboardSlot = useCallback(
     (itemId: number | string, slotIndex: number, patch: Partial<Pick<SetupItemOutboardSlot, 'outboardId' | 'outboardText'>>): void => {
-      const state = useSetupStore.getState()
+      const state = setupStoreApi.getState()
       const found = findLinkedPartner(state, itemId)
       if (!found) return
       state.updateItemOutboardSlot(found.partner.id, slotIndex, patch)
