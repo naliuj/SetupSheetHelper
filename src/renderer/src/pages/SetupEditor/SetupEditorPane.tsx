@@ -4,7 +4,7 @@ import { APP_SETTINGS_KEYS } from '@shared/types/entities'
 import type { EditorMode } from '@renderer/state/navigationStore'
 import { useSetupStoreApi, useSetupStoreState } from '@renderer/state/setupStoreContext'
 import { useLayoutStoreApi, useLayoutStoreState } from '@renderer/state/layoutStoreContext'
-import { useCatalogStore } from '@renderer/state/catalogStore'
+import { useCatalogStoreState } from '@renderer/state/catalogStoreContext'
 import { useLayoutWindowStore } from '@renderer/state/layoutWindowStore'
 import InstrumentPalette from './palette/InstrumentPalette'
 import SetupSheetTable from './table/SetupSheetTable'
@@ -63,7 +63,7 @@ export default function SetupEditorPane({
   const startNewSetup = useSetupStoreState((s) => s.startNewSetup)
   const loadFromSetup = useSetupStoreState((s) => s.loadFromSetup)
   const loadLayoutBlocks = useLayoutStoreState((s) => s.loadForSetup)
-  const loadCatalog = useCatalogStore((s) => s.loadForStudio)
+  const loadCatalog = useCatalogStoreState((s) => s.loadForStudio)
 
   const items = useSetupStoreState((s) => s.items)
   const name = useSetupStoreState((s) => s.name)

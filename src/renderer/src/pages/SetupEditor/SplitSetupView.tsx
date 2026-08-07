@@ -3,8 +3,10 @@ import { APP_SETTINGS_KEYS } from '@shared/types/entities'
 import { useNavigationStore, type EditorMode } from '@renderer/state/navigationStore'
 import { useSetupStore, createSetupStore } from '@renderer/state/setupStore'
 import { useLayoutStore, createLayoutStore } from '@renderer/state/layoutStore'
+import { createCatalogStore } from '@renderer/state/catalogStore'
 import { SetupStoreProvider } from '@renderer/state/setupStoreContext'
 import { LayoutStoreProvider } from '@renderer/state/layoutStoreContext'
+import { CatalogStoreProvider } from '@renderer/state/catalogStoreContext'
 import SetupEditorPane from './SetupEditorPane'
 import SplitDivider from './SplitDivider'
 import Toast from '@renderer/components/Toast'
@@ -17,6 +19,12 @@ const RATIO_SAVE_DELAY_MS = 500
 interface Props {
   buildingId: number | null
   studioId: number
+  /** The right pane's own studio/building — independent of the left pane's. Setups paired in
+   *  Split View aren't required to share a studio, so each pane loads its own gear catalogue and
+   *  room-layout background off its own identity (see rightStores' doc comment below for the
+   *  store-instancing half of that isolation). */
+  rightBuildingId: number | null
+  rightStudioId: number
   /** The pane that was already open before Split View started — reuses the app-wide singleton
    *  stores unchanged (see rightStores' doc comment below for why only the right pane needs a
    *  fresh instance). */
@@ -28,14 +36,18 @@ interface Props {
 }
 
 /** Split View's container: two independent SetupEditorPanes side by side, each backed by its own
- *  setupStore/layoutStore instance so editing, autosave, and undo/redo in one pane never touches
- *  the other (see setupStoreContext.tsx/layoutStoreContext.tsx for how a pane's subtree resolves
- *  "which instance"). Stays within this one Electron window/renderer — unlike the dual-monitor
- *  Layout Mode pop-out, which is a deliberate singleton second `BrowserWindow` for one canvas on
- *  a second monitor; that pattern isn't reused here. */
+ *  setupStore/layoutStore/catalogStore instance so editing, autosave, undo/redo, and gear
+ *  catalogue in one pane never touch the other (see setupStoreContext.tsx/layoutStoreContext.tsx/
+ *  catalogStoreContext.tsx for how a pane's subtree resolves "which instance") — and its own
+ *  studioId/buildingId, since the two panes aren't required to be the same studio. Stays within
+ *  this one Electron window/renderer — unlike the dual-monitor Layout Mode pop-out, which is a
+ *  deliberate singleton second `BrowserWindow` for one canvas on a second monitor; that pattern
+ *  isn't reused here. */
 export default function SplitSetupView({
   buildingId,
   studioId,
+  rightBuildingId,
+  rightStudioId,
   leftSetupId,
   rightSetupId,
   leftMode,
@@ -52,16 +64,20 @@ export default function SplitSetupView({
   // it on Split View entry: it's the exact same store object, just now rendered inside this
   // container instead of directly under SetupEditor.tsx.
   //
-  // The right pane needs a genuinely separate pair — created once, lazily, for the lifetime of
+  // The right pane needs a genuinely separate trio — created once, lazily, for the lifetime of
   // this component (a fresh setupId prop change on an already-mounted SplitSetupView, i.e.
   // picking a *different* second setup while already split, isn't wired yet; the toolbar's Split
   // View button is disabled while splitActive, so that path doesn't exist yet either — see
-  // SetupToolbar.tsx). loadForSetup inside SetupEditorPane's own load effect populates it exactly
-  // like any normal setup open.
+  // SetupToolbar.tsx). loadForSetup inside SetupEditorPane's own load effect populates setup/
+  // layout exactly like any normal setup open; catalogStoreApi gets its own load the same way via
+  // SetupEditorPane's loadCatalog effect. A separate catalogStoreApi (not just setup/layout) is
+  // required now that the two panes aren't guaranteed to share a studio — see catalogStore.ts's
+  // createCatalogStore() doc comment for why sharing the singleton here would be wrong.
   const [rightStores] = useState(() => {
     const setupStoreApi = createSetupStore()
     const layoutStoreApi = createLayoutStore(setupStoreApi)
-    return { setupStoreApi, layoutStoreApi }
+    const catalogStoreApi = createCatalogStore()
+    return { setupStoreApi, layoutStoreApi, catalogStoreApi }
   })
 
   const [activePane, setActivePane] = useState<'left' | 'right'>('left')
@@ -151,14 +167,16 @@ export default function SplitSetupView({
         >
           <SetupStoreProvider store={rightStores.setupStoreApi}>
             <LayoutStoreProvider store={rightStores.layoutStoreApi}>
-              <SetupEditorPane
-                buildingId={buildingId}
-                studioId={studioId}
-                setupId={rightSetupId}
-                mode={rightMode}
-                onModeChange={setRightMode}
-                paneActive={activePane === 'right'}
-              />
+              <CatalogStoreProvider store={rightStores.catalogStoreApi}>
+                <SetupEditorPane
+                  buildingId={rightBuildingId}
+                  studioId={rightStudioId}
+                  setupId={rightSetupId}
+                  mode={rightMode}
+                  onModeChange={setRightMode}
+                  paneActive={activePane === 'right'}
+                />
+              </CatalogStoreProvider>
             </LayoutStoreProvider>
           </SetupStoreProvider>
         </div>

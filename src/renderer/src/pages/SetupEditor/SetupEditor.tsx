@@ -15,6 +15,8 @@ export default function SetupEditor(): JSX.Element {
   const studioId = useNavigationStore((s) => s.studioId)
   const setupId = useNavigationStore((s) => s.setupId)
   const splitSetupId = useNavigationStore((s) => s.splitSetupId)
+  const splitStudioId = useNavigationStore((s) => s.splitStudioId)
+  const splitBuildingId = useNavigationStore((s) => s.splitBuildingId)
   const goToHome = useNavigationStore((s) => s.goToHome)
   const mode = useNavigationStore((s) => s.editorMode)
   const setMode = useNavigationStore((s) => s.setEditorMode)
@@ -32,6 +34,8 @@ export default function SetupEditor(): JSX.Element {
       <SplitSetupView
         buildingId={buildingId}
         studioId={studioId}
+        rightBuildingId={splitBuildingId}
+        rightStudioId={splitStudioId ?? studioId}
         leftSetupId={setupId}
         rightSetupId={splitSetupId}
         leftMode={mode}

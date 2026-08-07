@@ -3,7 +3,7 @@ import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } f
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import type { SetupItemDraft, SetupItemOutboardSlot } from '@shared/types/setup'
 import { useSetupStoreApi, useSetupStoreState } from '@renderer/state/setupStoreContext'
-import { useCatalogStore } from '@renderer/state/catalogStore'
+import { useCatalogStoreApi, useCatalogStoreState } from '@renderer/state/catalogStoreContext'
 import { useGearCatalogueSuggestions } from '@renderer/state/useGearCatalogueSuggestions'
 import { computeTieLineConflicts } from '@renderer/state/tieLineConflicts'
 import { computeUsageCounts, computeOutboardUsageCounts } from '@renderer/state/usageCounts'
@@ -18,6 +18,7 @@ function toLabels(items: { name: string; manufacturer: string | null }[]): strin
 
 export default function SetupSheetTable(): JSX.Element {
   const setupStoreApi = useSetupStoreApi()
+  const catalogStoreApi = useCatalogStoreApi()
   const items = useSetupStoreState((s) => s.items)
   const addItem = useSetupStoreState((s) => s.addItem)
   const outboardColumnCount = useSetupStoreState((s) => s.outboardColumnCount)
@@ -126,7 +127,7 @@ export default function SetupSheetTable(): JSX.Element {
     // top row's mic changes (see SetupSheetRow's handleMicChange).
     if (bottomItem.micId == null && !bottomItem.micText) {
       if (topItem.micId != null) {
-        const topMic = useCatalogStore.getState().mics.find((m) => m.id === topItem.micId)
+        const topMic = catalogStoreApi.getState().mics.find((m) => m.id === topItem.micId)
         if (topMic && topMic.quantity >= 2) patch.micId = topItem.micId
       } else if (topItem.micText) {
         patch.micText = topItem.micText
@@ -137,7 +138,7 @@ export default function SetupSheetTable(): JSX.Element {
     // row's still-empty preamp.
     if (bottomItem.preampId == null && !bottomItem.preampText) {
       if (topItem.preampId != null) {
-        const topPreamp = useCatalogStore.getState().preamps.find((p) => p.id === topItem.preampId)
+        const topPreamp = catalogStoreApi.getState().preamps.find((p) => p.id === topItem.preampId)
         if (topPreamp && topPreamp.channels >= 2) patch.preampId = topItem.preampId
       } else if (topItem.preampText) {
         patch.preampText = topItem.preampText
@@ -167,7 +168,7 @@ export default function SetupSheetTable(): JSX.Element {
       state.updateItemFields(found.partner.id, { micId: null, micText: null })
       return
     }
-    const mic = useCatalogStore.getState().mics.find((m) => m.id === micId)
+    const mic = catalogStoreApi.getState().mics.find((m) => m.id === micId)
     if (!mic || mic.quantity < 2) return
     state.updateItemFields(found.partner.id, { micId, micText: null })
   }, [])
@@ -182,7 +183,7 @@ export default function SetupSheetTable(): JSX.Element {
       state.updateItemFields(found.partner.id, { preampId: null, preampText: null })
       return
     }
-    const preamp = useCatalogStore.getState().preamps.find((p) => p.id === preampId)
+    const preamp = catalogStoreApi.getState().preamps.find((p) => p.id === preampId)
     if (!preamp || preamp.channels < 2) return
     state.updateItemFields(found.partner.id, { preampId, preampText: null })
   }, [])
@@ -243,10 +244,10 @@ export default function SetupSheetTable(): JSX.Element {
     []
   )
 
-  const mics = useCatalogStore((s) => s.mics)
-  const outboardGear = useCatalogStore((s) => s.outboardGear)
-  const preamps = useCatalogStore((s) => s.preamps)
-  const isTemporary = useCatalogStore((s) => s.isTemporary)
+  const mics = useCatalogStoreState((s) => s.mics)
+  const outboardGear = useCatalogStoreState((s) => s.outboardGear)
+  const preamps = useCatalogStoreState((s) => s.preamps)
+  const isTemporary = useCatalogStoreState((s) => s.isTemporary)
 
   // Quick Setup's free-text mic/outboard/preamp fields have no studio catalogue to pick
   // from, so they get autocomplete suggestions from every known model across every studio

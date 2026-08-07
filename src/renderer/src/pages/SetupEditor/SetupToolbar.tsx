@@ -602,13 +602,16 @@ export default function SetupToolbar({
       )}
       {splitPickerOpen && studioId && (
         <OpenAlongsideModal
-          studioId={studioId}
           currentSetupId={setupId}
           currentSetupName={name || 'Untitled Setup'}
           onClose={() => setSplitPickerOpen(false)}
-          onConfirm={(pickedId) => {
+          onConfirm={async (picked) => {
             setSplitPickerOpen(false)
-            openSplitView(pickedId)
+            // Mirrors Home.tsx's own buildingId resolution at open-time — the picked setup isn't
+            // guaranteed to be this studio's, so its buildingId has to be looked up fresh rather
+            // than reused from this pane's own studioId/buildingId.
+            const studio = await window.api.studios.get(picked.studioId)
+            openSplitView(picked.id, picked.studioId, studio?.buildingId ?? null)
           }}
         />
       )}

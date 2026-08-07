@@ -25,6 +25,11 @@ interface NavigationState {
    *  toolbar button. Null means not in split view; `setupId` (the left pane) is otherwise
    *  unaffected and stays the single source of truth for "the primary open setup." */
   splitSetupId: number | null
+  /** The right pane's own studio/building — set alongside splitSetupId (see openSplitView) since
+   *  the two panes aren't required to share a studio. `splitStudioId` is null exactly when
+   *  splitSetupId is (kept in lockstep so callers can gate on either). */
+  splitStudioId: number | null
+  splitBuildingId: number | null
   /** Table vs. Layout mode for the right pane specifically, mirroring `editorMode` for the same
    *  reason: it must survive the global Settings-page detour, which unmounts all of SetupEditor
    *  (including a mounted SplitSetupView) rather than just toggling a local flag. */
@@ -39,10 +44,11 @@ interface NavigationState {
   closeSettings(): void
   setEditorMode(mode: EditorMode): void
   consumeSettingsInitialTab(): string | null
-  /** Opens Split View with `setupId` as the right pane (the left pane is whatever `setupId` in
-   *  this store already is). Caller is responsible for having flushed anything that needs it
-   *  first — this action is a pure state flip. */
-  openSplitView(setupId: number): void
+  /** Opens Split View with `setupId` (and its own studio/building) as the right pane — the left
+   *  pane is whatever `setupId`/`studioId`/`buildingId` in this store already are. Caller is
+   *  responsible for having flushed anything that needs it first — this action is a pure state
+   *  flip. */
+  openSplitView(setupId: number, studioId: number, buildingId: number | null): void
   /** Collapses back to single-pane view. Caller is responsible for flushing both panes' dirty
    *  state first (see SplitSetupView.tsx) — this action is a pure state flip. */
   closeSplitView(): void
@@ -59,11 +65,13 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
   editorMode: 'table',
   settingsInitialTab: null,
   splitSetupId: null,
+  splitStudioId: null,
+  splitBuildingId: null,
   splitEditorMode: 'table',
 
-  goToHome: () => set({ view: 'home', setupId: null, splitSetupId: null }),
+  goToHome: () => set({ view: 'home', setupId: null, splitSetupId: null, splitStudioId: null, splitBuildingId: null }),
   goToSetup: (buildingId, studioId, setupId) =>
-    set({ view: 'setup', buildingId, studioId, setupId, splitSetupId: null }),
+    set({ view: 'setup', buildingId, studioId, setupId, splitSetupId: null, splitStudioId: null, splitBuildingId: null }),
   goToStudioSetup: (studioId) => set({ view: 'studioSetup', studioSetupId: studioId }),
   goToSettings: (initialTab) => {
     const current = get().view
@@ -80,7 +88,8 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
     set({ settingsInitialTab: null })
     return tab
   },
-  openSplitView: (setupId) => set({ splitSetupId: setupId, splitEditorMode: 'table' }),
-  closeSplitView: () => set({ splitSetupId: null }),
+  openSplitView: (setupId, studioId, buildingId) =>
+    set({ splitSetupId: setupId, splitStudioId: studioId, splitBuildingId: buildingId, splitEditorMode: 'table' }),
+  closeSplitView: () => set({ splitSetupId: null, splitStudioId: null, splitBuildingId: null }),
   setSplitEditorMode: (mode) => set({ splitEditorMode: mode })
 }))

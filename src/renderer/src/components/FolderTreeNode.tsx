@@ -8,9 +8,12 @@ interface Props {
   depth: number
   selectedFolderId: number | null
   onSelect: (id: number) => void
-  onCreateSubfolder: (parentId: number) => void
-  onRename: (id: number, currentName: string) => void
-  onDelete: (id: number) => void
+  /** CRUD actions are optional — omit all three for a read-only picker (e.g. the Split View setup
+   *  picker), which hides the New Subfolder/Rename/Delete buttons entirely rather than disabling
+   *  them, since a browse-only dialog shouldn't offer folder mutation at all. */
+  onCreateSubfolder?: (parentId: number) => void
+  onRename?: (id: number, currentName: string) => void
+  onDelete?: (id: number) => void
 }
 
 export default function FolderTreeNode({
@@ -44,15 +47,21 @@ export default function FolderTreeNode({
           <Folder className="home-icon" size={15} aria-hidden="true" />
           <span className="folder-tree-name">{node.name}</span>
         </button>
-        <button className="folder-tree-action" title="New Subfolder" onClick={() => onCreateSubfolder(node.id)}>
-          <Plus size={15} aria-hidden="true" />
-        </button>
-        <button className="folder-tree-action" title="Rename" onClick={() => onRename(node.id, node.name)}>
-          <Pencil size={14} aria-hidden="true" />
-        </button>
-        <button className="folder-tree-action" title="Delete" onClick={() => onDelete(node.id)}>
-          <Trash2 size={14} aria-hidden="true" />
-        </button>
+        {onCreateSubfolder && (
+          <button className="folder-tree-action" title="New Subfolder" onClick={() => onCreateSubfolder(node.id)}>
+            <Plus size={15} aria-hidden="true" />
+          </button>
+        )}
+        {onRename && (
+          <button className="folder-tree-action" title="Rename" onClick={() => onRename(node.id, node.name)}>
+            <Pencil size={14} aria-hidden="true" />
+          </button>
+        )}
+        {onDelete && (
+          <button className="folder-tree-action" title="Delete" onClick={() => onDelete(node.id)}>
+            <Trash2 size={14} aria-hidden="true" />
+          </button>
+        )}
       </div>
       {expanded &&
         hasChildren &&
