@@ -1,8 +1,13 @@
 import { create } from 'zustand'
 import { temporal } from 'zundo'
 import type { RoomLayoutBlockDraft } from '@shared/types/setup'
-import { useSetupStore } from './setupStore'
+import { createSetupStore, useSetupStore } from './setupStore'
 import { useToastStore } from './toastStore'
+
+/** What createLayoutStore's save() needs from its paired setup store — just enough to read the
+ *  current setupId at save time. Typed off createSetupStore's own return shape so it always
+ *  matches, rather than hand-duplicating the relevant slice of SetupState. */
+type SetupStoreApi = ReturnType<typeof createSetupStore>
 
 function newDraftId(): string {
   return crypto.randomUUID()
@@ -60,18 +65,21 @@ interface LayoutState {
   bumpLayoutBackgroundVersion(): void
 }
 
-/** Layout Mode's own store — fully independent of setupStore/Table Mode (no shared items,
- *  no shared fields). Blocks are purely spatial: label/shape/color/x/y/width/height/rotation,
- *  nothing about mics/channels/tie-lines. The one deliberate coupling point: save() reads
- *  useSetupStore's setupId directly at save time (rather than duplicating it here), so a
- *  brand-new setup's first-ever placed block always has a valid setup id to save against
- *  without needing explicit cross-store wiring at every call site.
+/** Builds one independent layout-store instance, paired to a specific setup-store instance.
+ *  Layout Mode's store is fully independent of setupStore/Table Mode (no shared items, no
+ *  shared fields) EXCEPT one deliberate coupling point: save() reads the paired setup store's
+ *  setupId directly at save time (rather than duplicating it here), so a brand-new setup's
+ *  first-ever placed block always has a valid setup id to save against without explicit
+ *  cross-store wiring at every call site. `setupStoreApi` is that pairing — passed in rather
+ *  than importing the singleton, so Split View's second pane can wire its own layout-store
+ *  instance to its own setup-store instance instead of both panes fighting over one.
  *
  *  Selection is a Set (multi-select), following Table Mode's setupStore.selectedItemIds
  *  pattern. zoomScale/panX/panY are purely transient view state — layered on top of
  *  LayoutStage.tsx's own fit-to-container calc, never persisted to the DB, reset whenever a
  *  different setup loads. */
-export const useLayoutStore = create<LayoutState>()(
+export function createLayoutStore(setupStoreApi: SetupStoreApi) {
+  const store = create<LayoutState>()(
   temporal(
     (set, get) => ({
       blocks: [],
@@ -84,7 +92,7 @@ export const useLayoutStore = create<LayoutState>()(
       layoutBackgroundVersion: 0,
 
       loadForSetup: async (setupId) => {
-        useLayoutStore.temporal.getState().clear()
+        store.temporal.getState().clear()
         if (!setupId) {
           set({ blocks: [], selectedBlockIds: new Set(), zoomScale: 1, panX: 0, panY: 0, isDirty: false })
           return
@@ -166,7 +174,7 @@ export const useLayoutStore = create<LayoutState>()(
           useToastStore
             .getState()
             .show(`Deleted ${ids.length} block${ids.length === 1 ? '' : 's'}`, () =>
-              useLayoutStore.temporal.getState().undo()
+              store.temporal.getState().undo()
             )
         }
       },
@@ -214,7 +222,7 @@ export const useLayoutStore = create<LayoutState>()(
       resetView: () => set({ zoomScale: 1, panX: 0, panY: 0 }),
 
       save: async () => {
-        const setupId = useSetupStore.getState().setupId
+        const setupId = setupStoreApi.getState().setupId
         if (!setupId) return
         const state = get()
         set({ isSaving: true })
@@ -242,4 +250,12 @@ export const useLayoutStore = create<LayoutState>()(
       limit: 100
     }
   )
-)
+  )
+  return store
+}
+
+/** The app-wide default instance, paired to the default setupStore singleton — every existing
+ *  single-setup call site keeps using this unchanged. Split View's second pane gets its own
+ *  separate `createLayoutStore(...)` instance, paired to that pane's own setup store, instead
+ *  (see layoutStoreContext.tsx); this singleton remains pane A's store. */
+export const useLayoutStore = createLayoutStore(useSetupStore)

@@ -125,7 +125,16 @@ interface SetupState {
   save(): Promise<void>
 }
 
-export const useSetupStore = create<SetupState>()(
+/** Builds one independent setup-store instance — its own data, dirty flag, autosave, and zundo
+ *  undo stack. Exists as a factory (rather than a single `create()` call at module scope) so
+ *  Split View can instantiate a second, fully independent instance for its right-hand pane; see
+ *  setupStoreContext.tsx for how components resolve "which instance" without every consumer
+ *  needing to be threaded a store prop. The methods below close over `store` (assigned right
+ *  after `create()` returns, below) rather than the module singleton `useSetupStore`, so an
+ *  instance's own undo/redo history is always the one it drives — not whichever instance
+ *  happens to be the singleton. */
+export function createSetupStore() {
+  const store = create<SetupState>()(
   temporal(
     (set, get) => ({
       setupId: null,
@@ -148,7 +157,7 @@ export const useSetupStore = create<SetupState>()(
   isSaving: false,
 
   startNewSetup: (studioId, name, sessionDate, folderId = null, engineer = null, artist = null) => {
-    useSetupStore.temporal.getState().clear()
+    store.temporal.getState().clear()
     set({
       setupId: null,
       studioId,
@@ -172,7 +181,7 @@ export const useSetupStore = create<SetupState>()(
   },
 
   loadFromSetup: (setup) => {
-    useSetupStore.temporal.getState().clear()
+    store.temporal.getState().clear()
     set({
       setupId: setup.id,
       studioId: setup.studioId,
@@ -335,7 +344,7 @@ export const useSetupStore = create<SetupState>()(
     if (ids.length > 0) {
       useToastStore
         .getState()
-        .show(`Deleted ${ids.length} row${ids.length === 1 ? '' : 's'}`, () => useSetupStore.temporal.getState().undo())
+        .show(`Deleted ${ids.length} row${ids.length === 1 ? '' : 's'}`, () => store.temporal.getState().undo())
     }
   },
 
@@ -584,4 +593,11 @@ export const useSetupStore = create<SetupState>()(
       limit: 100
     }
   )
-)
+  )
+  return store
+}
+
+/** The app-wide default instance — every existing single-setup call site keeps using this
+ *  unchanged. Split View's second pane gets its own separate `createSetupStore()` instance
+ *  instead (see setupStoreContext.tsx); this singleton remains pane A's store. */
+export const useSetupStore = createSetupStore()
