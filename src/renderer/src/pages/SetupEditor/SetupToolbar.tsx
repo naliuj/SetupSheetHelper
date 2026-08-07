@@ -4,8 +4,8 @@ import { Check, ExternalLink, FileText, Keyboard } from 'lucide-react'
 import { APP_SETTINGS_KEYS } from '@shared/types/entities'
 import type { MenuAction, PdfExportInclude } from '@shared/types/ipc'
 import { KEYBIND_ACTIONS, formatCombo, normalizeKeyEvent } from '@shared/constants/keybindActions'
-import { useSetupStore } from '@renderer/state/setupStore'
-import { useLayoutStore } from '@renderer/state/layoutStore'
+import { useSetupStoreApi, useSetupStoreState } from '@renderer/state/setupStoreContext'
+import { useLayoutStoreApi, useLayoutStoreState } from '@renderer/state/layoutStoreContext'
 import { useKeybindPrefsStore } from '@renderer/state/keybindPrefsStore'
 import { useNavigationStore, type EditorMode } from '@renderer/state/navigationStore'
 import { exportStageToDataUrl } from './canvas/konvaExport'
@@ -33,31 +33,33 @@ export default function SetupToolbar({
   onOpenSettings,
   layoutPoppedOut
 }: Props): JSX.Element {
-  const setupId = useSetupStore((s) => s.setupId)
-  const studioId = useSetupStore((s) => s.studioId)
-  const name = useSetupStore((s) => s.name)
-  const sessionDate = useSetupStore((s) => s.sessionDate)
-  const engineer = useSetupStore((s) => s.engineer)
-  const artist = useSetupStore((s) => s.artist)
-  const sessionNotes = useSetupStore((s) => s.sessionNotes)
-  const setName = useSetupStore((s) => s.setName)
-  const setSessionDate = useSetupStore((s) => s.setSessionDate)
-  const setEngineer = useSetupStore((s) => s.setEngineer)
-  const setArtist = useSetupStore((s) => s.setArtist)
-  const setSessionNotes = useSetupStore((s) => s.setSessionNotes)
-  const save = useSetupStore((s) => s.save)
-  const isDirty = useSetupStore((s) => s.isDirty)
-  const isSaving = useSetupStore((s) => s.isSaving)
-  const addItem = useSetupStore((s) => s.addItem)
-  const selectedItemIds = useSetupStore((s) => s.selectedItemIds)
-  const removeItems = useSetupStore((s) => s.removeItems)
-  const duplicateItems = useSetupStore((s) => s.duplicateItems)
-  const clearSelection = useSetupStore((s) => s.clearSelection)
-  const focusNumbering = useSetupStore((s) => s.focusNumbering)
-  const selectedBlockIds = useLayoutStore((s) => s.selectedBlockIds)
-  const removeBlocks = useLayoutStore((s) => s.removeBlocks)
-  const duplicateBlocks = useLayoutStore((s) => s.duplicateBlocks)
-  const selectBlock = useLayoutStore((s) => s.selectBlock)
+  const setupStoreApi = useSetupStoreApi()
+  const layoutStoreApi = useLayoutStoreApi()
+  const setupId = useSetupStoreState((s) => s.setupId)
+  const studioId = useSetupStoreState((s) => s.studioId)
+  const name = useSetupStoreState((s) => s.name)
+  const sessionDate = useSetupStoreState((s) => s.sessionDate)
+  const engineer = useSetupStoreState((s) => s.engineer)
+  const artist = useSetupStoreState((s) => s.artist)
+  const sessionNotes = useSetupStoreState((s) => s.sessionNotes)
+  const setName = useSetupStoreState((s) => s.setName)
+  const setSessionDate = useSetupStoreState((s) => s.setSessionDate)
+  const setEngineer = useSetupStoreState((s) => s.setEngineer)
+  const setArtist = useSetupStoreState((s) => s.setArtist)
+  const setSessionNotes = useSetupStoreState((s) => s.setSessionNotes)
+  const save = useSetupStoreState((s) => s.save)
+  const isDirty = useSetupStoreState((s) => s.isDirty)
+  const isSaving = useSetupStoreState((s) => s.isSaving)
+  const addItem = useSetupStoreState((s) => s.addItem)
+  const selectedItemIds = useSetupStoreState((s) => s.selectedItemIds)
+  const removeItems = useSetupStoreState((s) => s.removeItems)
+  const duplicateItems = useSetupStoreState((s) => s.duplicateItems)
+  const clearSelection = useSetupStoreState((s) => s.clearSelection)
+  const focusNumbering = useSetupStoreState((s) => s.focusNumbering)
+  const selectedBlockIds = useLayoutStoreState((s) => s.selectedBlockIds)
+  const removeBlocks = useLayoutStoreState((s) => s.removeBlocks)
+  const duplicateBlocks = useLayoutStoreState((s) => s.duplicateBlocks)
+  const selectBlock = useLayoutStoreState((s) => s.selectBlock)
 
   const [exporting, setExporting] = useState(false)
   const [exportMessage, setExportMessage] = useState<string | null>(null)
@@ -134,8 +136,8 @@ export default function SetupToolbar({
     setExportMessage(null)
     try {
       await save()
-      await useLayoutStore.getState().save()
-      const currentSetupId = useSetupStore.getState().setupId
+      await layoutStoreApi.getState().save()
+      const currentSetupId = setupStoreApi.getState().setupId
       if (!currentSetupId) return
 
       // Skip flattening the canvas entirely for a sheet-only export — no need to pay for it.
@@ -151,7 +153,7 @@ export default function SetupToolbar({
         const layout = studioId ? await window.api.layoutFile.getEffectiveForSetup(currentSetupId, studioId) : null
         if (layout) {
           if (stageRef.current) {
-            useLayoutStore.getState().selectBlock(null)
+            layoutStoreApi.getState().selectBlock(null)
             // let the deselect re-render (hides the resize/rotate handles) before flattening the stage
             await new Promise((resolve) => setTimeout(resolve, 30))
             dataUrl = exportStageToDataUrl(stageRef.current, 2, !coloredRows)
@@ -202,7 +204,7 @@ export default function SetupToolbar({
 
   async function handleSaveAsTemplate(templateName: string, folderId: number | null): Promise<void> {
     await save()
-    const setupId = useSetupStore.getState().setupId
+    const setupId = setupStoreApi.getState().setupId
     if (!setupId) return
     await window.api.setups.saveAsTemplate({ setupId, name: templateName, folderId })
   }
@@ -220,11 +222,11 @@ export default function SetupToolbar({
       return
     }
     if (mode === 'table') {
-      useSetupStore.temporal.getState()[direction]()
-      useSetupStore.setState({ isDirty: true })
+      setupStoreApi.temporal.getState()[direction]()
+      setupStoreApi.setState({ isDirty: true })
     } else {
-      useLayoutStore.temporal.getState()[direction]()
-      useLayoutStore.setState({ isDirty: true })
+      layoutStoreApi.temporal.getState()[direction]()
+      layoutStoreApi.setState({ isDirty: true })
     }
   }
 
@@ -242,9 +244,9 @@ export default function SetupToolbar({
       return
     }
     if (mode === 'table') {
-      useSetupStore.getState().selectAll()
+      setupStoreApi.getState().selectAll()
     } else if (mode === 'layout') {
-      useLayoutStore.getState().selectAllBlocks()
+      layoutStoreApi.getState().selectAllBlocks()
     }
   }
 
@@ -337,13 +339,13 @@ export default function SetupToolbar({
       if (mode === 'table') focusNumbering()
     },
     'zoom-in': () => {
-      if (mode === 'layout') useLayoutStore.getState().zoomIn()
+      if (mode === 'layout') layoutStoreApi.getState().zoomIn()
     },
     'zoom-out': () => {
-      if (mode === 'layout') useLayoutStore.getState().zoomOut()
+      if (mode === 'layout') layoutStoreApi.getState().zoomOut()
     },
     'reset-view': () => {
-      if (mode === 'layout') useLayoutStore.getState().resetView()
+      if (mode === 'layout') layoutStoreApi.getState().resetView()
     },
     'open-setup-settings': onOpenSettings,
     undo: () => handleUndoRedo('undo'),
@@ -539,7 +541,7 @@ export default function SetupToolbar({
             if (layoutGatePurpose === 'popout' && setupId && studioId) {
               openLayoutWindow(setupId, studioId)
             } else {
-              useLayoutStore.getState().bumpLayoutBackgroundVersion()
+              layoutStoreApi.getState().bumpLayoutBackgroundVersion()
               onToggleMode('layout')
             }
           }}

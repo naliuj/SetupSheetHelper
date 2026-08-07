@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { RotateCcw } from 'lucide-react'
-import { useSetupStore } from '@renderer/state/setupStore'
+import { useSetupStoreState } from '@renderer/state/setupStoreContext'
 import { useKeybindPrefsStore } from '@renderer/state/keybindPrefsStore'
 import { formatCombo } from '@shared/constants/keybindActions'
 import { TOGGLEABLE_COLUMNS } from '@shared/constants/setupColumns'
@@ -13,13 +13,13 @@ import { GENERIC_INSTRUMENT_TYPE } from './tableConstants'
 /** Persistent Table Mode toolbar — creation and global controls only. Row-scoped actions (number,
  *  save-as-preset, delete) live in the contextual SelectionActionBar instead. */
 export default function TableModeToolbar(): JSX.Element {
-  const addItem = useSetupStore((s) => s.addItem)
-  const outboardColumnCount = useSetupStore((s) => s.outboardColumnCount)
-  const addOutboardColumn = useSetupStore((s) => s.addOutboardColumn)
-  const removeOutboardColumn = useSetupStore((s) => s.removeOutboardColumn)
-  const visibleColumns = useSetupStore((s) => s.visibleColumns)
-  const setColumnVisibility = useSetupStore((s) => s.setColumnVisibility)
-  const resetColumnsToDefault = useSetupStore((s) => s.resetColumnsToDefault)
+  const addItem = useSetupStoreState((s) => s.addItem)
+  const outboardColumnCount = useSetupStoreState((s) => s.outboardColumnCount)
+  const addOutboardColumn = useSetupStoreState((s) => s.addOutboardColumn)
+  const removeOutboardColumn = useSetupStoreState((s) => s.removeOutboardColumn)
+  const visibleColumns = useSetupStoreState((s) => s.visibleColumns)
+  const setColumnVisibility = useSetupStoreState((s) => s.setColumnVisibility)
+  const resetColumnsToDefault = useSetupStoreState((s) => s.resetColumnsToDefault)
   const resolveKeybind = useKeybindPrefsStore((s) => s.resolve)
 
   const [sourceName, setSourceName] = useState('')

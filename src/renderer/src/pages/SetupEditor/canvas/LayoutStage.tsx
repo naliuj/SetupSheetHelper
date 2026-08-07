@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Stage, Layer, Rect, Transformer } from 'react-konva'
 import type Konva from 'konva'
-import { useLayoutStore, MIN_ZOOM, MAX_ZOOM } from '@renderer/state/layoutStore'
-import { useSetupStore } from '@renderer/state/setupStore'
+import { MIN_ZOOM, MAX_ZOOM } from '@renderer/state/layoutStore'
+import { useLayoutStoreState } from '@renderer/state/layoutStoreContext'
+import { useSetupStoreState } from '@renderer/state/setupStoreContext'
 import LayoutBackground from './LayoutBackground'
 import LayoutBlockIcon, { clampCenterToRoom } from './LayoutBlockIcon'
 import ContextMenu from './ContextMenu'
@@ -33,26 +34,26 @@ const ZOOM_STEP = 1.05
 const MARQUEE_THRESHOLD = 5
 
 export default function LayoutStage({ studioId, stageRef, active }: Props): JSX.Element {
-  const setupId = useSetupStore((s) => s.setupId)
-  const blocks = useLayoutStore((s) => s.blocks)
-  const addBlock = useLayoutStore((s) => s.addBlock)
-  const updateBlockTransform = useLayoutStore((s) => s.updateBlockTransform)
-  const renameBlock = useLayoutStore((s) => s.renameBlock)
-  const updateBlockColor = useLayoutStore((s) => s.updateBlockColor)
-  const removeBlocks = useLayoutStore((s) => s.removeBlocks)
-  const duplicateBlocks = useLayoutStore((s) => s.duplicateBlocks)
-  const moveBlocksBy = useLayoutStore((s) => s.moveBlocksBy)
-  const selectBlock = useLayoutStore((s) => s.selectBlock)
-  const toggleBlock = useLayoutStore((s) => s.toggleBlock)
-  const selectBlocksInRect = useLayoutStore((s) => s.selectBlocksInRect)
-  const selectedBlockIds = useLayoutStore((s) => s.selectedBlockIds)
-  const zoomScale = useLayoutStore((s) => s.zoomScale)
-  const panX = useLayoutStore((s) => s.panX)
-  const panY = useLayoutStore((s) => s.panY)
-  const setZoomPan = useLayoutStore((s) => s.setZoomPan)
-  const zoomIn = useLayoutStore((s) => s.zoomIn)
-  const zoomOut = useLayoutStore((s) => s.zoomOut)
-  const resetView = useLayoutStore((s) => s.resetView)
+  const setupId = useSetupStoreState((s) => s.setupId)
+  const blocks = useLayoutStoreState((s) => s.blocks)
+  const addBlock = useLayoutStoreState((s) => s.addBlock)
+  const updateBlockTransform = useLayoutStoreState((s) => s.updateBlockTransform)
+  const renameBlock = useLayoutStoreState((s) => s.renameBlock)
+  const updateBlockColor = useLayoutStoreState((s) => s.updateBlockColor)
+  const removeBlocks = useLayoutStoreState((s) => s.removeBlocks)
+  const duplicateBlocks = useLayoutStoreState((s) => s.duplicateBlocks)
+  const moveBlocksBy = useLayoutStoreState((s) => s.moveBlocksBy)
+  const selectBlock = useLayoutStoreState((s) => s.selectBlock)
+  const toggleBlock = useLayoutStoreState((s) => s.toggleBlock)
+  const selectBlocksInRect = useLayoutStoreState((s) => s.selectBlocksInRect)
+  const selectedBlockIds = useLayoutStoreState((s) => s.selectedBlockIds)
+  const zoomScale = useLayoutStoreState((s) => s.zoomScale)
+  const panX = useLayoutStoreState((s) => s.panX)
+  const panY = useLayoutStoreState((s) => s.panY)
+  const setZoomPan = useLayoutStoreState((s) => s.setZoomPan)
+  const zoomIn = useLayoutStoreState((s) => s.zoomIn)
+  const zoomOut = useLayoutStoreState((s) => s.zoomOut)
+  const resetView = useLayoutStoreState((s) => s.resetView)
 
   const containerRef = useRef<HTMLDivElement>(null)
   const nodeRefs = useRef<Map<number | string, Konva.Group>>(new Map())

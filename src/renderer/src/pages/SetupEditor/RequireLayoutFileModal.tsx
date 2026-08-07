@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useSetupStore } from '@renderer/state/setupStore'
+import { useSetupStoreApi } from '@renderer/state/setupStoreContext'
 import { useEscapeToClose } from '@renderer/hooks/useEscapeToClose'
 
 interface Props {
@@ -21,6 +21,7 @@ export default function RequireLayoutFileModal({ studioId, setupId, onResolved, 
   const [picked, setPicked] = useState<{ sourcePath: string; fileName: string } | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const setupStoreApi = useSetupStoreApi()
 
   useEscapeToClose(onCancel)
 
@@ -28,8 +29,8 @@ export default function RequireLayoutFileModal({ studioId, setupId, onResolved, 
   // since a per-setup layout override needs a real setup row to attach to.
   async function ensureSetupId(): Promise<number | null> {
     if (setupId) return setupId
-    await useSetupStore.getState().save()
-    return useSetupStore.getState().setupId
+    await setupStoreApi.getState().save()
+    return setupStoreApi.getState().setupId
   }
 
   async function handlePickFile(): Promise<void> {

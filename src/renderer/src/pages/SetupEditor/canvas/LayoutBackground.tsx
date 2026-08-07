@@ -3,7 +3,7 @@ import { Image as KonvaImage, Rect } from 'react-konva'
 import * as pdfjsLib from 'pdfjs-dist'
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.mjs?url'
 import { BLANK_SHEET_WIDTH_PX, BLANK_SHEET_HEIGHT_PX } from '@shared/constants/roomLayout'
-import { useLayoutStore } from '@renderer/state/layoutStore'
+import { useLayoutStoreState } from '@renderer/state/layoutStoreContext'
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl
 
@@ -42,7 +42,7 @@ function loadImage(url: string): Promise<{ image: HTMLImageElement; width: numbe
 export default function LayoutBackground({ studioId, setupId, onSize }: Props): JSX.Element | null {
   const [image, setImage] = useState<HTMLCanvasElement | HTMLImageElement | null>(null)
   const [blank, setBlank] = useState(false)
-  const layoutBackgroundVersion = useLayoutStore((s) => s.layoutBackgroundVersion)
+  const layoutBackgroundVersion = useLayoutStoreState((s) => s.layoutBackgroundVersion)
 
   useEffect(() => {
     let cancelled = false

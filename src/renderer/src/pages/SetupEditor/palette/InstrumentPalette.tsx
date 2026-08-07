@@ -2,15 +2,15 @@ import { useMemo, useState } from 'react'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import { staggeredPosition } from '@shared/utils/staggeredGrid'
 import { readableTextColor } from '@shared/constants/swatches'
-import { useLayoutStore } from '@renderer/state/layoutStore'
+import { useLayoutStoreState } from '@renderer/state/layoutStoreContext'
 import { usePaletteStore } from '@renderer/state/paletteStore'
 import { groupByCategory } from '@renderer/state/paletteGrouping'
 import { useNavigationStore } from '@renderer/state/navigationStore'
 import CustomBlockModal from './CustomBlockModal'
 
 export default function InstrumentPalette(): JSX.Element {
-  const blocks = useLayoutStore((s) => s.blocks)
-  const addBlock = useLayoutStore((s) => s.addBlock)
+  const blocks = useLayoutStoreState((s) => s.blocks)
+  const addBlock = useLayoutStoreState((s) => s.addBlock)
   const paletteItems = usePaletteStore((s) => s.items)
   const goToSettings = useNavigationStore((s) => s.goToSettings)
   const [search, setSearch] = useState('')

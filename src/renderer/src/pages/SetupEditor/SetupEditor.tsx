@@ -2,8 +2,8 @@ import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import type Konva from 'konva'
 import { APP_SETTINGS_KEYS } from '@shared/types/entities'
 import { useNavigationStore, type EditorMode } from '@renderer/state/navigationStore'
-import { useSetupStore } from '@renderer/state/setupStore'
-import { useLayoutStore } from '@renderer/state/layoutStore'
+import { useSetupStoreApi, useSetupStoreState } from '@renderer/state/setupStoreContext'
+import { useLayoutStoreApi, useLayoutStoreState } from '@renderer/state/layoutStoreContext'
 import { useCatalogStore } from '@renderer/state/catalogStore'
 import { useLayoutWindowStore } from '@renderer/state/layoutWindowStore'
 import InstrumentPalette from './palette/InstrumentPalette'
@@ -32,23 +32,26 @@ export default function SetupEditor(): JSX.Element {
 
   const [settingsOpen, setSettingsOpen] = useState(false)
 
-  const startNewSetup = useSetupStore((s) => s.startNewSetup)
-  const loadFromSetup = useSetupStore((s) => s.loadFromSetup)
-  const loadLayoutBlocks = useLayoutStore((s) => s.loadForSetup)
+  const setupStoreApi = useSetupStoreApi()
+  const layoutStoreApi = useLayoutStoreApi()
+
+  const startNewSetup = useSetupStoreState((s) => s.startNewSetup)
+  const loadFromSetup = useSetupStoreState((s) => s.loadFromSetup)
+  const loadLayoutBlocks = useLayoutStoreState((s) => s.loadForSetup)
   const loadCatalog = useCatalogStore((s) => s.loadForStudio)
 
-  const items = useSetupStore((s) => s.items)
-  const name = useSetupStore((s) => s.name)
-  const sessionDate = useSetupStore((s) => s.sessionDate)
-  const engineer = useSetupStore((s) => s.engineer)
-  const artist = useSetupStore((s) => s.artist)
-  const facultyReserveEnabled = useSetupStore((s) => s.facultyReserveEnabled)
-  const isDirty = useSetupStore((s) => s.isDirty)
-  const save = useSetupStore((s) => s.save)
+  const items = useSetupStoreState((s) => s.items)
+  const name = useSetupStoreState((s) => s.name)
+  const sessionDate = useSetupStoreState((s) => s.sessionDate)
+  const engineer = useSetupStoreState((s) => s.engineer)
+  const artist = useSetupStoreState((s) => s.artist)
+  const facultyReserveEnabled = useSetupStoreState((s) => s.facultyReserveEnabled)
+  const isDirty = useSetupStoreState((s) => s.isDirty)
+  const save = useSetupStoreState((s) => s.save)
 
-  const layoutBlocks = useLayoutStore((s) => s.blocks)
-  const layoutIsDirty = useLayoutStore((s) => s.isDirty)
-  const saveLayout = useLayoutStore((s) => s.save)
+  const layoutBlocks = useLayoutStoreState((s) => s.blocks)
+  const layoutIsDirty = useLayoutStoreState((s) => s.isDirty)
+  const saveLayout = useLayoutStoreState((s) => s.save)
 
   const stageRef = useRef<Konva.Stage>(null)
 
@@ -161,12 +164,12 @@ export default function SetupEditor(): JSX.Element {
   // right after typing/dragging doesn't lose the last second of work.
   useEffect(() => {
     return () => {
-      const setupState = useSetupStore.getState()
+      const setupState = setupStoreApi.getState()
       if (setupState.isDirty) setupState.save()
-      const layoutState = useLayoutStore.getState()
+      const layoutState = layoutStoreApi.getState()
       if (layoutState.isDirty) layoutState.save()
     }
-  }, [])
+  }, [setupStoreApi, layoutStoreApi])
 
   if (!studioId) {
     return (

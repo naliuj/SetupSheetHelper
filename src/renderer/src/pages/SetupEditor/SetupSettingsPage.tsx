@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useSetupStore } from '@renderer/state/setupStore'
+import { useSetupStoreState } from '@renderer/state/setupStoreContext'
 import { useBerkleeFeaturesStore } from '@renderer/state/berkleeFeaturesStore'
 import { useEscapeToClose } from '@renderer/hooks/useEscapeToClose'
 import ToggleSwitch from '@renderer/components/ToggleSwitch'
@@ -19,8 +19,8 @@ const TABS: { key: Tab; label: string }[] = [
 
 export default function SetupSettingsPage({ setupId, onBack }: Props): JSX.Element {
   const [tab, setTab] = useState<Tab>('general')
-  const facultyReserveEnabled = useSetupStore((s) => s.facultyReserveEnabled)
-  const setFacultyReserveEnabled = useSetupStore((s) => s.setFacultyReserveEnabled)
+  const facultyReserveEnabled = useSetupStoreState((s) => s.facultyReserveEnabled)
+  const setFacultyReserveEnabled = useSetupStoreState((s) => s.setFacultyReserveEnabled)
   const berkleeFeaturesEnabled = useBerkleeFeaturesStore((s) => s.enabled)
 
   useEscapeToClose(onBack)

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useSetupStore } from '@renderer/state/setupStore'
+import { useSetupStoreState } from '@renderer/state/setupStoreContext'
 import { useKeybindPrefsStore } from '@renderer/state/keybindPrefsStore'
 import { formatCombo } from '@shared/constants/keybindActions'
 import Icon from '@renderer/components/Icon'
@@ -18,13 +18,13 @@ const FIELD_LABELS: Record<NumberingField, string> = {
  *  "these act on your selection" model is always visible (unlike the old toolbar buttons that
  *  silently fell back to all rows). */
 export default function SelectionActionBar(): JSX.Element | null {
-  const selectedItemIds = useSetupStore((s) => s.selectedItemIds)
-  const items = useSetupStore((s) => s.items)
-  const applySequentialNumbering = useSetupStore((s) => s.applySequentialNumbering)
-  const setItemsColor = useSetupStore((s) => s.setItemsColor)
-  const removeItems = useSetupStore((s) => s.removeItems)
-  const clearSelection = useSetupStore((s) => s.clearSelection)
-  const numberingFocusTick = useSetupStore((s) => s.numberingFocusTick)
+  const selectedItemIds = useSetupStoreState((s) => s.selectedItemIds)
+  const items = useSetupStoreState((s) => s.items)
+  const applySequentialNumbering = useSetupStoreState((s) => s.applySequentialNumbering)
+  const setItemsColor = useSetupStoreState((s) => s.setItemsColor)
+  const removeItems = useSetupStoreState((s) => s.removeItems)
+  const clearSelection = useSetupStoreState((s) => s.clearSelection)
+  const numberingFocusTick = useSetupStoreState((s) => s.numberingFocusTick)
   const resolveKeybind = useKeybindPrefsStore((s) => s.resolve)
 
   const [field, setField] = useState<NumberingField>('channel')

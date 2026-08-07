@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Check } from 'lucide-react'
 import type { ChannelPresetItemInput } from '@shared/types/channelPreset'
 import type { Folder } from '@shared/types/setup'
-import { useSetupStore } from '@renderer/state/setupStore'
+import { useSetupStoreState } from '@renderer/state/setupStoreContext'
 import { useCatalogStore } from '@renderer/state/catalogStore'
 import { useEscapeToClose } from '@renderer/hooks/useEscapeToClose'
 import FolderPicker from '@renderer/components/FolderPicker'
@@ -39,8 +39,8 @@ const DEFAULT_INCLUDED: Record<IncludeField, boolean> = {
  *  any other unset field. */
 export default function SaveChannelPresetModal({ onClose }: { onClose: () => void }): JSX.Element {
   useEscapeToClose(onClose)
-  const items = useSetupStore((s) => s.items)
-  const selectedItemIds = useSetupStore((s) => s.selectedItemIds)
+  const items = useSetupStoreState((s) => s.items)
+  const selectedItemIds = useSetupStoreState((s) => s.selectedItemIds)
   const mics = useCatalogStore((s) => s.mics)
   const outboardGear = useCatalogStore((s) => s.outboardGear)
   const preamps = useCatalogStore((s) => s.preamps)

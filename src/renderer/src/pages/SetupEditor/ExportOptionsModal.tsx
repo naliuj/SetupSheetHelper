@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { PdfExportInclude, PdfExportOrientation, PdfExportDensity } from '@shared/types/ipc'
 import { useEscapeToClose } from '@renderer/hooks/useEscapeToClose'
 import ToggleSwitch from '@renderer/components/ToggleSwitch'
-import { useSetupStore } from '@renderer/state/setupStore'
+import { useSetupStoreState } from '@renderer/state/setupStoreContext'
 import { useNavigationStore } from '@renderer/state/navigationStore'
 import { TOGGLEABLE_COLUMNS } from '@shared/constants/setupColumns'
 
@@ -44,8 +44,8 @@ export default function ExportOptionsModal({
   const [density, setDensity] = useState<PdfExportDensity>('normal')
   const [exporting, setExporting] = useState(false)
 
-  const visibleColumns = useSetupStore((s) => s.visibleColumns)
-  const setColumnVisibility = useSetupStore((s) => s.setColumnVisibility)
+  const visibleColumns = useSetupStoreState((s) => s.visibleColumns)
+  const setColumnVisibility = useSetupStoreState((s) => s.setColumnVisibility)
   const visibleSet = new Set(visibleColumns)
   const hiddenColumns = TOGGLEABLE_COLUMNS.filter((c) => !visibleSet.has(c.key))
 
