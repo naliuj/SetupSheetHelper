@@ -1,4 +1,8 @@
-import { Workbook } from 'exceljs'
+// Default import, not `import { Workbook } from 'exceljs'` — exceljs is CommonJS
+// (`module.exports = { Workbook, ... }`), and Node's native ESM loader (main is built/run as
+// real ESM, unlike the CJS-interop TypeScript performs at compile time) doesn't reliably
+// synthesize named exports from it at runtime.
+import ExcelJS from 'exceljs'
 import { dialog } from 'electron'
 import type { ExportSetupSpreadsheetInput, ExportSetupSpreadsheetResult } from '@shared/types/ipc'
 import { getSetupWithItems } from '../db/repositories/setupsRepo'
@@ -79,7 +83,7 @@ export async function exportSetupSpreadsheet(input: ExportSetupSpreadsheetInput)
   if (shownColumns.has('polarity')) columns.push({ key: 'polarity', header: 'Polarity', width: BASE_WIDTHS.polarity })
   if (shownColumns.has('notes')) columns.push({ key: 'notes', header: 'Notes', width: BASE_WIDTHS.notes })
 
-  const workbook = new Workbook()
+  const workbook = new ExcelJS.Workbook()
   workbook.creator = 'Setup Sheet Helper'
   workbook.title = setup.name
   const worksheet = workbook.addWorksheet(sanitizeSheetName(setup.name))
