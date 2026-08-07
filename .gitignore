@@ -15,3 +15,5 @@ out
 *.tsbuildinfo
 
 .claude/settings.local.json
+
+handoff.md
