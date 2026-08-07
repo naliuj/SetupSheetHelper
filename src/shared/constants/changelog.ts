@@ -283,5 +283,13 @@ export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
       'Layout Mode can now pop out into its own window, so you can edit the room layout on a second monitor while the setup sheet stays open on the first.',
       'Manage Setups and Manage Studios: drag a multi-selected group of rows to move them all into a folder together.'
     ]
+  },
+  {
+    version: '1.12.0',
+    date: '2026-08-07',
+    highlights: [
+      'Added Export Spreadsheet (XLSX) alongside the existing PDF export, from the File menu.',
+      'Added Split View — open two setups side by side, each fully independent, from any studio.'
+    ]
   }
 ]
