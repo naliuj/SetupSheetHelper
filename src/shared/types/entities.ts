@@ -139,5 +139,8 @@ export const APP_SETTINGS_KEYS = {
    *  windowBounds.ts) — never through the renderer settings IPC. Absent → today's fixed 1400x900. */
   mainWindowBounds: 'main_window_bounds',
   /** Same shape as mainWindowBounds, for the standalone Layout Mode window (see layoutWindow.ts). */
-  layoutWindowBounds: 'layout_window_bounds'
+  layoutWindowBounds: 'layout_window_bounds',
+  /** Number string, 0-1 — the left pane's share of Split View's width (see SplitDivider.tsx).
+   *  Absent/unparsable/out-of-clamp-range → 0.5. */
+  splitViewRatio: 'split_view_ratio'
 } as const
