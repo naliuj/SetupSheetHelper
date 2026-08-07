@@ -225,8 +225,8 @@ export default function SetupToolbar({
     setExportMessage(null)
     try {
       await save()
-      await useLayoutStore.getState().save()
-      const currentSetupId = useSetupStore.getState().setupId
+      await layoutStoreApi.getState().save()
+      const currentSetupId = setupStoreApi.getState().setupId
       if (!currentSetupId) return
       const result = await window.api.exportSpreadsheet.exportSetup({ setupId: currentSetupId })
       if (!result.canceled) setExportMessage(`Exported to ${result.filePath}`)
