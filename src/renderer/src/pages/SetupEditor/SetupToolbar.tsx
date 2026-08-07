@@ -200,6 +200,26 @@ export default function SetupToolbar({
     }
   }
 
+  // Spreadsheet export has no per-export decisions (no orientation/density/include the way PDF
+  // export does), so unlike performExport above there's no options modal — just flush, export,
+  // report. Shares the toolbar's exporting/exportMessage state with the PDF export.
+  async function handleExportSpreadsheet(): Promise<void> {
+    setExporting(true)
+    setExportMessage(null)
+    try {
+      await save()
+      await useLayoutStore.getState().save()
+      const currentSetupId = useSetupStore.getState().setupId
+      if (!currentSetupId) return
+      const result = await window.api.exportSpreadsheet.exportSetup({ setupId: currentSetupId })
+      if (!result.canceled) setExportMessage(`Exported to ${result.filePath}`)
+    } catch (err) {
+      setExportMessage(`Export failed — ${err instanceof Error ? err.message : 'please try again.'}`)
+    } finally {
+      setExporting(false)
+    }
+  }
+
   async function handleSaveAsTemplate(templateName: string, folderId: number | null): Promise<void> {
     await save()
     const setupId = useSetupStore.getState().setupId
@@ -322,6 +342,7 @@ export default function SetupToolbar({
     'save-setup': handleSave,
     'save-as-studio': () => setTemplateModalOpen(true),
     'export-pdf': handleExport,
+    'export-spreadsheet': handleExportSpreadsheet,
     'toggle-mode': requestToggleMode,
     'add-source': () => addItem(GENERIC_INSTRUMENT_TYPE),
     'select-all': handleSelectAll,

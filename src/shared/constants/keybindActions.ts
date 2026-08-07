@@ -38,6 +38,13 @@ export const KEYBIND_ACTIONS: KeybindActionDef[] = [
   },
   { id: 'export-pdf', label: 'Export PDF…', category: 'File', scope: 'global', defaultCombo: 'CmdOrCtrl+E' },
   {
+    id: 'export-spreadsheet',
+    label: 'Export Spreadsheet…',
+    category: 'File',
+    scope: 'global',
+    defaultCombo: 'CmdOrCtrl+Shift+E'
+  },
+  {
     id: 'toggle-mode',
     label: 'Toggle Layout/Table Mode',
     category: 'File',

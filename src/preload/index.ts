@@ -183,6 +183,9 @@ const api: RendererApi = {
   exportPdf: {
     exportSetup: (input) => ipcRenderer.invoke(IPC.exportPdf.exportSetup, input)
   },
+  exportSpreadsheet: {
+    exportSetup: (input) => ipcRenderer.invoke(IPC.exportSpreadsheet.exportSetup, input)
+  },
   menu: {
     onAction: (callback) => {
       const listener = (_event: unknown, action: MenuAction): void => callback(action)

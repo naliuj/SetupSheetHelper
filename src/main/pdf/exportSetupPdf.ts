@@ -21,7 +21,7 @@ import { getMicsByIds } from '../db/repositories/micsRepo'
 import { getOutboardByIds } from '../db/repositories/outboardRepo'
 import { getPreampsByIds } from '../db/repositories/preampRepo'
 import { getSetting } from '../db/repositories/settingsRepo'
-import { stripManufacturerPrefix } from '@shared/utils/manufacturerPrefix'
+import { resolveMicText, resolveOutboardSlotText, resolvePreampText } from '../db/resolveGearLabels'
 import { fitColumns, wrapText, type ColumnSpec } from './pdfLayout'
 
 // US Letter, points. Portrait is the short edge (612) horizontal; landscape swaps them.
@@ -176,29 +176,24 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
 
     const resolvedValues = new Map<number, Record<string, string>>()
     for (const item of setup.items) {
-      const mic = item.micId != null ? micById.get(item.micId) ?? null : null
-      const preamp = item.preampId != null ? preampById.get(item.preampId) ?? null : null
       const isConflict = item.tieLine != null && conflicts.has(item.tieLine)
 
       // Consolidate every outboard slot into one comma-joined cell (empty slots skipped), in slot
       // order — the wrapping cell keeps it readable no matter how many pieces of gear a row has.
       const outboardParts: string[] = []
       for (let i = 0; i < setup.outboardColumnCount; i++) {
-        const slot = item.outboards.find((s) => s.slotIndex === i)
-        const outboard = slot?.outboardId != null ? outboardById.get(slot.outboardId) ?? null : null
-        const text = outboard
-          ? stripManufacturerPrefix(outboard.name, outboard.manufacturer ?? '')
-          : slot?.outboardText ?? ''
-        if (text.trim()) outboardParts.push(text.trim())
+        const slot = item.outboards.find((s) => s.slotIndex === i) ?? { slotIndex: i, outboardId: null, outboardText: null }
+        const text = resolveOutboardSlotText(slot, outboardById).trim()
+        if (text) outboardParts.push(text)
       }
 
       const values: Record<string, string> = {
         sourceName: item.sourceName || '',
-        mic: mic ? mic.name : item.micText ?? '',
+        mic: resolveMicText(item, micById),
         phantomPower: item.phantomPower ? '✓' : '',
         outboard: outboardParts.join(', '),
         channel: item.channel != null ? String(item.channel) : '',
-        preamp: preamp ? stripManufacturerPrefix(preamp.name, preamp.manufacturer ?? '') : item.preampText ?? '',
+        preamp: resolvePreampText(item, preampById),
         tieLine: item.tieLine != null ? `${isConflict ? '⚠ ' : ''}${item.tieLine}` : '',
         cueBox: item.cueBox != null ? String(item.cueBox) : '',
         polarity: item.polarityFlip ? 'Ø' : '',

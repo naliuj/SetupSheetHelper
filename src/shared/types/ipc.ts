@@ -166,6 +166,9 @@ export const IPC = {
   exportPdf: {
     exportSetup: 'exportPdf:exportSetup'
   },
+  exportSpreadsheet: {
+    exportSetup: 'exportSpreadsheet:exportSetup'
+  },
   roomLayoutBlocks: {
     listBySetup: 'roomLayoutBlocks:listBySetup',
     saveForSetup: 'roomLayoutBlocks:saveForSetup'
@@ -420,6 +423,17 @@ export interface ExportSetupPdfResult {
   filePath?: string
 }
 
+/** No per-export options (unlike ExportSetupPdfInput) — a spreadsheet export has no
+ *  orientation/density/include-style decisions to make, so this is just which setup to export. */
+export interface ExportSetupSpreadsheetInput {
+  setupId: number
+}
+
+export interface ExportSetupSpreadsheetResult {
+  canceled: boolean
+  filePath?: string
+}
+
 export interface SetupsListFilter {
   studioId?: number
   kind?: SetupKind
@@ -480,6 +494,7 @@ export type MenuAction =
   | 'save-as-studio'
   | 'save-setup'
   | 'export-pdf'
+  | 'export-spreadsheet'
   | 'toggle-mode'
   | 'add-source'
   | 'select-all'
@@ -700,6 +715,9 @@ export interface RendererApi {
   }
   exportPdf: {
     exportSetup(input: ExportSetupPdfInput): Promise<ExportSetupPdfResult>
+  }
+  exportSpreadsheet: {
+    exportSetup(input: ExportSetupSpreadsheetInput): Promise<ExportSetupSpreadsheetResult>
   }
   menu: {
     /** Subscribes to native File-menu actions. Returns an unsubscribe function. */

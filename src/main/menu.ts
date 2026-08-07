@@ -59,6 +59,7 @@ export function installAppMenu(updateDialogParent: BrowserWindow): void {
         { label: 'Save as Studio…', click: () => send('save-as-studio') },
         { type: 'separator' },
         { label: 'Export PDF…', click: () => send('export-pdf') },
+        { label: 'Export Spreadsheet…', click: () => send('export-spreadsheet') },
         { type: 'separator' },
         { label: 'Toggle Layout/Table Mode', click: () => send('toggle-mode') },
         ...(isMac ? [] : [{ type: 'separator' } as const, { role: 'quit' } as const])
