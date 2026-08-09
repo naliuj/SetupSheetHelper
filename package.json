@@ -73,10 +73,17 @@
         { "target": "zip", "arch": ["arm64", "x64"] }
       ]
     },
-    "publish": {
-      "provider": "github",
-      "owner": "naliuj",
-      "repo": "setup-sheet-helper-releases"
-    }
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "naliuj",
+        "repo": "SetupSheetHelper"
+      },
+      {
+        "provider": "github",
+        "owner": "naliuj",
+        "repo": "setup-sheet-helper-releases"
+      }
+    ]
   }
 }
