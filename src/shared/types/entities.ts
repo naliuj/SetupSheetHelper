@@ -117,6 +117,9 @@ export const APP_SETTINGS_KEYS = {
   berkleeFeaturesEnabled: 'berklee_features_enabled',
   /** JSON array of SetupColumnKey — the columns a newly created setup starts with. Absent → all. */
   defaultVisibleColumns: 'default_visible_columns',
+  /** JSON array of SetupColumnKey (all of them, hidden included) — the left-to-right column order a
+   *  newly created setup starts with. Absent → canonical order. */
+  defaultColumnOrder: 'default_column_order',
   /** PdfGridStyle: 'none' | 'full' | 'rows' | 'outer'. Absent/garbage → 'full'. */
   pdfGridStyle: 'pdf_grid_style',
   /** '1' | '0'. Absent → off. */

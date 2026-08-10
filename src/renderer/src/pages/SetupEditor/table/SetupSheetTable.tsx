@@ -1,7 +1,8 @@
-import { useCallback, useMemo } from 'react'
+import { Fragment, useCallback, useMemo } from 'react'
 import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import type { SetupItemDraft, SetupItemOutboardSlot } from '@shared/types/setup'
+import { COLUMN_LABELS, orderedVisibleColumns } from '@shared/constants/setupColumns'
 import { useSetupStoreApi, useSetupStoreState } from '@renderer/state/setupStoreContext'
 import { useCatalogStoreApi, useCatalogStoreState } from '@renderer/state/catalogStoreContext'
 import { useGearCatalogueSuggestions } from '@renderer/state/useGearCatalogueSuggestions'
@@ -23,6 +24,7 @@ export default function SetupSheetTable(): JSX.Element {
   const addItem = useSetupStoreState((s) => s.addItem)
   const outboardColumnCount = useSetupStoreState((s) => s.outboardColumnCount)
   const visibleColumns = useSetupStoreState((s) => s.visibleColumns)
+  const columnOrder = useSetupStoreState((s) => s.columnOrder)
   const updateItemOutboardSlot = useSetupStoreState((s) => s.updateItemOutboardSlot)
   const selectedItemIds = useSetupStoreState((s) => s.selectedItemIds)
   const selectItem = useSetupStoreState((s) => s.selectItem)
@@ -35,7 +37,14 @@ export default function SetupSheetTable(): JSX.Element {
   const clearUnresolvedGearHint = useSetupStoreState((s) => s.clearUnresolvedGearHint)
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }))
-  const col = useMemo(() => new Set(visibleColumns), [visibleColumns])
+  // Derived once here, not per row: every memoized SetupSheetRow gets these same two references,
+  // so a re-render caused by anything else still bails out of re-rendering the rows. `stereoLink`
+  // is split out because it's pinned leftmost rather than part of the reorderable run.
+  const showStereoLink = visibleColumns.includes('stereoLink')
+  const orderedColumns = useMemo(
+    () => orderedVisibleColumns(columnOrder, visibleColumns).filter((k) => k !== 'stereoLink'),
+    [columnOrder, visibleColumns]
+  )
 
   function handleDragEnd(event: DragEndEvent): void {
     const { active, over } = event
@@ -308,21 +317,20 @@ export default function SetupSheetTable(): JSX.Element {
           <table className="data-table">
             <thead>
               <tr>
-                {col.has('stereoLink') && <th aria-label="Stereo pair link" style={{ width: 20 }}></th>}
+                {showStereoLink && <th aria-label="Stereo pair link" style={{ width: 20 }}></th>}
                 <th></th>
                 <th>Source name</th>
-                {col.has('mic') && <th>Mic</th>}
-                {col.has('phantomPower') && <th>48V</th>}
-                {col.has('outboard') &&
-                  Array.from({ length: outboardColumnCount }, (_, i) => (
-                    <th key={i}>{i === 0 ? 'Outboard' : `Outboard ${i + 1}`}</th>
-                  ))}
-                {col.has('channel') && <th>Channel</th>}
-                {col.has('preamp') && <th>Preamp</th>}
-                {col.has('tieLine') && <th>Tie line</th>}
-                {col.has('cueBox') && <th>Cue box</th>}
-                {col.has('polarity') && <th>Polarity</th>}
-                {col.has('notes') && <th>Notes</th>}
+                {orderedColumns.map((key) =>
+                  key === 'outboard' ? (
+                    <Fragment key={key}>
+                      {Array.from({ length: outboardColumnCount }, (_, i) => (
+                        <th key={i}>{i === 0 ? 'Outboard' : `Outboard ${i + 1}`}</th>
+                      ))}
+                    </Fragment>
+                  ) : (
+                    <th key={key}>{COLUMN_LABELS[key]}</th>
+                  )
+                )}
                 <th></th>
               </tr>
             </thead>
@@ -336,7 +344,8 @@ export default function SetupSheetTable(): JSX.Element {
                     outboardGear={outboardGear}
                     preamps={preamps}
                     outboardColumnCount={outboardColumnCount}
-                    visibleColumns={col}
+                    orderedColumns={orderedColumns}
+                    showStereoLink={showStereoLink}
                     isTemporary={isTemporary}
                     micSuggestions={micSuggestions}
                     outboardSuggestions={outboardSuggestions}

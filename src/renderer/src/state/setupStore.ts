@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { temporal } from 'zundo'
 import type { SetupItemDraft, SetupItemOutboardSlot, SetupWithItems } from '@shared/types/setup'
-import { ALL_COLUMN_KEYS, type SetupColumnKey } from '@shared/constants/setupColumns'
+import { ALL_COLUMN_KEYS, parseColumnOrder, type SetupColumnKey } from '@shared/constants/setupColumns'
 import { useColumnPrefsStore } from './columnPrefsStore'
 import { useToastStore } from './toastStore'
 
@@ -68,6 +68,9 @@ interface SetupState {
   /** Which toggleable columns this setup shows. Snapshotted from the global default on new setups;
    *  edited per-setup via the table toolbar's Columns popover. */
   visibleColumns: SetupColumnKey[]
+  /** Left-to-right column order, covering every key (hidden ones included) so toggling a column off
+   *  and back on doesn't lose its place. Pair with visibleColumns via orderedVisibleColumns(). */
+  columnOrder: SetupColumnKey[]
   /** Contiguous row selection (click = single, shift-click = range from the anchor). */
   selectedItemIds: Set<number | string>
   /** The last plain-clicked row — shift-click selects the range between it and the clicked row. */
@@ -97,6 +100,7 @@ interface SetupState {
   setSessionNotes(notes: string | null): void
   setFacultyReserveEnabled(enabled: boolean): void
   setColumnVisibility(key: SetupColumnKey, visible: boolean): void
+  setColumnOrder(order: SetupColumnKey[]): void
   resetColumnsToDefault(): void
   addItem(instrumentType: string, defaults?: NewItemDefaults): string
   addItemAt(instrumentType: string, defaults: NewItemDefaults): string
@@ -149,6 +153,7 @@ export function createSetupStore() {
   items: [],
   outboardColumnCount: 1,
   visibleColumns: [...ALL_COLUMN_KEYS],
+  columnOrder: [...ALL_COLUMN_KEYS],
   selectedItemIds: new Set<number | string>(),
   selectionAnchorId: null,
   numberingFocusTick: 0,
@@ -173,6 +178,7 @@ export function createSetupStore() {
       // Snapshot the current global default so a brand-new (still-unsaved) sheet renders the right
       // columns immediately; createSetup persists the same snapshot to the DB on first save.
       visibleColumns: [...useColumnPrefsStore.getState().defaultVisibleColumns],
+      columnOrder: [...useColumnPrefsStore.getState().defaultColumnOrder],
       selectedItemIds: new Set(),
       selectionAnchorId: null,
       unresolvedGearHints: new Map(),
@@ -195,6 +201,7 @@ export function createSetupStore() {
       items: setup.items,
       outboardColumnCount: setup.outboardColumnCount,
       visibleColumns: setup.visibleColumns,
+      columnOrder: setup.columnOrder,
       selectedItemIds: new Set(),
       selectionAnchorId: null,
       unresolvedGearHints: new Map(),
@@ -218,11 +225,25 @@ export function createSetupStore() {
     if (setupId) void window.api.setups.setVisibleColumns(setupId, next)
   },
 
-  resetColumnsToDefault: () => {
-    const next = [...useColumnPrefsStore.getState().defaultVisibleColumns]
-    set({ visibleColumns: next, isDirty: true })
+  // Order is stored per-setup alongside visibility, and covers every key (hidden included) so a
+  // column re-shown later lands back where the user dragged it. Same write-through as above.
+  setColumnOrder: (order) => {
+    const next = parseColumnOrder(JSON.stringify(order))
+    set({ columnOrder: next, isDirty: true })
     const { setupId } = get()
-    if (setupId) void window.api.setups.setVisibleColumns(setupId, next)
+    if (setupId) void window.api.setups.setColumnOrder(setupId, next)
+  },
+
+  resetColumnsToDefault: () => {
+    const prefs = useColumnPrefsStore.getState()
+    const next = [...prefs.defaultVisibleColumns]
+    const nextOrder = [...prefs.defaultColumnOrder]
+    set({ visibleColumns: next, columnOrder: nextOrder, isDirty: true })
+    const { setupId } = get()
+    if (setupId) {
+      void window.api.setups.setVisibleColumns(setupId, next)
+      void window.api.setups.setColumnOrder(setupId, nextOrder)
+    }
   },
 
   addItem: (instrumentType, defaults) => get().addItemAt(instrumentType, defaults ?? {}),
@@ -509,6 +530,7 @@ export function createSetupStore() {
         // createSetup snapshots the global default; overwrite with the store's columns in case the
         // user adjusted them before this first save.
         await window.api.setups.setVisibleColumns(setupId, state.visibleColumns)
+        await window.api.setups.setColumnOrder(setupId, state.columnOrder)
       } else {
         await window.api.setups.rename(
           setupId,

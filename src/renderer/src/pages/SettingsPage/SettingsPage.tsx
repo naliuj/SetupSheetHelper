@@ -7,7 +7,7 @@ import { useBerkleeFeaturesStore } from '@renderer/state/berkleeFeaturesStore'
 import { useColumnPrefsStore } from '@renderer/state/columnPrefsStore'
 import { useHomeLayoutStore } from '@renderer/state/homeLayoutStore'
 import { HOME_LAYOUTS } from '@shared/constants/homeLayout'
-import { TOGGLEABLE_COLUMNS } from '@shared/constants/setupColumns'
+import ColumnOrderList from '@renderer/components/ColumnOrderList'
 import ToggleSwitch from '@renderer/components/ToggleSwitch'
 import FacultyReserveEditor from './FacultyReserveEditor'
 import PersonalGearEditor from './PersonalGearEditor'
@@ -61,6 +61,8 @@ export default function SettingsPage(): JSX.Element {
   const disableBerkleeFeatures = useBerkleeFeaturesStore((s) => s.disable)
   const defaultVisibleColumns = useColumnPrefsStore((s) => s.defaultVisibleColumns)
   const setDefaultColumns = useColumnPrefsStore((s) => s.setDefault)
+  const defaultColumnOrder = useColumnPrefsStore((s) => s.defaultColumnOrder)
+  const setDefaultOrder = useColumnPrefsStore((s) => s.setDefaultOrder)
   const homeLayout = useHomeLayoutStore((s) => s.layout)
   const setHomeLayout = useHomeLayoutStore((s) => s.setLayout)
   const consumeSettingsInitialTab = useNavigationStore((s) => s.consumeSettingsInitialTab)
@@ -277,6 +279,16 @@ export default function SettingsPage(): JSX.Element {
                 Donate (If you want)
               </a>
             </p>
+            <p className="card-sub" style={{ margin: 0 }}>
+              <a
+                href="https://github.com/naliuj/SetupSheetHelper"
+                target="_blank"
+                rel="noreferrer"
+                style={{ color: 'var(--color-accent)' }}
+              >
+                View source on GitHub
+              </a>
+            </p>
           </div>
         </div>
       )}
@@ -288,21 +300,19 @@ export default function SettingsPage(): JSX.Element {
             show/hide columns on an existing setup, use the Columns menu above its table instead.
           </p>
           <p className="card-sub" style={{ marginTop: 0, marginBottom: 16 }}>
-            Source name is always shown.
+            Drag to set the left-to-right order. Source name is always shown first.
           </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 320 }}>
-            {TOGGLEABLE_COLUMNS.map((c) => (
-              <ToggleSwitch
-                key={c.key}
-                checked={defaultVisibleColumns.includes(c.key)}
-                onChange={(on) =>
-                  setDefaultColumns(
-                    on ? [...defaultVisibleColumns, c.key] : defaultVisibleColumns.filter((k) => k !== c.key)
-                  )
-                }
-                label={c.label}
-              />
-            ))}
+          <div style={{ maxWidth: 320 }}>
+            <ColumnOrderList
+              order={defaultColumnOrder}
+              visible={defaultVisibleColumns}
+              onReorder={setDefaultOrder}
+              onToggle={(key, on) =>
+                setDefaultColumns(
+                  on ? [...defaultVisibleColumns, key] : defaultVisibleColumns.filter((k) => k !== key)
+                )
+              }
+            />
           </div>
         </div>
       )}

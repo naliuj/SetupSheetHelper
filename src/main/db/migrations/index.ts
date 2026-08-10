@@ -30,6 +30,12 @@ import { run as utilitiesGobo } from './028_utilities_gobo'
 import { run as paletteBlockDefaultSize } from './029_palette_block_default_size'
 import { run as goboHeight } from './030_gobo_height'
 import { run as setupEditorMode } from './031_setup_editor_mode'
+// Numbered 34, not 32: versions 32 and 33 are taken by the parked feature/multi-setup branch
+// (032_multi_setups, 033_multi_setup_links). Anyone who has run a build of that branch already has
+// those two recorded in schema_migrations, so a migration reusing 32 would be silently skipped on
+// their machine and its column would never exist. Never reuse a version number that any shipped or
+// run branch has claimed — the runner keys off the version, not the file.
+import { run as setupColumnOrder } from './034_setup_column_order'
 
 export interface SqlMigration {
   version: number
@@ -74,5 +80,6 @@ export const MIGRATIONS: Migration[] = [
   { version: 28, run: utilitiesGobo },
   { version: 29, run: paletteBlockDefaultSize },
   { version: 30, run: goboHeight },
-  { version: 31, run: setupEditorMode }
+  { version: 31, run: setupEditorMode },
+  { version: 34, run: setupColumnOrder }
 ]

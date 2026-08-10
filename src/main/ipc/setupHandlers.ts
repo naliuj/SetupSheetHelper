@@ -64,6 +64,9 @@ export function registerSetupHandlers(): void {
   ipcMain.handle(IPC.setups.setOutboardColumnCount, (_e, setupId: number, count: number) =>
     setupsRepo.setOutboardColumnCount(setupId, count)
   )
+  ipcMain.handle(IPC.setups.setColumnOrder, (_e, setupId: number, order: SetupColumnKey[]) =>
+    setupsRepo.setColumnOrder(setupId, order)
+  )
   ipcMain.handle(IPC.setups.setVisibleColumns, (_e, setupId: number, columns: SetupColumnKey[]) =>
     setupsRepo.setVisibleColumns(setupId, columns)
   )

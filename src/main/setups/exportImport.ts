@@ -11,7 +11,13 @@ import type {
   SetupItemInput
 } from '@shared/types/ipc'
 import { getLayoutsDir } from '../userDataPaths'
-import { getSetupWithItems, createSetup, setOutboardColumnCount, setVisibleColumns } from '../db/repositories/setupsRepo'
+import {
+  getSetupWithItems,
+  createSetup,
+  setOutboardColumnCount,
+  setVisibleColumns,
+  setColumnOrder
+} from '../db/repositories/setupsRepo'
 import { replaceItemsForSetup } from '../db/repositories/setupItemsRepo'
 import { getSetupLayoutOverride, upsertFileLayoutOverride } from '../db/repositories/setupLayoutOverrideRepo'
 import { getMicsByIds, listAvailableForStudio as listAvailableMics } from '../db/repositories/micsRepo'
@@ -85,6 +91,7 @@ export async function exportSetupsToFile(setupIds: number[]): Promise<ExportSetu
         facultyReserveEnabled: setup.facultyReserveEnabled,
         outboardColumnCount: setup.outboardColumnCount,
         visibleColumns: setup.visibleColumns,
+        columnOrder: setup.columnOrder,
         sessionNotes: setup.sessionNotes,
         items,
         layoutOverride: exportLayoutOverride(id)
@@ -164,6 +171,7 @@ export function importSetups(setups: ExportedSetup[], targetStudioId: number): v
     )
     setOutboardColumnCount(created.id, setup.outboardColumnCount)
     setVisibleColumns(created.id, setup.visibleColumns)
+    if (setup.columnOrder) setColumnOrder(created.id, setup.columnOrder)
 
     const mics = listAvailableMics(targetStudioId, created.id, setup.facultyReserveEnabled)
     const outboardGear = listAvailableOutboard(targetStudioId, created.id, setup.facultyReserveEnabled)

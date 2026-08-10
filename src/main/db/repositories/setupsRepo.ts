@@ -1,7 +1,12 @@
 import type { EditorMode, Setup, SetupKind, SetupWithItems, TemplateSource } from '@shared/types/setup'
 import type { SetupsListFilter } from '@shared/types/ipc'
 import type { SetupColumnKey } from '@shared/constants/setupColumns'
-import { parseVisibleColumns, serializeVisibleColumns } from '@shared/constants/setupColumns'
+import {
+  parseVisibleColumns,
+  serializeVisibleColumns,
+  parseColumnOrder,
+  serializeColumnOrder
+} from '@shared/constants/setupColumns'
 import { APP_SETTINGS_KEYS } from '@shared/types/entities'
 import { getDb } from '../index'
 import { getSetting } from './settingsRepo'
@@ -25,6 +30,7 @@ interface SetupRow {
   faculty_reserve_enabled: number
   outboard_column_count: number
   visible_columns: string | null
+  column_order: string | null
   session_notes: string | null
   last_editor_mode: EditorMode
 }
@@ -46,6 +52,7 @@ function mapRow(row: SetupRow): Setup {
     facultyReserveEnabled: row.faculty_reserve_enabled === 1,
     outboardColumnCount: row.outboard_column_count,
     visibleColumns: parseVisibleColumns(row.visible_columns),
+    columnOrder: parseColumnOrder(row.column_order),
     sessionNotes: row.session_notes,
     lastEditorMode: row.last_editor_mode
   }
@@ -109,9 +116,10 @@ export function createSetup(
   // Snapshot the global default columns at creation, so the setup owns its columns from here on and
   // later changes to the default never retroactively alter it. Null default → null (shows all).
   const defaultVisibleColumns = getSetting(APP_SETTINGS_KEYS.defaultVisibleColumns)
+  const defaultColumnOrder = getSetting(APP_SETTINGS_KEYS.defaultColumnOrder)
   const info = db
     .prepare(
-      'INSERT INTO setups (studio_id, name, session_date, kind, template_source, folder_id, engineer, artist, faculty_reserve_enabled, visible_columns, session_notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      'INSERT INTO setups (studio_id, name, session_date, kind, template_source, folder_id, engineer, artist, faculty_reserve_enabled, visible_columns, column_order, session_notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
     )
     .run(
       studioId,
@@ -124,6 +132,7 @@ export function createSetup(
       artist,
       facultyReserveEnabled ? 1 : 0,
       defaultVisibleColumns,
+      defaultColumnOrder,
       sessionNotes
     )
   const row = db.prepare('SELECT * FROM setups WHERE id = ?').get(info.lastInsertRowid) as SetupRow
@@ -132,6 +141,10 @@ export function createSetup(
 
 export function setVisibleColumns(id: number, columns: SetupColumnKey[]): void {
   getDb().prepare('UPDATE setups SET visible_columns = ? WHERE id = ?').run(serializeVisibleColumns(columns), id)
+}
+
+export function setColumnOrder(id: number, order: SetupColumnKey[]): void {
+  getDb().prepare('UPDATE setups SET column_order = ? WHERE id = ?').run(serializeColumnOrder(order), id)
 }
 
 export function setLastEditorMode(id: number, mode: EditorMode): void {
@@ -248,6 +261,7 @@ export function duplicateSetup(
   )
   setOutboardColumnCount(setup.id, source.outboardColumnCount)
   setVisibleColumns(setup.id, source.visibleColumns)
+  setColumnOrder(setup.id, source.columnOrder)
   copyItemsToSetup(sourceSetupId, setup.id)
   copyBlocksToSetup(sourceSetupId, setup.id)
   const override = getSetupLayoutOverride(sourceSetupId)

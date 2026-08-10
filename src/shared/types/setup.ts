@@ -106,6 +106,11 @@ export interface Setup {
    *  default when the setup is created, then owned by the setup. Always resolved to a concrete
    *  list on read — a null DB value (pre-feature setups) means every column is shown. */
   visibleColumns: SetupColumnKey[]
+  /** The order this setup's columns render in, left to right. Covers EVERY column key, including
+   *  currently-hidden ones, so hiding a column and re-showing it later returns it to where the user
+   *  put it. Render order is `columnOrder.filter(k => visibleColumns.includes(k))` — use
+   *  orderedVisibleColumns() rather than doing it by hand. Null DB value → canonical order. */
+  columnOrder: SetupColumnKey[]
   /** Free-text session notes (tuning reference, mic-array spacing, or anything else) — deliberately
    *  unstructured. Null/blank means nothing to show in Setup Settings or on the PDF export. */
   sessionNotes: string | null

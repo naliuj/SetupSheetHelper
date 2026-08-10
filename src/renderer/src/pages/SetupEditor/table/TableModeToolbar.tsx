@@ -3,9 +3,8 @@ import { RotateCcw } from 'lucide-react'
 import { useSetupStoreState } from '@renderer/state/setupStoreContext'
 import { useKeybindPrefsStore } from '@renderer/state/keybindPrefsStore'
 import { formatCombo } from '@shared/constants/keybindActions'
-import { TOGGLEABLE_COLUMNS } from '@shared/constants/setupColumns'
 import Icon from '@renderer/components/Icon'
-import ToggleSwitch from '@renderer/components/ToggleSwitch'
+import ColumnOrderList from '@renderer/components/ColumnOrderList'
 import LoadPresetModal from '../../PresetManager/LoadPresetModal'
 import ManagePresetsModal from '../../PresetManager/ManagePresetsModal'
 import { GENERIC_INSTRUMENT_TYPE } from './tableConstants'
@@ -19,6 +18,8 @@ export default function TableModeToolbar(): JSX.Element {
   const removeOutboardColumn = useSetupStoreState((s) => s.removeOutboardColumn)
   const visibleColumns = useSetupStoreState((s) => s.visibleColumns)
   const setColumnVisibility = useSetupStoreState((s) => s.setColumnVisibility)
+  const columnOrder = useSetupStoreState((s) => s.columnOrder)
+  const setColumnOrder = useSetupStoreState((s) => s.setColumnOrder)
   const resetColumnsToDefault = useSetupStoreState((s) => s.resetColumnsToDefault)
   const resolveKeybind = useKeybindPrefsStore((s) => s.resolve)
 
@@ -29,7 +30,6 @@ export default function TableModeToolbar(): JSX.Element {
   const [managePresetsOpen, setManagePresetsOpen] = useState(false)
   const presetsRef = useRef<HTMLDivElement>(null)
   const columnsRef = useRef<HTMLDivElement>(null)
-  const visibleSet = new Set(visibleColumns)
 
   function handleAdd(): void {
     addItem(GENERIC_INSTRUMENT_TYPE, { sourceName: sourceName.trim() })
@@ -107,17 +107,15 @@ export default function TableModeToolbar(): JSX.Element {
             className="picker-menu"
             style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, minWidth: 220, padding: 10 }}
           >
-            <div className="card-sub" style={{ margin: '0 0 8px' }}>Columns shown in this setup</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {TOGGLEABLE_COLUMNS.map((c) => (
-                <ToggleSwitch
-                  key={c.key}
-                  checked={visibleSet.has(c.key)}
-                  onChange={(on) => setColumnVisibility(c.key, on)}
-                  label={c.label}
-                />
-              ))}
+            <div className="card-sub" style={{ margin: '0 0 8px' }}>
+              Columns in this setup — drag to reorder
             </div>
+            <ColumnOrderList
+              order={columnOrder}
+              visible={visibleColumns}
+              onReorder={setColumnOrder}
+              onToggle={setColumnVisibility}
+            />
             <div
               onClick={() => resetColumnsToDefault()}
               className="inline-icon-text"

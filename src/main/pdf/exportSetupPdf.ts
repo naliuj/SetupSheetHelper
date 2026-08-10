@@ -23,6 +23,7 @@ import { getPreampsByIds } from '../db/repositories/preampRepo'
 import { getSetting } from '../db/repositories/settingsRepo'
 import { resolveMicText, resolveOutboardSlotText, resolvePreampText } from '../db/resolveGearLabels'
 import { fitColumns, wrapText, type ColumnSpec } from './pdfLayout'
+import { orderedVisibleColumns } from '@shared/constants/setupColumns'
 
 // US Letter, points. Portrait is the short edge (612) horizontal; landscape swaps them.
 const LETTER_SHORT = 612
@@ -205,14 +206,25 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
     // Two independent filters drop columns: (1) the setup's own column-visibility choice (Source
     // name always shown), so the PDF matches what's on screen; (2) 48V, Outboard, Preamp,
     // Tie Line, Cue Box, and Polarity are additionally dropped when blank across the whole sheet.
+    // Column ORDER comes from the setup too (COLUMNS below is only a label/width lookup now), so a
+    // reordered sheet exports the way it looks on screen. 'sourceName' is always leftmost and
+    // 'stereoLink' has no PDF column at all — it's drawn as a margin bracket instead.
     const itemIds = setup.items.map((item) => item.id)
     const shownColumns = new Set<string>(setup.visibleColumns)
     const omittableKeys = ['phantomPower', 'outboard', 'preamp', 'tieLine', 'cueBox', 'polarity']
-    const keptColumns = COLUMNS.filter(
-      (col) =>
-        (col.key === 'sourceName' || shownColumns.has(col.key)) &&
-        (!omittableKeys.includes(col.key) || !isColumnEmpty(col.key, itemIds, resolvedValues))
-    )
+    const columnByKey = new Map(COLUMNS.map((col) => [col.key, col]))
+    const orderedKeys = [
+      'sourceName',
+      ...orderedVisibleColumns(setup.columnOrder, setup.visibleColumns).filter((k) => k !== 'stereoLink')
+    ]
+    const keptColumns = orderedKeys
+      .map((key) => columnByKey.get(key))
+      .filter((col): col is ColumnSpec => col != null)
+      .filter(
+        (col) =>
+          (col.key === 'sourceName' || shownColumns.has(col.key)) &&
+          (!omittableKeys.includes(col.key) || !isColumnEmpty(col.key, itemIds, resolvedValues))
+      )
 
     // Fit the kept columns to the page width — shrink an over-wide table, or hand slack to text
     // columns on a narrow one — so nothing ever runs off the right edge.

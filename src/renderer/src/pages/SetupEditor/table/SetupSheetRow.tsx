@@ -1,4 +1,4 @@
-import { memo } from 'react'
+import { Fragment, memo } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { AlertTriangle, GripVertical, Link2, X } from 'lucide-react'
@@ -121,7 +121,13 @@ interface Props {
   outboardGear: OutboardGear[]
   preamps: Preamp[]
   outboardColumnCount: number
-  visibleColumns: Set<SetupColumnKey>
+  /** The user's visible columns in their chosen left-to-right order, EXCLUDING 'stereoLink' (which
+   *  is pinned leftmost — see showStereoLink). Precomputed and memoized by the table so this
+   *  memoized row doesn't rebuild it per render, and so header and cells can't fall out of step. */
+  orderedColumns: SetupColumnKey[]
+  /** Whether the pinned leftmost stereo-pair column is shown. Separate from orderedColumns because
+   *  it isn't reorderable: it draws an absolutely-positioned bracket that only reads at the edge. */
+  showStereoLink: boolean
   isTemporary: boolean
   micSuggestions: string[]
   outboardSuggestions: string[]
@@ -175,7 +181,8 @@ function SetupSheetRow({
   outboardGear,
   preamps,
   outboardColumnCount,
-  visibleColumns,
+  orderedColumns,
+  showStereoLink,
   isTemporary,
   micSuggestions,
   outboardSuggestions,
@@ -299,6 +306,195 @@ function SetupSheetRow({
   )
   const notes = useBufferedField(item.notes ?? '', (v) => onChange({ notes: v }))
 
+  // One cell per column key, dispatched so the row can render in whatever order the user chose.
+  // Deliberately a plain function called from a .map (not a component) — it closes over the
+  // useBufferedField results above, which MUST stay unconditional at the top level of the
+  // component (Rules of Hooks). The one case that genuinely needs its own hook instance per
+  // rendered cell is Outboard, whose slot count varies at runtime; that's why OutboardSlotCell
+  // is a real component instead (see its own note above).
+  function renderCell(key: SetupColumnKey): JSX.Element | null {
+    switch (key) {
+      // Pinned leftmost and rendered before the gutter — never reaches this dispatcher.
+      case 'stereoLink':
+        return null
+      case 'mic':
+        return (
+          <td key={key} onClick={(e) => e.stopPropagation()}>
+            {isTemporary ? (
+              <SuggestInput
+                value={micText.value}
+                placeholder="Mic"
+                onChange={micText.onChange}
+                onBlur={micText.onBlur}
+                suggestions={micSuggestions}
+              />
+            ) : (
+              <ManufacturerPickerDropdown
+                items={mics}
+                usageCounts={micUsageCounts}
+                getQuantity={micQuantity}
+                selectedId={item.micId}
+                onSelect={handleMicChange}
+                outerGroupBy={micGroupBy}
+                outerGroupOrder={POOL_ORDER}
+                clearLabel="No Mic"
+              />
+            )}
+            {unresolvedGearHint?.mic ? (
+              <div className="warning-badge inline-icon-text">
+                <AlertTriangle size={12} aria-hidden="true" />
+                Preset expected: {unresolvedGearHint.mic}
+              </div>
+            ) : (
+              !item.micId &&
+              item.micText && (
+                <div className="warning-badge inline-icon-text">
+                  <AlertTriangle size={12} aria-hidden="true" />
+                  Unresolved: {item.micText}
+                </div>
+              )
+            )}
+          </td>
+        )
+      case 'phantomPower':
+        return (
+          <td key={key} style={{ textAlign: 'center' }}>
+            <input
+              type="checkbox"
+              checked={item.phantomPower}
+              onChange={(e) => onChange({ phantomPower: e.target.checked })}
+              onClick={(e) => e.stopPropagation()}
+            />
+          </td>
+        )
+      // One key, N adjacent cells — the outboard slots stay contiguous wherever the block lands.
+      case 'outboard':
+        return (
+          <Fragment key={key}>
+            {Array.from({ length: outboardColumnCount }, (_, slotIndex) => (
+              <OutboardSlotCell
+                key={slotIndex}
+                slot={item.outboards.find((s) => s.slotIndex === slotIndex)}
+                isTemporary={isTemporary}
+                outboardGear={outboardGear}
+                outboardUsageCounts={outboardUsageCounts}
+                outboardSuggestions={outboardSuggestions}
+                hintText={slotIndex === 0 ? unresolvedGearHint?.outboard : undefined}
+                onSlotChange={(patch) => handleOutboardSlotChange(slotIndex, patch)}
+              />
+            ))}
+          </Fragment>
+        )
+      case 'channel':
+        return (
+          <td key={key}>
+            <input
+              type="number"
+              min={1}
+              value={channel.value}
+              onChange={(e) => handleChannelInputChange(e.target.value)}
+              onBlur={channel.onBlur}
+              onClick={(e) => e.stopPropagation()}
+            />
+          </td>
+        )
+      case 'preamp':
+        return (
+          <td key={key} onClick={(e) => e.stopPropagation()}>
+            {isTemporary ? (
+              <SuggestInput
+                value={preampText.value}
+                placeholder="Preamp"
+                onChange={preampText.onChange}
+                onBlur={preampText.onBlur}
+                suggestions={preampSuggestions}
+              />
+            ) : (
+              <ManufacturerPickerDropdown
+                items={preamps}
+                usageCounts={preampUsageCounts}
+                getQuantity={preampQuantity}
+                selectedId={item.preampId}
+                onSelect={handlePreampChange}
+                outerGroupBy={preampGroupBy}
+                outerGroupOrder={PREAMP_POOL_ORDER}
+                stripManufacturerInTrigger
+                clearLabel="No Preamp"
+              />
+            )}
+            {unresolvedGearHint?.preamp ? (
+              <div className="warning-badge inline-icon-text">
+                <AlertTriangle size={12} aria-hidden="true" />
+                Preset expected: {unresolvedGearHint.preamp}
+              </div>
+            ) : (
+              !item.preampId &&
+              item.preampText && (
+                <div className="warning-badge inline-icon-text">
+                  <AlertTriangle size={12} aria-hidden="true" />
+                  Unresolved: {item.preampText}
+                </div>
+              )
+            )}
+          </td>
+        )
+      case 'tieLine':
+        return (
+          <td key={key}>
+            <input
+              type="number"
+              min={1}
+              value={tieLine.value}
+              onChange={(e) => handleTieLineInputChange(e.target.value)}
+              onBlur={tieLine.onBlur}
+              onClick={(e) => e.stopPropagation()}
+            />
+            {conflict && (
+              <div className="warning-badge inline-icon-text">
+                <AlertTriangle size={12} aria-hidden="true" />
+                duplicate tie line
+              </div>
+            )}
+          </td>
+        )
+      case 'cueBox':
+        return (
+          <td key={key}>
+            <input
+              type="number"
+              min={1}
+              value={cueBox.value}
+              onChange={(e) => cueBox.onChange(e.target.value)}
+              onBlur={cueBox.onBlur}
+              onClick={(e) => e.stopPropagation()}
+            />
+          </td>
+        )
+      case 'polarity':
+        return (
+          <td key={key} style={{ textAlign: 'center' }}>
+            <input
+              type="checkbox"
+              checked={item.polarityFlip}
+              onChange={(e) => onChange({ polarityFlip: e.target.checked })}
+              onClick={(e) => e.stopPropagation()}
+            />
+          </td>
+        )
+      case 'notes':
+        return (
+          <td key={key}>
+            <input
+              value={notes.value}
+              onChange={(e) => notes.onChange(e.target.value)}
+              onBlur={notes.onBlur}
+              onClick={(e) => e.stopPropagation()}
+            />
+          </td>
+        )
+    }
+  }
+
   return (
     <tr ref={setNodeRef} style={rowStyle}>
       {/* Slim leftmost stereo-pair link column (toggleable via the Columns menu). Every row except
@@ -307,7 +503,7 @@ function SetupSheetRow({
           accent bracket "[" is drawn against the left edge spanning both rows (spine + an inward
           tick top and bottom, split across the two cells). A high z-index on seam-hosting cells lets
           the seam-straddling icon paint over the next row (later in DOM order). */}
-      {visibleColumns.has('stereoLink') && (
+      {showStereoLink && (
         <td
           style={{
             width: 20,
@@ -398,168 +594,7 @@ function SetupSheetRow({
           onClick={(e) => e.stopPropagation()}
         />
       </td>
-      {visibleColumns.has('mic') && (
-        <td onClick={(e) => e.stopPropagation()}>
-          {isTemporary ? (
-            <SuggestInput
-              value={micText.value}
-              placeholder="Mic"
-              onChange={micText.onChange}
-              onBlur={micText.onBlur}
-              suggestions={micSuggestions}
-            />
-          ) : (
-            <ManufacturerPickerDropdown
-              items={mics}
-              usageCounts={micUsageCounts}
-              getQuantity={micQuantity}
-              selectedId={item.micId}
-              onSelect={handleMicChange}
-              outerGroupBy={micGroupBy}
-              outerGroupOrder={POOL_ORDER}
-              clearLabel="No Mic"
-            />
-          )}
-          {unresolvedGearHint?.mic ? (
-            <div className="warning-badge inline-icon-text">
-              <AlertTriangle size={12} aria-hidden="true" />
-              Preset expected: {unresolvedGearHint.mic}
-            </div>
-          ) : (
-            !item.micId &&
-            item.micText && (
-              <div className="warning-badge inline-icon-text">
-                <AlertTriangle size={12} aria-hidden="true" />
-                Unresolved: {item.micText}
-              </div>
-            )
-          )}
-        </td>
-      )}
-      {visibleColumns.has('phantomPower') && (
-        <td style={{ textAlign: 'center' }}>
-          <input
-            type="checkbox"
-            checked={item.phantomPower}
-            onChange={(e) => onChange({ phantomPower: e.target.checked })}
-            onClick={(e) => e.stopPropagation()}
-          />
-        </td>
-      )}
-      {visibleColumns.has('outboard') &&
-        Array.from({ length: outboardColumnCount }, (_, slotIndex) => (
-          <OutboardSlotCell
-            key={slotIndex}
-            slot={item.outboards.find((s) => s.slotIndex === slotIndex)}
-            isTemporary={isTemporary}
-            outboardGear={outboardGear}
-            outboardUsageCounts={outboardUsageCounts}
-            outboardSuggestions={outboardSuggestions}
-            hintText={slotIndex === 0 ? unresolvedGearHint?.outboard : undefined}
-            onSlotChange={(patch) => handleOutboardSlotChange(slotIndex, patch)}
-          />
-        ))}
-      {visibleColumns.has('channel') && (
-        <td>
-          <input
-            type="number"
-            min={1}
-            value={channel.value}
-            onChange={(e) => handleChannelInputChange(e.target.value)}
-            onBlur={channel.onBlur}
-            onClick={(e) => e.stopPropagation()}
-          />
-        </td>
-      )}
-      {visibleColumns.has('preamp') && (
-        <td onClick={(e) => e.stopPropagation()}>
-          {isTemporary ? (
-            <SuggestInput
-              value={preampText.value}
-              placeholder="Preamp"
-              onChange={preampText.onChange}
-              onBlur={preampText.onBlur}
-              suggestions={preampSuggestions}
-            />
-          ) : (
-            <ManufacturerPickerDropdown
-              items={preamps}
-              usageCounts={preampUsageCounts}
-              getQuantity={preampQuantity}
-              selectedId={item.preampId}
-              onSelect={handlePreampChange}
-              outerGroupBy={preampGroupBy}
-              outerGroupOrder={PREAMP_POOL_ORDER}
-              stripManufacturerInTrigger
-              clearLabel="No Preamp"
-            />
-          )}
-          {unresolvedGearHint?.preamp ? (
-            <div className="warning-badge inline-icon-text">
-              <AlertTriangle size={12} aria-hidden="true" />
-              Preset expected: {unresolvedGearHint.preamp}
-            </div>
-          ) : (
-            !item.preampId &&
-            item.preampText && (
-              <div className="warning-badge inline-icon-text">
-                <AlertTriangle size={12} aria-hidden="true" />
-                Unresolved: {item.preampText}
-              </div>
-            )
-          )}
-        </td>
-      )}
-      {visibleColumns.has('tieLine') && (
-        <td>
-          <input
-            type="number"
-            min={1}
-            value={tieLine.value}
-            onChange={(e) => handleTieLineInputChange(e.target.value)}
-            onBlur={tieLine.onBlur}
-            onClick={(e) => e.stopPropagation()}
-          />
-          {conflict && (
-            <div className="warning-badge inline-icon-text">
-              <AlertTriangle size={12} aria-hidden="true" />
-              duplicate tie line
-            </div>
-          )}
-        </td>
-      )}
-      {visibleColumns.has('cueBox') && (
-        <td>
-          <input
-            type="number"
-            min={1}
-            value={cueBox.value}
-            onChange={(e) => cueBox.onChange(e.target.value)}
-            onBlur={cueBox.onBlur}
-            onClick={(e) => e.stopPropagation()}
-          />
-        </td>
-      )}
-      {visibleColumns.has('polarity') && (
-        <td style={{ textAlign: 'center' }}>
-          <input
-            type="checkbox"
-            checked={item.polarityFlip}
-            onChange={(e) => onChange({ polarityFlip: e.target.checked })}
-            onClick={(e) => e.stopPropagation()}
-          />
-        </td>
-      )}
-      {visibleColumns.has('notes') && (
-        <td>
-          <input
-            value={notes.value}
-            onChange={(e) => notes.onChange(e.target.value)}
-            onBlur={notes.onBlur}
-            onClick={(e) => e.stopPropagation()}
-          />
-        </td>
-      )}
+      {orderedColumns.map((key) => renderCell(key))}
       <td>
         <button
           className="btn small danger"

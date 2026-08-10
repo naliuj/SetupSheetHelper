@@ -10,11 +10,12 @@ import { getMicsByIds } from '../db/repositories/micsRepo'
 import { getOutboardByIds } from '../db/repositories/outboardRepo'
 import { getPreampsByIds } from '../db/repositories/preampRepo'
 import { resolveMicText, resolveOutboardSlotText, resolvePreampText } from '../db/resolveGearLabels'
+import { COLUMN_LABELS, orderedVisibleColumns } from '@shared/constants/setupColumns'
 
 /** One spreadsheet column, keyed the same way SetupColumnKey is (plus 'sourceName', which is
- *  always shown and isn't itself a toggleable key) — mirrors SetupSheetTable.tsx's actual header
- *  order (confirmed by reading it, not assumed) exactly, so the spreadsheet reads left-to-right
- *  the same way the on-screen table does. */
+ *  always shown and isn't itself a toggleable key). Order and visibility both come from the setup
+ *  itself via orderedVisibleColumns(), the same helper the on-screen table uses, so the two can't
+ *  drift the way they could when this file hardcoded its own sequence. */
 interface ColumnDef {
   key: string
   header: string
@@ -61,27 +62,29 @@ export async function exportSetupSpreadsheet(input: ExportSetupSpreadsheetInput)
     setup.items.flatMap((item) => item.outboards.flatMap((s) => (s.outboardId != null ? [s.outboardId] : [])))
   )
 
+  // Still needed below when filling each row's values: exceljs maps values to columns BY KEY, so
+  // that loop is order-independent and only cares whether a column is present at all.
   const shownColumns = new Set(setup.visibleColumns)
+  // Source name is always leftmost; everything after it follows the setup's own column order, so
+  // the spreadsheet reads left-to-right the same way the on-screen table does. 'stereoLink' is
+  // skipped — it's a row-pairing ornament, not data, and has no spreadsheet equivalent.
   const columns: ColumnDef[] = [{ key: 'sourceName', header: 'Source name', width: BASE_WIDTHS.sourceName }]
-  if (shownColumns.has('mic')) columns.push({ key: 'mic', header: 'Mic', width: BASE_WIDTHS.mic })
-  if (shownColumns.has('phantomPower')) columns.push({ key: 'phantomPower', header: '48V', width: BASE_WIDTHS.phantomPower })
-  if (shownColumns.has('outboard')) {
-    // One real column per slot — deliberately NOT consolidated into one cell like the PDF export,
-    // since a spreadsheet has no print-width constraint to save.
-    for (let i = 0; i < setup.outboardColumnCount; i++) {
-      columns.push({
-        key: `outboard:${i}`,
-        header: i === 0 ? 'Outboard' : `Outboard ${i + 1}`,
-        width: BASE_WIDTHS.outboard
-      })
+  for (const key of orderedVisibleColumns(setup.columnOrder, setup.visibleColumns)) {
+    if (key === 'stereoLink') continue
+    if (key === 'outboard') {
+      // One real column per slot — deliberately NOT consolidated into one cell like the PDF export,
+      // since a spreadsheet has no print-width constraint to save.
+      for (let i = 0; i < setup.outboardColumnCount; i++) {
+        columns.push({
+          key: `outboard:${i}`,
+          header: i === 0 ? 'Outboard' : `Outboard ${i + 1}`,
+          width: BASE_WIDTHS.outboard
+        })
+      }
+      continue
     }
+    columns.push({ key, header: COLUMN_LABELS[key], width: BASE_WIDTHS[key] })
   }
-  if (shownColumns.has('channel')) columns.push({ key: 'channel', header: 'Channel', width: BASE_WIDTHS.channel })
-  if (shownColumns.has('preamp')) columns.push({ key: 'preamp', header: 'Preamp', width: BASE_WIDTHS.preamp })
-  if (shownColumns.has('tieLine')) columns.push({ key: 'tieLine', header: 'Tie line', width: BASE_WIDTHS.tieLine })
-  if (shownColumns.has('cueBox')) columns.push({ key: 'cueBox', header: 'Cue box', width: BASE_WIDTHS.cueBox })
-  if (shownColumns.has('polarity')) columns.push({ key: 'polarity', header: 'Polarity', width: BASE_WIDTHS.polarity })
-  if (shownColumns.has('notes')) columns.push({ key: 'notes', header: 'Notes', width: BASE_WIDTHS.notes })
 
   const workbook = new ExcelJS.Workbook()
   workbook.creator = 'Setup Sheet Helper'

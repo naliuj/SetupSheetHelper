@@ -127,6 +127,7 @@ export const IPC = {
     saveItems: 'setups:saveItems',
     setOutboardColumnCount: 'setups:setOutboardColumnCount',
     setVisibleColumns: 'setups:setVisibleColumns',
+    setColumnOrder: 'setups:setColumnOrder',
     setLastEditorMode: 'setups:setLastEditorMode',
     remove: 'setups:remove',
     removeMany: 'setups:removeMany',
@@ -366,6 +367,9 @@ export interface ExportedSetup {
   facultyReserveEnabled: boolean
   outboardColumnCount: number
   visibleColumns: SetupColumnKey[]
+  /** Optional: setups exported before column ordering existed won't have it, and import falls back
+   *  to the canonical order via parseColumnOrder. */
+  columnOrder?: SetupColumnKey[]
   sessionNotes: string | null
   items: ExportedSetupItem[]
   /** This setup's own layout override (rare — most setups use their studio's shared layout and
@@ -675,6 +679,7 @@ export interface RendererApi {
     saveItems(setupId: number, items: SetupItemInput[]): Promise<SetupItem[]>
     setOutboardColumnCount(setupId: number, count: number): Promise<void>
     setVisibleColumns(setupId: number, columns: SetupColumnKey[]): Promise<void>
+    setColumnOrder(setupId: number, order: SetupColumnKey[]): Promise<void>
     setLastEditorMode(id: number, mode: EditorMode): Promise<void>
     remove(id: number): Promise<void>
     removeMany(ids: number[]): Promise<void>
