@@ -291,5 +291,14 @@ export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
       'Added Export Spreadsheet (XLSX) alongside the existing PDF export, from the File menu.',
       'Added Split View — open two setups side by side, each fully independent, from any studio.'
     ]
+  },
+  {
+    version: '1.13.0',
+    date: '2026-08-10',
+    highlights: [
+      'You can now drag to reorder the setup sheet columns — open the Columns menu above the table and drag a column into place.',
+      'Set your preferred column order for new setups in Settings → Columns.',
+      'PDF and spreadsheet exports follow your column order too.'
+    ]
   }
 ]
