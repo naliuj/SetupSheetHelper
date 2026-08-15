@@ -101,14 +101,11 @@ function OutboardSlotCell({
           customValue={slot?.outboardId != null ? null : slot?.outboardText}
         />
       )}
-      {hintText ? (
+      {hintText && (
         <div className="warning-badge inline-icon-text">
           <AlertTriangle size={12} aria-hidden="true" />
           Preset expected: {hintText}
         </div>
-      ) : (
-        !slot?.outboardId &&
-        slot?.outboardText && <div className="custom-gear-badge">Custom: {slot.outboardText}</div>
       )}
       {customOpen && (
         <CustomGearModal
@@ -378,13 +375,11 @@ function SetupSheetRow({
                 customValue={item.micId != null ? null : item.micText}
               />
             )}
-            {unresolvedGearHint?.mic ? (
+            {unresolvedGearHint?.mic && (
               <div className="warning-badge inline-icon-text">
                 <AlertTriangle size={12} aria-hidden="true" />
                 Preset expected: {unresolvedGearHint.mic}
               </div>
-            ) : (
-              !item.micId && item.micText && <div className="custom-gear-badge">Custom: {item.micText}</div>
             )}
             {customFieldOpen === 'mic' && (
               <CustomGearModal
@@ -464,14 +459,11 @@ function SetupSheetRow({
                 customValue={item.preampId != null ? null : item.preampText}
               />
             )}
-            {unresolvedGearHint?.preamp ? (
+            {unresolvedGearHint?.preamp && (
               <div className="warning-badge inline-icon-text">
                 <AlertTriangle size={12} aria-hidden="true" />
                 Preset expected: {unresolvedGearHint.preamp}
               </div>
-            ) : (
-              !item.preampId &&
-              item.preampText && <div className="custom-gear-badge">Custom: {item.preampText}</div>
             )}
             {customFieldOpen === 'preamp' && (
               <CustomGearModal
