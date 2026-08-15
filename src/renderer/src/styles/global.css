@@ -391,6 +391,15 @@ table.data-table td select {
   font-size: 11px;
 }
 
+/* A deliberately-typed Custom gear entry (see CustomGearModal.tsx / ManufacturerPickerDropdown's
+   "Custom…" row) — same "no catalog id, just text" state .warning-badge's fallback case already
+   covered, but this one was chosen on purpose, not a preset-import mismatch, so it reads as a
+   plain label rather than a warning. */
+.custom-gear-badge {
+  color: var(--color-text-dim);
+  font-size: 11px;
+}
+
 .empty-state {
   color: var(--color-text-dim);
   font-size: 13px;

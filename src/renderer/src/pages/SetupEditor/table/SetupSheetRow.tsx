@@ -1,4 +1,4 @@
-import { Fragment, memo } from 'react'
+import { Fragment, memo, useState } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { AlertTriangle, GripVertical, Link2, X } from 'lucide-react'
@@ -8,6 +8,7 @@ import type { Mic, OutboardGear, Preamp } from '@shared/types/entities'
 import type { UnresolvedGearHint } from '@renderer/state/setupStore'
 import ManufacturerPickerDropdown from '@renderer/components/ManufacturerPickerDropdown'
 import SuggestInput from '@renderer/components/SuggestInput'
+import CustomGearModal from '@renderer/components/CustomGearModal'
 import { applyMicPoolNotesTag } from '@renderer/state/micPoolNotesTag'
 import { useBufferedField } from './useBufferedField'
 
@@ -71,6 +72,9 @@ function OutboardSlotCell({
   onSlotChange: (patch: Partial<Pick<SetupItemOutboardSlot, 'outboardId' | 'outboardText'>>) => void
 }): JSX.Element {
   const outboardText = useBufferedField(slot?.outboardText ?? '', (v) => onSlotChange({ outboardText: v }))
+  // Local, not lifted to the row: this cell is already its own component (see the extraction note
+  // above), so it can own its "Custom…" modal directly instead of routing through SetupSheetRow.
+  const [customOpen, setCustomOpen] = useState(false)
 
   return (
     <td onClick={(e) => e.stopPropagation()}>
@@ -93,6 +97,8 @@ function OutboardSlotCell({
           outerGroupOrder={POOL_ORDER}
           stripManufacturerInTrigger
           clearLabel="No Outboard"
+          onCustom={() => setCustomOpen(true)}
+          customValue={slot?.outboardId != null ? null : slot?.outboardText}
         />
       )}
       {hintText ? (
@@ -102,12 +108,15 @@ function OutboardSlotCell({
         </div>
       ) : (
         !slot?.outboardId &&
-        slot?.outboardText && (
-          <div className="warning-badge inline-icon-text">
-            <AlertTriangle size={12} aria-hidden="true" />
-            Unresolved: {slot.outboardText}
-          </div>
-        )
+        slot?.outboardText && <div className="custom-gear-badge">Custom: {slot.outboardText}</div>
+      )}
+      {customOpen && (
+        <CustomGearModal
+          kind="Outboard"
+          initialValue={slot?.outboardText ?? ''}
+          onClose={() => setCustomOpen(false)}
+          onConfirm={(value) => onSlotChange({ outboardId: null, outboardText: value })}
+        />
       )}
     </td>
   )
@@ -208,6 +217,10 @@ function SetupSheetRow({
   onDelete: onDeleteById
 }: Props): JSX.Element {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id })
+  // Which field's "Custom…" modal is open, if any — only one can be open per row at a time, so a
+  // single slot covers both mic and preamp (outboard's modal lives in OutboardSlotCell instead,
+  // since that's already its own component).
+  const [customFieldOpen, setCustomFieldOpen] = useState<'mic' | 'preamp' | null>(null)
 
   // Thin id-bound wrappers so the rest of the component keeps its original single-row API. Once a
   // pair is linked, either row pushes its changes to the other — the table resolves which row is
@@ -250,11 +263,23 @@ function SetupSheetRow({
   function handleMicChange(micId: number | null): void {
     const mic = micId != null ? mics.find((m) => m.id === micId) ?? null : null
     const nextNotes = applyMicPoolNotesTag(item.notes ?? '', mic?.poolType ?? null)
-    onChange({ micId, notes: nextNotes })
+    // A real catalog pick (or clearing to "No Mic") always supersedes any earlier Custom text, so
+    // it can't resurface later if the catalog pick is itself cleared — see handleMicCustom below,
+    // the only place micText gets set again.
+    onChange({ micId, micText: null, notes: nextNotes })
     onClearUnresolvedGearHint('mic')
     // Only the top row of an actively-linked pair drives the sync — changing the bottom row's mic
     // never pushes back up.
     if (isPairSyncSource) onSyncPairMic(item.id, micId)
+  }
+
+  // Free-text entry from the picker's "Custom…" row, for studios that aren't already in the
+  // always-free-text `isTemporary` mode. Deliberately does NOT call onSyncPairMic — that sync is
+  // quantity-gated catalog-item propagation and has no meaning for a typed name; mic free text has
+  // never propagated to a linked partner (the isTemporary/SuggestInput path doesn't either).
+  function handleMicCustom(text: string): void {
+    onChange({ micId: null, micText: text, notes: applyMicPoolNotesTag(item.notes ?? '', null) })
+    onClearUnresolvedGearHint('mic')
   }
 
   function handleOutboardSlotChange(
@@ -266,17 +291,28 @@ function SetupSheetRow({
       onChange({ notes: applyMicPoolNotesTag(item.notes ?? '', gear?.poolType ?? null) })
       onClearUnresolvedGearHint('outboard')
     }
-    onOutboardSlotChange(slotIndex, patch)
+    // A real pick or a plain clear (outboardId present, no outboardText of its own) blanks any
+    // stale Custom text so it can't resurface later. A Custom patch already sets outboardText
+    // itself (see OutboardSlotCell's onConfirm) and must not be overridden here.
+    const finalPatch =
+      'outboardId' in patch && !('outboardText' in patch) ? { ...patch, outboardText: null } : patch
+    onOutboardSlotChange(slotIndex, finalPatch)
   }
 
   function handlePreampChange(preampId: number | null): void {
     const preamp = preampId != null ? preamps.find((p) => p.id === preampId) ?? null : null
     const nextNotes = applyMicPoolNotesTag(item.notes ?? '', preamp?.poolType ?? null)
-    onChange({ preampId, notes: nextNotes })
+    onChange({ preampId, preampText: null, notes: nextNotes })
     onClearUnresolvedGearHint('preamp')
     // Only the top row of an actively-linked pair drives the sync — changing the bottom row's
     // preamp never pushes back up.
     if (isPairSyncSource) onSyncPairPreamp(item.id, preampId)
+  }
+
+  // See handleMicCustom's comment — same free-text entry point, same reasons for not pair-syncing.
+  function handlePreampCustom(text: string): void {
+    onChange({ preampId: null, preampText: text, notes: applyMicPoolNotesTag(item.notes ?? '', null) })
+    onClearUnresolvedGearHint('preamp')
   }
 
   const sourceName = useBufferedField(item.sourceName, (v) => onChange({ sourceName: v }))
@@ -338,6 +374,8 @@ function SetupSheetRow({
                 outerGroupBy={micGroupBy}
                 outerGroupOrder={POOL_ORDER}
                 clearLabel="No Mic"
+                onCustom={() => setCustomFieldOpen('mic')}
+                customValue={item.micId != null ? null : item.micText}
               />
             )}
             {unresolvedGearHint?.mic ? (
@@ -346,13 +384,15 @@ function SetupSheetRow({
                 Preset expected: {unresolvedGearHint.mic}
               </div>
             ) : (
-              !item.micId &&
-              item.micText && (
-                <div className="warning-badge inline-icon-text">
-                  <AlertTriangle size={12} aria-hidden="true" />
-                  Unresolved: {item.micText}
-                </div>
-              )
+              !item.micId && item.micText && <div className="custom-gear-badge">Custom: {item.micText}</div>
+            )}
+            {customFieldOpen === 'mic' && (
+              <CustomGearModal
+                kind="Mic"
+                initialValue={item.micText ?? ''}
+                onClose={() => setCustomFieldOpen(null)}
+                onConfirm={handleMicCustom}
+              />
             )}
           </td>
         )
@@ -420,6 +460,8 @@ function SetupSheetRow({
                 outerGroupOrder={PREAMP_POOL_ORDER}
                 stripManufacturerInTrigger
                 clearLabel="No Preamp"
+                onCustom={() => setCustomFieldOpen('preamp')}
+                customValue={item.preampId != null ? null : item.preampText}
               />
             )}
             {unresolvedGearHint?.preamp ? (
@@ -429,12 +471,15 @@ function SetupSheetRow({
               </div>
             ) : (
               !item.preampId &&
-              item.preampText && (
-                <div className="warning-badge inline-icon-text">
-                  <AlertTriangle size={12} aria-hidden="true" />
-                  Unresolved: {item.preampText}
-                </div>
-              )
+              item.preampText && <div className="custom-gear-badge">Custom: {item.preampText}</div>
+            )}
+            {customFieldOpen === 'preamp' && (
+              <CustomGearModal
+                kind="Preamp"
+                initialValue={item.preampText ?? ''}
+                onClose={() => setCustomFieldOpen(null)}
+                onConfirm={handlePreampCustom}
+              />
             )}
           </td>
         )

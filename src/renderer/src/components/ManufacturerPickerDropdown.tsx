@@ -34,6 +34,14 @@ interface Props<T extends PickerItem> {
   /** Drop the manufacturer prefix from the selected item's name in the collapsed trigger
    *  (e.g. "API 2500 Bus Compressor" shows as "2500 Bus Compressor"). Defaults to false. */
   stripManufacturerInTrigger?: boolean
+  /** When set, shows a "Custom…" row right below clearLabel — lets the caller open its own
+   *  free-text entry flow, bypassing the catalog entirely. Omitted entirely when unset, same as
+   *  clearLabel. */
+  onCustom?: () => void
+  /** The free-text value backing this field when nothing catalog-based is selected (i.e. the
+   *  caller's own *Text field, e.g. item.micText) — shown in the trigger in place of `placeholder`
+   *  so a custom entry reads like a real selection instead of a blank field. */
+  customValue?: string | null
 }
 
 const MENU_WIDTH = 220
@@ -124,7 +132,9 @@ export default function ManufacturerPickerDropdown<T extends PickerItem>({
   placeholder = '—',
   clearLabel,
   showUsage = true,
-  stripManufacturerInTrigger = false
+  stripManufacturerInTrigger = false,
+  onCustom,
+  customValue
 }: Props<T>): JSX.Element {
   const [open, setOpen] = useState(false)
   const [hoverPath, setHoverPath] = useState<string[]>([])
@@ -392,6 +402,17 @@ export default function ManufacturerPickerDropdown<T extends PickerItem>({
             <span>{clearLabel}</span>
           </div>
         )}
+        {depth === 0 && onCustom && (
+          <div
+            className="picker-menu-row"
+            onClick={() => {
+              close()
+              onCustom()
+            }}
+          >
+            <span>Custom…</span>
+          </div>
+        )}
         {nodes.map((node) => {
           const isLeaf = !!node.item
           const isHovered = hoveredKey === node.key
@@ -468,7 +489,7 @@ export default function ManufacturerPickerDropdown<T extends PickerItem>({
             ? stripManufacturerInTrigger && selectedItem.manufacturer
               ? stripManufacturerPrefix(selectedItem.name, selectedItem.manufacturer)
               : selectedItem.name
-            : placeholder}
+            : customValue || placeholder}
         </span>
         <Icon name="chevron-down" size={14} style={{ color: 'var(--color-text-dim)', flexShrink: 0 }} />
       </button>
