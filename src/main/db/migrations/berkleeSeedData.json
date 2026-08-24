@@ -1573,6 +1573,17 @@
       "poolType": "studio",
       "buildingName": "160",
       "studioName": "Studio 1",
+      "name": "ATM250",
+      "manufacturer": "Audio Technica",
+      "category": null,
+      "notes": null,
+      "quantity": 1,
+      "sortOrder": 0
+    },
+    {
+      "poolType": "studio",
+      "buildingName": "160",
+      "studioName": "Studio 1",
       "name": "D6",
       "manufacturer": "Audix",
       "category": null,
@@ -1698,7 +1709,7 @@
       "manufacturer": "Neumann",
       "category": null,
       "notes": null,
-      "quantity": 2,
+      "quantity": 4,
       "sortOrder": 0
     },
     {
@@ -1742,7 +1753,7 @@
       "manufacturer": "Neumann",
       "category": null,
       "notes": null,
-      "quantity": 2,
+      "quantity": 4,
       "sortOrder": 0
     },
     {
@@ -1764,7 +1775,7 @@
       "manufacturer": "Royer",
       "category": null,
       "notes": null,
-      "quantity": 8,
+      "quantity": 7,
       "sortOrder": 0
     },
     {
@@ -1842,6 +1853,17 @@
       "category": null,
       "notes": null,
       "quantity": 4,
+      "sortOrder": 0
+    },
+    {
+      "poolType": "studio",
+      "buildingName": "160",
+      "studioName": "Studio 1",
+      "name": "MD 441-U",
+      "manufacturer": "Sennheiser",
+      "category": null,
+      "notes": null,
+      "quantity": 1,
       "sortOrder": 0
     },
     {
@@ -2299,6 +2321,17 @@
       "poolType": "studio",
       "buildingName": "160",
       "studioName": "Studio 2",
+      "name": "MD 441-U",
+      "manufacturer": "Sennheiser",
+      "category": null,
+      "notes": null,
+      "quantity": 1,
+      "sortOrder": 0
+    },
+    {
+      "poolType": "studio",
+      "buildingName": "160",
+      "studioName": "Studio 2",
       "name": "Beta 52A",
       "manufacturer": "Shure",
       "category": null,
@@ -2314,7 +2347,7 @@
       "manufacturer": "Shure",
       "category": null,
       "notes": null,
-      "quantity": 1,
+      "quantity": 2,
       "sortOrder": 0
     },
     {
