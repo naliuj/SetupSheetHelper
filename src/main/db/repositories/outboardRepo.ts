@@ -152,8 +152,19 @@ export function upsertOutboard(input: OutboardUpsertInput): OutboardGear {
   return mapRow(row)
 }
 
+/** Preserves the gear's name as free text on any setup slot that used it before deleting, so the
+ *  slot shows "Unresolved: <name>" rather than silently emptying — see removeMic in micsRepo.ts
+ *  for the full rationale. */
 export function removeOutboard(id: number): void {
-  getDb().prepare('DELETE FROM outboard_gear WHERE id = ?').run(id)
+  const db = getDb()
+  db.transaction(() => {
+    db.prepare(
+      `UPDATE setup_item_outboards
+          SET outboard_text = (SELECT name FROM outboard_gear WHERE id = ?)
+        WHERE outboard_id = ? AND outboard_text IS NULL`
+    ).run(id, id)
+    db.prepare('DELETE FROM outboard_gear WHERE id = ?').run(id)
+  })()
 }
 
 /** Every outboard item in the entire database regardless of pool — powers the comprehensive

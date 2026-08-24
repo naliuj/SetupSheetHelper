@@ -142,8 +142,23 @@ export function upsertMic(input: MicUpsertInput): Mic {
   return mapRow(row)
 }
 
+/** Deleting a mic nulls out `setup_items.mic_id` via the FK's ON DELETE SET NULL, which on its own
+ *  would leave every row that used it silently blank — the engineer loses the record of what was
+ *  actually on that source, with nothing on screen saying so. So first copy the mic's name into
+ *  each affected row's `mic_text`, the same free-text fallback the setup importer uses when it
+ *  can't match a mic in the target studio (see setups/exportImport.ts); the row then renders the
+ *  existing "Unresolved: <name>" badge instead of going empty. Only fills rows whose `mic_text` is
+ *  still null, so a genuine prior free-text value is never overwritten. */
 export function removeMic(id: number): void {
-  getDb().prepare('DELETE FROM mics WHERE id = ?').run(id)
+  const db = getDb()
+  db.transaction(() => {
+    db.prepare(
+      `UPDATE setup_items
+          SET mic_text = (SELECT name FROM mics WHERE id = ?)
+        WHERE mic_id = ? AND mic_text IS NULL`
+    ).run(id, id)
+    db.prepare('DELETE FROM mics WHERE id = ?').run(id)
+  })()
 }
 
 export function getMicById(id: number): Mic | null {

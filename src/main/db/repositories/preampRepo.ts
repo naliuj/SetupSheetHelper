@@ -152,8 +152,19 @@ export function upsertPreamp(input: PreampUpsertInput): Preamp {
   return mapRow(row)
 }
 
+/** Preserves the preamp's name as free text on any setup row that used it before deleting, so the
+ *  row shows "Unresolved: <name>" rather than silently emptying — see removeMic in micsRepo.ts for
+ *  the full rationale. */
 export function removePreamp(id: number): void {
-  getDb().prepare('DELETE FROM preamps WHERE id = ?').run(id)
+  const db = getDb()
+  db.transaction(() => {
+    db.prepare(
+      `UPDATE setup_items
+          SET preamp_text = (SELECT name FROM preamps WHERE id = ?)
+        WHERE preamp_id = ? AND preamp_text IS NULL`
+    ).run(id, id)
+    db.prepare('DELETE FROM preamps WHERE id = ?').run(id)
+  })()
 }
 
 /** Every preamp in the entire database regardless of pool — powers manufacturer/model
