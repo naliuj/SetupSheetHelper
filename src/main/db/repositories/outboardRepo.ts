@@ -153,8 +153,8 @@ export function upsertOutboard(input: OutboardUpsertInput): OutboardGear {
 }
 
 /** Preserves the gear's name as free text on any setup slot that used it before deleting, so the
- *  slot shows "Unresolved: <name>" rather than silently emptying — see removeMic in micsRepo.ts
- *  for the full rationale. */
+ *  slot keeps showing the name rather than silently emptying — see removeMic in micsRepo.ts for
+ *  the full rationale, including why it carries no deleted-from-inventory warning. */
 export function removeOutboard(id: number): void {
   const db = getDb()
   db.transaction(() => {

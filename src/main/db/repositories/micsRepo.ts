@@ -146,9 +146,12 @@ export function upsertMic(input: MicUpsertInput): Mic {
  *  would leave every row that used it silently blank — the engineer loses the record of what was
  *  actually on that source, with nothing on screen saying so. So first copy the mic's name into
  *  each affected row's `mic_text`, the same free-text fallback the setup importer uses when it
- *  can't match a mic in the target studio (see setups/exportImport.ts); the row then renders the
- *  existing "Unresolved: <name>" badge instead of going empty. Only fills rows whose `mic_text` is
- *  still null, so a genuine prior free-text value is never overwritten. */
+ *  can't match a mic in the target studio (see setups/exportImport.ts), so the row keeps showing
+ *  the name instead of going empty — it renders in the picker trigger exactly like a Custom entry
+ *  (ManufacturerPickerDropdown's `customValue`). Note there's deliberately no warning marking it as
+ *  deleted-from-inventory: `mic_id: null` + `mic_text` set is the same state a user-typed Custom
+ *  entry produces, so the two are indistinguishable without a new field. Only fills rows whose
+ *  `mic_text` is still null, so a genuine prior free-text value is never overwritten. */
 export function removeMic(id: number): void {
   const db = getDb()
   db.transaction(() => {

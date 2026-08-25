@@ -153,8 +153,8 @@ export function upsertPreamp(input: PreampUpsertInput): Preamp {
 }
 
 /** Preserves the preamp's name as free text on any setup row that used it before deleting, so the
- *  row shows "Unresolved: <name>" rather than silently emptying — see removeMic in micsRepo.ts for
- *  the full rationale. */
+ *  row keeps showing the name rather than silently emptying — see removeMic in micsRepo.ts for the
+ *  full rationale, including why it carries no deleted-from-inventory warning. */
 export function removePreamp(id: number): void {
   const db = getDb()
   db.transaction(() => {
