@@ -300,5 +300,14 @@ export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
       'Set your preferred column order for new setups in Settings → Columns.',
       'PDF and spreadsheet exports follow your column order too.'
     ]
+  },
+  {
+    version: '1.13.1',
+    date: '2026-08-24',
+    highlights: [
+      'Added a "Custom…" option to the mic, preamp, and outboard pickers — type any gear name that isn\'t in the studio\'s list.',
+      'Updated the default mic lists for Studios 1, 2, 3, B, and E.',
+      'Removing gear from a studio no longer blanks it out on setups that used it — the name stays on the sheet.'
+    ]
   }
 ]
