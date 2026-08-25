@@ -36,6 +36,7 @@ import { run as setupEditorMode } from './031_setup_editor_mode'
 // their machine and its column would never exist. Never reuse a version number that any shipped or
 // run branch has claimed — the runner keys off the version, not the file.
 import { run as setupColumnOrder } from './034_setup_column_order'
+import { run as refreshBerkleeMicLockers } from './035_refresh_berklee_mic_lockers'
 
 export interface SqlMigration {
   version: number
@@ -81,5 +82,6 @@ export const MIGRATIONS: Migration[] = [
   { version: 29, run: paletteBlockDefaultSize },
   { version: 30, run: goboHeight },
   { version: 31, run: setupEditorMode },
-  { version: 34, run: setupColumnOrder }
+  { version: 34, run: setupColumnOrder },
+  { version: 35, run: refreshBerkleeMicLockers }
 ]
