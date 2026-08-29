@@ -563,12 +563,13 @@ export default function SetupToolbar({
         </button>
       )}
       <button
-        className="btn"
+        className="btn inline-icon-text"
         onClick={() => setSplitPickerOpen(true)}
         disabled={splitActive || layoutPoppedOut}
         title={splitActive ? 'Already in Split View' : 'Open another setup alongside this one'}
       >
-        <Icon name="columns" size={15} /> Split View
+        <Icon name="columns" size={15} />
+        Split View
       </button>
       <button
         className="btn"

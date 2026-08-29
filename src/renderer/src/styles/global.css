@@ -1195,12 +1195,50 @@ input[type='checkbox']:focus-visible {
 /* Export column chips (ExportColumnChips.tsx) — the per-column include/exclude control in both
    export dialogs. Filled = going on the export; dashed + a dimmed reason = left off. The dashed
    outline is the whole point of the off state: it reads as "there, but not included" rather than
-   as a disabled control the user can't touch. */
+   as a disabled control the user can't touch.
+
+   The whole thing sits in its own inset panel with a titled header, rather than under a line of
+   card-sub text: as plain dim body copy it read as skippable boilerplate, and a user who skipped
+   it never realized the chips were interactive at all. The "n of m" count carries the same
+   information the old sentence did, but as a value the eye lands on. */
+.export-column-section {
+  margin: 0 0 12px;
+  padding: 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface-alt);
+}
+
+.export-column-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.export-column-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.export-column-section-count {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-dim);
+}
+
+.export-column-hint {
+  margin: 8px 0 0;
+  font-size: 11px;
+  color: var(--color-text-dim);
+}
+
 .export-column-chips {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-bottom: 12px;
 }
 
 .export-column-chip {

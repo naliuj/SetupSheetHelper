@@ -58,11 +58,16 @@ export default function ExportColumnChips({
   states: ExportColumnState[]
   onToggle: (key: SetupColumnKey) => void
 }): JSX.Element {
+  const onCount = states.filter((s) => s.on).length
+
   return (
-    <div>
-      <p className="card-sub" style={{ margin: '0 0 6px' }}>
-        Columns to export — Source name is always included. Click a chip to add or remove it.
-      </p>
+    <div className="export-column-section">
+      <div className="export-column-section-head">
+        <span className="export-column-section-title">Columns to export</span>
+        <span className="export-column-section-count">
+          {onCount} of {states.length}
+        </span>
+      </div>
       <div className="export-column-chips">
         {states.map((state) => (
           <button
@@ -83,6 +88,9 @@ export default function ExportColumnChips({
           </button>
         ))}
       </div>
+      <p className="export-column-hint">
+        Click a chip to add or remove it. Source name is always included.
+      </p>
     </div>
   )
 }
