@@ -2,15 +2,16 @@ import { useState } from 'react'
 import type { PdfExportInclude, PdfExportOrientation, PdfExportDensity } from '@shared/types/ipc'
 import { useEscapeToClose } from '@renderer/hooks/useEscapeToClose'
 import ToggleSwitch from '@renderer/components/ToggleSwitch'
-import { useSetupStoreState } from '@renderer/state/setupStoreContext'
+import ExportColumnChips, { useExportColumnChips } from '@renderer/components/ExportColumnChips'
 import { useNavigationStore } from '@renderer/state/navigationStore'
-import { TOGGLEABLE_COLUMNS } from '@shared/constants/setupColumns'
+import type { SetupColumnKey } from '@shared/constants/setupColumns'
 
 export interface ExportOptions {
   include: PdfExportInclude
   coloredRows: boolean
   orientation: PdfExportOrientation
   density: PdfExportDensity
+  includeColumns: SetupColumnKey[]
 }
 
 interface Props {
@@ -44,10 +45,7 @@ export default function ExportOptionsModal({
   const [density, setDensity] = useState<PdfExportDensity>('normal')
   const [exporting, setExporting] = useState(false)
 
-  const visibleColumns = useSetupStoreState((s) => s.visibleColumns)
-  const setColumnVisibility = useSetupStoreState((s) => s.setColumnVisibility)
-  const visibleSet = new Set(visibleColumns)
-  const hiddenColumns = TOGGLEABLE_COLUMNS.filter((c) => !visibleSet.has(c.key))
+  const chips = useExportColumnChips()
 
   const goToSettings = useNavigationStore((s) => s.goToSettings)
 
@@ -63,7 +61,7 @@ export default function ExportOptionsModal({
     const include: PdfExportInclude = includeSheet && includeLayout ? 'both' : includeSheet ? 'sheet' : 'layout'
     setExporting(true)
     try {
-      await onExport({ include, coloredRows, orientation, density })
+      await onExport({ include, coloredRows, orientation, density, includeColumns: chips.included })
       onClose()
     } finally {
       setExporting(false)
@@ -72,7 +70,7 @@ export default function ExportOptionsModal({
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 340 }}>
+      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 400 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
           <h2 style={{ margin: 0 }}>Export to PDF</h2>
           <span
@@ -103,17 +101,7 @@ export default function ExportOptionsModal({
           Tints rows and layout blocks by color. Leave off for black-and-white printing.
         </p>
 
-        {includeSheet && hiddenColumns.length > 0 && (
-          <p style={{ margin: '0 0 12px', color: 'var(--color-warning)', fontSize: 13 }}>
-            Hidden columns won't appear on the sheet: {hiddenColumns.map((c) => c.label).join(', ')}.{' '}
-            <span
-              onClick={() => hiddenColumns.forEach((c) => setColumnVisibility(c.key, true))}
-              style={{ color: 'var(--color-accent)', cursor: 'pointer', fontWeight: 600 }}
-            >
-              Show them
-            </span>
-          </p>
-        )}
+        {includeSheet && <ExportColumnChips states={chips.states} onToggle={chips.toggle} />}
 
         <div style={{ display: 'flex', gap: 16, marginBottom: 4, opacity: includeSheet ? 1 : 0.5 }}>
           <label style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1 }}>

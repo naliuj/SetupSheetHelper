@@ -203,28 +203,31 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
       resolvedValues.set(item.id, values)
     }
 
-    // Two independent filters drop columns: (1) the setup's own column-visibility choice (Source
-    // name always shown), so the PDF matches what's on screen; (2) 48V, Outboard, Preamp,
-    // Tie Line, Cue Box, and Polarity are additionally dropped when blank across the whole sheet.
-    // Column ORDER comes from the setup too (COLUMNS below is only a label/width lookup now), so a
-    // reordered sheet exports the way it looks on screen. 'sourceName' is always leftmost and
-    // 'stereoLink' has no PDF column at all — it's drawn as a margin bracket instead.
-    const itemIds = setup.items.map((item) => item.id)
-    const shownColumns = new Set<string>(setup.visibleColumns)
-    const omittableKeys = ['phantomPower', 'outboard', 'preamp', 'tieLine', 'cueBox', 'polarity']
+    // Which columns get printed. Normally the renderer's export chips have already decided —
+    // `includeColumns` is the resolved, ordered list the user saw and could flip — so it's taken
+    // verbatim and the blank-column auto-drop below is skipped entirely (the chips already showed
+    // which columns are empty and let the user include one anyway). COLUMNS is only a label/width
+    // lookup. 'sourceName' is always leftmost and never a chip; 'stereoLink' has no PDF column at
+    // all — it's drawn as a margin bracket instead.
     const columnByKey = new Map(COLUMNS.map((col) => [col.key, col]))
-    const orderedKeys = [
-      'sourceName',
-      ...orderedVisibleColumns(setup.columnOrder, setup.visibleColumns).filter((k) => k !== 'stereoLink')
-    ]
-    const keptColumns = orderedKeys
-      .map((key) => columnByKey.get(key))
-      .filter((col): col is ColumnSpec => col != null)
-      .filter(
-        (col) =>
-          (col.key === 'sourceName' || shownColumns.has(col.key)) &&
-          (!omittableKeys.includes(col.key) || !isColumnEmpty(col.key, itemIds, resolvedValues))
+    const toSpecs = (keys: string[]): ColumnSpec[] =>
+      ['sourceName', ...keys.filter((k) => k !== 'stereoLink')]
+        .map((key) => columnByKey.get(key))
+        .filter((col): col is ColumnSpec => col != null)
+
+    let keptColumns: ColumnSpec[]
+    if (input.includeColumns) {
+      keptColumns = toSpecs(input.includeColumns)
+    } else {
+      // Fallback for callers that predate the chips: the setup's own visibility/order choice, with
+      // 48V, Outboard, Preamp, Tie Line, Cue Box and Polarity additionally dropped when blank
+      // across the whole sheet.
+      const itemIds = setup.items.map((item) => item.id)
+      const omittableKeys = ['phantomPower', 'outboard', 'preamp', 'tieLine', 'cueBox', 'polarity']
+      keptColumns = toSpecs(orderedVisibleColumns(setup.columnOrder, setup.visibleColumns)).filter(
+        (col) => !omittableKeys.includes(col.key) || !isColumnEmpty(col.key, itemIds, resolvedValues)
       )
+    }
 
     // Fit the kept columns to the page width — shrink an over-wide table, or hand slack to text
     // columns on a narrow one — so nothing ever runs off the right edge.

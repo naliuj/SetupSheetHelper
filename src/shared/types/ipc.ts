@@ -15,7 +15,7 @@ import type {
 } from './entities'
 import type { ChannelPreset, ChannelPresetItemInput, ChannelPresetWithItems } from './channelPreset'
 import type { PaletteItem } from './palette'
-import type { SetupColumnKey } from '../constants/setupColumns'
+import type { ExportColumnOverrides, SetupColumnKey } from '../constants/setupColumns'
 import type {
   EditorMode,
   Folder,
@@ -128,6 +128,7 @@ export const IPC = {
     setOutboardColumnCount: 'setups:setOutboardColumnCount',
     setVisibleColumns: 'setups:setVisibleColumns',
     setColumnOrder: 'setups:setColumnOrder',
+    setExportColumnOverrides: 'setups:setExportColumnOverrides',
     setLastEditorMode: 'setups:setLastEditorMode',
     remove: 'setups:remove',
     removeMany: 'setups:removeMany',
@@ -372,6 +373,9 @@ export interface ExportedSetup {
   /** Optional: setups exported before column ordering existed won't have it, and import falls back
    *  to the canonical order via parseColumnOrder. */
   columnOrder?: SetupColumnKey[]
+  /** Optional for the same reason as columnOrder: files exported before the export column chips
+   *  existed won't carry it, and import simply leaves the setup with no overrides. */
+  exportColumnOverrides?: ExportColumnOverrides
   sessionNotes: string | null
   items: ExportedSetupItem[]
   /** This setup's own layout override (rare — most setups use their studio's shared layout and
@@ -422,6 +426,11 @@ export interface ExportSetupPdfInput {
   /** Text density for the setup-sheet table. Compact uses a smaller font + tighter spacing to
    *  fit more rows per page; normal keeps the larger, more legible size. */
   density: PdfExportDensity
+  /** The exact columns to print, resolved by the renderer's export chips (Source name is implied
+   *  and always leftmost; 'stereoLink' has no PDF column). When present it wins outright — the
+   *  auto-drop of blank columns is skipped, since the chips already showed the user what's empty
+   *  and let them decide. Omitted by stale callers, which get the old visibility + auto-drop. */
+  includeColumns?: SetupColumnKey[]
 }
 
 export interface ExportSetupPdfResult {
@@ -429,10 +438,12 @@ export interface ExportSetupPdfResult {
   filePath?: string
 }
 
-/** No per-export options (unlike ExportSetupPdfInput) — a spreadsheet export has no
- *  orientation/density/include-style decisions to make, so this is just which setup to export. */
 export interface ExportSetupSpreadsheetInput {
   setupId: number
+  /** The exact columns to write, resolved by the renderer's export chips (Source name is implied
+   *  and always leftmost; 'outboard' expands to one column per slot). Omitted by stale callers,
+   *  which fall back to the setup's own visible columns. */
+  includeColumns?: SetupColumnKey[]
 }
 
 export interface ExportSetupSpreadsheetResult {
@@ -682,6 +693,7 @@ export interface RendererApi {
     setOutboardColumnCount(setupId: number, count: number): Promise<void>
     setVisibleColumns(setupId: number, columns: SetupColumnKey[]): Promise<void>
     setColumnOrder(setupId: number, order: SetupColumnKey[]): Promise<void>
+    setExportColumnOverrides(setupId: number, overrides: ExportColumnOverrides): Promise<void>
     setLastEditorMode(id: number, mode: EditorMode): Promise<void>
     remove(id: number): Promise<void>
     removeMany(ids: number[]): Promise<void>

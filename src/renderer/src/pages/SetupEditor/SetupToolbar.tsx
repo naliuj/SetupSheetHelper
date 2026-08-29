@@ -12,6 +12,8 @@ import Icon from '@renderer/components/Icon'
 import { exportStageToDataUrl } from './canvas/konvaExport'
 import SaveAsTemplateModal from './SaveAsTemplateModal'
 import ExportOptionsModal, { type ExportOptions } from './ExportOptionsModal'
+import SpreadsheetExportModal from './SpreadsheetExportModal'
+import type { SetupColumnKey } from '@shared/constants/setupColumns'
 import RequireLayoutFileModal from './RequireLayoutFileModal'
 import OpenAlongsideModal from './OpenAlongsideModal'
 import { useBufferedField } from './table/useBufferedField'
@@ -73,6 +75,7 @@ export default function SetupToolbar({
   const [exportMessage, setExportMessage] = useState<string | null>(null)
   const [templateModalOpen, setTemplateModalOpen] = useState(false)
   const [exportModalOpen, setExportModalOpen] = useState(false)
+  const [spreadsheetModalOpen, setSpreadsheetModalOpen] = useState(false)
   const [defaultExportInclude, setDefaultExportInclude] = useState<PdfExportInclude>('both')
   const [defaultExportColoredRows, setDefaultExportColoredRows] = useState(false)
   const [exportHasLayout, setExportHasLayout] = useState(false)
@@ -146,7 +149,13 @@ export default function SetupToolbar({
     setExportModalOpen(true)
   }
 
-  async function performExport({ include, coloredRows, orientation, density }: ExportOptions): Promise<void> {
+  async function performExport({
+    include,
+    coloredRows,
+    orientation,
+    density,
+    includeColumns
+  }: ExportOptions): Promise<void> {
     setExporting(true)
     setExportMessage(null)
     try {
@@ -197,7 +206,8 @@ export default function SetupToolbar({
         include,
         coloredRows,
         orientation,
-        density
+        density,
+        includeColumns
       })
       if (result.canceled) {
         setExportMessage(null)
@@ -217,10 +227,17 @@ export default function SetupToolbar({
     }
   }
 
-  // Spreadsheet export has no per-export decisions (no orientation/density/include the way PDF
-  // export does), so unlike performExport above there's no options modal — just flush, export,
-  // report. Shares the toolbar's exporting/exportMessage state with the PDF export.
-  async function handleExportSpreadsheet(): Promise<void> {
+  // The spreadsheet's only per-export decision is which columns go in the file, so it gets its
+  // own small dialog (SpreadsheetExportModal) rather than PDF export's full options modal —
+  // Export is autofocused there so Cmd/Ctrl+Shift+E → Enter stays a two-keystroke export.
+  function handleExportSpreadsheet(): void {
+    setExportMessage(null)
+    setSpreadsheetModalOpen(true)
+  }
+
+  // Runs once the dialog above resolves the column list. Shares the toolbar's
+  // exporting/exportMessage state with the PDF export.
+  async function performSpreadsheetExport(includeColumns: SetupColumnKey[]): Promise<void> {
     setExporting(true)
     setExportMessage(null)
     try {
@@ -228,7 +245,7 @@ export default function SetupToolbar({
       await layoutStoreApi.getState().save()
       const currentSetupId = setupStoreApi.getState().setupId
       if (!currentSetupId) return
-      const result = await window.api.exportSpreadsheet.exportSetup({ setupId: currentSetupId })
+      const result = await window.api.exportSpreadsheet.exportSetup({ setupId: currentSetupId, includeColumns })
       if (!result.canceled) setExportMessage(`Exported to ${result.filePath}`)
     } catch (err) {
       setExportMessage(`Export failed — ${err instanceof Error ? err.message : 'please try again.'}`)
@@ -571,6 +588,12 @@ export default function SetupToolbar({
           hasLayout={exportHasLayout}
           onClose={() => setExportModalOpen(false)}
           onExport={performExport}
+        />
+      )}
+      {spreadsheetModalOpen && (
+        <SpreadsheetExportModal
+          onClose={() => setSpreadsheetModalOpen(false)}
+          onExport={performSpreadsheetExport}
         />
       )}
       {layoutGateOpen && studioId && (

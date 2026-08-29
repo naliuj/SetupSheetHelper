@@ -241,6 +241,7 @@ export function saveAsTemplate(setupId: number, name: string, folderId: number |
   setOutboardColumnCount(template.id, source.outboardColumnCount)
   setVisibleColumns(template.id, source.visibleColumns)
   setColumnOrder(template.id, source.columnOrder)
+  setExportColumnOverrides(template.id, source.exportColumnOverrides)
   copyItemsToSetup(setupId, template.id, { blankRoomSpecificFields: true })
   return template
 }
@@ -312,6 +313,7 @@ export function instantiateFromTemplate(templateId: number): Setup {
   setOutboardColumnCount(setup.id, template.outboardColumnCount)
   setVisibleColumns(setup.id, template.visibleColumns)
   setColumnOrder(setup.id, template.columnOrder)
+  setExportColumnOverrides(setup.id, template.exportColumnOverrides)
   copyItemsToSetup(templateId, setup.id)
   return setup
 }
