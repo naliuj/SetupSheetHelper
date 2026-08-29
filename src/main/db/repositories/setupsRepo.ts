@@ -224,6 +224,12 @@ export function saveAsTemplate(setupId: number, name: string, folderId: number |
   const source = getSetupWithItems(setupId)
   if (!source) throw new Error('Setup not found')
   const template = createSetup(source.studioId, name, null, 'template', 'custom', folderId)
+  // Column layout is part of the reusable structure (which columns, in what order) — without
+  // this, every sheet made from the template reverted to the global default and a column the
+  // user hides kept "coming back." Mirrors duplicateSetup below.
+  setOutboardColumnCount(template.id, source.outboardColumnCount)
+  setVisibleColumns(template.id, source.visibleColumns)
+  setColumnOrder(template.id, source.columnOrder)
   copyItemsToSetup(setupId, template.id, { blankRoomSpecificFields: true })
   return template
 }
@@ -290,6 +296,10 @@ export function instantiateFromTemplate(templateId: number): Setup {
     'setup',
     null
   )
+  // Carry the template's column layout onto the new sheet (see saveAsTemplate's note).
+  setOutboardColumnCount(setup.id, template.outboardColumnCount)
+  setVisibleColumns(setup.id, template.visibleColumns)
+  setColumnOrder(setup.id, template.columnOrder)
   copyItemsToSetup(templateId, setup.id)
   return setup
 }

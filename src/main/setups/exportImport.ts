@@ -170,7 +170,9 @@ export function importSetups(setups: ExportedSetup[], targetStudioId: number): v
       setup.sessionNotes
     )
     setOutboardColumnCount(created.id, setup.outboardColumnCount)
-    setVisibleColumns(created.id, setup.visibleColumns)
+    // Guarded like columnOrder below: export files from before column visibility existed
+    // (migration 018) don't carry the field, and serializeVisibleColumns throws on undefined.
+    if (setup.visibleColumns) setVisibleColumns(created.id, setup.visibleColumns)
     if (setup.columnOrder) setColumnOrder(created.id, setup.columnOrder)
 
     const mics = listAvailableMics(targetStudioId, created.id, setup.facultyReserveEnabled)

@@ -116,12 +116,13 @@ export default function TableModeToolbar(): JSX.Element {
               onReorder={setColumnOrder}
               onToggle={setColumnVisibility}
             />
-            <div
-              onClick={() => resetColumnsToDefault()}
-              className="inline-icon-text"
-              style={{ marginTop: 10, fontSize: 12, color: 'var(--color-accent)', cursor: 'pointer' }}
-            >
-              <RotateCcw size={13} aria-hidden="true" /> Reset to my defaults
+            {/* A real button behind a separator, not a bare full-width click target — it used to
+                sit flush under the last toggle (Polarity), where a misclick silently restored
+                every hidden column. */}
+            <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--color-border)' }}>
+              <button className="btn small inline-icon-text" onClick={() => resetColumnsToDefault()}>
+                <RotateCcw size={13} aria-hidden="true" /> Reset to my defaults
+              </button>
             </div>
           </div>
         )}

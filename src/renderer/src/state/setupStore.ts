@@ -529,10 +529,6 @@ export function createSetupStore() {
         if (state.outboardColumnCount !== 1) {
           await window.api.setups.setOutboardColumnCount(setupId, state.outboardColumnCount)
         }
-        // createSetup snapshots the global default; overwrite with the store's columns in case the
-        // user adjusted them before this first save.
-        await window.api.setups.setVisibleColumns(setupId, state.visibleColumns)
-        await window.api.setups.setColumnOrder(setupId, state.columnOrder)
       } else {
         await window.api.setups.rename(
           setupId,
@@ -544,6 +540,15 @@ export function createSetupStore() {
           state.sessionNotes
         )
       }
+
+      // Columns are re-asserted on EVERY save, read fresh via get() rather than from the
+      // pre-await snapshot. Two failure modes this closes: (1) the Columns popover's own
+      // write-throughs are fire-and-forget, so a single dropped IPC would silently resurrect a
+      // hidden column on reopen; (2) on a FIRST save, a toggle made while create() was in flight
+      // couldn't write through (setupId was still null) and the snapshot here predates it — the
+      // stale write then clobbered the toggle and isDirty:false below discarded the retry.
+      await window.api.setups.setVisibleColumns(setupId, get().visibleColumns)
+      await window.api.setups.setColumnOrder(setupId, get().columnOrder)
 
       const itemsBeforeSave = state.items
       const saved = await window.api.setups.saveItems(
