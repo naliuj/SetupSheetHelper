@@ -44,7 +44,10 @@ export interface SetupItem {
   phantomPower: boolean
   channel: number | null
   tieLine: number | null
-  cueBox: number | null
+  /** Free text, not a number: a cue is often a stereo pair summed on the console ("1-2"), or any
+   *  other label the engineer uses. Legacy rows hold integers in the DB — coerced to strings at
+   *  the repo mapRow layer (see setupItemsRepo). */
+  cueBox: string | null
   outboards: SetupItemOutboardSlot[]
   preampId: number | null
   preampText: string | null

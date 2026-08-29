@@ -334,9 +334,10 @@ function SetupSheetRow({
     tieLine.onChange(raw)
     if (isPairSyncSource) onSyncPairFields(item.id, { tieLine: raw ? Math.max(1, Number(raw)) : null })
   }
-  const cueBox = useBufferedField(String(item.cueBox ?? ''), (v) =>
-    onChange({ cueBox: v ? Math.max(1, Number(v)) : null })
-  )
+  // Free text, unlike channel/tie line: a cue is often a stereo pair summed on the console
+  // ("1-2"), which a number input can't hold — Chromium's badInput state made typed pairs
+  // silently vanish on the next re-render.
+  const cueBox = useBufferedField(item.cueBox ?? '', (v) => onChange({ cueBox: v.trim() || null }))
   const notes = useBufferedField(item.notes ?? '', (v) => onChange({ notes: v }))
 
   // One cell per column key, dispatched so the row can render in whatever order the user chose.
@@ -498,8 +499,7 @@ function SetupSheetRow({
         return (
           <td key={key}>
             <input
-              type="number"
-              min={1}
+              type="text"
               value={cueBox.value}
               onChange={(e) => cueBox.onChange(e.target.value)}
               onBlur={cueBox.onBlur}

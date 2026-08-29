@@ -28,7 +28,7 @@ export interface ResolvedChannelPresetItem {
   preampName: string | null
   channel: number | null
   tieLine: number | null
-  cueBox: number | null
+  cueBox: string | null
   polarityFlip: boolean | null
   notes: string | null
   color: string | null
@@ -444,7 +444,9 @@ export function createSetupStore() {
       return {
         items: state.items.map((item) => {
           if (!targetAll && !state.selectedItemIds.has(item.id)) return item
-          return { ...item, [field]: next++ }
+          const value = next++
+          // Cue box is a free-text field (stereo cues like "1-2"), so numbering writes strings.
+          return field === 'cueBox' ? { ...item, cueBox: String(value) } : { ...item, [field]: value }
         }),
         isDirty: true
       }
@@ -481,7 +483,7 @@ export function createSetupStore() {
           phantomPower: false,
           channel: item.channel != null ? Math.max(1, item.channel) : null,
           tieLine: item.tieLine != null ? Math.max(1, item.tieLine) : null,
-          cueBox: item.cueBox != null ? Math.max(1, item.cueBox) : null,
+          cueBox: item.cueBox,
           // Channel Presets stay single-outboard (a reusable "typical chain," not a multi-slot
           // capture) — the preset's one outboard value always lands in slot 0.
           outboards:

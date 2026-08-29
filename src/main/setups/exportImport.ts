@@ -189,7 +189,8 @@ export function importSetups(setups: ExportedSetup[], targetStudioId: number): v
         phantomPower: item.phantomPower,
         channel: item.channel,
         tieLine: item.tieLine,
-        cueBox: item.cueBox,
+        // Export files written before cue box became free text hold numbers here.
+        cueBox: item.cueBox != null ? String(item.cueBox) : null,
         outboards: item.outboards.map((slot) => {
           const outboard = findMatch(outboardGear, slot.outboardName, slot.outboardManufacturer)
           return {

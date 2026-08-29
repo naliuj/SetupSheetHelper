@@ -223,10 +223,12 @@ export default function SetupSheetTable(): JSX.Element {
 
   // Ongoing sync for 48V, polarity, channel, tie line, and cue box: editing any of these on either
   // row of an actively-linked pair pushes the change to its partner. 48V and polarity copy straight
-  // across; the numeric fields carry the "N / N+1" stereo-pair convention forward (channel 3 →
+  // across; channel/tie line carry the "N / N+1" stereo-pair convention forward (channel 3 →
   // partner becomes 4, or the reverse if edited from the bottom row) rather than duplicating the
-  // exact number, since two rows can't share one channel/tie line/cue box — clamped to a minimum of
-  // 1 either way. Only whichever keys are actually present in `patch` get synced.
+  // exact number, since two rows can't share one channel/tie line — clamped to a minimum of 1
+  // either way. Cue box is free text: a plain integer keeps that N/N+1 convention, but anything
+  // else — most importantly a stereo cue like "1-2", which the pair genuinely SHARES on the
+  // console — copies verbatim. Only whichever keys are actually present in `patch` get synced.
   const handleSyncPairFields = useCallback((itemId: number | string, patch: Partial<SetupItemDraft>): void => {
     const state = setupStoreApi.getState()
     const found = findLinkedPartner(state, itemId)
@@ -237,7 +239,11 @@ export default function SetupSheetTable(): JSX.Element {
     if ('polarityFlip' in patch) syncPatch.polarityFlip = patch.polarityFlip
     if ('channel' in patch && patch.channel != null) syncPatch.channel = Math.max(1, patch.channel + direction)
     if ('tieLine' in patch && patch.tieLine != null) syncPatch.tieLine = Math.max(1, patch.tieLine + direction)
-    if ('cueBox' in patch && patch.cueBox != null) syncPatch.cueBox = Math.max(1, patch.cueBox + direction)
+    if ('cueBox' in patch && patch.cueBox != null) {
+      syncPatch.cueBox = /^\d+$/.test(patch.cueBox)
+        ? String(Math.max(1, Number(patch.cueBox) + direction))
+        : patch.cueBox
+    }
     if (Object.keys(syncPatch).length > 0) state.updateItemFields(partner.id, syncPatch)
   }, [])
 

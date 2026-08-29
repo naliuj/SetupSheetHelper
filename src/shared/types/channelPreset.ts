@@ -16,7 +16,7 @@ export interface ChannelPresetItem {
   preampManufacturer: string | null
   channel: number | null
   tieLine: number | null
-  cueBox: number | null
+  cueBox: string | null
   polarityFlip: boolean | null
   notes: string | null
   color: string | null
@@ -49,7 +49,7 @@ export interface ChannelPresetItemInput {
   preampManufacturer: string | null
   channel: number | null
   tieLine: number | null
-  cueBox: number | null
+  cueBox: string | null
   polarityFlip: boolean | null
   notes: string | null
   color: string | null

@@ -258,7 +258,7 @@ export interface SetupItemInput {
   phantomPower: boolean
   channel: number | null
   tieLine: number | null
-  cueBox: number | null
+  cueBox: string | null
   outboards: SetupItemOutboardSlot[]
   preampId: number | null
   preampText: string | null
@@ -349,7 +349,9 @@ export interface ExportedSetupItem {
   phantomPower: boolean
   channel: number | null
   tieLine: number | null
-  cueBox: number | null
+  /** Free text since cue assignments can be stereo pairs ("1-2"). Export files written before
+   *  this change hold numbers here — importSetups coerces them to strings. */
+  cueBox: string | number | null
   outboards: ExportedSetupItemOutboardSlot[]
   preampName: string | null
   preampManufacturer: string | null

@@ -196,7 +196,7 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
         channel: item.channel != null ? String(item.channel) : '',
         preamp: resolvePreampText(item, preampById),
         tieLine: item.tieLine != null ? `${isConflict ? '⚠ ' : ''}${item.tieLine}` : '',
-        cueBox: item.cueBox != null ? String(item.cueBox) : '',
+        cueBox: item.cueBox ?? '',
         polarity: item.polarityFlip ? 'Ø' : '',
         notes: item.notes ?? ''
       }

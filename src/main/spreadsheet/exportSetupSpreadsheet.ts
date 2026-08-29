@@ -109,7 +109,7 @@ export async function exportSetupSpreadsheet(input: ExportSetupSpreadsheetInput)
     if (shownColumns.has('channel')) values.channel = item.channel != null ? String(item.channel) : ''
     if (shownColumns.has('preamp')) values.preamp = resolvePreampText(item, preampById)
     if (shownColumns.has('tieLine')) values.tieLine = item.tieLine != null ? String(item.tieLine) : ''
-    if (shownColumns.has('cueBox')) values.cueBox = item.cueBox != null ? String(item.cueBox) : ''
+    if (shownColumns.has('cueBox')) values.cueBox = item.cueBox ?? ''
     if (shownColumns.has('polarity')) values.polarity = item.polarityFlip ? 'Yes' : ''
     if (shownColumns.has('notes')) values.notes = item.notes ?? ''
 
