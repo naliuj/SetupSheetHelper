@@ -5,7 +5,10 @@ import {
   parseVisibleColumns,
   serializeVisibleColumns,
   parseColumnOrder,
-  serializeColumnOrder
+  serializeColumnOrder,
+  parseExportColumnOverrides,
+  serializeExportColumnOverrides,
+  type ExportColumnOverrides
 } from '@shared/constants/setupColumns'
 import { APP_SETTINGS_KEYS } from '@shared/types/entities'
 import { getDb } from '../index'
@@ -31,6 +34,7 @@ interface SetupRow {
   outboard_column_count: number
   visible_columns: string | null
   column_order: string | null
+  export_column_overrides: string | null
   session_notes: string | null
   last_editor_mode: EditorMode
 }
@@ -53,6 +57,7 @@ function mapRow(row: SetupRow): Setup {
     outboardColumnCount: row.outboard_column_count,
     visibleColumns: parseVisibleColumns(row.visible_columns),
     columnOrder: parseColumnOrder(row.column_order),
+    exportColumnOverrides: parseExportColumnOverrides(row.export_column_overrides),
     sessionNotes: row.session_notes,
     lastEditorMode: row.last_editor_mode
   }
@@ -145,6 +150,12 @@ export function setVisibleColumns(id: number, columns: SetupColumnKey[]): void {
 
 export function setColumnOrder(id: number, order: SetupColumnKey[]): void {
   getDb().prepare('UPDATE setups SET column_order = ? WHERE id = ?').run(serializeColumnOrder(order), id)
+}
+
+export function setExportColumnOverrides(id: number, overrides: ExportColumnOverrides): void {
+  getDb()
+    .prepare('UPDATE setups SET export_column_overrides = ? WHERE id = ?')
+    .run(serializeExportColumnOverrides(overrides), id)
 }
 
 export function setLastEditorMode(id: number, mode: EditorMode): void {
@@ -268,6 +279,7 @@ export function duplicateSetup(
   setOutboardColumnCount(setup.id, source.outboardColumnCount)
   setVisibleColumns(setup.id, source.visibleColumns)
   setColumnOrder(setup.id, source.columnOrder)
+  setExportColumnOverrides(setup.id, source.exportColumnOverrides)
   copyItemsToSetup(sourceSetupId, setup.id)
   copyBlocksToSetup(sourceSetupId, setup.id)
   const override = getSetupLayoutOverride(sourceSetupId)
