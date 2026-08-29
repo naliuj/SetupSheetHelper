@@ -80,7 +80,9 @@ export default function ExportColumnChips({
             title={
               state.on
                 ? `${state.label} will be included — click to leave it out`
-                : `${state.label} is ${REASON_LABEL[state.reason ?? 'empty']} — click to include it anyway`
+                : state.reason
+                  ? `${state.label} is ${REASON_LABEL[state.reason]} — click to include it anyway`
+                  : `${state.label} is left out — click to include it`
             }
           >
             {state.label}

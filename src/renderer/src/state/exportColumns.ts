@@ -6,10 +6,9 @@ import {
   type SetupColumnKey
 } from '@shared/constants/setupColumns'
 
-/** Why a column is off by default. `null` when it's on (or when the user turned it on anyway) —
- *  the chip only shows a reason for an off chip, as a nudge toward why it isn't going on the
- *  export. 'hidden' wins over 'empty': a column hidden in the editor is usually empty too, and
- *  "hidden" is the one the user can act on. */
+/** Why a column is off BY DEFAULT — a nudge toward why the export doesn't already carry it.
+ *  'hidden' wins over 'empty': a column hidden in the editor is usually empty too, and "hidden"
+ *  is the one the user can act on. */
 export type ExportColumnOffReason = 'empty' | 'hidden'
 
 export interface ExportColumnState {
@@ -17,7 +16,8 @@ export interface ExportColumnState {
   label: string
   /** Whether this column goes on the export — the default, unless the user flipped it. */
   on: boolean
-  /** Set only when `on` is false. */
+  /** Set only for a chip that is off because of the DEFAULT (empty and/or hidden) — never for one
+   *  the user switched off themselves, which is off by choice and needs no explanation. */
   reason: ExportColumnOffReason | null
   /** True when `on` differs from the computed default (i.e. an override is in play) — lets the
    *  chip row say so, and is what the flip logic uses to decide whether to drop the override. */
@@ -83,7 +83,10 @@ export function computeExportColumnStates(
         key,
         label: COLUMN_LABELS[key],
         on,
-        reason: on ? null : !isVisible ? 'hidden' : 'empty',
+        // A reason only ever explains a chip that is off BY DEFAULT. A column the user switched
+        // off deliberately is off by choice, and labeling it — a Notes column with text in every
+        // row, say — "empty" would state something plainly untrue about the sheet.
+        reason: on || defaultOn ? null : !isVisible ? 'hidden' : 'empty',
         overridden: override != null && on !== defaultOn
       }
     })
