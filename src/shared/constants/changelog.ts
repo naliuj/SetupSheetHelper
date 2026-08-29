@@ -309,5 +309,15 @@ export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
       'Updated the default mic lists for Studios 1, 2, 3, B, and E.',
       'Removing gear from a studio no longer blanks it out on setups that used it — the name stays on the sheet.'
     ]
+  },
+  {
+    version: '1.14.0',
+    date: '2026-08-29',
+    highlights: [
+      'The cue box now accepts any text, so stereo cues like "1-2" stick instead of clearing when you edit the rest of the row.',
+      'Choose exactly which columns go on an export — PDF and spreadsheet both open with a set of column chips, and each setup remembers your picks.',
+      'Empty and hidden columns start switched off, and one click puts any of them back on the export.',
+      'Hiding a column now sticks: it stays hidden when you save a setup, and studio templates keep your column layout.'
+    ]
   }
 ]
