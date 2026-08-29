@@ -16,7 +16,8 @@ import {
   createSetup,
   setOutboardColumnCount,
   setVisibleColumns,
-  setColumnOrder
+  setColumnOrder,
+  setExportColumnOverrides
 } from '../db/repositories/setupsRepo'
 import { replaceItemsForSetup } from '../db/repositories/setupItemsRepo'
 import { getSetupLayoutOverride, upsertFileLayoutOverride } from '../db/repositories/setupLayoutOverrideRepo'
@@ -92,6 +93,7 @@ export async function exportSetupsToFile(setupIds: number[]): Promise<ExportSetu
         outboardColumnCount: setup.outboardColumnCount,
         visibleColumns: setup.visibleColumns,
         columnOrder: setup.columnOrder,
+        exportColumnOverrides: setup.exportColumnOverrides,
         sessionNotes: setup.sessionNotes,
         items,
         layoutOverride: exportLayoutOverride(id)
@@ -170,8 +172,11 @@ export function importSetups(setups: ExportedSetup[], targetStudioId: number): v
       setup.sessionNotes
     )
     setOutboardColumnCount(created.id, setup.outboardColumnCount)
-    setVisibleColumns(created.id, setup.visibleColumns)
+    // Guarded like columnOrder below: export files from before column visibility existed
+    // (migration 018) don't carry the field, and serializeVisibleColumns throws on undefined.
+    if (setup.visibleColumns) setVisibleColumns(created.id, setup.visibleColumns)
     if (setup.columnOrder) setColumnOrder(created.id, setup.columnOrder)
+    if (setup.exportColumnOverrides) setExportColumnOverrides(created.id, setup.exportColumnOverrides)
 
     const mics = listAvailableMics(targetStudioId, created.id, setup.facultyReserveEnabled)
     const outboardGear = listAvailableOutboard(targetStudioId, created.id, setup.facultyReserveEnabled)
@@ -189,7 +194,8 @@ export function importSetups(setups: ExportedSetup[], targetStudioId: number): v
         phantomPower: item.phantomPower,
         channel: item.channel,
         tieLine: item.tieLine,
-        cueBox: item.cueBox,
+        // Export files written before cue box became free text hold numbers here.
+        cueBox: item.cueBox != null ? String(item.cueBox) : null,
         outboards: item.outboards.map((slot) => {
           const outboard = findMatch(outboardGear, slot.outboardName, slot.outboardManufacturer)
           return {

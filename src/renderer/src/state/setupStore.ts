@@ -1,7 +1,12 @@
 import { create } from 'zustand'
 import { temporal } from 'zundo'
 import type { SetupItemDraft, SetupItemOutboardSlot, SetupWithItems } from '@shared/types/setup'
-import { ALL_COLUMN_KEYS, parseColumnOrder, type SetupColumnKey } from '@shared/constants/setupColumns'
+import {
+  ALL_COLUMN_KEYS,
+  parseColumnOrder,
+  type ExportColumnOverrides,
+  type SetupColumnKey
+} from '@shared/constants/setupColumns'
 import { useColumnPrefsStore } from './columnPrefsStore'
 import { useToastStore } from './toastStore'
 
@@ -28,7 +33,7 @@ export interface ResolvedChannelPresetItem {
   preampName: string | null
   channel: number | null
   tieLine: number | null
-  cueBox: number | null
+  cueBox: string | null
   polarityFlip: boolean | null
   notes: string | null
   color: string | null
@@ -71,6 +76,11 @@ interface SetupState {
   /** Left-to-right column order, covering every key (hidden ones included) so toggling a column off
    *  and back on doesn't lose its place. Pair with visibleColumns via orderedVisibleColumns(). */
   columnOrder: SetupColumnKey[]
+  /** The user's explicit per-column export flips — only deviations from the computed default
+   *  (visible in the editor AND used in ≥1 row → exported), so an untouched column keeps
+   *  tracking the sheet's data. Shared by the PDF and spreadsheet export dialogs; see
+   *  state/exportColumns.ts for the resolve logic. */
+  exportColumnOverrides: ExportColumnOverrides
   /** Contiguous row selection (click = single, shift-click = range from the anchor). */
   selectedItemIds: Set<number | string>
   /** The last plain-clicked row — shift-click selects the range between it and the clicked row. */
@@ -101,6 +111,7 @@ interface SetupState {
   setFacultyReserveEnabled(enabled: boolean): void
   setColumnVisibility(key: SetupColumnKey, visible: boolean): void
   setColumnOrder(order: SetupColumnKey[]): void
+  setExportColumnOverrides(overrides: ExportColumnOverrides): void
   resetColumnsToDefault(): void
   addItem(instrumentType: string, defaults?: NewItemDefaults): string
   addItemAt(instrumentType: string, defaults: NewItemDefaults): string
@@ -154,6 +165,7 @@ export function createSetupStore() {
   outboardColumnCount: 1,
   visibleColumns: [...ALL_COLUMN_KEYS],
   columnOrder: [...ALL_COLUMN_KEYS],
+  exportColumnOverrides: {},
   selectedItemIds: new Set<number | string>(),
   selectionAnchorId: null,
   numberingFocusTick: 0,
@@ -179,6 +191,7 @@ export function createSetupStore() {
       // columns immediately; createSetup persists the same snapshot to the DB on first save.
       visibleColumns: [...useColumnPrefsStore.getState().defaultVisibleColumns],
       columnOrder: [...useColumnPrefsStore.getState().defaultColumnOrder],
+      exportColumnOverrides: {},
       selectedItemIds: new Set(),
       selectionAnchorId: null,
       unresolvedGearHints: new Map(),
@@ -202,6 +215,7 @@ export function createSetupStore() {
       outboardColumnCount: setup.outboardColumnCount,
       visibleColumns: setup.visibleColumns,
       columnOrder: setup.columnOrder,
+      exportColumnOverrides: setup.exportColumnOverrides,
       selectedItemIds: new Set(),
       selectionAnchorId: null,
       unresolvedGearHints: new Map(),
@@ -232,6 +246,15 @@ export function createSetupStore() {
     set({ columnOrder: next, isDirty: true })
     const { setupId } = get()
     if (setupId) void window.api.setups.setColumnOrder(setupId, next)
+  },
+
+  // Which columns land on an export, remembered per setup. Same write-through shape as the two
+  // above (and re-asserted in save()). Deliberately does NOT set isDirty: flipping an export chip
+  // isn't an edit to the sheet, and shouldn't make a just-saved setup look unsaved.
+  setExportColumnOverrides: (overrides) => {
+    set({ exportColumnOverrides: overrides })
+    const { setupId } = get()
+    if (setupId) void window.api.setups.setExportColumnOverrides(setupId, overrides)
   },
 
   resetColumnsToDefault: () => {
@@ -444,7 +467,9 @@ export function createSetupStore() {
       return {
         items: state.items.map((item) => {
           if (!targetAll && !state.selectedItemIds.has(item.id)) return item
-          return { ...item, [field]: next++ }
+          const value = next++
+          // Cue box is a free-text field (stereo cues like "1-2"), so numbering writes strings.
+          return field === 'cueBox' ? { ...item, cueBox: String(value) } : { ...item, [field]: value }
         }),
         isDirty: true
       }
@@ -481,7 +506,7 @@ export function createSetupStore() {
           phantomPower: false,
           channel: item.channel != null ? Math.max(1, item.channel) : null,
           tieLine: item.tieLine != null ? Math.max(1, item.tieLine) : null,
-          cueBox: item.cueBox != null ? Math.max(1, item.cueBox) : null,
+          cueBox: item.cueBox,
           // Channel Presets stay single-outboard (a reusable "typical chain," not a multi-slot
           // capture) — the preset's one outboard value always lands in slot 0.
           outboards:
@@ -527,10 +552,6 @@ export function createSetupStore() {
         if (state.outboardColumnCount !== 1) {
           await window.api.setups.setOutboardColumnCount(setupId, state.outboardColumnCount)
         }
-        // createSetup snapshots the global default; overwrite with the store's columns in case the
-        // user adjusted them before this first save.
-        await window.api.setups.setVisibleColumns(setupId, state.visibleColumns)
-        await window.api.setups.setColumnOrder(setupId, state.columnOrder)
       } else {
         await window.api.setups.rename(
           setupId,
@@ -542,6 +563,16 @@ export function createSetupStore() {
           state.sessionNotes
         )
       }
+
+      // Columns are re-asserted on EVERY save, read fresh via get() rather than from the
+      // pre-await snapshot. Two failure modes this closes: (1) the Columns popover's own
+      // write-throughs are fire-and-forget, so a single dropped IPC would silently resurrect a
+      // hidden column on reopen; (2) on a FIRST save, a toggle made while create() was in flight
+      // couldn't write through (setupId was still null) and the snapshot here predates it — the
+      // stale write then clobbered the toggle and isDirty:false below discarded the retry.
+      await window.api.setups.setVisibleColumns(setupId, get().visibleColumns)
+      await window.api.setups.setColumnOrder(setupId, get().columnOrder)
+      await window.api.setups.setExportColumnOverrides(setupId, get().exportColumnOverrides)
 
       const itemsBeforeSave = state.items
       const saved = await window.api.setups.saveItems(

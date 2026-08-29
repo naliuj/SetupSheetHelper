@@ -5,7 +5,10 @@ import {
   parseVisibleColumns,
   serializeVisibleColumns,
   parseColumnOrder,
-  serializeColumnOrder
+  serializeColumnOrder,
+  parseExportColumnOverrides,
+  serializeExportColumnOverrides,
+  type ExportColumnOverrides
 } from '@shared/constants/setupColumns'
 import { APP_SETTINGS_KEYS } from '@shared/types/entities'
 import { getDb } from '../index'
@@ -31,6 +34,7 @@ interface SetupRow {
   outboard_column_count: number
   visible_columns: string | null
   column_order: string | null
+  export_column_overrides: string | null
   session_notes: string | null
   last_editor_mode: EditorMode
 }
@@ -53,6 +57,7 @@ function mapRow(row: SetupRow): Setup {
     outboardColumnCount: row.outboard_column_count,
     visibleColumns: parseVisibleColumns(row.visible_columns),
     columnOrder: parseColumnOrder(row.column_order),
+    exportColumnOverrides: parseExportColumnOverrides(row.export_column_overrides),
     sessionNotes: row.session_notes,
     lastEditorMode: row.last_editor_mode
   }
@@ -147,6 +152,12 @@ export function setColumnOrder(id: number, order: SetupColumnKey[]): void {
   getDb().prepare('UPDATE setups SET column_order = ? WHERE id = ?').run(serializeColumnOrder(order), id)
 }
 
+export function setExportColumnOverrides(id: number, overrides: ExportColumnOverrides): void {
+  getDb()
+    .prepare('UPDATE setups SET export_column_overrides = ? WHERE id = ?')
+    .run(serializeExportColumnOverrides(overrides), id)
+}
+
 export function setLastEditorMode(id: number, mode: EditorMode): void {
   getDb().prepare('UPDATE setups SET last_editor_mode = ? WHERE id = ?').run(mode, id)
 }
@@ -224,6 +235,13 @@ export function saveAsTemplate(setupId: number, name: string, folderId: number |
   const source = getSetupWithItems(setupId)
   if (!source) throw new Error('Setup not found')
   const template = createSetup(source.studioId, name, null, 'template', 'custom', folderId)
+  // Column layout is part of the reusable structure (which columns, in what order) — without
+  // this, every sheet made from the template reverted to the global default and a column the
+  // user hides kept "coming back." Mirrors duplicateSetup below.
+  setOutboardColumnCount(template.id, source.outboardColumnCount)
+  setVisibleColumns(template.id, source.visibleColumns)
+  setColumnOrder(template.id, source.columnOrder)
+  setExportColumnOverrides(template.id, source.exportColumnOverrides)
   copyItemsToSetup(setupId, template.id, { blankRoomSpecificFields: true })
   return template
 }
@@ -262,6 +280,7 @@ export function duplicateSetup(
   setOutboardColumnCount(setup.id, source.outboardColumnCount)
   setVisibleColumns(setup.id, source.visibleColumns)
   setColumnOrder(setup.id, source.columnOrder)
+  setExportColumnOverrides(setup.id, source.exportColumnOverrides)
   copyItemsToSetup(sourceSetupId, setup.id)
   copyBlocksToSetup(sourceSetupId, setup.id)
   const override = getSetupLayoutOverride(sourceSetupId)
@@ -290,6 +309,11 @@ export function instantiateFromTemplate(templateId: number): Setup {
     'setup',
     null
   )
+  // Carry the template's column layout onto the new sheet (see saveAsTemplate's note).
+  setOutboardColumnCount(setup.id, template.outboardColumnCount)
+  setVisibleColumns(setup.id, template.visibleColumns)
+  setColumnOrder(setup.id, template.columnOrder)
+  setExportColumnOverrides(setup.id, template.exportColumnOverrides)
   copyItemsToSetup(templateId, setup.id)
   return setup
 }

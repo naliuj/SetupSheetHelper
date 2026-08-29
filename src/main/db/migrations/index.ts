@@ -37,6 +37,7 @@ import { run as setupEditorMode } from './031_setup_editor_mode'
 // run branch has claimed — the runner keys off the version, not the file.
 import { run as setupColumnOrder } from './034_setup_column_order'
 import { run as refreshBerkleeMicLockers } from './035_refresh_berklee_mic_lockers'
+import { run as exportColumnOverrides } from './036_export_column_overrides'
 
 export interface SqlMigration {
   version: number
@@ -83,5 +84,6 @@ export const MIGRATIONS: Migration[] = [
   { version: 30, run: goboHeight },
   { version: 31, run: setupEditorMode },
   { version: 34, run: setupColumnOrder },
-  { version: 35, run: refreshBerkleeMicLockers }
+  { version: 35, run: refreshBerkleeMicLockers },
+  { version: 36, run: exportColumnOverrides }
 ]

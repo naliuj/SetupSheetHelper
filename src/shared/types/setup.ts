@@ -1,4 +1,4 @@
-import type { SetupColumnKey } from '../constants/setupColumns'
+import type { ExportColumnOverrides, SetupColumnKey } from '../constants/setupColumns'
 
 export type SetupKind = 'setup' | 'template'
 export type TemplateSource = 'berklee' | 'custom'
@@ -44,7 +44,10 @@ export interface SetupItem {
   phantomPower: boolean
   channel: number | null
   tieLine: number | null
-  cueBox: number | null
+  /** Free text, not a number: a cue is often a stereo pair summed on the console ("1-2"), or any
+   *  other label the engineer uses. Legacy rows hold integers in the DB — coerced to strings at
+   *  the repo mapRow layer (see setupItemsRepo). */
+  cueBox: string | null
   outboards: SetupItemOutboardSlot[]
   preampId: number | null
   preampText: string | null
@@ -111,6 +114,10 @@ export interface Setup {
    *  put it. Render order is `columnOrder.filter(k => visibleColumns.includes(k))` — use
    *  orderedVisibleColumns() rather than doing it by hand. Null DB value → canonical order. */
   columnOrder: SetupColumnKey[]
+  /** Per-column export flips (see ExportColumnOverrides) — deviations from the "visible and
+   *  used → exported" default, shared by the PDF and spreadsheet exports. Always resolved to a
+   *  concrete (possibly empty) map on read. */
+  exportColumnOverrides: ExportColumnOverrides
   /** Free-text session notes (tuning reference, mic-array spacing, or anything else) — deliberately
    *  unstructured. Null/blank means nothing to show in Setup Settings or on the PDF export. */
   sessionNotes: string | null

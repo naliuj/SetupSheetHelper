@@ -62,15 +62,22 @@ export async function exportSetupSpreadsheet(input: ExportSetupSpreadsheetInput)
     setup.items.flatMap((item) => item.outboards.flatMap((s) => (s.outboardId != null ? [s.outboardId] : [])))
   )
 
+  // Which columns get written. Normally the renderer's export chips have already decided —
+  // `includeColumns` is the resolved, ordered list the user saw and could flip. Falling back to
+  // the setup's own visible columns covers callers that predate the chips. Note the deliberate
+  // behavior change the chips bring: their defaults leave EMPTY columns off, where this export
+  // previously wrote every visible column blank-or-not. 'stereoLink' is skipped either way —
+  // it's a row-pairing ornament, not data, with no spreadsheet equivalent.
+  const exportedKeys = (
+    input.includeColumns ?? orderedVisibleColumns(setup.columnOrder, setup.visibleColumns)
+  ).filter((key) => key !== 'stereoLink')
   // Still needed below when filling each row's values: exceljs maps values to columns BY KEY, so
   // that loop is order-independent and only cares whether a column is present at all.
-  const shownColumns = new Set(setup.visibleColumns)
-  // Source name is always leftmost; everything after it follows the setup's own column order, so
-  // the spreadsheet reads left-to-right the same way the on-screen table does. 'stereoLink' is
-  // skipped — it's a row-pairing ornament, not data, and has no spreadsheet equivalent.
+  const shownColumns = new Set(exportedKeys)
+  // Source name is always leftmost; everything after it follows the resolved order, so the
+  // spreadsheet reads left-to-right the same way the on-screen table does.
   const columns: ColumnDef[] = [{ key: 'sourceName', header: 'Source name', width: BASE_WIDTHS.sourceName }]
-  for (const key of orderedVisibleColumns(setup.columnOrder, setup.visibleColumns)) {
-    if (key === 'stereoLink') continue
+  for (const key of exportedKeys) {
     if (key === 'outboard') {
       // One real column per slot — deliberately NOT consolidated into one cell like the PDF export,
       // since a spreadsheet has no print-width constraint to save.
@@ -109,7 +116,7 @@ export async function exportSetupSpreadsheet(input: ExportSetupSpreadsheetInput)
     if (shownColumns.has('channel')) values.channel = item.channel != null ? String(item.channel) : ''
     if (shownColumns.has('preamp')) values.preamp = resolvePreampText(item, preampById)
     if (shownColumns.has('tieLine')) values.tieLine = item.tieLine != null ? String(item.tieLine) : ''
-    if (shownColumns.has('cueBox')) values.cueBox = item.cueBox != null ? String(item.cueBox) : ''
+    if (shownColumns.has('cueBox')) values.cueBox = item.cueBox ?? ''
     if (shownColumns.has('polarity')) values.polarity = item.polarityFlip ? 'Yes' : ''
     if (shownColumns.has('notes')) values.notes = item.notes ?? ''
 

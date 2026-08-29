@@ -144,6 +144,8 @@ const api: RendererApi = {
       ipcRenderer.invoke(IPC.setups.setOutboardColumnCount, setupId, count),
     setVisibleColumns: (setupId, columns) => ipcRenderer.invoke(IPC.setups.setVisibleColumns, setupId, columns),
     setColumnOrder: (setupId, order) => ipcRenderer.invoke(IPC.setups.setColumnOrder, setupId, order),
+    setExportColumnOverrides: (setupId, overrides) =>
+      ipcRenderer.invoke(IPC.setups.setExportColumnOverrides, setupId, overrides),
     setLastEditorMode: (id, mode) => ipcRenderer.invoke(IPC.setups.setLastEditorMode, id, mode),
     remove: (id) => ipcRenderer.invoke(IPC.setups.remove, id),
     removeMany: (ids) => ipcRenderer.invoke(IPC.setups.removeMany, ids),

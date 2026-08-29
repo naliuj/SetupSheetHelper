@@ -12,7 +12,11 @@ interface SetupItemRow {
   phantom_power: number
   channel: number | null
   tie_line: number | null
-  cue_box: number | null
+  /** Declared INTEGER in the schema, but cue values are free text now ("1-2" stereo pairs) —
+   *  SQLite's column affinity stores non-numeric strings as TEXT in an INTEGER column, while
+   *  legacy rows (and plain digits, which affinity converts) come back as numbers. mapRow
+   *  normalizes both to string. */
+  cue_box: number | string | null
   preamp_id: number | null
   preamp_text: string | null
   polarity_flip: number
@@ -40,7 +44,7 @@ function mapRow(row: SetupItemRow, outboards: SetupItemOutboardSlot[]): SetupIte
     phantomPower: row.phantom_power === 1,
     channel: row.channel,
     tieLine: row.tie_line,
-    cueBox: row.cue_box,
+    cueBox: row.cue_box != null ? String(row.cue_box) : null,
     outboards,
     preampId: row.preamp_id,
     preampText: row.preamp_text,

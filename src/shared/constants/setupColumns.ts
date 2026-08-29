@@ -101,6 +101,36 @@ export function serializeColumnOrder(keys: SetupColumnKey[]): string {
   return JSON.stringify(parseColumnOrder(JSON.stringify(keys)))
 }
 
+/** The user's explicit per-column export flips, keyed by column. Only deviations from the
+ *  computed default (visible in editor AND used in ≥1 row → exported) are stored, so untouched
+ *  columns keep tracking the sheet's data. Persisted per setup as JSON in
+ *  `setups.export_column_overrides`; see exportColumns.ts (renderer) for the default/resolve
+ *  logic. */
+export type ExportColumnOverrides = Partial<Record<SetupColumnKey, 'show' | 'hide'>>
+
+/** Parse a stored `export_column_overrides` value. Defensive like parseColumnOrder: unknown keys
+ *  and non-'show'/'hide' values are dropped; null/garbage → no overrides. */
+export function parseExportColumnOverrides(raw: string | null | undefined): ExportColumnOverrides {
+  if (!raw) return {}
+  try {
+    const obj = JSON.parse(raw) as unknown
+    if (obj == null || typeof obj !== 'object' || Array.isArray(obj)) return {}
+    const out: ExportColumnOverrides = {}
+    for (const [k, v] of Object.entries(obj)) {
+      if (ALL_COLUMN_KEYS.includes(k as SetupColumnKey) && (v === 'show' || v === 'hide')) {
+        out[k as SetupColumnKey] = v
+      }
+    }
+    return out
+  } catch {
+    return {}
+  }
+}
+
+export function serializeExportColumnOverrides(overrides: ExportColumnOverrides): string {
+  return JSON.stringify(parseExportColumnOverrides(JSON.stringify(overrides)))
+}
+
 /** The visible columns in the user's chosen order — the single helper every renderer and exporter
  *  should use, so the on-screen table, the PDF, and the spreadsheet can't drift apart. */
 export function orderedVisibleColumns(
