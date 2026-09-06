@@ -319,5 +319,17 @@ export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
       'Empty and hidden columns start switched off, and one click puts any of them back on the export.',
       'Hiding a column now sticks: it stays hidden when you save a setup, and studio templates keep your column layout.'
     ]
+  },
+  {
+    version: '1.15.0',
+    date: '2026-09-06',
+    highlights: [
+      'Berklee studios now have preamp lists. The Preamp column had nothing to offer in those rooms because every preamp was filed under Outboard \u2014 Neve 1073s and 1084s, API 512c, GML 2020 and the TRUE Precision8 have moved across.',
+      'Units that are both a preamp and a compressor \u2014 the UA 6176 and Millennia STT-1 \u2014 stay in both lists, and the two share one count, so two 6176s can\'t turn into four. Patching one as a channel\'s preamp already gives you its compressor, so it\'s recorded once per row.',
+      'Gear stocked in more than one place now shows as a single entry when you search \u2014 an SM-57 in both your studio and the building office reads "0/6 in use", and your studio\'s own copies get used first.',
+      'Session gear now appears in the mic, outboard and preamp menus as soon as you add it, instead of only after reopening the setup.',
+      'Cleaned up gear names across Berklee\'s lists \u2014 no more "API API 2500", no more the same mic spelled two ways, and corrected manufacturers (Lexicon, Summit Audio, Chandler Limited, Bricasti Design, Tech 21).',
+      'Quick Setup\'s mic suggestions no longer list the same model twice, and picking one fills in just the model rather than repeating the brand.'
+    ]
   }
 ]
