@@ -5,6 +5,7 @@ import { guessManufacturer } from '@shared/constants/manufacturers'
 import { stripManufacturerPrefix } from '@shared/utils/manufacturerPrefix'
 import { useGearCatalogueSuggestions } from '@renderer/state/useGearCatalogueSuggestions'
 import { useModelSuggestions } from '@renderer/state/useModelSuggestions'
+import SuggestInput from '@renderer/components/SuggestInput'
 
 function FacultyReserveMicsSection({
   manufacturerSuggestions,
@@ -152,29 +153,15 @@ function FacultyReserveMicsSection({
       {mics.length === 0 && <div className="empty-state">No faculty reserve mics yet.</div>}
 
       <div className="inline-form">
-        <input
+        <SuggestInput
           placeholder="Manufacturer"
           value={manufacturer}
-          onChange={(e) => setManufacturer(e.target.value)}
-          list="faculty-reserve-mic-manufacturers"
-        />
-        <datalist id="faculty-reserve-mic-manufacturers">
-          {manufacturerSuggestions.map((m) => (
-            <option key={m} value={m} />
-          ))}
-        </datalist>
-        <input
+          onChange={(v) => setManufacturer(v)} suggestions={manufacturerSuggestions} />
+        <SuggestInput
           placeholder="Mic name"
           value={name}
-          onChange={(e) => setName(e.target.value)}
-          onBlur={handleNameBlur}
-          list="faculty-reserve-mic-models"
-        />
-        <datalist id="faculty-reserve-mic-models">
-          {modelSuggestions.map((m) => (
-            <option key={m} value={m} />
-          ))}
-        </datalist>
+          onChange={(v) => setName(v)}
+          onBlur={handleNameBlur} suggestions={modelSuggestions} />
         <input placeholder="Category (optional)" value={category} onChange={(e) => setCategory(e.target.value)} />
         <input
           type="number"
@@ -331,29 +318,15 @@ function FacultyReserveOutboardSection({
       {gear.length === 0 && <div className="empty-state">No faculty reserve outboard gear yet.</div>}
 
       <div className="inline-form">
-        <input
+        <SuggestInput
           placeholder="Manufacturer"
           value={manufacturer}
-          onChange={(e) => setManufacturer(e.target.value)}
-          list="faculty-reserve-outboard-manufacturers"
-        />
-        <datalist id="faculty-reserve-outboard-manufacturers">
-          {manufacturerSuggestions.map((m) => (
-            <option key={m} value={m} />
-          ))}
-        </datalist>
-        <input
+          onChange={(v) => setManufacturer(v)} suggestions={manufacturerSuggestions} />
+        <SuggestInput
           placeholder="Gear name (e.g. 1176 Compressor)"
           value={name}
-          onChange={(e) => setName(e.target.value)}
-          onBlur={handleNameBlur}
-          list="faculty-reserve-outboard-models"
-        />
-        <datalist id="faculty-reserve-outboard-models">
-          {modelSuggestions.map((m) => (
-            <option key={m} value={m} />
-          ))}
-        </datalist>
+          onChange={(v) => setName(v)}
+          onBlur={handleNameBlur} suggestions={modelSuggestions} />
         <input placeholder="Category (optional)" value={category} onChange={(e) => setCategory(e.target.value)} />
         <input
           type="number"
@@ -490,29 +463,15 @@ function FacultyReservePreampsSection({
       {preamps.length === 0 && <div className="empty-state">No faculty reserve preamps yet.</div>}
 
       <div className="inline-form">
-        <input
+        <SuggestInput
           placeholder="Manufacturer"
           value={manufacturer}
-          onChange={(e) => setManufacturer(e.target.value)}
-          list="faculty-reserve-preamp-manufacturers"
-        />
-        <datalist id="faculty-reserve-preamp-manufacturers">
-          {manufacturerSuggestions.map((m) => (
-            <option key={m} value={m} />
-          ))}
-        </datalist>
-        <input
+          onChange={(v) => setManufacturer(v)} suggestions={manufacturerSuggestions} />
+        <SuggestInput
           placeholder="Preamp name (e.g. 8-channel)"
           value={name}
-          onChange={(e) => setName(e.target.value)}
-          onBlur={handleNameBlur}
-          list="faculty-reserve-preamp-models"
-        />
-        <datalist id="faculty-reserve-preamp-models">
-          {modelSuggestions.map((m) => (
-            <option key={m} value={m} />
-          ))}
-        </datalist>
+          onChange={(v) => setName(v)}
+          onBlur={handleNameBlur} suggestions={modelSuggestions} />
         <input placeholder="Category (optional)" value={category} onChange={(e) => setCategory(e.target.value)} />
         <input
           type="number"

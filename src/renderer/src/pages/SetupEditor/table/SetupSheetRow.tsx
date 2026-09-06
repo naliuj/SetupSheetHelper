@@ -8,7 +8,7 @@ import type { SetupColumnKey } from '@shared/constants/setupColumns'
 import type { Mic, OutboardGear, Preamp } from '@shared/types/entities'
 import type { UnresolvedGearHint } from '@renderer/state/setupStore'
 import ManufacturerPickerDropdown from '@renderer/components/ManufacturerPickerDropdown'
-import SuggestInput from '@renderer/components/SuggestInput'
+import SuggestInput, { type Suggestion } from '@renderer/components/SuggestInput'
 import CustomGearModal from '@renderer/components/CustomGearModal'
 import { applyMicPoolNotesTag } from '@renderer/state/micPoolNotesTag'
 import { useBufferedField } from './useBufferedField'
@@ -74,7 +74,7 @@ function OutboardSlotCell({
   /** Which Outboard column this cell is — the capacity check needs it so replacing the unit
    *  already in THIS slot doesn't count as adding a second one. */
   slotIndex: number
-  outboardSuggestions: string[]
+  outboardSuggestions: Suggestion[]
   hintText: string | undefined
   onSlotChange: (patch: Partial<Pick<SetupItemOutboardSlot, 'outboardId' | 'outboardText'>>) => void
 }): JSX.Element {
@@ -143,9 +143,9 @@ interface Props {
    *  it isn't reorderable: it draws an absolutely-positioned bracket that only reads at the edge. */
   showStereoLink: boolean
   isTemporary: boolean
-  micSuggestions: string[]
-  outboardSuggestions: string[]
-  preampSuggestions: string[]
+  micSuggestions: Suggestion[]
+  outboardSuggestions: Suggestion[]
+  preampSuggestions: Suggestion[]
   selected: boolean
   /** Whether this row hosts a link button on its bottom seam (true for every row except the last) —
    *  clicking it links this row with the one directly below, at any position. */

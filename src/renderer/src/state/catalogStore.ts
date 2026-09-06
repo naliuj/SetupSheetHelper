@@ -16,6 +16,11 @@ interface CatalogState {
     setupId?: number | null,
     facultyReserveEnabled?: boolean
   ): Promise<void>
+  /** Re-runs the last load with the same arguments. Needed because the only caller of
+   *  loadForStudio is an effect keyed on studio/building/setup identity, so editing the Session
+   *  Gear Locker — which renders inside that very component and changes no identity — otherwise
+   *  left the dropdowns showing a stale catalogue until the setup was reopened. */
+  reload(): Promise<void>
 }
 
 /** Builds one independent catalogue-store instance — its own mics/outboard/preamps for whichever
@@ -27,7 +32,14 @@ interface CatalogState {
  *  same-studio pairing (identical catalogue either way); once panes can be different studios,
  *  whichever pane loaded last would otherwise clobber the other's dropdowns. */
 export function createCatalogStore() {
-  return create<CatalogState>((set) => ({
+  let lastArgs: {
+    studioId: number
+    buildingId: number | null
+    setupId?: number | null
+    facultyReserveEnabled?: boolean
+  } | null = null
+
+  return create<CatalogState>((set, get) => ({
     studioId: null,
     buildingId: null,
     isTemporary: false,
@@ -37,6 +49,9 @@ export function createCatalogStore() {
     loading: false,
 
     loadForStudio: async (studioId, buildingId, setupId, facultyReserveEnabled) => {
+      // Remembered so reload() can repeat this exact call; setupId and facultyReserveEnabled were
+      // previously dropped on the floor, and both change what the union contains.
+      lastArgs = { studioId, buildingId, setupId, facultyReserveEnabled }
       set({ loading: true, studioId, buildingId })
       const [studio, mics, outboardGear, preamps] = await Promise.all([
         window.api.studios.get(studioId),
@@ -51,6 +66,12 @@ export function createCatalogStore() {
         isTemporary: studio?.isTemporary ?? false,
         loading: false
       })
+    },
+
+    reload: async () => {
+      if (!lastArgs) return
+      const { studioId, buildingId, setupId, facultyReserveEnabled } = lastArgs
+      await get().loadForStudio(studioId, buildingId, setupId, facultyReserveEnabled)
     }
   }))
 }

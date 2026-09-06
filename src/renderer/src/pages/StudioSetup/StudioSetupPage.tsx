@@ -10,6 +10,7 @@ import FolderPicker from '@renderer/components/FolderPicker'
 import ManufacturerPickerDropdown from '@renderer/components/ManufacturerPickerDropdown'
 import ImportGearModal from './ImportGearModal'
 import LayoutFileUploader from '@renderer/components/LayoutFileUploader'
+import SuggestInput from '@renderer/components/SuggestInput'
 
 interface PendingItem {
   key: string
@@ -50,7 +51,6 @@ function dedupeByNameAndManufacturer<T extends { name: string; manufacturer: str
 interface ManualEntryFormProps {
   onAdd: (name: string, manufacturer: string | null, count: number) => void
   namePlaceholder: string
-  formId: string
   manufacturerSuggestions: string[]
   catalogueItems: { name: string; manufacturer: string | null }[]
   /** "Quantity" for mics/outboard, "Channels" for preamps. Defaults to "Quantity". */
@@ -60,7 +60,6 @@ interface ManualEntryFormProps {
 function ManualEntryForm({
   onAdd,
   namePlaceholder,
-  formId,
   manufacturerSuggestions,
   catalogueItems,
   countLabel = 'Quantity'
@@ -68,8 +67,6 @@ function ManualEntryForm({
   const [name, setName] = useState('')
   const [manufacturer, setManufacturer] = useState('')
   const [quantity, setQuantity] = useState('1')
-  const datalistId = `manufacturer-suggestions-${formId}`
-  const modelDatalistId = `model-suggestions-${formId}`
   const modelSuggestions = useModelSuggestions(catalogueItems, manufacturer)
 
   function handleAdd(): void {
@@ -90,29 +87,19 @@ function ManualEntryForm({
 
   return (
     <div className="inline-form" style={{ marginTop: 8 }}>
-      <input
+      <SuggestInput
         placeholder="Manufacturer"
         value={manufacturer}
-        onChange={(e) => setManufacturer(e.target.value)}
-        list={datalistId}
+        onChange={(v) => setManufacturer(v)}
+        suggestions={manufacturerSuggestions}
       />
-      <datalist id={datalistId}>
-        {manufacturerSuggestions.map((m) => (
-          <option key={m} value={m} />
-        ))}
-      </datalist>
-      <input
+      <SuggestInput
         placeholder={namePlaceholder}
         value={name}
-        onChange={(e) => setName(e.target.value)}
+        onChange={(v) => setName(v)}
         onBlur={handleNameBlur}
-        list={modelDatalistId}
+        suggestions={modelSuggestions}
       />
-      <datalist id={modelDatalistId}>
-        {modelSuggestions.map((m) => (
-          <option key={m} value={m} />
-        ))}
-      </datalist>
       <input
         type="number"
         min={1}
@@ -492,7 +479,6 @@ export default function StudioSetupPage(): JSX.Element {
         <ManualEntryForm
           onAdd={addManualMic}
           namePlaceholder="Mic name (e.g. Neumann U87)"
-          formId="mic"
           manufacturerSuggestions={catalogueManufacturers}
           catalogueItems={catalogueMics}
         />
@@ -550,7 +536,6 @@ export default function StudioSetupPage(): JSX.Element {
         <ManualEntryForm
           onAdd={addManualOutboard}
           namePlaceholder="Gear name (e.g. 1176 Compressor)"
-          formId="outboard"
           manufacturerSuggestions={catalogueManufacturers}
           catalogueItems={catalogueOutboard}
         />
@@ -608,7 +593,6 @@ export default function StudioSetupPage(): JSX.Element {
         <ManualEntryForm
           onAdd={addManualPreamp}
           namePlaceholder="Preamp name (e.g. 8-channel)"
-          formId="preamp"
           manufacturerSuggestions={catalogueManufacturers}
           catalogueItems={cataloguePreamps}
           countLabel="Channels"

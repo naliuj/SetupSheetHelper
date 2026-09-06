@@ -8,13 +8,34 @@ import { useCatalogStoreApi, useCatalogStoreState } from '@renderer/state/catalo
 import { useGearCatalogueSuggestions } from '@renderer/state/useGearCatalogueSuggestions'
 import { computeTieLineConflicts } from '@renderer/state/tieLineConflicts'
 import { computeUsageCounts, buildGearUsage } from '@renderer/state/usageCounts'
+import { formatGearLabel, gearIdentityKey, stripManufacturerPrefix } from '@shared/utils/manufacturerPrefix'
+import type { Suggestion } from '@renderer/components/SuggestInput'
 import SetupSheetRow from './SetupSheetRow'
 import { GENERIC_INSTRUMENT_TYPE } from './tableConstants'
 
-function toLabels(items: { name: string; manufacturer: string | null }[]): string[] {
-  const set = new Set<string>()
-  for (const item of items) set.add(item.manufacturer ? `${item.manufacturer} ${item.name}` : item.name)
-  return [...set].sort((a, b) => a.localeCompare(b))
+/** Quick Setup's free-text suggestions. Two things this has to get right, both of which used to
+ *  produce what looked like duplicate entries:
+ *
+ *  1. Gear names are inconsistent about embedding the manufacturer, so the seeded "API / API 2500"
+ *     and a hand-added "API / 2500" are the same box — formatGearLabel renders both as "API 2500".
+ *  2. The same model is stocked by many studios (an SM-57 exists in eight rows here), and spellings
+ *     differ only in case ("U87 AI" vs "U87 Ai"), so identical entries have to collapse on a
+ *     normalized key rather than on the exact string.
+ *
+ *  Punctuation variants ("KSM-27" vs "KSM27") deliberately do NOT collapse — those are genuine
+ *  inconsistencies in the catalogue, and quietly merging them would hide a data problem instead of
+ *  surfacing it. */
+function toSuggestions(items: { name: string; manufacturer: string | null }[]): Suggestion[] {
+  const byKey = new Map<string, Suggestion>()
+  for (const item of items) {
+    const key = gearIdentityKey(item.name, item.manufacturer)
+    if (byKey.has(key)) continue
+    byKey.set(key, {
+      label: formatGearLabel(item.name, item.manufacturer),
+      value: stripManufacturerPrefix(item.name, item.manufacturer ?? '')
+    })
+  }
+  return [...byKey.values()].sort((a, b) => a.label.localeCompare(b.label))
 }
 
 export default function SetupSheetTable(): JSX.Element {
@@ -268,9 +289,9 @@ export default function SetupSheetTable(): JSX.Element {
   // from, so they get autocomplete suggestions from every known model across every studio
   // instead — same source data Personal Gear/Faculty Reserve/Session Gear's forms use.
   const gearSuggestions = useGearCatalogueSuggestions()
-  const micSuggestions = useMemo(() => toLabels(gearSuggestions.mics), [gearSuggestions.mics])
-  const outboardSuggestions = useMemo(() => toLabels(gearSuggestions.outboard), [gearSuggestions.outboard])
-  const preampSuggestions = useMemo(() => toLabels(gearSuggestions.preamps), [gearSuggestions.preamps])
+  const micSuggestions = useMemo(() => toSuggestions(gearSuggestions.mics), [gearSuggestions.mics])
+  const outboardSuggestions = useMemo(() => toSuggestions(gearSuggestions.outboard), [gearSuggestions.outboard])
+  const preampSuggestions = useMemo(() => toSuggestions(gearSuggestions.preamps), [gearSuggestions.preamps])
 
   // Memoized on items: these are O(rows) and produce fresh Map identities, so recomputing
   // them on unrelated re-renders (selection, hints, catalog loads) both wasted the work and

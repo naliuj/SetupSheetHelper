@@ -4,6 +4,8 @@ import { guessManufacturer } from '@shared/constants/manufacturers'
 import { stripManufacturerPrefix } from '@shared/utils/manufacturerPrefix'
 import { useGearCatalogueSuggestions } from '@renderer/state/useGearCatalogueSuggestions'
 import { useModelSuggestions } from '@renderer/state/useModelSuggestions'
+import SuggestInput from '@renderer/components/SuggestInput'
+import { useCatalogStoreState } from '@renderer/state/catalogStoreContext'
 
 function SessionMicsSection({
   setupId,
@@ -20,9 +22,13 @@ function SessionMicsSection({
   const [category, setCategory] = useState('')
   const [quantity, setQuantity] = useState('1')
   const modelSuggestions = useModelSuggestions(catalogueMics, manufacturer)
+  const refreshCatalog = useCatalogStoreState((s) => s.reload)
 
   function reload(): void {
     window.api.mics.listSetupGear(setupId).then(setMics)
+    // The pickers read a separate catalogue store that nothing else invalidates — without this,
+    // gear added here doesn't reach the mic/outboard/preamp dropdowns until the setup is reopened.
+    void refreshCatalog()
   }
 
   useEffect(reload, [setupId])
@@ -63,18 +69,21 @@ function SessionMicsSection({
     const quantity = Math.max(1, newQuantity)
     patchMic(mic.id, { quantity })
     await window.api.mics.upsert({ ...mic, quantity })
+    await refreshCatalog()
   }
 
   async function updateManufacturer(mic: Mic, newManufacturer: string): Promise<void> {
     const manufacturer = newManufacturer || null
     patchMic(mic.id, { manufacturer })
     await window.api.mics.upsert({ ...mic, manufacturer })
+    await refreshCatalog()
   }
 
   async function updateName(mic: Mic, newName: string): Promise<void> {
     if (!newName.trim()) return
     patchMic(mic.id, { name: newName })
     await window.api.mics.upsert({ ...mic, name: newName.trim() })
+    await refreshCatalog()
   }
 
   async function remove(id: number): Promise<void> {
@@ -127,29 +136,15 @@ function SessionMicsSection({
       {mics.length === 0 && <div className="empty-state">No borrowed mics for this session yet.</div>}
 
       <div className="inline-form">
-        <input
+        <SuggestInput
           placeholder="Manufacturer"
           value={manufacturer}
-          onChange={(e) => setManufacturer(e.target.value)}
-          list="session-mic-manufacturers"
-        />
-        <datalist id="session-mic-manufacturers">
-          {manufacturerSuggestions.map((m) => (
-            <option key={m} value={m} />
-          ))}
-        </datalist>
-        <input
+          onChange={(v) => setManufacturer(v)} suggestions={manufacturerSuggestions} />
+        <SuggestInput
           placeholder="Mic name"
           value={name}
-          onChange={(e) => setName(e.target.value)}
-          onBlur={handleNameBlur}
-          list="session-mic-models"
-        />
-        <datalist id="session-mic-models">
-          {modelSuggestions.map((m) => (
-            <option key={m} value={m} />
-          ))}
-        </datalist>
+          onChange={(v) => setName(v)}
+          onBlur={handleNameBlur} suggestions={modelSuggestions} />
         <input placeholder="Category (optional)" value={category} onChange={(e) => setCategory(e.target.value)} />
         <input
           type="number"
@@ -183,9 +178,11 @@ function SessionOutboardSection({
   const [category, setCategory] = useState('')
   const [quantity, setQuantity] = useState('1')
   const modelSuggestions = useModelSuggestions(catalogueOutboard, manufacturer)
+  const refreshCatalog = useCatalogStoreState((s) => s.reload)
 
   function reload(): void {
     window.api.outboard.listSetupGear(setupId).then(setGear)
+    void refreshCatalog()
   }
 
   useEffect(reload, [setupId])
@@ -226,18 +223,21 @@ function SessionOutboardSection({
     const quantity = Math.max(1, newQuantity)
     patchGear(item.id, { quantity })
     await window.api.outboard.upsert({ ...item, quantity })
+    await refreshCatalog()
   }
 
   async function updateManufacturer(item: OutboardGear, newManufacturer: string): Promise<void> {
     const manufacturer = newManufacturer || null
     patchGear(item.id, { manufacturer })
     await window.api.outboard.upsert({ ...item, manufacturer })
+    await refreshCatalog()
   }
 
   async function updateName(item: OutboardGear, newName: string): Promise<void> {
     if (!newName.trim()) return
     patchGear(item.id, { name: newName })
     await window.api.outboard.upsert({ ...item, name: newName.trim() })
+    await refreshCatalog()
   }
 
   async function remove(id: number): Promise<void> {
@@ -288,29 +288,15 @@ function SessionOutboardSection({
       {gear.length === 0 && <div className="empty-state">No borrowed outboard gear for this session yet.</div>}
 
       <div className="inline-form">
-        <input
+        <SuggestInput
           placeholder="Manufacturer"
           value={manufacturer}
-          onChange={(e) => setManufacturer(e.target.value)}
-          list="session-outboard-manufacturers"
-        />
-        <datalist id="session-outboard-manufacturers">
-          {manufacturerSuggestions.map((m) => (
-            <option key={m} value={m} />
-          ))}
-        </datalist>
-        <input
+          onChange={(v) => setManufacturer(v)} suggestions={manufacturerSuggestions} />
+        <SuggestInput
           placeholder="Gear name (e.g. 1176 Compressor)"
           value={name}
-          onChange={(e) => setName(e.target.value)}
-          onBlur={handleNameBlur}
-          list="session-outboard-models"
-        />
-        <datalist id="session-outboard-models">
-          {modelSuggestions.map((m) => (
-            <option key={m} value={m} />
-          ))}
-        </datalist>
+          onChange={(v) => setName(v)}
+          onBlur={handleNameBlur} suggestions={modelSuggestions} />
         <input placeholder="Category (optional)" value={category} onChange={(e) => setCategory(e.target.value)} />
         <input
           type="number"
@@ -344,9 +330,11 @@ function SessionPreampsSection({
   const [category, setCategory] = useState('')
   const [channels, setChannels] = useState('1')
   const modelSuggestions = useModelSuggestions(cataloguePreamps, manufacturer)
+  const refreshCatalog = useCatalogStoreState((s) => s.reload)
 
   function reload(): void {
     window.api.preamps.listSetupGear(setupId).then(setPreamps)
+    void refreshCatalog()
   }
 
   useEffect(reload, [setupId])
@@ -387,18 +375,21 @@ function SessionPreampsSection({
     const channels = Math.max(1, newChannels)
     patchPreamp(preamp.id, { channels })
     await window.api.preamps.upsert({ ...preamp, channels })
+    await refreshCatalog()
   }
 
   async function updateManufacturer(preamp: Preamp, newManufacturer: string): Promise<void> {
     const manufacturer = newManufacturer || null
     patchPreamp(preamp.id, { manufacturer })
     await window.api.preamps.upsert({ ...preamp, manufacturer })
+    await refreshCatalog()
   }
 
   async function updateName(preamp: Preamp, newName: string): Promise<void> {
     if (!newName.trim()) return
     patchPreamp(preamp.id, { name: newName })
     await window.api.preamps.upsert({ ...preamp, name: newName.trim() })
+    await refreshCatalog()
   }
 
   async function remove(id: number): Promise<void> {
@@ -449,29 +440,15 @@ function SessionPreampsSection({
       {preamps.length === 0 && <div className="empty-state">No borrowed preamps for this session yet.</div>}
 
       <div className="inline-form">
-        <input
+        <SuggestInput
           placeholder="Manufacturer"
           value={manufacturer}
-          onChange={(e) => setManufacturer(e.target.value)}
-          list="session-preamp-manufacturers"
-        />
-        <datalist id="session-preamp-manufacturers">
-          {manufacturerSuggestions.map((m) => (
-            <option key={m} value={m} />
-          ))}
-        </datalist>
-        <input
+          onChange={(v) => setManufacturer(v)} suggestions={manufacturerSuggestions} />
+        <SuggestInput
           placeholder="Preamp name (e.g. 8-channel)"
           value={name}
-          onChange={(e) => setName(e.target.value)}
-          onBlur={handleNameBlur}
-          list="session-preamp-models"
-        />
-        <datalist id="session-preamp-models">
-          {modelSuggestions.map((m) => (
-            <option key={m} value={m} />
-          ))}
-        </datalist>
+          onChange={(v) => setName(v)}
+          onBlur={handleNameBlur} suggestions={modelSuggestions} />
         <input placeholder="Category (optional)" value={category} onChange={(e) => setCategory(e.target.value)} />
         <input
           type="number"
