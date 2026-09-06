@@ -41,7 +41,11 @@ const NAMES: Record<string, string> = {
   'Summit EQP-200A': 'Summit Audio EQP-200A',
   'Summit TLA-100A': 'Summit Audio TLA-100A',
   'Summit TLA-50': 'Summit Audio TLA-50',
-  'Chandler Zener Limited': 'Chandler Limited Zener Limited',
+  // "Zener Limited" is a typo for Chandler's Zener Limiter. Both the original spelling and the
+  // half-corrected one are listed, so a database that already ran an earlier build of this
+  // migration still lands on the right name.
+  'Chandler Zener Limited': 'Chandler Limited Zener Limiter',
+  'Chandler Limited Zener Limited': 'Chandler Limited Zener Limiter',
   'Bricasti M7 Reverb': 'Bricasti Design M7 Reverb',
   'Bricasti M7 Reverb with remote': 'Bricasti Design M7 Reverb with remote',
   'Tech21 SansAmp PSA-1': 'Tech 21 SansAmp PSA-1',
