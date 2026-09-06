@@ -54,7 +54,10 @@ interface Props<T extends PickerItem> {
   customValue?: string | null
 }
 
-const MENU_WIDTH = 220
+// 280 rather than 220: gear labels here carry a manufacturer and, on a consolidated search
+// row, the pools it spans — at the old width the "n/m in use" badge and the hint fought for room
+// and the hint ellipsised down to nothing useful.
+const MENU_WIDTH = 280
 const MENU_MAX_HEIGHT = 320
 
 function groupByManufacturer<T extends PickerItem>(list: T[]): MenuNode<T>[] {

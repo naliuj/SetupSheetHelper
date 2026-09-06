@@ -559,6 +559,15 @@ table.data-table td select {
   white-space: nowrap;
 }
 
+/* The label must be allowed to shrink, or `white-space: nowrap` above lets a long one push the
+   "n/m in use" badge clean out of the menu — which is exactly the number the row exists to show.
+   flex children default to min-width:auto, so this needs saying explicitly. */
+.picker-menu-row > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .picker-menu-row.hovered,
 .picker-menu-row:not(.disabled):hover {
   background: var(--color-accent);
