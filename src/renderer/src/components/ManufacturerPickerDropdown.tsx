@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { computeUsedByOthers } from '@renderer/state/usageCounts'
 import { stripManufacturerPrefix } from '@shared/utils/manufacturerPrefix'
 import Icon from '@renderer/components/Icon'
 
@@ -19,7 +18,12 @@ interface MenuNode<T extends PickerItem> {
 
 interface Props<T extends PickerItem> {
   items: T[]
-  usageCounts: Map<number, number>
+  /** Pooled uses charged to every field other than this one — the "n" in the "n/m in use" badge. */
+  usedByOthers: (item: T) => number
+  /** Whether picking this item here would exceed its capacity. Defaults to the plain
+   *  `usedByOthers >= getQuantity` rule; the outboard/preamp pickers override it because a unit
+   *  listed in both catalogs shares one pool (see buildGearUsage in state/usageCounts.ts). */
+  isAtCapacity?: (item: T) => boolean
   getQuantity: (item: T) => number
   selectedId: number | null
   onSelect: (id: number | null) => void
@@ -123,7 +127,8 @@ function clampPosition(anchor: Rect, mode: 'below' | 'right'): { top: number; le
 
 export default function ManufacturerPickerDropdown<T extends PickerItem>({
   items,
-  usageCounts,
+  usedByOthers,
+  isAtCapacity,
   getQuantity,
   selectedId,
   onSelect,
@@ -211,9 +216,11 @@ export default function ManufacturerPickerDropdown<T extends PickerItem>({
     setSearch('')
   }
 
+  const atCapacityFor = (item: T): boolean =>
+    isAtCapacity ? isAtCapacity(item) : usedByOthers(item) >= getQuantity(item)
+
   function handleLeafClick(item: T): void {
-    const used = computeUsedByOthers(usageCounts, selectedId, item.id)
-    if (used >= getQuantity(item)) return
+    if (atCapacityFor(item)) return
     onSelect(item.id)
     close()
   }
@@ -335,9 +342,9 @@ export default function ManufacturerPickerDropdown<T extends PickerItem>({
   }
 
   function renderItemRow(item: T, key: string, isHighlighted = false): React.ReactNode {
-    const used = computeUsedByOthers(usageCounts, selectedId, item.id)
+    const used = usedByOthers(item)
     const quantity = getQuantity(item)
-    const atCapacity = used >= quantity
+    const atCapacity = atCapacityFor(item)
     const isSelected = item.id === selectedId
 
     return (
@@ -416,9 +423,9 @@ export default function ManufacturerPickerDropdown<T extends PickerItem>({
         {nodes.map((node) => {
           const isLeaf = !!node.item
           const isHovered = hoveredKey === node.key
-          const used = isLeaf ? computeUsedByOthers(usageCounts, selectedId, node.item!.id) : 0
+          const used = isLeaf ? usedByOthers(node.item!) : 0
           const quantity = isLeaf ? getQuantity(node.item!) : 1
-          const atCapacity = isLeaf && used >= quantity
+          const atCapacity = isLeaf && atCapacityFor(node.item!)
           const isSelected = isLeaf && node.item!.id === selectedId
 
           return (

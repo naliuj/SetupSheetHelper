@@ -89,10 +89,13 @@ export function run(db: Database.Database): void {
       // A studio the user renamed or deleted is left alone rather than guessed at.
       if (!studio) continue
 
-      const preampKeys = new Set(
-        (livePreamps.all(studio.id) as { name: string; manufacturer: string | null }[]).map((p) =>
-          key(p.manufacturer, p.name)
-        )
+      // Keyed on NAME ALONE, deliberately — that's what `preamps.UNIQUE(studio_id, name)` binds on.
+      // Matching the fuller manufacturer+name key here would miss a studio preamp the user already
+      // named "Neve 1073" under a different (or null) manufacturer, fire the INSERT anyway, and
+      // abort the whole transaction on the constraint — which means the app fails to open the
+      // database at all. A guard has to match the constraint it is guarding.
+      const preampNames = new Set(
+        (livePreamps.all(studio.id) as { name: string }[]).map((p) => p.name.trim().toLowerCase())
       )
 
       const outboard = liveOutboard.all(studio.id) as {
@@ -109,7 +112,7 @@ export function run(db: Database.Database): void {
         const entry = splitByKey.get(key(row.manufacturer, row.name))
         if (!entry) continue
 
-        if (!preampKeys.has(key(row.manufacturer, row.name))) {
+        if (!preampNames.has(row.name.trim().toLowerCase())) {
           insertPreamp.run(
             studio.id,
             row.name,

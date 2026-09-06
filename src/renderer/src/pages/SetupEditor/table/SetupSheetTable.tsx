@@ -7,7 +7,7 @@ import { useSetupStoreApi, useSetupStoreState } from '@renderer/state/setupStore
 import { useCatalogStoreApi, useCatalogStoreState } from '@renderer/state/catalogStoreContext'
 import { useGearCatalogueSuggestions } from '@renderer/state/useGearCatalogueSuggestions'
 import { computeTieLineConflicts } from '@renderer/state/tieLineConflicts'
-import { computeUsageCounts, computeOutboardUsageCounts, pooledUsageCounts } from '@renderer/state/usageCounts'
+import { computeUsageCounts, buildGearUsage } from '@renderer/state/usageCounts'
 import SetupSheetRow from './SetupSheetRow'
 import { GENERIC_INSTRUMENT_TYPE } from './tableConstants'
 
@@ -277,20 +277,11 @@ export default function SetupSheetTable(): JSX.Element {
   // broke SetupSheetRow's memoization.
   const conflicts = useMemo(() => computeTieLineConflicts(items), [items])
   const micUsageCounts = useMemo(() => computeUsageCounts(items, 'micId'), [items])
-  // Outboard and preamp usage are pooled into each other: a few units (the UA 6176, the Millennia
-  // STT-1) sit in both catalogs on purpose, since they're a preamp AND a compressor. Assigning one
-  // as a preamp has to count against it in the Outboard picker too, or a studio's two 6176s would
-  // stretch to four. Inert for every unit that only appears in one catalog.
-  const rawOutboardUsage = useMemo(() => computeOutboardUsageCounts(items), [items])
-  const rawPreampUsage = useMemo(() => computeUsageCounts(items, 'preampId'), [items])
-  const outboardUsageCounts = useMemo(
-    () => pooledUsageCounts(rawOutboardUsage, outboardGear, rawPreampUsage, preamps),
-    [rawOutboardUsage, outboardGear, rawPreampUsage, preamps]
-  )
-  const preampUsageCounts = useMemo(
-    () => pooledUsageCounts(rawPreampUsage, preamps, rawOutboardUsage, outboardGear),
-    [rawPreampUsage, preamps, rawOutboardUsage, outboardGear]
-  )
+  // Outboard and preamp capacity are accounted for together: a few units (the UA 6176, the
+  // Millennia STT-1) are in both catalogs on purpose, being a preamp AND a compressor. See
+  // buildGearUsage — it shares one pool across rows while still letting a single box be both the
+  // preamp and the compressor on the SAME row.
+  const gearUsage = useMemo(() => buildGearUsage(items, outboardGear, preamps), [items, outboardGear, preamps])
   const sortableIds = useMemo(() => items.map((item) => item.id), [items])
 
   // Per-row link state, derived by adjacency (no odd/even bucket). Every row except the last hosts
@@ -381,8 +372,7 @@ export default function SetupSheetTable(): JSX.Element {
                     unresolvedGearHint={unresolvedGearHints.get(item.id)}
                     onClearUnresolvedGearHint={clearUnresolvedGearHint}
                     micUsageCounts={micUsageCounts}
-                    outboardUsageCounts={outboardUsageCounts}
-                    preampUsageCounts={preampUsageCounts}
+                    gearUsage={gearUsage}
                     onGutterClick={handleGutterClick}
                     onChange={updateItemFields}
                     onOutboardSlotChange={updateItemOutboardSlot}
