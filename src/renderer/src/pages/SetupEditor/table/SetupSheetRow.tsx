@@ -1,8 +1,9 @@
-import { Fragment, memo, useState } from 'react'
+import { Fragment, memo, useMemo, useState } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { AlertTriangle, GripVertical, Link2, X } from 'lucide-react'
 import { computeUsedByOthers, type GearUsage } from '@renderer/state/usageCounts'
+import { buildGearSearchGroups } from '@renderer/state/gearSearchGroups'
 import type { SetupItemDraft, SetupItemOutboardSlot } from '@shared/types/setup'
 import type { SetupColumnKey } from '@shared/constants/setupColumns'
 import type { Mic, OutboardGear, Preamp } from '@shared/types/entities'
@@ -78,6 +79,18 @@ function OutboardSlotCell({
   hintText: string | undefined
   onSlotChange: (patch: Partial<Pick<SetupItemOutboardSlot, 'outboardId' | 'outboardText'>>) => void
 }): JSX.Element {
+  // Hoisted to the component body: the picker below is behind an `isTemporary` branch, so a
+  // useMemo inline in its props would be a conditional hook.
+  const outboardSearchGroups = useMemo(
+    () =>
+      buildGearSearchGroups(outboardGear, {
+        capacity: outboardQuantity,
+        usedByOthers: (g) => gearUsage.usedByOthers('outboard', itemId, g.id),
+        isFull: (g) => gearUsage.wouldExceedCapacity('outboard', itemId, slotIndex, g.id, g.quantity),
+        poolLabel: outboardGroupBy
+      }),
+    [outboardGear, gearUsage, itemId, slotIndex]
+  )
   const outboardText = useBufferedField(slot?.outboardText ?? '', (v) => onSlotChange({ outboardText: v }))
   // Local, not lifted to the row: this cell is already its own component (see the extraction note
   // above), so it can own its "Custom…" modal directly instead of routing through SetupSheetRow.
@@ -98,6 +111,7 @@ function OutboardSlotCell({
           items={outboardGear}
           usedByOthers={(g) => gearUsage.usedByOthers('outboard', itemId, g.id)}
           isAtCapacity={(g) => gearUsage.wouldExceedCapacity('outboard', itemId, slotIndex, g.id, g.quantity)}
+          searchGroups={outboardSearchGroups}
           getQuantity={outboardQuantity}
           selectedId={slot?.outboardId ?? null}
           onSelect={(outboardId) => onSlotChange({ outboardId })}
@@ -318,6 +332,29 @@ function SetupSheetRow({
     onClearUnresolvedGearHint('preamp')
   }
 
+  // Both hoisted here rather than inline in the pickers' props: those live inside a per-column
+  // switch, so a useMemo down there would be a conditional hook and would blow up the moment a
+  // column was toggled.
+  const micSearchGroups = useMemo(
+    () =>
+      buildGearSearchGroups(mics, {
+        capacity: micQuantity,
+        usedByOthers: (m) => computeUsedByOthers(micUsageCounts, item.micId, m.id),
+        isFull: (m) => computeUsedByOthers(micUsageCounts, item.micId, m.id) >= m.quantity,
+        poolLabel: micGroupBy
+      }),
+    [mics, micUsageCounts, item.micId]
+  )
+  const preampSearchGroups = useMemo(
+    () =>
+      buildGearSearchGroups(preamps, {
+        capacity: preampQuantity,
+        usedByOthers: (p) => gearUsage.usedByOthers('preamp', item.id, p.id),
+        isFull: (p) => gearUsage.wouldExceedCapacity('preamp', item.id, null, p.id, p.channels),
+        poolLabel: preampGroupBy
+      }),
+    [preamps, gearUsage, item.id]
+  )
   const sourceName = useBufferedField(item.sourceName, (v) => onChange({ sourceName: v }))
   const micText = useBufferedField(item.micText ?? '', (v) => onChange({ micText: v }))
   const preampText = useBufferedField(item.preampText ?? '', (v) => onChange({ preampText: v }))
@@ -372,6 +409,7 @@ function SetupSheetRow({
               <ManufacturerPickerDropdown
                 items={mics}
                 usedByOthers={(m) => computeUsedByOthers(micUsageCounts, item.micId, m.id)}
+                searchGroups={micSearchGroups}
                 getQuantity={micQuantity}
                 selectedId={item.micId}
                 onSelect={handleMicChange}
@@ -458,6 +496,7 @@ function SetupSheetRow({
                 items={preamps}
                 usedByOthers={(p) => gearUsage.usedByOthers('preamp', item.id, p.id)}
                 isAtCapacity={(p) => gearUsage.wouldExceedCapacity('preamp', item.id, null, p.id, p.channels)}
+                searchGroups={preampSearchGroups}
                 getQuantity={preampQuantity}
                 selectedId={item.preampId}
                 onSelect={handlePreampChange}

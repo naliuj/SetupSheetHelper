@@ -221,7 +221,11 @@ export default function StudioSetupPage(): JSX.Element {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [studioSetupId])
 
-  function addMic(id: number | null): void {
+  /** Adding a model from the catalogue says "this studio has one of these" — the catalogue is a
+   *  list of gear TYPES, and whichever row happened to be first in it (some other studio's four
+   *  SM-57s) is not a statement about this room. Hence quantity 1 unless a caller knows better;
+   *  importing from a specific studio passes that studio's real count. */
+  function addMic(id: number | null, quantity = 1): void {
     const source = micCatalogueSource.find((m) => m.id === id)
     if (!source) return
     setPendingMics((prev) => [
@@ -231,12 +235,12 @@ export default function StudioSetupPage(): JSX.Element {
         name: source.name,
         manufacturer: source.manufacturer,
         category: source.category,
-        quantity: source.quantity
+        quantity
       }
     ])
   }
 
-  function addOutboard(id: number | null): void {
+  function addOutboard(id: number | null, quantity = 1): void {
     const source = outboardCatalogueSource.find((o) => o.id === id)
     if (!source) return
     setPendingOutboard((prev) => [
@@ -246,7 +250,7 @@ export default function StudioSetupPage(): JSX.Element {
         name: source.name,
         manufacturer: source.manufacturer,
         category: source.category,
-        quantity: source.quantity
+        quantity
       }
     ])
   }
@@ -266,9 +270,12 @@ export default function StudioSetupPage(): JSX.Element {
     ])
   }
 
+  /** Importing from a specific studio copies THAT studio's count, so the number matches the "(xN)"
+   *  the modal showed. Resolve against allMics/allOutboard (the studio-tagged lists the modal was
+   *  built from) — the id belongs to that studio's row, not to the deduped global catalogue. */
   function handleImportGear(micIds: number[], outboardIds: number[]): void {
-    for (const id of micIds) addMic(id)
-    for (const id of outboardIds) addOutboard(id)
+    for (const id of micIds) addMic(id, allMics.find((m) => m.id === id)?.quantity ?? 1)
+    for (const id of outboardIds) addOutboard(id, allOutboard.find((o) => o.id === id)?.quantity ?? 1)
   }
 
   function addManualMic(itemName: string, manufacturer: string | null, quantity: number): void {
