@@ -53,6 +53,10 @@ const NAMES: Record<string, string> = {
   'Tech21 Sansamp': 'Tech 21 SansAmp PSA-1',
   'TC Electronics M3000': 'TC Electronic M3000',
   'TC Electronics M-One': 'TC Electronic M-One',
+  // Studio A's lone "0131 FET" against five rooms' "013 FET" — Soyuz makes the 013, not an 0131,
+  // so this is a stray keystroke rather than a different mic, and it kept Studio A's copy from
+  // grouping with the others anywhere in the app.
+  '0131 FET': '013 FET',
   'KSM-27': 'KSM27',
   'U87 AI': 'U87 Ai',
   'AT-M87R': 'ATM-87R'
