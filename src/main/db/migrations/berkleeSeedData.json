@@ -3466,16 +3466,6 @@
     {
       "buildingName": "150",
       "studioName": "Studio A",
-      "name": "Neve 1073",
-      "manufacturer": "Neve",
-      "category": null,
-      "notes": null,
-      "quantity": 2,
-      "sortOrder": 0
-    },
-    {
-      "buildingName": "150",
-      "studioName": "Studio A",
       "name": "Neve 33609/J",
       "manufacturer": "Neve",
       "category": null,
@@ -3696,16 +3686,6 @@
     {
       "buildingName": "150",
       "studioName": "Studio E",
-      "name": "Neve 1084",
-      "manufacturer": "Neve",
-      "category": null,
-      "notes": null,
-      "quantity": 2,
-      "sortOrder": 0
-    },
-    {
-      "buildingName": "150",
-      "studioName": "Studio E",
       "name": "Summit Audio TLA-50",
       "manufacturer": "Summit Audio",
       "category": null,
@@ -3876,16 +3856,6 @@
     {
       "buildingName": "150",
       "studioName": "Studio B",
-      "name": "Neve 1084",
-      "manufacturer": "Neve",
-      "category": null,
-      "notes": null,
-      "quantity": 2,
-      "sortOrder": 0
-    },
-    {
-      "buildingName": "150",
-      "studioName": "Studio B",
       "name": "Roland SDE 3000",
       "manufacturer": "Roland",
       "category": null,
@@ -3986,28 +3956,8 @@
     {
       "buildingName": "150",
       "studioName": "Studio A76",
-      "name": "TRUE Systems Precision8",
-      "manufacturer": "True Systems",
-      "category": null,
-      "notes": null,
-      "quantity": 2,
-      "sortOrder": 0
-    },
-    {
-      "buildingName": "150",
-      "studioName": "Studio A76",
       "name": "Universal Audio 1176LN",
       "manufacturer": "Universal Audio",
-      "category": null,
-      "notes": null,
-      "quantity": 2,
-      "sortOrder": 0
-    },
-    {
-      "buildingName": "160",
-      "studioName": "Studio 1",
-      "name": "API 512c",
-      "manufacturer": "API",
       "category": null,
       "notes": null,
       "quantity": 2,
@@ -4236,16 +4186,6 @@
     {
       "buildingName": "160",
       "studioName": "Studio 2",
-      "name": "API 512c",
-      "manufacturer": "API",
-      "category": null,
-      "notes": null,
-      "quantity": 2,
-      "sortOrder": 0
-    },
-    {
-      "buildingName": "160",
-      "studioName": "Studio 2",
       "name": "API 550b",
       "manufacturer": "API",
       "category": null,
@@ -4298,16 +4238,6 @@
       "studioName": "Studio 2",
       "name": "Crane Song STC-8",
       "manufacturer": "Crane Song",
-      "category": null,
-      "notes": null,
-      "quantity": 1,
-      "sortOrder": 0
-    },
-    {
-      "buildingName": "160",
-      "studioName": "Studio 2",
-      "name": "GML 2020",
-      "manufacturer": "GML",
       "category": null,
       "notes": null,
       "quantity": 1,
@@ -4411,16 +4341,6 @@
       "category": null,
       "notes": null,
       "quantity": 2,
-      "sortOrder": 0
-    },
-    {
-      "buildingName": "160",
-      "studioName": "Studio 3",
-      "name": "API 512c",
-      "manufacturer": "API",
-      "category": null,
-      "notes": null,
-      "quantity": 1,
       "sortOrder": 0
     },
     {
@@ -4556,16 +4476,6 @@
     {
       "buildingName": "160",
       "studioName": "Studio 3",
-      "name": "Neve 1084",
-      "manufacturer": "Neve",
-      "category": null,
-      "notes": null,
-      "quantity": 1,
-      "sortOrder": 0
-    },
-    {
-      "buildingName": "160",
-      "studioName": "Studio 3",
       "name": "Neve 33609",
       "manufacturer": "Neve",
       "category": null,
@@ -4661,6 +4571,178 @@
       "category": null,
       "notes": null,
       "quantity": 2,
+      "sortOrder": 0
+    }
+  ],
+  "preamps": [
+    {
+      "buildingName": "150",
+      "studioName": "Studio A",
+      "name": "Neve 1073",
+      "manufacturer": "Neve",
+      "category": null,
+      "notes": null,
+      "channels": 2,
+      "sortOrder": 0
+    },
+    {
+      "buildingName": "150",
+      "studioName": "Studio A",
+      "name": "Universal Audio 6176",
+      "manufacturer": "Universal Audio",
+      "category": null,
+      "notes": null,
+      "channels": 2,
+      "sortOrder": 0
+    },
+    {
+      "buildingName": "150",
+      "studioName": "Studio E",
+      "name": "Neve 1084",
+      "manufacturer": "Neve",
+      "category": null,
+      "notes": null,
+      "channels": 2,
+      "sortOrder": 0
+    },
+    {
+      "buildingName": "150",
+      "studioName": "Studio B",
+      "name": "Neve 1084",
+      "manufacturer": "Neve",
+      "category": null,
+      "notes": null,
+      "channels": 2,
+      "sortOrder": 0
+    },
+    {
+      "buildingName": "150",
+      "studioName": "Studio B",
+      "name": "Universal Audio 6176",
+      "manufacturer": "Universal Audio",
+      "category": null,
+      "notes": null,
+      "channels": 1,
+      "sortOrder": 0
+    },
+    {
+      "buildingName": "150",
+      "studioName": "Studio A76",
+      "name": "TRUE Systems Precision8",
+      "manufacturer": "True Systems",
+      "category": null,
+      "notes": null,
+      "channels": 16,
+      "sortOrder": 0
+    },
+    {
+      "buildingName": "160",
+      "studioName": "Studio 1",
+      "name": "API 512c",
+      "manufacturer": "API",
+      "category": null,
+      "notes": null,
+      "channels": 2,
+      "sortOrder": 0
+    },
+    {
+      "buildingName": "160",
+      "studioName": "Studio 1",
+      "name": "Millennia Media STT-1",
+      "manufacturer": "Millennia Media",
+      "category": null,
+      "notes": null,
+      "channels": 1,
+      "sortOrder": 0
+    },
+    {
+      "buildingName": "160",
+      "studioName": "Studio 1",
+      "name": "Universal Audio 6176",
+      "manufacturer": "Universal Audio",
+      "category": null,
+      "notes": null,
+      "channels": 2,
+      "sortOrder": 0
+    },
+    {
+      "buildingName": "160",
+      "studioName": "Studio 2",
+      "name": "API 512c",
+      "manufacturer": "API",
+      "category": null,
+      "notes": null,
+      "channels": 2,
+      "sortOrder": 0
+    },
+    {
+      "buildingName": "160",
+      "studioName": "Studio 2",
+      "name": "GML 2020",
+      "manufacturer": "GML",
+      "category": null,
+      "notes": null,
+      "channels": 1,
+      "sortOrder": 0
+    },
+    {
+      "buildingName": "160",
+      "studioName": "Studio 2",
+      "name": "Millennia Media STT-1",
+      "manufacturer": "Millennia Media",
+      "category": null,
+      "notes": null,
+      "channels": 1,
+      "sortOrder": 0
+    },
+    {
+      "buildingName": "160",
+      "studioName": "Studio 2",
+      "name": "Universal Audio 6176",
+      "manufacturer": "Universal Audio",
+      "category": null,
+      "notes": null,
+      "channels": 2,
+      "sortOrder": 0
+    },
+    {
+      "buildingName": "160",
+      "studioName": "Studio 3",
+      "name": "API 512c",
+      "manufacturer": "API",
+      "category": null,
+      "notes": null,
+      "channels": 1,
+      "sortOrder": 0
+    },
+    {
+      "buildingName": "160",
+      "studioName": "Studio 3",
+      "name": "Millennia Media STT-1",
+      "manufacturer": "Millennia Media",
+      "category": null,
+      "notes": null,
+      "channels": 1,
+      "sortOrder": 0
+    },
+    {
+      "buildingName": "160",
+      "studioName": "Studio 3",
+      "name": "Neve 1084",
+      "manufacturer": "Neve",
+      "category": null,
+      "notes": null,
+      "channels": 1,
+      "sortOrder": 0
+    },
+    {
+      "buildingName": "160",
+      "studioName": "Studio 3",
+      "name": "Universal Audio 6176",
+      "manufacturer": "Universal Audio",
+      "category": null,
+      "notes": null,
+      "channels": 2,
       "sortOrder": 0
     }
   ]

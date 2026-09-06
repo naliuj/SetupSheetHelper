@@ -1,6 +1,6 @@
 // Regenerates src/main/db/migrations/berkleeSeedData.json from the live DB's institutional
 // Berklee data (buildings; studios WHERE building_id IS NOT NULL; mics WHERE pool_type IN
-// ('studio','building','faculty_reserve'); outboard_gear WHERE pool_type='studio'). Run this
+// ('studio','building','faculty_reserve'); outboard_gear and preamps WHERE pool_type='studio'). Run this
 // any time real data changes (e.g. Faculty Reserve or Building Office gear gets added) and
 // before the next build, so fresh installs stay in sync with the developer's live DB.
 //
@@ -67,6 +67,21 @@ const outboard = db
   )
   .all()
 
+// Preamps export alongside outboard. A few units are legitimately in BOTH lists — the UA 6176 and
+// Millennia STT-1 are channel strips that are a preamp and a compressor — so don't "de-duplicate"
+// across the two arrays; usageCounts.ts pools their capacity at runtime instead.
+const preamps = db
+  .prepare(
+    `SELECT b.name AS buildingName, s.name AS studioName, p.name, p.manufacturer, p.category, p.notes,
+            p.channels, p.sort_order AS sortOrder
+     FROM preamps p
+     JOIN studios s ON s.id = p.studio_id
+     JOIN buildings b ON b.id = s.building_id
+     WHERE p.pool_type = 'studio'
+     ORDER BY p.id`
+  )
+  .all()
+
 const outPath = path.join(__dirname, '..', 'src', 'main', 'db', 'migrations', 'berkleeSeedData.json')
 fs.writeFileSync(
   outPath,
@@ -77,7 +92,8 @@ fs.writeFileSync(
       buildings,
       studios,
       mics,
-      outboard
+      outboard,
+      preamps
     },
     null,
     2
@@ -85,6 +101,6 @@ fs.writeFileSync(
 )
 
 console.log(
-  `Wrote ${buildings.length} buildings, ${studios.length} studios, ${mics.length} mics, ${outboard.length} outboard rows to ${outPath}`
+  `Wrote ${buildings.length} buildings, ${studios.length} studios, ${mics.length} mics, ${outboard.length} outboard rows, ${preamps.length} preamps to ${outPath}`
 )
 db.close()
