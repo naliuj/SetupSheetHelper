@@ -482,7 +482,7 @@ export default function StudioSetupPage(): JSX.Element {
         <div className="section-title">Mics</div>
         <ManufacturerPickerDropdown
           items={catalogueMics}
-          usageCounts={new Map()}
+          usedByOthers={() => 0}
           getQuantity={(m) => m.quantity}
           selectedId={null}
           onSelect={addMic}
@@ -540,7 +540,7 @@ export default function StudioSetupPage(): JSX.Element {
         <div className="section-title">Outboard gear</div>
         <ManufacturerPickerDropdown
           items={catalogueOutboard}
-          usageCounts={new Map()}
+          usedByOthers={() => 0}
           getQuantity={(o) => o.quantity}
           selectedId={null}
           onSelect={addOutboard}
@@ -598,7 +598,7 @@ export default function StudioSetupPage(): JSX.Element {
         <div className="section-title">Preamps</div>
         <ManufacturerPickerDropdown
           items={cataloguePreamps}
-          usageCounts={new Map()}
+          usedByOthers={() => 0}
           getQuantity={(p) => p.channels}
           selectedId={null}
           onSelect={addPreamp}

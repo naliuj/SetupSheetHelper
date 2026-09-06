@@ -2,6 +2,7 @@ import { Fragment, memo, useState } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { AlertTriangle, GripVertical, Link2, X } from 'lucide-react'
+import { computeUsedByOthers, type GearUsage } from '@renderer/state/usageCounts'
 import type { SetupItemDraft, SetupItemOutboardSlot } from '@shared/types/setup'
 import type { SetupColumnKey } from '@shared/constants/setupColumns'
 import type { Mic, OutboardGear, Preamp } from '@shared/types/entities'
@@ -58,7 +59,9 @@ function OutboardSlotCell({
   slot,
   isTemporary,
   outboardGear,
-  outboardUsageCounts,
+  gearUsage,
+  itemId,
+  slotIndex,
   outboardSuggestions,
   hintText,
   onSlotChange
@@ -66,7 +69,11 @@ function OutboardSlotCell({
   slot: SetupItemOutboardSlot | undefined
   isTemporary: boolean
   outboardGear: OutboardGear[]
-  outboardUsageCounts: Map<number, number>
+  gearUsage: GearUsage
+  itemId: number | string
+  /** Which Outboard column this cell is — the capacity check needs it so replacing the unit
+   *  already in THIS slot doesn't count as adding a second one. */
+  slotIndex: number
   outboardSuggestions: string[]
   hintText: string | undefined
   onSlotChange: (patch: Partial<Pick<SetupItemOutboardSlot, 'outboardId' | 'outboardText'>>) => void
@@ -89,7 +96,8 @@ function OutboardSlotCell({
       ) : (
         <ManufacturerPickerDropdown
           items={outboardGear}
-          usageCounts={outboardUsageCounts}
+          usedByOthers={(g) => gearUsage.usedByOthers('outboard', itemId, g.id)}
+          isAtCapacity={(g) => gearUsage.wouldExceedCapacity('outboard', itemId, slotIndex, g.id, g.quantity)}
           getQuantity={outboardQuantity}
           selectedId={slot?.outboardId ?? null}
           onSelect={(outboardId) => onSlotChange({ outboardId })}
@@ -153,8 +161,7 @@ interface Props {
   unresolvedGearHint: UnresolvedGearHint | undefined
   onClearUnresolvedGearHint: (id: number | string, field: 'mic' | 'outboard' | 'preamp') => void
   micUsageCounts: Map<number, number>
-  outboardUsageCounts: Map<number, number>
-  preampUsageCounts: Map<number, number>
+  gearUsage: GearUsage
   onGutterClick: (e: React.MouseEvent, id: number | string) => void
   onChange: (id: number | string, patch: Partial<SetupItemDraft>) => void
   onOutboardSlotChange: (
@@ -202,8 +209,7 @@ function SetupSheetRow({
   unresolvedGearHint,
   onClearUnresolvedGearHint: onClearUnresolvedGearHintById,
   micUsageCounts,
-  outboardUsageCounts,
-  preampUsageCounts,
+  gearUsage,
   onGutterClick: onGutterClickById,
   onChange: onChangeById,
   onOutboardSlotChange: onOutboardSlotChangeById,
@@ -365,7 +371,7 @@ function SetupSheetRow({
             ) : (
               <ManufacturerPickerDropdown
                 items={mics}
-                usageCounts={micUsageCounts}
+                usedByOthers={(m) => computeUsedByOthers(micUsageCounts, item.micId, m.id)}
                 getQuantity={micQuantity}
                 selectedId={item.micId}
                 onSelect={handleMicChange}
@@ -413,7 +419,9 @@ function SetupSheetRow({
                 slot={item.outboards.find((s) => s.slotIndex === slotIndex)}
                 isTemporary={isTemporary}
                 outboardGear={outboardGear}
-                outboardUsageCounts={outboardUsageCounts}
+                gearUsage={gearUsage}
+                itemId={item.id}
+                slotIndex={slotIndex}
                 outboardSuggestions={outboardSuggestions}
                 hintText={slotIndex === 0 ? unresolvedGearHint?.outboard : undefined}
                 onSlotChange={(patch) => handleOutboardSlotChange(slotIndex, patch)}
@@ -448,7 +456,8 @@ function SetupSheetRow({
             ) : (
               <ManufacturerPickerDropdown
                 items={preamps}
-                usageCounts={preampUsageCounts}
+                usedByOthers={(p) => gearUsage.usedByOthers('preamp', item.id, p.id)}
+                isAtCapacity={(p) => gearUsage.wouldExceedCapacity('preamp', item.id, null, p.id, p.channels)}
                 getQuantity={preampQuantity}
                 selectedId={item.preampId}
                 onSelect={handlePreampChange}

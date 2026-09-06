@@ -45,6 +45,10 @@ export function seedBerkleeData(db: Database.Database): void {
       `INSERT INTO outboard_gear (pool_type, studio_id, name, manufacturer, category, notes, quantity, sort_order)
        VALUES ('studio', ?, ?, ?, ?, ?, ?, ?)`
     )
+    const insertPreamp = db.prepare(
+      `INSERT INTO preamps (pool_type, studio_id, name, manufacturer, category, notes, channels, sort_order)
+       VALUES ('studio', ?, ?, ?, ?, ?, ?, ?)`
+    )
 
     const buildingIdByName = new Map<string, number>()
     for (const b of seedData.buildings) {
@@ -78,6 +82,17 @@ export function seedBerkleeData(db: Database.Database): void {
       const studioId = studioIdByKey.get(`${o.buildingName}::${o.studioName}`)
       if (studioId == null) throw new Error(`Seed data error: unknown studio "${o.buildingName}/${o.studioName}"`)
       insertOutboard.run(studioId, o.name, o.manufacturer, o.category, o.notes, o.quantity, o.sortOrder)
+    }
+
+    // Preamps are studio-pool only (the fixture has no building/faculty-reserve preamps), and
+    // `channels` is the preamp analogue of quantity — see migration 037, which gives the same
+    // lockers to installs that were seeded before this section existed. A few of these units are
+    // ALSO in the outboard list above (the 6176 and STT-1 are compressors as well as preamps);
+    // usageCounts.ts pools their capacity across both catalogs so they can't be double-booked.
+    for (const p of seedData.preamps) {
+      const studioId = studioIdByKey.get(`${p.buildingName}::${p.studioName}`)
+      if (studioId == null) throw new Error(`Seed data error: unknown studio "${p.buildingName}/${p.studioName}"`)
+      insertPreamp.run(studioId, p.name, p.manufacturer, p.category, p.notes, p.channels, p.sortOrder)
     }
 
     const bundledDir = getBundledLayoutsDir()

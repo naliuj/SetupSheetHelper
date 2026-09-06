@@ -38,6 +38,7 @@ import { run as setupEditorMode } from './031_setup_editor_mode'
 import { run as setupColumnOrder } from './034_setup_column_order'
 import { run as refreshBerkleeMicLockers } from './035_refresh_berklee_mic_lockers'
 import { run as exportColumnOverrides } from './036_export_column_overrides'
+import { run as berkleePreamps } from './037_berklee_preamps'
 
 export interface SqlMigration {
   version: number
@@ -85,5 +86,6 @@ export const MIGRATIONS: Migration[] = [
   { version: 31, run: setupEditorMode },
   { version: 34, run: setupColumnOrder },
   { version: 35, run: refreshBerkleeMicLockers },
-  { version: 36, run: exportColumnOverrides }
+  { version: 36, run: exportColumnOverrides },
+  { version: 37, run: berkleePreamps }
 ]
