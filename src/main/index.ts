@@ -6,6 +6,19 @@ import { installAppMenu } from './menu'
 import { initAutoUpdater } from './autoUpdater'
 import { restoreBounds, saveBounds } from './windowBounds'
 
+// Redirects EVERY on-disk trace of a run — database, room layouts, window bounds, Chromium's own
+// caches — into a throwaway directory, so a demo or a screen recording gets a genuine first launch
+// (onboarding, freshly seeded Berklee data, no setups) without touching real work. Set by
+// `npm run dev:demo`; unset for a normal run, which keeps the standard userData path.
+//
+// Must run before ANYTHING reads a userData path — the database opens lazily on first IPC, but
+// Electron also resolves cache/session paths off this early, so it stays at the very top of main.
+const demoUserData = process.env['SETUP_SHEET_HELPER_USER_DATA']
+if (demoUserData) {
+  app.setPath('userData', demoUserData)
+  app.setPath('sessionData', demoUserData)
+}
+
 // Registered before app ready so the scheme is treated as secure/standard,
 // letting pdfjs-dist fetch() the layout PDF bytes in the renderer without
 // piping large buffers through ipcRenderer.
