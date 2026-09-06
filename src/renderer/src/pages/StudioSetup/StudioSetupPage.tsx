@@ -10,6 +10,7 @@ import FolderPicker from '@renderer/components/FolderPicker'
 import ManufacturerPickerDropdown from '@renderer/components/ManufacturerPickerDropdown'
 import ImportGearModal from './ImportGearModal'
 import LayoutFileUploader from '@renderer/components/LayoutFileUploader'
+import SuggestInput from '@renderer/components/SuggestInput'
 
 interface PendingItem {
   key: string
@@ -50,7 +51,6 @@ function dedupeByNameAndManufacturer<T extends { name: string; manufacturer: str
 interface ManualEntryFormProps {
   onAdd: (name: string, manufacturer: string | null, count: number) => void
   namePlaceholder: string
-  formId: string
   manufacturerSuggestions: string[]
   catalogueItems: { name: string; manufacturer: string | null }[]
   /** "Quantity" for mics/outboard, "Channels" for preamps. Defaults to "Quantity". */
@@ -60,7 +60,6 @@ interface ManualEntryFormProps {
 function ManualEntryForm({
   onAdd,
   namePlaceholder,
-  formId,
   manufacturerSuggestions,
   catalogueItems,
   countLabel = 'Quantity'
@@ -68,8 +67,6 @@ function ManualEntryForm({
   const [name, setName] = useState('')
   const [manufacturer, setManufacturer] = useState('')
   const [quantity, setQuantity] = useState('1')
-  const datalistId = `manufacturer-suggestions-${formId}`
-  const modelDatalistId = `model-suggestions-${formId}`
   const modelSuggestions = useModelSuggestions(catalogueItems, manufacturer)
 
   function handleAdd(): void {
@@ -90,29 +87,19 @@ function ManualEntryForm({
 
   return (
     <div className="inline-form" style={{ marginTop: 8 }}>
-      <input
+      <SuggestInput
         placeholder="Manufacturer"
         value={manufacturer}
-        onChange={(e) => setManufacturer(e.target.value)}
-        list={datalistId}
+        onChange={(v) => setManufacturer(v)}
+        suggestions={manufacturerSuggestions}
       />
-      <datalist id={datalistId}>
-        {manufacturerSuggestions.map((m) => (
-          <option key={m} value={m} />
-        ))}
-      </datalist>
-      <input
+      <SuggestInput
         placeholder={namePlaceholder}
         value={name}
-        onChange={(e) => setName(e.target.value)}
+        onChange={(v) => setName(v)}
         onBlur={handleNameBlur}
-        list={modelDatalistId}
+        suggestions={modelSuggestions}
       />
-      <datalist id={modelDatalistId}>
-        {modelSuggestions.map((m) => (
-          <option key={m} value={m} />
-        ))}
-      </datalist>
       <input
         type="number"
         min={1}
@@ -234,7 +221,11 @@ export default function StudioSetupPage(): JSX.Element {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [studioSetupId])
 
-  function addMic(id: number | null): void {
+  /** Adding a model from the catalogue says "this studio has one of these" — the catalogue is a
+   *  list of gear TYPES, and whichever row happened to be first in it (some other studio's four
+   *  SM-57s) is not a statement about this room. Hence quantity 1 unless a caller knows better;
+   *  importing from a specific studio passes that studio's real count. */
+  function addMic(id: number | null, quantity = 1): void {
     const source = micCatalogueSource.find((m) => m.id === id)
     if (!source) return
     setPendingMics((prev) => [
@@ -244,12 +235,12 @@ export default function StudioSetupPage(): JSX.Element {
         name: source.name,
         manufacturer: source.manufacturer,
         category: source.category,
-        quantity: source.quantity
+        quantity
       }
     ])
   }
 
-  function addOutboard(id: number | null): void {
+  function addOutboard(id: number | null, quantity = 1): void {
     const source = outboardCatalogueSource.find((o) => o.id === id)
     if (!source) return
     setPendingOutboard((prev) => [
@@ -259,7 +250,7 @@ export default function StudioSetupPage(): JSX.Element {
         name: source.name,
         manufacturer: source.manufacturer,
         category: source.category,
-        quantity: source.quantity
+        quantity
       }
     ])
   }
@@ -279,9 +270,12 @@ export default function StudioSetupPage(): JSX.Element {
     ])
   }
 
+  /** Importing from a specific studio copies THAT studio's count, so the number matches the "(xN)"
+   *  the modal showed. Resolve against allMics/allOutboard (the studio-tagged lists the modal was
+   *  built from) — the id belongs to that studio's row, not to the deduped global catalogue. */
   function handleImportGear(micIds: number[], outboardIds: number[]): void {
-    for (const id of micIds) addMic(id)
-    for (const id of outboardIds) addOutboard(id)
+    for (const id of micIds) addMic(id, allMics.find((m) => m.id === id)?.quantity ?? 1)
+    for (const id of outboardIds) addOutboard(id, allOutboard.find((o) => o.id === id)?.quantity ?? 1)
   }
 
   function addManualMic(itemName: string, manufacturer: string | null, quantity: number): void {
@@ -492,7 +486,6 @@ export default function StudioSetupPage(): JSX.Element {
         <ManualEntryForm
           onAdd={addManualMic}
           namePlaceholder="Mic name (e.g. Neumann U87)"
-          formId="mic"
           manufacturerSuggestions={catalogueManufacturers}
           catalogueItems={catalogueMics}
         />
@@ -550,7 +543,6 @@ export default function StudioSetupPage(): JSX.Element {
         <ManualEntryForm
           onAdd={addManualOutboard}
           namePlaceholder="Gear name (e.g. 1176 Compressor)"
-          formId="outboard"
           manufacturerSuggestions={catalogueManufacturers}
           catalogueItems={catalogueOutboard}
         />
@@ -608,7 +600,6 @@ export default function StudioSetupPage(): JSX.Element {
         <ManualEntryForm
           onAdd={addManualPreamp}
           namePlaceholder="Preamp name (e.g. 8-channel)"
-          formId="preamp"
           manufacturerSuggestions={catalogueManufacturers}
           catalogueItems={cataloguePreamps}
           countLabel="Channels"

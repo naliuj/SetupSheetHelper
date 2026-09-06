@@ -1,4 +1,10 @@
+/* Tells the browser these pages are dark, which is not cosmetic: without it Chromium resolves the
+   UA `-internal-light-dark()` in its autofill rule to the LIGHT value and paints an opaque near-white
+   background over any field it considers autofilled — which is what made the gear-entry inputs go
+   white the moment you picked a suggestion. It also themes native scrollbars, date pickers and
+   other built-in controls for free. */
 :root {
+  color-scheme: dark;
   --color-bg: #14161a;
   --color-surface: #1c1f25;
   --color-surface-alt: #232830;
@@ -15,6 +21,7 @@
 }
 
 :root[data-theme='light'] {
+  color-scheme: light;
   --color-bg: #f4f6f9;
   --color-surface: #ffffff;
   --color-surface-alt: #eef1f5;
@@ -107,6 +114,19 @@ textarea,
 /* Custom checkbox — replaces the dated native control app-wide with a compact, flat 2px square
    that fills with the accent + a checkmark when checked. Toggle switches and field chips (below)
    opt out by not being checkboxes at all. */
+/* Belt and braces alongside `color-scheme` above. Chromium ignores `background-color` on an
+   autofilled field, so the background has to be painted with a large inset shadow and the text
+   colored via -webkit-text-fill-color. */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-text-fill-color: var(--color-text);
+  -webkit-box-shadow: 0 0 0 1000px var(--color-bg) inset;
+  box-shadow: 0 0 0 1000px var(--color-bg) inset;
+  caret-color: var(--color-text);
+}
+
 input[type='checkbox'] {
   appearance: none;
   -webkit-appearance: none;
@@ -537,6 +557,15 @@ table.data-table td select {
   font-size: 13px;
   cursor: pointer;
   white-space: nowrap;
+}
+
+/* The label must be allowed to shrink, or `white-space: nowrap` above lets a long one push the
+   "n/m in use" badge clean out of the menu — which is exactly the number the row exists to show.
+   flex children default to min-width:auto, so this needs saying explicitly. */
+.picker-menu-row > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .picker-menu-row.hovered,

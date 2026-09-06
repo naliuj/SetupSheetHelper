@@ -4,6 +4,7 @@ import type { Building, MicWithStudio, OutboardGearWithStudio, Studio } from '@s
 import type { Folder as FolderType, FolderTreeNode as FolderTreeNodeType } from '@shared/types/setup'
 import { buildFolderTree } from '@renderer/state/folderTree'
 import { useEscapeToClose } from '@renderer/hooks/useEscapeToClose'
+import { formatGearLabel } from '@shared/utils/manufacturerPrefix'
 
 interface Props {
   allMics: MicWithStudio[]
@@ -246,8 +247,7 @@ export default function ImportGearModal({
                 {micsHere.map((mic) => (
                   <label key={mic.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0' }}>
                     <input type="checkbox" checked={selectedMicIds.has(mic.id)} onChange={() => toggleMic(mic.id)} />
-                    {mic.manufacturer ? `${mic.manufacturer} ` : ''}
-                    {mic.name}
+                    {formatGearLabel(mic.name, mic.manufacturer)}
                     {mic.quantity > 1 ? ` (x${mic.quantity})` : ''}
                   </label>
                 ))}
@@ -279,8 +279,7 @@ export default function ImportGearModal({
                       checked={selectedOutboardIds.has(gear.id)}
                       onChange={() => toggleOutboard(gear.id)}
                     />
-                    {gear.manufacturer ? `${gear.manufacturer} ` : ''}
-                    {gear.name}
+                    {formatGearLabel(gear.name, gear.manufacturer)}
                     {gear.quantity > 1 ? ` (x${gear.quantity})` : ''}
                   </label>
                 ))}

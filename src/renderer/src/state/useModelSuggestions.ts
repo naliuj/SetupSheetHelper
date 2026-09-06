@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { stripManufacturerPrefix } from '@shared/utils/manufacturerPrefix'
 
 interface NamedManufacturedItem {
   name: string
@@ -14,7 +15,13 @@ export function useModelSuggestions<T extends NamedManufacturedItem>(items: T[],
     if (!trimmed) return []
     const set = new Set<string>()
     for (const item of items) {
-      if (item.manufacturer?.trim().toLowerCase() === trimmed) set.add(item.name.trim())
+      // Strip the brand back off: many rows store it in the name too ("Universal Audio 6176"),
+      // and this list is already scoped to one manufacturer, so leaving it in offers the user
+      // "Universal Audio 6176" as a MODEL. The save path strips it anyway — this just stops the
+      // suggestion from reading doubled.
+      if (item.manufacturer?.trim().toLowerCase() === trimmed) {
+        set.add(stripManufacturerPrefix(item.name, item.manufacturer ?? ''))
+      }
     }
     return [...set].sort((a, b) => a.localeCompare(b))
   }, [items, manufacturer])

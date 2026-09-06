@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { stripManufacturerPrefix } from '@shared/utils/manufacturerPrefix'
 import Icon from '@renderer/components/Icon'
+import type { GearSearchGroup } from '@renderer/state/gearSearchGroups'
 
 export interface PickerItem {
   id: number
@@ -24,6 +25,11 @@ interface Props<T extends PickerItem> {
    *  `usedByOthers >= getQuantity` rule; the outboard/preamp pickers override it because a unit
    *  listed in both catalogs shares one pool (see buildGearUsage in state/usageCounts.ts). */
   isAtCapacity?: (item: T) => boolean
+  /** Pre-grouped search rows, one per gear model, collapsing the same unit across pools. When
+   *  given, these REPLACE the flat per-row search results — the browse tree is untouched, so
+   *  picking from a specific pool's group still takes that pool's unit. See
+   *  state/gearSearchGroups.ts. */
+  searchGroups?: GearSearchGroup<T>[]
   getQuantity: (item: T) => number
   selectedId: number | null
   onSelect: (id: number | null) => void
@@ -48,7 +54,10 @@ interface Props<T extends PickerItem> {
   customValue?: string | null
 }
 
-const MENU_WIDTH = 220
+// 280 rather than 220: gear labels here carry a manufacturer and, on a consolidated search
+// row, the pools it spans — at the old width the "n/m in use" badge and the hint fought for room
+// and the hint ellipsised down to nothing useful.
+const MENU_WIDTH = 280
 const MENU_MAX_HEIGHT = 320
 
 function groupByManufacturer<T extends PickerItem>(list: T[]): MenuNode<T>[] {
@@ -129,6 +138,7 @@ export default function ManufacturerPickerDropdown<T extends PickerItem>({
   items,
   usedByOthers,
   isAtCapacity,
+  searchGroups,
   getQuantity,
   selectedId,
   onSelect,
@@ -175,6 +185,14 @@ export default function ManufacturerPickerDropdown<T extends PickerItem>({
             .sort((a, b) => a.name.localeCompare(b.name))
         : null,
     [open, items, trimmedSearch]
+  )
+
+  const groupResults = useMemo(
+    () =>
+      open && trimmedSearch && searchGroups
+        ? searchGroups.filter((g) => g.label.toLowerCase().includes(trimmedSearch))
+        : null,
+    [open, searchGroups, trimmedSearch]
   )
 
   useEffect(() => {
@@ -368,7 +386,38 @@ export default function ManufacturerPickerDropdown<T extends PickerItem>({
     )
   }
 
+  /** One consolidated row: the model, the pools it spans, and the COMBINED count. Clicking assigns
+   *  `group.pick` — a real catalogue row id, so the trigger's own `items.find(selectedId)` lookup
+   *  keeps working and nothing downstream sees a synthetic id. */
+  function renderGroupRow(group: GearSearchGroup<T>, isHighlighted: boolean): React.ReactNode {
+    const isSelected = selectedId != null && group.memberIds.includes(selectedId)
+    return (
+      <div
+        key={`search-${group.key}`}
+        className={`picker-menu-row ${isHighlighted ? 'hovered' : ''} ${group.disabled ? 'disabled' : ''} ${
+          isSelected ? 'selected' : ''
+        }`}
+        onClick={() => {
+          if (group.disabled) return
+          onSelect(group.pick.id)
+          close()
+        }}
+      >
+        <span>
+          {group.label}
+          {group.hint && <span className="picker-menu-row-hint"> — {group.hint}</span>}
+        </span>
+        {showUsage && group.capacity > 1 && (
+          <span className="picker-menu-row-suffix">
+            {group.used}/{group.capacity} in use
+          </span>
+        )}
+      </div>
+    )
+  }
+
   function renderSearchResults(anchor: Rect): React.ReactNode {
+    const rowCount = groupResults ? groupResults.length : searchResults!.length
     const pos = clampPosition(anchor, 'below')
     return (
       <div
@@ -376,10 +425,12 @@ export default function ManufacturerPickerDropdown<T extends PickerItem>({
         style={{ position: 'fixed', top: pos.top, left: pos.left, width: MENU_WIDTH, maxHeight: MENU_MAX_HEIGHT }}
       >
         {renderSearchRow()}
-        {searchResults!.length === 0 ? (
+        {rowCount === 0 ? (
           <div className="picker-menu-row-hint" style={{ padding: '6px 8px' }}>
             No matches
           </div>
+        ) : groupResults ? (
+          groupResults.map((group) => renderGroupRow(group, hoverPath[0] === `search-${group.key}`))
         ) : (
           searchResults!.map((item) => renderItemRow(item, `search-${item.id}`, hoverPath[0] === `search-${item.id}`))
         )}

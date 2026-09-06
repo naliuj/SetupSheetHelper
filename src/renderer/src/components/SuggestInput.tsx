@@ -1,12 +1,21 @@
 import { useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
+/** A suggestion shows `label` but inserts `value`. They differ so the list can stay searchable by
+ *  brand ("Neumann U87") while what lands in the field is just the model ("U87") — the manufacturer
+ *  has its own column on the sheet, so repeating it in the mic cell is noise. */
+export interface Suggestion {
+  label: string
+  value: string
+}
+
 interface Props {
   value: string
   onChange: (value: string) => void
   onBlur?: () => void
   placeholder?: string
-  suggestions: string[]
+  /** Plain strings are accepted for the common case where the label IS the value. */
+  suggestions: (Suggestion | string)[]
 }
 
 const MENU_WIDTH = 220
@@ -25,12 +34,17 @@ export default function SuggestInput({ value, onChange, onBlur, placeholder, sug
   const [highlightIndex, setHighlightIndex] = useState(-1)
   const inputRef = useRef<HTMLInputElement>(null)
 
+  const normalized: Suggestion[] = suggestions.map((s) => (typeof s === 'string' ? { label: s, value: s } : s))
   const query = value.trim().toLowerCase()
-  const filtered = query ? suggestions.filter((s) => s.toLowerCase().includes(query)).slice(0, MAX_SUGGESTIONS) : []
+  const filtered = query
+    ? normalized.filter((s) => s.label.toLowerCase().includes(query)).slice(0, MAX_SUGGESTIONS)
+    : []
   const showPopup = focused && filtered.length > 0
 
-  function selectSuggestion(s: string): void {
-    onChange(s)
+  // Only the pick-a-suggestion path inserts `value`; plain typing still passes through verbatim,
+  // so a name the user types themselves is never rewritten under them.
+  function selectSuggestion(s: Suggestion): void {
+    onChange(s.value)
     setFocused(false)
     setHighlightIndex(-1)
   }
@@ -95,12 +109,12 @@ export default function SuggestInput({ value, onChange, onBlur, placeholder, sug
           >
             {filtered.map((s, i) => (
               <div
-                key={s}
+                key={s.label}
                 className={`picker-menu-row${i === highlightIndex ? ' hovered' : ''}`}
                 onMouseEnter={() => setHighlightIndex(i)}
                 onClick={() => selectSuggestion(s)}
               >
-                <span>{s}</span>
+                <span>{s.label}</span>
               </div>
             ))}
           </div>,
