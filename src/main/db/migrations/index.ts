@@ -39,6 +39,7 @@ import { run as setupColumnOrder } from './034_setup_column_order'
 import { run as refreshBerkleeMicLockers } from './035_refresh_berklee_mic_lockers'
 import { run as exportColumnOverrides } from './036_export_column_overrides'
 import { run as berkleePreamps } from './037_berklee_preamps'
+import { run as standardizeGearNames } from './038_standardize_gear_names'
 
 export interface SqlMigration {
   version: number
@@ -87,5 +88,6 @@ export const MIGRATIONS: Migration[] = [
   { version: 34, run: setupColumnOrder },
   { version: 35, run: refreshBerkleeMicLockers },
   { version: 36, run: exportColumnOverrides },
-  { version: 37, run: berkleePreamps }
+  { version: 37, run: berkleePreamps },
+  { version: 38, run: standardizeGearNames }
 ]
