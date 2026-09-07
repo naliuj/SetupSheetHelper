@@ -203,7 +203,6 @@ export default function StudioSetupPage(): JSX.Element {
   // button has a studioId to attach the upload to before the user has clicked "Save Studio".
   // Never set when editing an existing studio (studioSetupId already covers that case).
   const [createdStudioId, setCreatedStudioId] = useState<number | null>(null)
-  const [creatingForLayout, setCreatingForLayout] = useState(false)
   const activeStudioId = studioSetupId ?? createdStudioId
 
   const { folders, selectedFolderId, setSelectedFolderId, createFolder } = useFolderPicker('studio')
@@ -448,17 +447,6 @@ export default function StudioSetupPage(): JSX.Element {
     return created.id
   }
 
-  async function handleUploadLayoutBeforeSave(): Promise<void> {
-    setCreatingForLayout(true)
-    try {
-      const id = await ensureStudioExists()
-      if (!id) return
-      await window.api.layoutFile.importForStudio(id)
-    } finally {
-      setCreatingForLayout(false)
-    }
-  }
-
   // If a studio row was created early purely to back the Room layout button and the user backs
   // out without ever clicking "Save Studio", delete it — otherwise it'd linger as an empty,
   // gearless studio. Editing an existing studio never hits this (createdStudioId stays null).
@@ -574,22 +562,11 @@ export default function StudioSetupPage(): JSX.Element {
           />
 
           <div className="section-title">Room layout</div>
-          {activeStudioId ? (
-            <LayoutFileUploader studioId={activeStudioId} />
-          ) : (
-            <div>
-              <div className="empty-state">No room layout uploaded for this studio yet.</div>
-              <div className="inline-form">
-                <button
-                  className="btn primary"
-                  onClick={handleUploadLayoutBeforeSave}
-                  disabled={!name.trim() || creatingForLayout}
-                >
-                  {creatingForLayout ? 'Uploading…' : 'Upload Layout File'}
-                </button>
-              </div>
-            </div>
-          )}
+          <LayoutFileUploader
+            studioId={activeStudioId}
+            ensureStudioId={ensureStudioExists}
+            disabled={activeStudioId == null && !name.trim()}
+          />
 
           <div className="section-title">Fill from elsewhere</div>
           <button className="btn" onClick={() => setImportModalOpen(true)}>
