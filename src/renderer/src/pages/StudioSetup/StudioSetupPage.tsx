@@ -45,6 +45,33 @@ const GEAR_TABS: { id: GearTab; label: string }[] = [
   { id: 'preamps', label: 'Preamps' }
 ]
 
+/** Files gear the way an engineer reads a locker list: manufacturer A to Z, then model within it.
+ *  `numeric` so an API 512c sorts before an API 3124 instead of "3" beating "5" character by
+ *  character, and a base sensitivity so "dbx" and "DBX" don't split one manufacturer into two.
+ *  Blank manufacturers go last, since there is no name to file them under. */
+function byManufacturerThenModel(
+  a: { name: string; manufacturer: string | null },
+  b: { name: string; manufacturer: string | null }
+): number {
+  const makeA = a.manufacturer?.trim() ?? ''
+  const makeB = b.manufacturer?.trim() ?? ''
+  const collate = { numeric: true, sensitivity: 'base' } as const
+
+  if ((makeA === '') !== (makeB === '')) return makeA === '' ? 1 : -1
+
+  const byMake = makeA.localeCompare(makeB, undefined, collate)
+  if (byMake !== 0) return byMake
+
+  // Compare the model, not the stored name: this catalogue is inconsistent about whether a name
+  // repeats its own manufacturer, so raw names file the same locker under two letters — "610"
+  // under 6 and "Universal Audio 1176" under U, with both makers reading "Universal Audio".
+  return stripManufacturerPrefix(a.name, makeA).localeCompare(
+    stripManufacturerPrefix(b.name, makeB),
+    undefined,
+    collate
+  )
+}
+
 function tempKey(): string {
   return `new-${crypto.randomUUID()}`
 }
@@ -298,9 +325,17 @@ export default function StudioSetupPage(): JSX.Element {
    *  the modal showed. Resolve against allMics/allOutboard (the studio-tagged lists the modal was
    *  built from) — the id belongs to that studio's row, not to the deduped global catalogue. */
   function handleImportGear(micIds: number[], outboardIds: number[], preampIds: number[]): void {
-    for (const id of micIds) addMic(id, allMics.find((m) => m.id === id)?.quantity ?? 1)
-    for (const id of outboardIds) addOutboard(id, allOutboard.find((o) => o.id === id)?.quantity ?? 1)
-    for (const id of preampIds) addPreamp(id, allPreamps.find((p) => p.id === id)?.channels)
+    const chosen = <T extends { id: number; name: string; manufacturer: string | null }>(
+      source: T[],
+      ids: number[]
+    ): T[] => {
+      const wanted = new Set(ids)
+      return source.filter((item) => wanted.has(item.id)).sort(byManufacturerThenModel)
+    }
+
+    for (const mic of chosen(allMics, micIds)) addMic(mic.id, mic.quantity)
+    for (const gear of chosen(allOutboard, outboardIds)) addOutboard(gear.id, gear.quantity)
+    for (const preamp of chosen(allPreamps, preampIds)) addPreamp(preamp.id, preamp.channels)
   }
 
   function addManualMic(itemName: string, manufacturer: string | null, quantity: number): void {
@@ -510,7 +545,19 @@ export default function StudioSetupPage(): JSX.Element {
           {/* Same button/primary idiom the Settings tab strip uses. The counts ride on the tabs so
               a locker you aren't looking at still says how full it is — stacked flat, preamps sat
               below a long outboard table and read as missing entirely. */}
-          <div className="inline-form" style={{ marginTop: 0, marginBottom: 12 }}>
+          {/* Pinned: a 42-row mic locker scrolls the strip away otherwise, and switching to preamps
+              then meant scrolling back to the top to find the tabs. Opaque so rows pass under it. */}
+          <div
+            className="inline-form"
+            style={{
+              position: 'sticky',
+              top: -3,
+              zIndex: 2,
+              marginTop: 0,
+              paddingBottom: 12,
+              background: 'var(--color-bg)'
+            }}
+          >
             {GEAR_TABS.map((tab) => (
               <button
                 key={tab.id}
