@@ -15,7 +15,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { Folder, GripVertical, Pencil, Plus, Trash2 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { Folder as FolderType } from '@shared/types/setup'
-import type { FolderDeleteImpact } from '@shared/types/ipc'
+import type { FolderDeleteImpact, StudioDeleteImpact } from '@shared/types/ipc'
 import { buildFolderTree, flattenFolderTreeForPicker } from '@renderer/state/folderTree'
 import { useEscapeToClose } from '@renderer/hooks/useEscapeToClose'
 import FolderTreeNode from './FolderTreeNode'
@@ -150,6 +150,16 @@ function describeFolderImpact(impact: FolderDeleteImpact): string {
   const joined =
     parts.length === 1 ? parts[0] : `${parts.slice(0, -1).join(', ')}, and ${parts[parts.length - 1]}`
   return `This folder contains ${joined}.`
+}
+
+/** "3 setups and 1 template", skipping whichever count is zero. The studio delete dialogs used to
+ *  interpolate both nouns unconditionally, so deleting a studio with no templates announced it was
+ *  deleting "0 templates". Returns null when nothing else goes with the studio. */
+function describeStudioImpact(impact: StudioDeleteImpact): string | null {
+  const parts: string[] = []
+  if (impact.setupCount > 0) parts.push(pluralize(impact.setupCount, 'setup'))
+  if (impact.templateCount > 0) parts.push(pluralize(impact.templateCount, 'template'))
+  return parts.length === 0 ? null : parts.join(' and ')
 }
 
 function SortableItemRow({
@@ -590,12 +600,8 @@ export default function ManageItemsModal({
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 420 }}>
             <h2 style={{ marginTop: 0 }}>Delete "{itemDialog.item.label}"?</h2>
             <p className="card-sub">
-              {itemDialog.studioImpact && itemDialog.studioImpact.setupCount + itemDialog.studioImpact.templateCount > 0
-                ? `This also deletes ${itemDialog.studioImpact.setupCount} setup${
-                    itemDialog.studioImpact.setupCount === 1 ? '' : 's'
-                  } and ${itemDialog.studioImpact.templateCount} template${
-                    itemDialog.studioImpact.templateCount === 1 ? '' : 's'
-                  } in this studio. This can't be undone.`
+              {itemDialog.studioImpact && describeStudioImpact(itemDialog.studioImpact)
+                ? `This also deletes ${describeStudioImpact(itemDialog.studioImpact)} in this studio. This can't be undone.`
                 : "This can't be undone."}
             </p>
             <div className="modal-actions">
@@ -615,10 +621,9 @@ export default function ManageItemsModal({
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 420 }}>
             <h2 style={{ marginTop: 0 }}>Delete {pluralize(bulkDeleteDialog.items.length, 'item')}?</h2>
             <p className="card-sub">
-              {bulkDeleteDialog.studioImpact.setupCount + bulkDeleteDialog.studioImpact.templateCount > 0
-                ? `This also deletes ${pluralize(bulkDeleteDialog.studioImpact.setupCount, 'setup')} and ${pluralize(
-                    bulkDeleteDialog.studioImpact.templateCount,
-                    'template'
+              {describeStudioImpact(bulkDeleteDialog.studioImpact)
+                ? `This also deletes ${describeStudioImpact(
+                    bulkDeleteDialog.studioImpact
                   )} across the selected studios. This can't be undone.`
                 : "This can't be undone."}
             </p>

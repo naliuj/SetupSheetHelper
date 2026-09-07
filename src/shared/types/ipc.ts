@@ -92,6 +92,10 @@ export const IPC = {
     upsert: 'preamps:upsert',
     remove: 'preamps:remove'
   },
+  studioLibrary: {
+    fetchIndex: 'studioLibrary:fetchIndex',
+    fetchPacks: 'studioLibrary:fetchPacks'
+  },
   layoutFile: {
     getForStudio: 'layoutFile:getForStudio',
     importForStudio: 'layoutFile:importForStudio',
@@ -490,6 +494,29 @@ export interface FolderDeleteImpact {
   items: { noun: string; count: number }[]
 }
 
+/** One row of the companion site's studios/index.json. Mirrors what tools/build-manifest.mjs
+ *  publishes; `file` is a path relative to the site origin, never an absolute URL. `gear` is a
+ *  lowercased, deduped blob of every manufacturer and model in the pack, so the picker can search
+ *  it without downloading anything. */
+export interface LibraryStudio {
+  id: string
+  name: string
+  city: string
+  note: string
+  added: string
+  file: string
+  bytes: number
+  counts: { mics: number; outboard: number; preamps: number }
+  roomLayout: boolean
+  gear: string
+}
+
+/** Library calls never throw across IPC — they resolve to one of these, and the error is a string
+ *  already fit to show the user. Matches the shape feedback:submit established. */
+export type StudioLibraryIndexResult = { ok: true; studios: LibraryStudio[] } | { ok: false; error: string }
+
+export type StudioLibraryPacksResult = { ok: true; file: StudioExportFile } | { ok: false; error: string }
+
 export interface StudioDeleteImpact {
   setupCount: number
   templateCount: number
@@ -647,6 +674,12 @@ export interface RendererApi {
     listAllWithStudio(): Promise<PreampWithStudio[]>
     upsert(input: PreampUpsertInput): Promise<Preamp>
     remove(id: number): Promise<void>
+  }
+  studioLibrary: {
+    /** Downloadable studios published on the companion site. */
+    fetchIndex(): Promise<StudioLibraryIndexResult>
+    /** Downloads the named packs and flattens them into one importable file. */
+    fetchPacks(files: string[]): Promise<StudioLibraryPacksResult>
   }
   layoutFile: {
     getForStudio(studioId: number): Promise<RoomLayoutFile | null>

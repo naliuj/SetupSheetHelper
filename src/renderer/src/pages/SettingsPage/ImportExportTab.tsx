@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Check } from 'lucide-react'
+import { STUDIO_DOWNLOADS_URL } from '@shared/constants/urls'
 
 /** What the tab shows after an import finishes: either a failure to report, or the studios/setups
  *  that actually landed. This lives on the tab rather than on the picker page because the picker
@@ -14,11 +15,10 @@ interface Props {
   onDismissFeedback: () => void
   onExportStudios: () => void
   onImportStudios: () => void
+  onBrowseLibrary: () => void
   onExportSetups: () => void
   onImportSetups: () => void
 }
-
-const DOWNLOADS_URL = 'https://setupsheethelper.julianro.se/studio-downloads.html'
 
 function plural(n: number, noun: string): string {
   return `${n} ${noun}${n === 1 ? '' : 's'}`
@@ -71,6 +71,7 @@ export default function ImportExportTab({
   onDismissFeedback,
   onExportStudios,
   onImportStudios,
+  onBrowseLibrary,
   onExportSetups,
   onImportSetups
 }: Props): JSX.Element {
@@ -106,10 +107,13 @@ export default function ImportExportTab({
           <button className="btn" onClick={onImportStudios}>
             Import studios…
           </button>
+          <button className="btn" onClick={onBrowseLibrary}>
+            Browse studios online…
+          </button>
         </div>
         <p className="io-section-hint">
           Don&apos;t have a file?{' '}
-          <a href={DOWNLOADS_URL} target="_blank" rel="noreferrer">
+          <a href={STUDIO_DOWNLOADS_URL} target="_blank" rel="noreferrer">
             Browse downloadable studios
           </a>{' '}
           for rooms other engineers have shared.

@@ -17,6 +17,7 @@ import KeybindsEditor from './KeybindsEditor'
 import StudioExportPage from './StudioExportPage'
 import StudioImportPage from './StudioImportPage'
 import ImportExportTab from './ImportExportTab'
+import StudioLibraryPage from './StudioLibraryPage'
 import type { ImportFeedback } from './ImportExportTab'
 import SetupExportPage from './SetupExportPage'
 import SetupImportPage from './SetupImportPage'
@@ -26,6 +27,7 @@ import ManagePresetsModal from '../PresetManager/ManagePresetsModal'
 type Subview =
   | { kind: 'main' }
   | { kind: 'export' }
+  | { kind: 'browseLibrary' }
   | { kind: 'import'; file: StudioExportFile }
   | { kind: 'exportSetups' }
   | { kind: 'importSetups'; file: SetupExportFile }
@@ -153,6 +155,16 @@ export default function SettingsPage(): JSX.Element {
 
   if (subview.kind === 'export') {
     return <StudioExportPage onBack={() => setSubview({ kind: 'main' })} />
+  }
+  if (subview.kind === 'browseLibrary') {
+    return (
+      <StudioLibraryPage
+        onBack={() => setSubview({ kind: 'main' })}
+        // Downloaded packs go through the same confirmation as a file, so the two paths cannot
+        // drift apart on duplicate handling or reporting.
+        onDownloaded={(file) => setSubview({ kind: 'import', file })}
+      />
+    )
   }
   if (subview.kind === 'import') {
     return (
@@ -346,6 +358,10 @@ export default function SettingsPage(): JSX.Element {
             onDismissFeedback={() => setImportFeedback(null)}
             onExportStudios={() => setSubview({ kind: 'export' })}
             onImportStudios={handleImportClick}
+            onBrowseLibrary={() => {
+              setImportFeedback(null)
+              setSubview({ kind: 'browseLibrary' })
+            }}
             onExportSetups={() => setSubview({ kind: 'exportSetups' })}
             onImportSetups={handleImportSetupsClick}
           />

@@ -60,26 +60,43 @@ function collectDescendantFolderIds(db: ReturnType<typeof getDb>, id: number): n
   return result
 }
 
-/** Counts what a delete of this folder's subtree would affect, for the confirmation prompt. */
+/** Counts what a delete of this folder's subtree would affect, for the confirmation prompt.
+ *
+ *  The setup predicate has to match deleteFolderRecursive's two passes, not just the obvious one.
+ *  A setup is destroyed if it is filed in the subtree OR if it belongs to a studio in the subtree,
+ *  and those are genuinely different sets — a setup's folder_id and its studio's folder_id can
+ *  differ, which is exactly the case that used to vanish uncounted. `OR` over both dedupes on its
+ *  own, since a setup matching both is still one row. */
 export function getFolderDeleteImpact(id: number): FolderDeleteImpact {
   const db = getDb()
   const subtreeIds = [id, ...collectDescendantFolderIds(db, id)]
   const placeholders = subtreeIds.map(() => '?').join(',')
+
   const studioCount = (
     db.prepare(`SELECT COUNT(*) c FROM studios WHERE folder_id IN (${placeholders})`).get(...subtreeIds) as {
       c: number
     }
   ).c
-  const setupCount = (
-    db.prepare(`SELECT COUNT(*) c FROM setups WHERE folder_id IN (${placeholders})`).get(...subtreeIds) as {
-      c: number
-    }
-  ).c
+
+  // Bind the subtree ids twice: once for the folder predicate, once for the studio subquery.
+  const countSetupsOfKind = (kind: 'setup' | 'template'): number =>
+    (
+      db
+        .prepare(
+          `SELECT COUNT(*) c FROM setups
+            WHERE kind = ?
+              AND (folder_id IN (${placeholders})
+                   OR studio_id IN (SELECT id FROM studios WHERE folder_id IN (${placeholders})))`
+        )
+        .get(kind, ...subtreeIds, ...subtreeIds) as { c: number }
+    ).c
+
   return {
     folderCount: subtreeIds.length - 1,
     items: [
       { noun: 'studio', count: studioCount },
-      { noun: 'setup', count: setupCount }
+      { noun: 'setup', count: countSetupsOfKind('setup') },
+      { noun: 'template', count: countSetupsOfKind('template') }
     ]
   }
 }
