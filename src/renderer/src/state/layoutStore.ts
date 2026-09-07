@@ -28,6 +28,14 @@ interface LayoutState {
   panY: number
   isDirty: boolean
   isSaving: boolean
+  /** True while a block is mid-drag or mid-resize. save() is a no-op for as long as this is set:
+   *  saving replaces the block list with the rows the database hands back, which remounts a
+   *  freshly placed block under its new id and kills whatever gesture the user has on it. Every
+   *  gesture ends with a store write, and that write re-arms autosave, so nothing is lost by
+   *  waiting. */
+  gestureActive: boolean
+  beginGesture(): void
+  endGesture(): void
   /** Bumped whenever the Layout Mode gate resolves (blank sheet chosen, or a file committed to
    *  the studio/setup) — LayoutBackground depends on this to know to re-fetch, since resolving
    *  the gate doesn't change studioId/setupId (the effect's other deps) on its own. */
@@ -89,6 +97,9 @@ export function createLayoutStore(setupStoreApi: SetupStoreApi) {
       panY: 0,
       isDirty: false,
       isSaving: false,
+      gestureActive: false,
+      beginGesture: () => set({ gestureActive: true }),
+      endGesture: () => set({ gestureActive: false }),
       layoutBackgroundVersion: 0,
 
       loadForSetup: async (setupId) => {
@@ -224,6 +235,9 @@ export function createLayoutStore(setupStoreApi: SetupStoreApi) {
       save: async () => {
         const setupId = setupStoreApi.getState().setupId
         if (!setupId) return
+        // Leave isDirty set: the write that ends the gesture changes `blocks`, which re-arms the
+        // autosave timer, so this save is deferred rather than dropped.
+        if (get().gestureActive) return
         const state = get()
         set({ isSaving: true })
         try {

@@ -63,6 +63,8 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
   const zoomIn = useLayoutStoreState((s) => s.zoomIn)
   const zoomOut = useLayoutStoreState((s) => s.zoomOut)
   const resetView = useLayoutStoreState((s) => s.resetView)
+  const beginGesture = useLayoutStoreState((s) => s.beginGesture)
+  const endGesture = useLayoutStoreState((s) => s.endGesture)
 
   const containerRef = useRef<HTMLDivElement>(null)
   const nodeRefs = useRef<Map<number | string, Konva.Group>>(new Map())
@@ -565,8 +567,12 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
               selected={selectedBlockIds.has(block.id)}
               imageSize={imageSize}
               onSelect={(additive) => (additive ? toggleBlock(block.id) : selectBlock(block.id))}
+              onDragStart={beginGesture}
               onDragMove={(x, y) => handleBlockDragMove(block, x, y)}
-              onDragEnd={(x, y) => handleBlockDragEnd(block, x, y)}
+              onDragEnd={(x, y) => {
+                handleBlockDragEnd(block, x, y)
+                endGesture()
+              }}
               onContextMenu={(clientX, clientY) => setBlockMenu({ blockId: block.id, x: clientX, y: clientY })}
             />
           ))}
@@ -587,8 +593,12 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
               // Transformer here only supplies the resize/rotate anchors, not a second border.
               borderEnabled={false}
               boundBoxFunc={(oldBox, newBox) => (newBox.width < 8 || newBox.height < 8 ? oldBox : newBox)}
+              onTransformStart={beginGesture}
               onTransform={() => handleTransform(id)}
-              onTransformEnd={() => handleTransformEnd(id)}
+              onTransformEnd={() => {
+                handleTransformEnd(id)
+                endGesture()
+              }}
             />
           ))}
           {marquee && (

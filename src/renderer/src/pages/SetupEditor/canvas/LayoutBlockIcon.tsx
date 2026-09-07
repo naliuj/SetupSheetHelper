@@ -12,6 +12,7 @@ interface Props {
   onSelect: (additive: boolean) => void
   /** Fired on every drag tick (not just at the end) so a multi-selection can be mirrored live —
    *  see LayoutStage.tsx's handleBlockDragMove. */
+  onDragStart: () => void
   onDragMove: (x: number, y: number) => void
   onDragEnd: (x: number, y: number) => void
   onContextMenu: (clientX: number, clientY: number) => void
@@ -38,7 +39,7 @@ export function clampCenterToRoom(
  *  uniform scale multiplier, so independent-axis resize (via the Transformer in
  *  LayoutStage.tsx) works naturally. */
 const LayoutBlockIcon = forwardRef<Konva.Group, Props>(function LayoutBlockIcon(
-  { block, selected, imageSize, onSelect, onDragMove, onDragEnd, onContextMenu },
+  { block, selected, imageSize, onSelect, onDragStart, onDragMove, onDragEnd, onContextMenu },
   ref
 ) {
   // Matches Konva Transformer's own default anchor/border color (rgb(0, 161, 255)) so a
@@ -141,6 +142,7 @@ const LayoutBlockIcon = forwardRef<Konva.Group, Props>(function LayoutBlockIcon(
       dragBoundFunc={dragBoundFunc}
       onClick={handleClick}
       onTap={() => onSelect(false)}
+      onDragStart={onDragStart}
       onDragMove={handleDragMove}
       onDragEnd={handleDragEnd}
       onContextMenu={handleContextMenu}
