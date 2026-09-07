@@ -18,6 +18,12 @@ import { getLayoutFileForStudio, upsertLayoutFile } from '../db/repositories/roo
 
 const EXPORT_VERSION = 3
 
+/** A pack names its own layout-file extension, and that string is interpolated into a path on
+ *  import. Packs used to only ever come from a file the user picked; they can now be fetched from
+ *  the web, so the value is untrusted input. Anything outside this list is dropped rather than
+ *  written. */
+const ALLOWED_LAYOUT_EXTENSIONS = new Set(['.pdf', '.png', '.jpg', '.jpeg'])
+
 function exportRoomLayoutFile(studioId: number): ExportedRoomLayoutFile | null {
   const layoutFile = getLayoutFileForStudio(studioId)
   if (!layoutFile || !existsSync(layoutFile.filePath)) return null
@@ -92,6 +98,12 @@ export async function pickAndParseImportFile(): Promise<PickImportFileResult> {
     if (typeof parsed.version !== 'number' || !Array.isArray(parsed.studios)) {
       return { canceled: false, error: 'This file is not a valid studio export.' }
     }
+    if (parsed.version > EXPORT_VERSION) {
+      return {
+        canceled: false,
+        error: `This file was made by a newer version of Setup Sheet Helper (format ${parsed.version}). Update the app to import it.`
+      }
+    }
     return { canceled: false, data: parsed as StudioExportFile }
   } catch {
     return { canceled: false, error: 'Could not read or parse that file.' }
@@ -145,7 +157,10 @@ export function importStudios(studios: ExportedStudio[]): ImportStudiosResult {
         channels: preamp.channels
       })
     }
-    const layoutFile = studio.roomLayoutFile ?? null
+    const layoutFile =
+      studio.roomLayoutFile && ALLOWED_LAYOUT_EXTENSIONS.has(studio.roomLayoutFile.extension.toLowerCase())
+        ? studio.roomLayoutFile
+        : null
     if (layoutFile) {
       const destPath = join(getLayoutsDir(), `studio_${created.id}${layoutFile.extension}`)
       writeFileSync(destPath, Buffer.from(layoutFile.dataBase64, 'base64'))

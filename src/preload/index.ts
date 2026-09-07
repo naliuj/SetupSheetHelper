@@ -82,6 +82,10 @@ const api: RendererApi = {
     upsert: (input) => ipcRenderer.invoke(IPC.preamps.upsert, input),
     remove: (id) => ipcRenderer.invoke(IPC.preamps.remove, id)
   },
+  studioLibrary: {
+    fetchIndex: () => ipcRenderer.invoke(IPC.studioLibrary.fetchIndex),
+    fetchPacks: (files) => ipcRenderer.invoke(IPC.studioLibrary.fetchPacks, files)
+  },
   layoutFile: {
     getForStudio: (studioId) => ipcRenderer.invoke(IPC.layoutFile.getForStudio, studioId),
     importForStudio: (studioId) => ipcRenderer.invoke(IPC.layoutFile.importForStudio, studioId),

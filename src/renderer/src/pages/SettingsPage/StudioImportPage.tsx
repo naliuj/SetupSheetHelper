@@ -16,19 +16,36 @@ export default function StudioImportPage({ file, onBack, onDone }: Props): JSX.E
   // importStudios only ever creates, and overwriting would destroy local edits to that room.
   const [copyIndexes, setCopyIndexes] = useState<Set<number>>(new Set())
   const [existingNames, setExistingNames] = useState<Set<string>>(new Set())
+  // Distinct from "existingNames is empty" — a user with no custom studios also has an empty set,
+  // and the default selection must wait for the real answer either way.
+  const [namesLoaded, setNamesLoaded] = useState(false)
+  const [seeded, setSeeded] = useState(false)
   const [importing, setImporting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    window.api.studios
-      .listCustom()
-      .then((studios) => setExistingNames(new Set(studios.map((s) => s.name.trim().toLowerCase()))))
+    window.api.studios.listCustom().then((studios) => {
+      setExistingNames(new Set(studios.map((s) => s.name.trim().toLowerCase())))
+      setNamesLoaded(true)
+    })
   }, [])
 
   const isDuplicate = useMemo(
     () => file.studios.map((studio) => existingNames.has(studio.name.trim().toLowerCase())),
     [file.studios, existingNames]
   )
+
+  // Importing everything is the common case, so start with it all ticked rather than making the
+  // user reach for Select all. Duplicates stay off: the flag exists to make re-importing something
+  // you already have a deliberate act, and pre-ticking it would undo that.
+  //
+  // Seeded once, and only after listCustom resolves — duplicates are unknown before that, and
+  // re-running would wipe out whatever the user has since ticked.
+  useEffect(() => {
+    if (seeded || !namesLoaded) return
+    setSelectedIndexes(new Set(file.studios.map((_, index) => index).filter((index) => !isDuplicate[index])))
+    setSeeded(true)
+  }, [seeded, namesLoaded, file.studios, isDuplicate])
 
   function toggle(index: number): void {
     setSelectedIndexes((prev) => {

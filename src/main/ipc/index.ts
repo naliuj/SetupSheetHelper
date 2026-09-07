@@ -1,4 +1,5 @@
 import { registerStudioHandlers } from './studioHandlers'
+import { registerStudioLibraryHandlers } from './studioLibraryHandlers'
 import { registerCatalogHandlers } from './catalogHandlers'
 import { registerChannelPresetHandlers } from './channelPresetHandlers'
 import { registerSetupHandlers } from './setupHandlers'
@@ -15,6 +16,7 @@ import { registerLayoutWindowHandlers } from '../layoutWindow'
 
 export function registerAllIpcHandlers(): void {
   registerStudioHandlers()
+  registerStudioLibraryHandlers()
   registerCatalogHandlers()
   registerChannelPresetHandlers()
   registerSetupHandlers()
