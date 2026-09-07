@@ -59,7 +59,7 @@ export default function StudioExportPage({ onBack }: Props): JSX.Element {
   }
 
   return (
-    <div>
+    <div className="page">
       <div className="nav-crumbs">
         <button onClick={onBack}>Settings</button> / Export Studios
       </div>

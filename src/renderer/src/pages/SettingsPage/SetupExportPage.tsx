@@ -56,7 +56,7 @@ export default function SetupExportPage({ onBack }: Props): JSX.Element {
   }
 
   return (
-    <div>
+    <div className="page">
       <div className="nav-crumbs">
         <button onClick={onBack}>Settings</button> / Export Setups
       </div>

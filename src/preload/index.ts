@@ -78,6 +78,7 @@ const api: RendererApi = {
     listPersonalPreamps: () => ipcRenderer.invoke(IPC.preamps.listPersonalPreamps),
     listSetupGear: (setupId) => ipcRenderer.invoke(IPC.preamps.listSetupGear, setupId),
     listAll: () => ipcRenderer.invoke(IPC.preamps.listAll),
+    listAllWithStudio: () => ipcRenderer.invoke(IPC.preamps.listAllWithStudio),
     upsert: (input) => ipcRenderer.invoke(IPC.preamps.upsert, input),
     remove: (id) => ipcRenderer.invoke(IPC.preamps.remove, id)
   },

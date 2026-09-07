@@ -1302,3 +1302,74 @@ input[type='checkbox']:focus-visible {
   font-weight: 400;
   opacity: 0.8;
 }
+
+/* Import/Export tab sections. Same inset-panel treatment as .export-column-section above, and for
+   the same reason: the four buttons this replaced carried no explanation of what a studio or setup
+   file actually contains, and a paragraph of .card-sub under them would have read as boilerplate.
+   The count on the right is the information the old tab was missing most — how much you have to
+   export in the first place. */
+.io-section {
+  margin: 0 0 12px;
+  padding: 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface-alt);
+}
+
+.io-section:last-child {
+  margin-bottom: 0;
+}
+
+.io-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.io-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.io-section-count {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-dim);
+}
+
+.io-section-hint {
+  margin: 8px 0 0;
+  font-size: 11px;
+  color: var(--color-text-dim);
+}
+
+/* Settings stretches to the window width, and on a maximized window that ran these two sentences
+   out to a single ~180-character line. Capped at a readable measure; the buttons and the count
+   still use the full width. */
+.io-section .card-sub,
+.io-section-hint {
+  max-width: 96ch;
+}
+
+/* Import result. Accent-bordered rather than a toast because it has to survive the picker page
+   unmounting, and because naming the studios that landed takes more than one line. */
+.import-feedback {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 10px;
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--color-accent) 12%, var(--color-surface));
+  font-size: 13px;
+}
+
+.import-feedback.is-error {
+  align-items: center;
+  border-color: var(--color-danger);
+  background: color-mix(in srgb, var(--color-danger) 12%, var(--color-surface));
+}

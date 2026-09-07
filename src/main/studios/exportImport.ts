@@ -5,6 +5,7 @@ import type {
   ExportedRoomLayoutFile,
   ExportedStudio,
   ExportStudiosResult,
+  ImportStudiosResult,
   PickImportFileResult,
   StudioExportFile
 } from '@shared/types/ipc'
@@ -100,9 +101,11 @@ export async function pickAndParseImportFile(): Promise<PickImportFileResult> {
 /** Imported studios always land as new, ungrouped Custom Studios — building IDs aren't portable
  *  across installations. preamps/roomLayoutFile default safely (empty/null) for older export files
  *  that predate them. */
-export function importStudios(studios: ExportedStudio[]): void {
+export function importStudios(studios: ExportedStudio[]): ImportStudiosResult {
+  const imported: string[] = []
   for (const studio of studios) {
     const created = studiosRepo.createCustomStudio(studio.name, null)
+    imported.push(created.name)
     for (const mic of studio.mics) {
       upsertMic({
         poolType: 'studio',
@@ -155,4 +158,5 @@ export function importStudios(studios: ExportedStudio[]): void {
       })
     }
   }
+  return { imported }
 }

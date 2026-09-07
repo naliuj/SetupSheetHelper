@@ -1,4 +1,4 @@
-import type { Preamp, PreampPoolType } from '@shared/types/entities'
+import type { Preamp, PreampPoolType, PreampWithStudio } from '@shared/types/entities'
 import type { PreampUpsertInput } from '@shared/types/ipc'
 import { getDb } from '../index'
 import { getStudio } from './studiosRepo'
@@ -172,4 +172,18 @@ export function removePreamp(id: number): void {
 export function listAllPreamps(): Preamp[] {
   const rows = getDb().prepare('SELECT * FROM preamps ORDER BY name').all() as PreampRow[]
   return rows.map(mapRow)
+}
+
+/** Every studio-locker preamp across every studio, tagged with its studio's name — the preamp half
+ *  of the "copy gear from other studios" picker, mirroring listAllMicsWithStudio. */
+export function listAllPreampsWithStudio(): PreampWithStudio[] {
+  const rows = getDb()
+    .prepare(
+      `SELECT p.*, s.name as studio_name FROM preamps p
+       JOIN studios s ON s.id = p.studio_id
+       WHERE p.pool_type = 'studio'
+       ORDER BY s.name, p.sort_order, p.name`
+    )
+    .all() as (PreampRow & { studio_name: string })[]
+  return rows.map((row) => ({ ...mapRow(row), studioName: row.studio_name }))
 }
