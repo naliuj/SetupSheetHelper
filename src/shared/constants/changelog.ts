@@ -331,5 +331,20 @@ export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
       'Cleaned up gear names across Berklee\'s lists \u2014 no more "API API 2500", no more the same mic spelled two ways, and corrected manufacturers (Lexicon, Summit Audio, Chandler Limited, Bricasti Design, Tech 21).',
       'Quick Setup\'s mic suggestions no longer list the same model twice, and picking one fills in just the model rather than repeating the brand.'
     ]
+  },
+  {
+    version: '1.16.0',
+    date: '2026-09-07',
+    highlights: [
+      'Browse and import studios shared by other engineers, straight from Settings, Import/Export. No downloading a file first, and you can search by name, city, or the gear in the room.',
+      'Import/Export now says what it is actually doing: what a studio or setup file contains, how many you have, and which studios landed after an import. A studio you already have is flagged instead of silently duplicated, and you choose whether to bring it in as a copy.',
+      '"Import gear from another studio" brings the preamps too. It was quietly leaving the preamp locker behind.',
+      'The studio editor puts mics, outboard and preamps behind tabs with counts, so preamps are not sixty rows down the page. The folder and room layout move to a side rail.',
+      'Imported gear arrives filed alphabetically by manufacturer, then model, instead of in the source room\'s order.',
+      'Adding a mic from the catalogue that the studio already lists jumps to that row and flashes it, instead of adding a second row for the same box.',
+      'Fixed a new studio\'s first room layout appearing not to upload. The file was imported but never shown, so picking a second one replaced it.',
+      'Deleting a folder now counts every setup it will delete, including ones filed elsewhere that belong to a studio inside it.',
+      'The Layout Palette can be reset to defaults, and its colour picker no longer opens off the edge of the window.'
+    ]
   }
 ]
