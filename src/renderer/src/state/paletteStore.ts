@@ -23,6 +23,8 @@ interface PaletteState {
    *  used when dragging an item into a different category section. `ids` is the full flat id
    *  order after the move (kept contiguous per category by the caller). */
   recategorize(id: number, category: string, ids: number[]): Promise<void>
+  /** Discards every palette customization and restores the shipped defaults. */
+  resetToDefaults(): Promise<void>
 }
 
 /** Loaded once at app startup (App.tsx) — not per-setup, not per-studio. This is the one
@@ -40,6 +42,12 @@ export const usePaletteStore = create<PaletteState>((set, get) => ({
   loadAll: async () => {
     const allItems = await window.api.palette.listAll()
     set({ allItems })
+  },
+
+  resetToDefaults: async () => {
+    await window.api.palette.resetToDefaults()
+    await get().load()
+    await get().loadAll()
   },
 
   addCustom: async (label, shape, color, category) => {

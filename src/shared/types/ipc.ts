@@ -191,7 +191,8 @@ export const IPC = {
     removeCustom: 'palette:removeCustom',
     reorder: 'palette:reorder',
     renameCategory: 'palette:renameCategory',
-    deleteCategory: 'palette:deleteCategory'
+    deleteCategory: 'palette:deleteCategory',
+    resetToDefaults: 'palette:resetToDefaults'
   }
 } as const
 
@@ -792,5 +793,7 @@ export interface RendererApi {
     /** Removes a whole category: hard-deletes its custom items, soft-hides its built-in items
      *  (recoverable from the editor's Hidden list). */
     deleteCategory(category: string): Promise<void>
+    /** Discards every customization and re-seeds the shipped palette. Returns the fresh list. */
+    resetToDefaults(): Promise<PaletteItem[]>
   }
 }

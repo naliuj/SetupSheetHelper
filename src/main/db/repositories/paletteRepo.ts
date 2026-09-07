@@ -1,4 +1,5 @@
 import type { PaletteItem } from '@shared/types/palette'
+import { DEFAULT_PALETTE_ITEMS } from '@shared/constants/paletteDefaults'
 import { getDb } from '../index'
 
 interface PaletteItemRow {
@@ -117,4 +118,27 @@ export function reorderPaletteItems(ids: number[]): void {
     ids.forEach((id, index) => stmt.run(index, id))
   })
   reorder()
+}
+
+/** Throws the whole palette away and re-seeds it from DEFAULT_PALETTE_ITEMS: custom blocks are
+ *  deleted, hidden built-ins come back, and every label, colour, shape, category, placed size and
+ *  position returns to what a fresh install has.
+ *
+ *  Safe to delete rows outright. Blocks already dropped on a layout copy their label, shape and
+ *  colour at drop time and hold no reference back to palette_items, so existing floor plans are
+ *  untouched by this. The table is AUTOINCREMENT, so the new rows cannot reuse an old id either.
+ */
+export function resetPaletteToDefaults(): PaletteItem[] {
+  const db = getDb()
+  const insert = db.prepare(
+    `INSERT INTO palette_items
+       (instrument_key, label, shape, color, category, is_builtin, is_hidden, sort_order, default_width, default_height)
+     VALUES (@instrumentKey, @label, @shape, @color, @category, 1, 0, @sortOrder, @defaultWidth, @defaultHeight)`
+  )
+  const reset = db.transaction(() => {
+    db.prepare('DELETE FROM palette_items').run()
+    DEFAULT_PALETTE_ITEMS.forEach((item, index) => insert.run({ ...item, sortOrder: index }))
+  })
+  reset()
+  return listAllPaletteItems()
 }

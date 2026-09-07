@@ -234,7 +234,8 @@ const api: RendererApi = {
     removeCustom: (id) => ipcRenderer.invoke(IPC.palette.removeCustom, id),
     reorder: (ids) => ipcRenderer.invoke(IPC.palette.reorder, ids),
     renameCategory: (oldName, newName) => ipcRenderer.invoke(IPC.palette.renameCategory, oldName, newName),
-    deleteCategory: (category) => ipcRenderer.invoke(IPC.palette.deleteCategory, category)
+    deleteCategory: (category) => ipcRenderer.invoke(IPC.palette.deleteCategory, category),
+    resetToDefaults: () => ipcRenderer.invoke(IPC.palette.resetToDefaults)
   }
 }
 
