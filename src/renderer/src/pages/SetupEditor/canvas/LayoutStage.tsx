@@ -122,7 +122,14 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
     for (const id of selectedBlockIds) {
       const transformer = transformerRefs.current.get(id)
       const node = nodeRefs.current.get(id)
-      if (!transformer || !node) continue
+      if (!transformer) continue
+      if (!node) {
+        // The selection can outlive the node briefly (a block replaced under a new id). Detach
+        // rather than skip: a Transformer keeps painting handles for whatever it last held, even
+        // after that node is destroyed.
+        transformer.nodes([])
+        continue
+      }
       // Konva's Transformer only auto-tracks attribute changes on the node it's directly attached
       // to (this Group) — but width/height actually live on the child Rect/Circle inside it (see
       // LayoutBlockIcon.tsx), so a resize's width/height commit never fires the listeners
@@ -194,7 +201,14 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
   function handleTransformEnd(id: number | string): void {
     const node = nodeRefs.current.get(id)
     const block = blocks.find((b) => b.id === id)
-    if (!node || !block) return
+    if (!node) return
+    if (!block) {
+      // Nothing to commit to, but the gesture still left scale on the node. Reset it, or the next
+      // handle grab compounds on top of a resize that was never recorded.
+      node.scaleX(1)
+      node.scaleY(1)
+      return
+    }
     // Konva accumulates resize as node scale — bake it into explicit width/height and reset
     // scale to 1 so the next transform doesn't compound on top of this one.
     const width = Math.max(8, block.width * node.scaleX())

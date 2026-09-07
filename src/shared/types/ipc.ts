@@ -276,6 +276,14 @@ export interface SetupItemInput {
   groupId: string | null
 }
 
+/** What saving a layout hands back. `idMap` records which client-side draft id each newly
+ *  inserted block received, so the renderer can carry selection (and anything else keyed by a
+ *  draft id) across the save instead of pointing at an id that no longer exists. */
+export interface SaveLayoutBlocksResult {
+  blocks: RoomLayoutBlock[]
+  idMap: Record<string, number>
+}
+
 export interface RoomLayoutBlockInput {
   id: number | string
   label: string
@@ -787,7 +795,7 @@ export interface RendererApi {
   }
   roomLayoutBlocks: {
     listBySetup(setupId: number): Promise<RoomLayoutBlock[]>
-    saveForSetup(setupId: number, blocks: RoomLayoutBlockInput[]): Promise<RoomLayoutBlock[]>
+    saveForSetup(setupId: number, blocks: RoomLayoutBlockInput[]): Promise<SaveLayoutBlocksResult>
   }
   /** The standalone Layout Mode window — see main/layoutWindow.ts. `open`/`focus`/`getState` and
    *  `requestExportImage` are called from the MAIN window; the four `on*` subscriptions are only

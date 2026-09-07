@@ -1,5 +1,5 @@
 import type { RoomLayoutBlock } from '@shared/types/setup'
-import type { RoomLayoutBlockInput } from '@shared/types/ipc'
+import type { RoomLayoutBlockInput, SaveLayoutBlocksResult } from '@shared/types/ipc'
 import { getDb } from '../index'
 
 interface RoomLayoutBlockRow {
@@ -75,8 +75,12 @@ export function copyBlocksToSetup(sourceSetupId: number, targetSetupId: number):
  *  setupItemsRepo.replaceItemsForSetup (existing numeric ids UPDATE in place so they survive
  *  autosave without remounting; client-generated string ids INSERT; anything missing from the
  *  incoming set is DELETEd). */
-export function replaceBlocksForSetup(setupId: number, blocks: RoomLayoutBlockInput[]): RoomLayoutBlock[] {
+export function replaceBlocksForSetup(setupId: number, blocks: RoomLayoutBlockInput[]): SaveLayoutBlocksResult {
   const db = getDb()
+  // Which client-side draft id each INSERT became. The returned block list is ordered by
+  // z_index/id rather than input order, so this is the only reliable way for the renderer to carry
+  // anything keyed by a draft id (the selection, above all) across the save.
+  const idMap: Record<string, number> = {}
   const insert = db.prepare(
     `INSERT INTO room_layout_blocks (setup_id, label, shape, color, x, y, width, height, rotation, z_index, person_name)
      VALUES (@setupId, @label, @shape, @color, @x, @y, @width, @height, @rotation, @zIndex, @personName)`
@@ -116,7 +120,9 @@ export function replaceBlocksForSetup(setupId: number, blocks: RoomLayoutBlockIn
         keepIds.add(block.id)
       } else {
         const info = insert.run(params)
-        keepIds.add(Number(info.lastInsertRowid))
+        const newId = Number(info.lastInsertRowid)
+        keepIds.add(newId)
+        if (typeof block.id === 'string') idMap[block.id] = newId
       }
     }
 
@@ -126,5 +132,5 @@ export function replaceBlocksForSetup(setupId: number, blocks: RoomLayoutBlockIn
   })
   replace()
 
-  return listBlocksBySetup(setupId)
+  return { blocks: listBlocksBySetup(setupId), idMap }
 }

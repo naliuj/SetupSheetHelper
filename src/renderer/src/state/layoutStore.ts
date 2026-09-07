@@ -227,11 +227,23 @@ export function createLayoutStore(setupStoreApi: SetupStoreApi) {
         const state = get()
         set({ isSaving: true })
         try {
-          const saved = await window.api.roomLayoutBlocks.saveForSetup(
+          const { blocks: saved, idMap } = await window.api.roomLayoutBlocks.saveForSetup(
             setupId,
             state.blocks.map((b) => ({ ...b }))
           )
-          set({ blocks: saved, isDirty: false, isSaving: false })
+          // A just-dropped block is selected under its draft id. Saving replaces it with the row's
+          // numeric id, and leaving the selection pointing at the draft left its Transformer
+          // attached to a Konva node that no longer existed: the block looked deselected while
+          // stale resize handles kept painting, and a resize begun in that window bailed out
+          // before resetting the node's scale. Re-key the selection so it survives the save, and
+          // drop anything that no longer resolves to a block at all.
+          const savedIds = new Set<number | string>(saved.map((b) => b.id))
+          const selectedBlockIds = new Set<number | string>()
+          for (const id of get().selectedBlockIds) {
+            const mapped = typeof id === 'string' ? (idMap[id] ?? id) : id
+            if (savedIds.has(mapped)) selectedBlockIds.add(mapped)
+          }
+          set({ blocks: saved, selectedBlockIds, isDirty: false, isSaving: false })
         } catch (err) {
           set({ isSaving: false })
           throw err
