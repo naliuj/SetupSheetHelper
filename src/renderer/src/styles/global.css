@@ -1373,3 +1373,40 @@ input[type='checkbox']:focus-visible {
   border-color: var(--color-danger);
   background: color-mix(in srgb, var(--color-danger) 12%, var(--color-surface));
 }
+
+/* Points at a gear row the studio already has, when the catalogue picker is asked for a model
+   that is already in the list. Two pulses rather than one: a single fade is easy to miss if the
+   scroll is still settling when it starts. The tint sits on the cells, since a <tr> background is
+   painted under its cells and would be hidden by any row coloring. */
+@keyframes gear-row-flash {
+  0% {
+    background-color: color-mix(in srgb, var(--color-accent) 32%, transparent);
+  }
+  40% {
+    background-color: transparent;
+  }
+  60% {
+    background-color: color-mix(in srgb, var(--color-accent) 32%, transparent);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.gear-row-flash > td {
+  animation: gear-row-flash 1.3s ease-out;
+}
+
+/* Pulsing is the part that causes trouble here, not the highlight — hold a steady tint and fade
+   it out once instead of dropping the cue altogether. */
+@media (prefers-reduced-motion: reduce) {
+  @keyframes gear-row-flash {
+    0%,
+    70% {
+      background-color: color-mix(in srgb, var(--color-accent) 24%, transparent);
+    }
+    100% {
+      background-color: transparent;
+    }
+  }
+}

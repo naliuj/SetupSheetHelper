@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { X } from 'lucide-react'
 import type {
   Mic,
@@ -9,7 +9,7 @@ import type {
   PreampWithStudio
 } from '@shared/types/entities'
 import { guessManufacturer, MANUFACTURER_PREFIXES } from '@shared/constants/manufacturers'
-import { stripManufacturerPrefix } from '@shared/utils/manufacturerPrefix'
+import { gearIdentityKey, stripManufacturerPrefix } from '@shared/utils/manufacturerPrefix'
 import { useNavigationStore } from '@renderer/state/navigationStore'
 import { useFolderPicker } from '@renderer/state/useFolderPicker'
 import { useModelSuggestions } from '@renderer/state/useModelSuggestions'
@@ -70,6 +70,18 @@ function byManufacturerThenModel(
     undefined,
     collate
   )
+}
+
+/** The pending row already holding this model, if any. Compares on manufacturer + name through
+ *  gearIdentityKey, the same normalisation the rest of the app uses to decide two rows are the
+ *  same box, so casing and stray spacing don't hide a match. */
+function findPendingRow<T extends { key: string; name: string; manufacturer: string | null }>(
+  rows: T[],
+  name: string,
+  manufacturer: string | null
+): T | undefined {
+  const wanted = gearIdentityKey(name, manufacturer)
+  return rows.find((row) => gearIdentityKey(row.name, row.manufacturer) === wanted)
 }
 
 function tempKey(): string {
@@ -182,6 +194,9 @@ export default function StudioSetupPage(): JSX.Element {
   const [outboardCatalogueSource, setOutboardCatalogueSource] = useState<OutboardGear[]>([])
   const [preampCatalogueSource, setPreampCatalogueSource] = useState<Preamp[]>([])
   const [gearTab, setGearTab] = useState<GearTab>('mics')
+  // Row the catalogue picker just pointed at, cleared once the flash has run its course.
+  const [flashKey, setFlashKey] = useState<string | null>(null)
+  const gearRowRefs = useRef(new Map<string, HTMLTableRowElement>())
   const [saving, setSaving] = useState(false)
   const [importModalOpen, setImportModalOpen] = useState(false)
   // Set the first time a brand-new studio gets a row created early — purely so the Room layout
@@ -336,6 +351,50 @@ export default function StudioSetupPage(): JSX.Element {
     for (const mic of chosen(allMics, micIds)) addMic(mic.id, mic.quantity)
     for (const gear of chosen(allOutboard, outboardIds)) addOutboard(gear.id, gear.quantity)
     for (const preamp of chosen(allPreamps, preampIds)) addPreamp(preamp.id, preamp.channels)
+  }
+
+  /** Scrolls a pending row into view and flashes it. Clearing first and setting on the next frame
+   *  restarts the animation, so picking the same model twice flashes twice rather than sitting
+   *  there looking broken. */
+  function revealRow(key: string): void {
+    setFlashKey(null)
+    requestAnimationFrame(() => setFlashKey(key))
+  }
+
+  useEffect(() => {
+    if (!flashKey) return
+    gearRowRefs.current.get(flashKey)?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    const timer = setTimeout(() => setFlashKey(null), 1400)
+    return () => clearTimeout(timer)
+  }, [flashKey])
+
+  /* Picking a model the studio already lists is almost always someone hunting for the row rather
+   * than claiming a second physical box, and a silent second row for the same mic is how a locker
+   * ends up with "SM-57" twice at one each. Point at the row they already have and let them raise
+   * its count. These wrap the plain add functions rather than replacing them, so importing a whole
+   * locker is unaffected. */
+  function pickMicFromCatalogue(id: number | null): void {
+    const source = micCatalogueSource.find((m) => m.id === id)
+    if (!source) return
+    const existing = findPendingRow(pendingMics, source.name, source.manufacturer)
+    if (existing) revealRow(existing.key)
+    else addMic(id)
+  }
+
+  function pickOutboardFromCatalogue(id: number | null): void {
+    const source = outboardCatalogueSource.find((o) => o.id === id)
+    if (!source) return
+    const existing = findPendingRow(pendingOutboard, source.name, source.manufacturer)
+    if (existing) revealRow(existing.key)
+    else addOutboard(id)
+  }
+
+  function pickPreampFromCatalogue(id: number | null): void {
+    const source = preampCatalogueSource.find((p) => p.id === id)
+    if (!source) return
+    const existing = findPendingRow(pendingPreamps, source.name, source.manufacturer)
+    if (existing) revealRow(existing.key)
+    else addPreamp(id)
   }
 
   function addManualMic(itemName: string, manufacturer: string | null, quantity: number): void {
@@ -576,7 +635,7 @@ export default function StudioSetupPage(): JSX.Element {
                 usedByOthers={() => 0}
                 getQuantity={(m) => m.quantity}
                 selectedId={null}
-                onSelect={addMic}
+                onSelect={pickMicFromCatalogue}
                 placeholder="+ Add Mic from Catalogue"
                 showUsage={false}
               />
@@ -598,7 +657,14 @@ export default function StudioSetupPage(): JSX.Element {
                   </thead>
                   <tbody>
                     {pendingMics.map((item) => (
-                      <tr key={item.key}>
+                      <tr
+                        key={item.key}
+                        ref={(el) => {
+                          if (el) gearRowRefs.current.set(item.key, el)
+                          else gearRowRefs.current.delete(item.key)
+                        }}
+                        className={flashKey === item.key ? 'gear-row-flash' : undefined}
+                      >
                         <td>
                           <input
                             value={item.manufacturer ?? ''}
@@ -637,7 +703,7 @@ export default function StudioSetupPage(): JSX.Element {
                 usedByOthers={() => 0}
                 getQuantity={(o) => o.quantity}
                 selectedId={null}
-                onSelect={addOutboard}
+                onSelect={pickOutboardFromCatalogue}
                 placeholder="+ Add Outboard from Catalogue"
                 showUsage={false}
               />
@@ -659,7 +725,14 @@ export default function StudioSetupPage(): JSX.Element {
                   </thead>
                   <tbody>
                     {pendingOutboard.map((item) => (
-                      <tr key={item.key}>
+                      <tr
+                        key={item.key}
+                        ref={(el) => {
+                          if (el) gearRowRefs.current.set(item.key, el)
+                          else gearRowRefs.current.delete(item.key)
+                        }}
+                        className={flashKey === item.key ? 'gear-row-flash' : undefined}
+                      >
                         <td>
                           <input
                             value={item.manufacturer ?? ''}
@@ -698,7 +771,7 @@ export default function StudioSetupPage(): JSX.Element {
                 usedByOthers={() => 0}
                 getQuantity={(p) => p.channels}
                 selectedId={null}
-                onSelect={addPreamp}
+                onSelect={pickPreampFromCatalogue}
                 placeholder="+ Add Preamp from Catalogue"
                 showUsage={false}
               />
@@ -721,7 +794,14 @@ export default function StudioSetupPage(): JSX.Element {
                   </thead>
                   <tbody>
                     {pendingPreamps.map((item) => (
-                      <tr key={item.key}>
+                      <tr
+                        key={item.key}
+                        ref={(el) => {
+                          if (el) gearRowRefs.current.set(item.key, el)
+                          else gearRowRefs.current.delete(item.key)
+                        }}
+                        className={flashKey === item.key ? 'gear-row-flash' : undefined}
+                      >
                         <td>
                           <input
                             value={item.manufacturer ?? ''}
