@@ -346,5 +346,12 @@ export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
       'Deleting a folder now counts every setup it will delete, including ones filed elsewhere that belong to a studio inside it.',
       'The Layout Palette can be reset to defaults, and its colour picker no longer opens off the edge of the window.'
     ]
+  },
+  {
+    version: '1.16.1',
+    date: '2026-09-07',
+    highlights: [
+      'Fixed resizing a block in Layout Mode right after placing it. The resize handles could come loose from the block and scatter across the room, and a resize begun within a second of placing would snap back to the original size.'
+    ]
   }
 ]
