@@ -468,7 +468,7 @@ export default function StudioSetupPage(): JSX.Element {
         {/* The room's own settings live in a rail so they stop competing with the gear lists for
             vertical space. Cataloguing gear is why this page exists; the folder and the layout
             file are each set once. */}
-        <div style={{ width: 260, flexShrink: 0, overflow: 'auto' }}>
+        <div style={{ width: 260, flexShrink: 0, overflow: 'auto', padding: 3, margin: -3 }}>
           <div className="section-title" style={{ marginTop: 0 }}>
             Folder
           </div>
@@ -506,7 +506,7 @@ export default function StudioSetupPage(): JSX.Element {
           </p>
         </div>
 
-        <div style={{ flex: 1, minWidth: 0, overflow: 'auto' }}>
+        <div style={{ flex: 1, minWidth: 0, overflow: 'auto', padding: 3, margin: -3 }}>
           {/* Same button/primary idiom the Settings tab strip uses. The counts ride on the tabs so
               a locker you aren't looking at still says how full it is — stacked flat, preamps sat
               below a long outboard table and read as missing entirely. */}
