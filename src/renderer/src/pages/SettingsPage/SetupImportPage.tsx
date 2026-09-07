@@ -6,7 +6,7 @@ import { useBerkleeFeaturesStore } from '@renderer/state/berkleeFeaturesStore'
 interface Props {
   file: SetupExportFile
   onBack: () => void
-  onDone: () => void
+  onDone: (imported: string[]) => void
 }
 
 /** Unlike studio import (which always creates its own new studio), imported setups need an
@@ -20,7 +20,7 @@ export default function SetupImportPage({ file, onBack, onDone }: Props): JSX.El
   const [targetStudioId, setTargetStudioId] = useState<number | null>(null)
   const [selectedIndexes, setSelectedIndexes] = useState<Set<number>>(new Set())
   const [importing, setImporting] = useState(false)
-  const [message, setMessage] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     window.api.studios.listCustom().then(setCustomStudios)
@@ -58,24 +58,30 @@ export default function SetupImportPage({ file, onBack, onDone }: Props): JSX.El
   async function handleImport(): Promise<void> {
     if (targetStudioId == null) return
     setImporting(true)
-    setMessage(null)
+    setError(null)
     try {
       const setups = file.setups.filter((_, index) => selectedIndexes.has(index))
       await window.api.setups.importSetups(setups, targetStudioId)
-      setMessage(`Imported ${setups.length} setup${setups.length === 1 ? '' : 's'}.`)
-      setTimeout(onDone, 800)
+      onDone(setups.map((setup) => setup.name))
+    } catch {
+      // Previously a try/finally with no catch, so a failed write left the page silent.
+      setError('Could not import from that file. Nothing was changed.')
     } finally {
       setImporting(false)
     }
   }
 
   return (
-    <div>
+    <div className="page">
       <div className="nav-crumbs">
-        <button onClick={onBack}>Settings</button> / Import Setups
+        <button onClick={onBack}>Settings</button> / Import setups
       </div>
 
-      <h3 style={{ marginBottom: 4 }}>Import into</h3>
+      <h2 style={{ margin: '8px 0 12px' }}>Import setups</h2>
+
+      <div className="section-title" style={{ marginTop: 0 }}>
+        Import into
+      </div>
       <div className="panel" style={{ maxHeight: 200, overflow: 'auto', marginBottom: 16 }}>
         {customStudios.map((studio) => (
           <label
@@ -115,7 +121,7 @@ export default function SetupImportPage({ file, onBack, onDone }: Props): JSX.El
         )}
       </div>
 
-      <h3 style={{ marginBottom: 4 }}>Setups to import</h3>
+      <div className="section-title">Setups to import</div>
       <div className="inline-form" style={{ marginTop: 0 }}>
         <button className="btn small" onClick={() => setSelectedIndexes(new Set(file.setups.map((_, i) => i)))}>
           Select all
@@ -136,8 +142,15 @@ export default function SetupImportPage({ file, onBack, onDone }: Props): JSX.El
           </label>
         ))}
       </div>
-      {message && <p className="card-sub">{message}</p>}
+      {error && (
+        <p className="card-sub" style={{ color: 'var(--color-danger)' }}>
+          {error}
+        </p>
+      )}
       <div className="modal-actions">
+        <button className="btn" onClick={onBack}>
+          Back
+        </button>
         <button
           className="btn primary"
           onClick={handleImport}

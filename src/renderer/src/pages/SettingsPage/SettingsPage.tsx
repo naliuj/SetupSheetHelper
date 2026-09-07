@@ -16,6 +16,8 @@ import PdfLayoutEditor from './PdfLayoutEditor'
 import KeybindsEditor from './KeybindsEditor'
 import StudioExportPage from './StudioExportPage'
 import StudioImportPage from './StudioImportPage'
+import ImportExportTab from './ImportExportTab'
+import type { ImportFeedback } from './ImportExportTab'
 import SetupExportPage from './SetupExportPage'
 import SetupImportPage from './SetupImportPage'
 import FeedbackForm from './FeedbackForm'
@@ -74,7 +76,7 @@ export default function SettingsPage(): JSX.Element {
   const [loaded, setLoaded] = useState(false)
   const [subview, setSubview] = useState<Subview>({ kind: 'main' })
   const [managePresetsOpen, setManagePresetsOpen] = useState(false)
-  const [importMessage, setImportMessage] = useState<string | null>(null)
+  const [importFeedback, setImportFeedback] = useState<ImportFeedback | null>(null)
 
   const TABS: { id: Tab; label: string }[] = [
     { id: 'general', label: 'General' },
@@ -107,29 +109,27 @@ export default function SettingsPage(): JSX.Element {
   }
 
   async function handleImportClick(): Promise<void> {
-    setImportMessage(null)
+    setImportFeedback(null)
     const result = await window.api.studios.pickImportFile()
     if (result.canceled) return
     if (result.error || !result.data) {
-      setImportMessage(result.error ?? 'Could not read that file.')
+      setImportFeedback({ kind: 'error', message: result.error ?? 'Could not read that file.' })
       return
     }
-    if (result.data.studios.length === 1) {
-      await window.api.studios.importStudios(result.data.studios)
-      setImportMessage(`Imported "${result.data.studios[0].name}".`)
-      return
-    }
+    // A single-studio file used to skip the picker outright. It no longer can: the picker is where
+    // a studio you already have gets flagged, and a re-downloaded pack is exactly the one-studio
+    // case that would otherwise duplicate silently.
     setSubview({ kind: 'import', file: result.data })
   }
 
   // Unlike studio import, this always shows the picker page — even a single exported setup
   // still needs a target studio chosen, so there's no "just import it" shortcut to take.
   async function handleImportSetupsClick(): Promise<void> {
-    setImportMessage(null)
+    setImportFeedback(null)
     const result = await window.api.setups.pickImportFile()
     if (result.canceled) return
     if (result.error || !result.data) {
-      setImportMessage(result.error ?? 'Could not read that file.')
+      setImportFeedback({ kind: 'error', message: result.error ?? 'Could not read that file.' })
       return
     }
     setSubview({ kind: 'importSetups', file: result.data })
@@ -159,7 +159,10 @@ export default function SettingsPage(): JSX.Element {
       <StudioImportPage
         file={subview.file}
         onBack={() => setSubview({ kind: 'main' })}
-        onDone={() => setSubview({ kind: 'main' })}
+        onDone={(imported, skipped) => {
+          setImportFeedback({ kind: 'done', noun: 'studio', imported, skipped })
+          setSubview({ kind: 'main' })
+        }}
       />
     )
   }
@@ -171,7 +174,10 @@ export default function SettingsPage(): JSX.Element {
       <SetupImportPage
         file={subview.file}
         onBack={() => setSubview({ kind: 'main' })}
-        onDone={() => setSubview({ kind: 'main' })}
+        onDone={(imported) => {
+          setImportFeedback({ kind: 'done', noun: 'setup', imported, skipped: [] })
+          setSubview({ kind: 'main' })
+        }}
       />
     )
   }
@@ -335,23 +341,14 @@ export default function SettingsPage(): JSX.Element {
 
       {activeTab === 'backup' && (
         <div className="panel">
-          <div className="inline-form" style={{ marginTop: 0 }}>
-            <button className="btn" onClick={() => setSubview({ kind: 'export' })}>
-              Export studios…
-            </button>
-            <button className="btn" onClick={handleImportClick}>
-              Import Studios…
-            </button>
-          </div>
-          <div className="inline-form">
-            <button className="btn" onClick={() => setSubview({ kind: 'exportSetups' })}>
-              Export setups…
-            </button>
-            <button className="btn" onClick={handleImportSetupsClick}>
-              Import Setups…
-            </button>
-          </div>
-          {importMessage && <p className="card-sub">{importMessage}</p>}
+          <ImportExportTab
+            feedback={importFeedback}
+            onDismissFeedback={() => setImportFeedback(null)}
+            onExportStudios={() => setSubview({ kind: 'export' })}
+            onImportStudios={handleImportClick}
+            onExportSetups={() => setSubview({ kind: 'exportSetups' })}
+            onImportSetups={handleImportSetupsClick}
+          />
         </div>
       )}
 

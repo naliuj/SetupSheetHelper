@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Building2, ChevronDown, ChevronRight, Folder } from 'lucide-react'
-import type { Building, MicWithStudio, OutboardGearWithStudio, Studio } from '@shared/types/entities'
+import type {
+  Building,
+  MicWithStudio,
+  OutboardGearWithStudio,
+  PreampWithStudio,
+  Studio
+} from '@shared/types/entities'
 import type { Folder as FolderType, FolderTreeNode as FolderTreeNodeType } from '@shared/types/setup'
 import { buildFolderTree } from '@renderer/state/folderTree'
 import { useEscapeToClose } from '@renderer/hooks/useEscapeToClose'
@@ -9,9 +15,63 @@ import { formatGearLabel } from '@shared/utils/manufacturerPrefix'
 interface Props {
   allMics: MicWithStudio[]
   allOutboard: OutboardGearWithStudio[]
+  allPreamps: PreampWithStudio[]
   currentStudioId: number | null
-  onImport: (micIds: number[], outboardIds: number[]) => void
+  onImport: (micIds: number[], outboardIds: number[], preampIds: number[]) => void
   onClose: () => void
+}
+
+/** One checkbox list with its own All/None pair. The three lockers differ only in their label, the
+ *  per-item count and what that count is called, so they share this rather than a third copy. */
+function GearPickList<T extends { id: number; name: string; manufacturer: string | null }>({
+  title,
+  items,
+  emptyText,
+  countOf,
+  countLabel,
+  selected,
+  onToggle,
+  onSelectAll,
+  onSelectNone
+}: {
+  title: string
+  items: T[]
+  emptyText: string
+  countOf: (item: T) => number
+  countLabel: string
+  selected: Set<number>
+  onToggle: (id: number) => void
+  onSelectAll: () => void
+  onSelectNone: () => void
+}): React.JSX.Element {
+  return (
+    <>
+      <div className="section-title">
+        {title}
+        <span className="card-sub" style={{ float: 'right', fontWeight: 400 }}>
+          <button className="btn small" onClick={onSelectAll}>
+            All
+          </button>{' '}
+          <button className="btn small" onClick={onSelectNone}>
+            None
+          </button>
+        </span>
+      </div>
+      {items.length === 0 ? (
+        <div className="empty-state">{emptyText}</div>
+      ) : (
+        <div className="panel" style={{ maxHeight: 160, overflow: 'auto' }}>
+          {items.map((item) => (
+            <label key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0' }}>
+              <input type="checkbox" checked={selected.has(item.id)} onChange={() => onToggle(item.id)} />
+              {formatGearLabel(item.name, item.manufacturer)}
+              {countOf(item) > 1 ? ` (${countLabel}${countOf(item)})` : ''}
+            </label>
+          ))}
+        </div>
+      )}
+    </>
+  )
 }
 
 /** Recursive folder branch for the source-studio picker — single-select (highlights the chosen
@@ -83,6 +143,7 @@ function StudioPickerFolderNode({
 export default function ImportGearModal({
   allMics,
   allOutboard,
+  allPreamps,
   currentStudioId,
   onImport,
   onClose
@@ -130,6 +191,7 @@ export default function ImportGearModal({
   const [sourceStudioId, setSourceStudioId] = useState<number | null>(null)
   const [selectedMicIds, setSelectedMicIds] = useState<Set<number>>(new Set())
   const [selectedOutboardIds, setSelectedOutboardIds] = useState<Set<number>>(new Set())
+  const [selectedPreampIds, setSelectedPreampIds] = useState<Set<number>>(new Set())
 
   const micsHere = useMemo(
     () => allMics.filter((m) => m.studioId === sourceStudioId),
@@ -139,12 +201,17 @@ export default function ImportGearModal({
     () => allOutboard.filter((o) => o.studioId === sourceStudioId),
     [allOutboard, sourceStudioId]
   )
+  const preampsHere = useMemo(
+    () => allPreamps.filter((p) => p.studioId === sourceStudioId),
+    [allPreamps, sourceStudioId]
+  )
 
   // Default to importing the whole locker — "similar gear list" implies most/all of it, with
   // occasional exclusions rather than starting from nothing.
   useEffect(() => {
     setSelectedMicIds(new Set(micsHere.map((m) => m.id)))
     setSelectedOutboardIds(new Set(outboardHere.map((o) => o.id)))
+    setSelectedPreampIds(new Set(preampsHere.map((p) => p.id)))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sourceStudioId])
 
@@ -166,10 +233,22 @@ export default function ImportGearModal({
     })
   }
 
+  function togglePreamp(id: number): void {
+    setSelectedPreampIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
   function handleImport(): void {
-    onImport([...selectedMicIds], [...selectedOutboardIds])
+    onImport([...selectedMicIds], [...selectedOutboardIds], [...selectedPreampIds])
     onClose()
   }
+
+  const nothingSelected =
+    selectedMicIds.size === 0 && selectedOutboardIds.size === 0 && selectedPreampIds.size === 0
 
   const noStudiosAvailable = buildingGroups.length === 0 && customStudios.length === 0
 
@@ -178,10 +257,11 @@ export default function ImportGearModal({
       <div
         className="modal"
         onClick={(e) => e.stopPropagation()}
-        style={{ width: 480, maxHeight: '80vh', overflow: 'auto' }}
+        style={{ width: 480, maxHeight: '80vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
       >
         <h2 style={{ marginTop: 0 }}>Import gear from another studio</h2>
 
+        <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
         <div className="panel" style={{ maxHeight: 220, overflow: 'auto', marginBottom: 12 }}>
           {buildingGroups.map(({ building, studios }) => (
             <div key={building.id}>
@@ -229,64 +309,43 @@ export default function ImportGearModal({
 
         {sourceStudioId != null && (
           <>
-            <div className="section-title">
-              Mic locker
-              <span className="card-sub" style={{ float: 'right', fontWeight: 400 }}>
-                <button className="btn small" onClick={() => setSelectedMicIds(new Set(micsHere.map((m) => m.id)))}>
-                  All
-                </button>{' '}
-                <button className="btn small" onClick={() => setSelectedMicIds(new Set())}>
-                  None
-                </button>
-              </span>
-            </div>
-            {micsHere.length === 0 ? (
-              <div className="empty-state">No mics in this studio.</div>
-            ) : (
-              <div className="panel" style={{ maxHeight: 160, overflow: 'auto' }}>
-                {micsHere.map((mic) => (
-                  <label key={mic.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0' }}>
-                    <input type="checkbox" checked={selectedMicIds.has(mic.id)} onChange={() => toggleMic(mic.id)} />
-                    {formatGearLabel(mic.name, mic.manufacturer)}
-                    {mic.quantity > 1 ? ` (x${mic.quantity})` : ''}
-                  </label>
-                ))}
-              </div>
-            )}
-
-            <div className="section-title">
-              Outboard gear
-              <span className="card-sub" style={{ float: 'right', fontWeight: 400 }}>
-                <button
-                  className="btn small"
-                  onClick={() => setSelectedOutboardIds(new Set(outboardHere.map((o) => o.id)))}
-                >
-                  All
-                </button>{' '}
-                <button className="btn small" onClick={() => setSelectedOutboardIds(new Set())}>
-                  None
-                </button>
-              </span>
-            </div>
-            {outboardHere.length === 0 ? (
-              <div className="empty-state">No outboard gear in this studio.</div>
-            ) : (
-              <div className="panel" style={{ maxHeight: 160, overflow: 'auto' }}>
-                {outboardHere.map((gear) => (
-                  <label key={gear.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0' }}>
-                    <input
-                      type="checkbox"
-                      checked={selectedOutboardIds.has(gear.id)}
-                      onChange={() => toggleOutboard(gear.id)}
-                    />
-                    {formatGearLabel(gear.name, gear.manufacturer)}
-                    {gear.quantity > 1 ? ` (x${gear.quantity})` : ''}
-                  </label>
-                ))}
-              </div>
-            )}
+            <GearPickList
+              title="Mic locker"
+              items={micsHere}
+              emptyText="No mics in this studio."
+              countOf={(mic) => mic.quantity}
+              countLabel="x"
+              selected={selectedMicIds}
+              onToggle={toggleMic}
+              onSelectAll={() => setSelectedMicIds(new Set(micsHere.map((m) => m.id)))}
+              onSelectNone={() => setSelectedMicIds(new Set())}
+            />
+            <GearPickList
+              title="Outboard gear"
+              items={outboardHere}
+              emptyText="No outboard gear in this studio."
+              countOf={(gear) => gear.quantity}
+              countLabel="x"
+              selected={selectedOutboardIds}
+              onToggle={toggleOutboard}
+              onSelectAll={() => setSelectedOutboardIds(new Set(outboardHere.map((o) => o.id)))}
+              onSelectNone={() => setSelectedOutboardIds(new Set())}
+            />
+            <GearPickList
+              title="Preamps"
+              items={preampsHere}
+              emptyText="No preamps in this studio."
+              countOf={(preamp) => preamp.channels}
+              countLabel=""
+              selected={selectedPreampIds}
+              onToggle={togglePreamp}
+              onSelectAll={() => setSelectedPreampIds(new Set(preampsHere.map((p) => p.id)))}
+              onSelectNone={() => setSelectedPreampIds(new Set())}
+            />
           </>
         )}
+
+        </div>
 
         <div className="modal-actions">
           <button className="btn" onClick={onClose}>
@@ -295,11 +354,11 @@ export default function ImportGearModal({
           <button
             className="btn primary"
             onClick={handleImport}
-            disabled={sourceStudioId == null || (selectedMicIds.size === 0 && selectedOutboardIds.size === 0)}
+            disabled={sourceStudioId == null || nothingSelected}
             title={
               sourceStudioId == null
                 ? 'Choose a studio to import from'
-                : selectedMicIds.size === 0 && selectedOutboardIds.size === 0
+                : nothingSelected
                   ? 'Select at least one item to import'
                   : undefined
             }

@@ -107,6 +107,10 @@ export interface OutboardGearWithStudio extends OutboardGear {
   studioName: string
 }
 
+export interface PreampWithStudio extends Preamp {
+  studioName: string
+}
+
 export const APP_SETTINGS_KEYS = {
   defaultEngineerName: 'default_engineer_name',
   defaultPdfExportInclude: 'default_pdf_export_include',

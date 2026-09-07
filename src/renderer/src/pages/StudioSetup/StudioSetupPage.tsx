@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import { X } from 'lucide-react'
-import type { Mic, MicWithStudio, OutboardGear, OutboardGearWithStudio, Preamp } from '@shared/types/entities'
+import type {
+  Mic,
+  MicWithStudio,
+  OutboardGear,
+  OutboardGearWithStudio,
+  Preamp,
+  PreampWithStudio
+} from '@shared/types/entities'
 import { guessManufacturer, MANUFACTURER_PREFIXES } from '@shared/constants/manufacturers'
 import { stripManufacturerPrefix } from '@shared/utils/manufacturerPrefix'
 import { useNavigationStore } from '@renderer/state/navigationStore'
@@ -29,6 +36,14 @@ interface PendingPreampItem {
   category: string | null
   channels: number
 }
+
+type GearTab = 'mics' | 'outboard' | 'preamps'
+
+const GEAR_TABS: { id: GearTab; label: string }[] = [
+  { id: 'mics', label: 'Mics' },
+  { id: 'outboard', label: 'Outboard' },
+  { id: 'preamps', label: 'Preamps' }
+]
 
 function tempKey(): string {
   return `new-${crypto.randomUUID()}`
@@ -135,9 +150,11 @@ export default function StudioSetupPage(): JSX.Element {
   // matter there.
   const [allMics, setAllMics] = useState<MicWithStudio[]>([])
   const [allOutboard, setAllOutboard] = useState<OutboardGearWithStudio[]>([])
+  const [allPreamps, setAllPreamps] = useState<PreampWithStudio[]>([])
   const [micCatalogueSource, setMicCatalogueSource] = useState<Mic[]>([])
   const [outboardCatalogueSource, setOutboardCatalogueSource] = useState<OutboardGear[]>([])
   const [preampCatalogueSource, setPreampCatalogueSource] = useState<Preamp[]>([])
+  const [gearTab, setGearTab] = useState<GearTab>('mics')
   const [saving, setSaving] = useState(false)
   const [importModalOpen, setImportModalOpen] = useState(false)
   // Set the first time a brand-new studio gets a row created early — purely so the Room layout
@@ -148,6 +165,12 @@ export default function StudioSetupPage(): JSX.Element {
   const activeStudioId = studioSetupId ?? createdStudioId
 
   const { folders, selectedFolderId, setSelectedFolderId, createFolder } = useFolderPicker('studio')
+
+  const gearCounts: Record<GearTab, number> = {
+    mics: pendingMics.length,
+    outboard: pendingOutboard.length,
+    preamps: pendingPreamps.length
+  }
 
   const catalogueMics = dedupeByNameAndManufacturer(micCatalogueSource)
   const catalogueOutboard = dedupeByNameAndManufacturer(outboardCatalogueSource)
@@ -165,6 +188,7 @@ export default function StudioSetupPage(): JSX.Element {
   useEffect(() => {
     window.api.mics.listAllWithStudio().then(setAllMics)
     window.api.outboard.listAllWithStudio().then(setAllOutboard)
+    window.api.preamps.listAllWithStudio().then(setAllPreamps)
     window.api.mics.listAll().then(setMicCatalogueSource)
     window.api.outboard.listAll().then(setOutboardCatalogueSource)
     window.api.preamps.listAll().then(setPreampCatalogueSource)
@@ -255,7 +279,7 @@ export default function StudioSetupPage(): JSX.Element {
     ])
   }
 
-  function addPreamp(id: number | null): void {
+  function addPreamp(id: number | null, channels?: number): void {
     const source = preampCatalogueSource.find((p) => p.id === id)
     if (!source) return
     setPendingPreamps((prev) => [
@@ -265,7 +289,7 @@ export default function StudioSetupPage(): JSX.Element {
         name: source.name,
         manufacturer: source.manufacturer,
         category: source.category,
-        channels: source.channels
+        channels: channels ?? source.channels
       }
     ])
   }
@@ -273,9 +297,10 @@ export default function StudioSetupPage(): JSX.Element {
   /** Importing from a specific studio copies THAT studio's count, so the number matches the "(xN)"
    *  the modal showed. Resolve against allMics/allOutboard (the studio-tagged lists the modal was
    *  built from) — the id belongs to that studio's row, not to the deduped global catalogue. */
-  function handleImportGear(micIds: number[], outboardIds: number[]): void {
+  function handleImportGear(micIds: number[], outboardIds: number[], preampIds: number[]): void {
     for (const id of micIds) addMic(id, allMics.find((m) => m.id === id)?.quantity ?? 1)
     for (const id of outboardIds) addOutboard(id, allOutboard.find((o) => o.id === id)?.quantity ?? 1)
+    for (const id of preampIds) addPreamp(id, allPreamps.find((p) => p.id === id)?.channels)
   }
 
   function addManualMic(itemName: string, manufacturer: string | null, quantity: number): void {
@@ -360,7 +385,7 @@ export default function StudioSetupPage(): JSX.Element {
       for (const id of removedOutboardIds) await window.api.outboard.remove(id)
       for (const id of removedPreampIds) await window.api.preamps.remove(id)
 
-      for (const item of pendingMics) {
+      for (const [index, item] of pendingMics.entries()) {
         await window.api.mics.upsert({
           id: item.existingId,
           poolType: 'studio',
@@ -371,10 +396,11 @@ export default function StudioSetupPage(): JSX.Element {
           manufacturer: item.manufacturer,
           category: item.category,
           notes: null,
-          quantity: item.quantity
+          quantity: item.quantity,
+          sortOrder: index
         })
       }
-      for (const item of pendingOutboard) {
+      for (const [index, item] of pendingOutboard.entries()) {
         await window.api.outboard.upsert({
           id: item.existingId,
           poolType: 'studio',
@@ -385,10 +411,11 @@ export default function StudioSetupPage(): JSX.Element {
           manufacturer: item.manufacturer,
           category: item.category,
           notes: null,
-          quantity: item.quantity
+          quantity: item.quantity,
+          sortOrder: index
         })
       }
-      for (const item of pendingPreamps) {
+      for (const [index, item] of pendingPreamps.entries()) {
         await window.api.preamps.upsert({
           id: item.existingId,
           poolType: 'studio',
@@ -399,7 +426,8 @@ export default function StudioSetupPage(): JSX.Element {
           manufacturer: item.manufacturer,
           category: item.category,
           notes: null,
-          channels: item.channels
+          channels: item.channels,
+          sortOrder: index
         })
       }
 
@@ -436,219 +464,253 @@ export default function StudioSetupPage(): JSX.Element {
         </button>
       </div>
 
-      <div style={{ flex: 1, overflow: 'auto', padding: 16 }}>
-        <div className="section-title" style={{ marginTop: 0 }}>
-          Folder
-        </div>
-        <div style={{ maxWidth: 320, marginBottom: 16 }}>
+      <div style={{ flex: 1, display: 'flex', gap: 16, padding: 16, minHeight: 0 }}>
+        {/* The room's own settings live in a rail so they stop competing with the gear lists for
+            vertical space. Cataloguing gear is why this page exists; the folder and the layout
+            file are each set once. */}
+        <div style={{ width: 260, flexShrink: 0, overflow: 'auto' }}>
+          <div className="section-title" style={{ marginTop: 0 }}>
+            Folder
+          </div>
           <FolderPicker
             folders={folders}
             selectedFolderId={selectedFolderId}
             onSelect={setSelectedFolderId}
             onCreateFolder={createFolder}
           />
-        </div>
 
-        <button className="btn" style={{ marginBottom: 16 }} onClick={() => setImportModalOpen(true)}>
-          Import gear from another studio…
-        </button>
-
-        <div className="section-title" style={{ marginTop: 0 }}>
-          Room layout
-        </div>
-        {activeStudioId ? (
-          <LayoutFileUploader studioId={activeStudioId} />
-        ) : (
-          <div>
-            <div className="empty-state">No room layout uploaded for this studio yet.</div>
-            <div className="inline-form">
-              <button
-                className="btn primary"
-                onClick={handleUploadLayoutBeforeSave}
-                disabled={!name.trim() || creatingForLayout}
-              >
-                {creatingForLayout ? 'Uploading…' : 'Upload Layout File'}
-              </button>
+          <div className="section-title">Room layout</div>
+          {activeStudioId ? (
+            <LayoutFileUploader studioId={activeStudioId} />
+          ) : (
+            <div>
+              <div className="empty-state">No room layout uploaded for this studio yet.</div>
+              <div className="inline-form">
+                <button
+                  className="btn primary"
+                  onClick={handleUploadLayoutBeforeSave}
+                  disabled={!name.trim() || creatingForLayout}
+                >
+                  {creatingForLayout ? 'Uploading…' : 'Upload Layout File'}
+                </button>
+              </div>
             </div>
+          )}
+
+          <div className="section-title">Fill from elsewhere</div>
+          <button className="btn" onClick={() => setImportModalOpen(true)}>
+            Import gear from another studio…
+          </button>
+          <p className="card-sub" style={{ marginTop: 8 }}>
+            Copies the mic locker, outboard rack and preamps from a room you already have.
+          </p>
+        </div>
+
+        <div style={{ flex: 1, minWidth: 0, overflow: 'auto' }}>
+          {/* Same button/primary idiom the Settings tab strip uses. The counts ride on the tabs so
+              a locker you aren't looking at still says how full it is — stacked flat, preamps sat
+              below a long outboard table and read as missing entirely. */}
+          <div className="inline-form" style={{ marginTop: 0, marginBottom: 12 }}>
+            {GEAR_TABS.map((tab) => (
+              <button
+                key={tab.id}
+                className={gearTab === tab.id ? 'btn primary' : 'btn'}
+                onClick={() => setGearTab(tab.id)}
+              >
+                {tab.label} {gearCounts[tab.id]}
+              </button>
+            ))}
           </div>
-        )}
 
-        <div className="section-title">Mics</div>
-        <ManufacturerPickerDropdown
-          items={catalogueMics}
-          usedByOthers={() => 0}
-          getQuantity={(m) => m.quantity}
-          selectedId={null}
-          onSelect={addMic}
-          placeholder="+ Add Mic from Catalogue"
-          showUsage={false}
-        />
-        <ManualEntryForm
-          onAdd={addManualMic}
-          namePlaceholder="Mic name (e.g. Neumann U87)"
-          manufacturerSuggestions={catalogueManufacturers}
-          catalogueItems={catalogueMics}
-        />
-        {pendingMics.length > 0 && (
-          <table className="data-table" style={{ marginTop: 8 }}>
-            <thead>
-              <tr>
-                <th>Manufacturer</th>
-                <th>Name</th>
-                <th>Qty</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {pendingMics.map((item) => (
-                <tr key={item.key}>
-                  <td>
-                    <input
-                      value={item.manufacturer ?? ''}
-                      onChange={(e) => updateMic(item.key, { manufacturer: e.target.value || null })}
-                    />
-                  </td>
-                  <td>
-                    <input value={item.name} onChange={(e) => updateMic(item.key, { name: e.target.value })} />
-                  </td>
-                  <td style={{ maxWidth: 70 }}>
-                    <input
-                      type="number"
-                      min={1}
-                      value={item.quantity}
-                      onChange={(e) => updateMic(item.key, { quantity: Math.max(1, Number(e.target.value)) })}
-                    />
-                  </td>
-                  <td>
-                    <button className="btn small danger" onClick={() => removeMic(item)}>
-                      <X size={14} aria-hidden="true" />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+          {gearTab === 'mics' && (
+            <>
+              <ManufacturerPickerDropdown
+                items={catalogueMics}
+                usedByOthers={() => 0}
+                getQuantity={(m) => m.quantity}
+                selectedId={null}
+                onSelect={addMic}
+                placeholder="+ Add Mic from Catalogue"
+                showUsage={false}
+              />
+              <ManualEntryForm
+                onAdd={addManualMic}
+                namePlaceholder="Mic name (e.g. Neumann U87)"
+                manufacturerSuggestions={catalogueManufacturers}
+                catalogueItems={catalogueMics}
+              />
+              {pendingMics.length > 0 && (
+                <table className="data-table" style={{ marginTop: 8 }}>
+                  <thead>
+                    <tr>
+                      <th>Manufacturer</th>
+                      <th>Name</th>
+                      <th>Qty</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pendingMics.map((item) => (
+                      <tr key={item.key}>
+                        <td>
+                          <input
+                            value={item.manufacturer ?? ''}
+                            onChange={(e) => updateMic(item.key, { manufacturer: e.target.value || null })}
+                          />
+                        </td>
+                        <td>
+                          <input value={item.name} onChange={(e) => updateMic(item.key, { name: e.target.value })} />
+                        </td>
+                        <td style={{ maxWidth: 70 }}>
+                          <input
+                            type="number"
+                            min={1}
+                            value={item.quantity}
+                            onChange={(e) => updateMic(item.key, { quantity: Math.max(1, Number(e.target.value)) })}
+                          />
+                        </td>
+                        <td>
+                          <button className="btn small danger" onClick={() => removeMic(item)}>
+                            <X size={14} aria-hidden="true" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
 
-        <div className="section-title">Outboard gear</div>
-        <ManufacturerPickerDropdown
-          items={catalogueOutboard}
-          usedByOthers={() => 0}
-          getQuantity={(o) => o.quantity}
-          selectedId={null}
-          onSelect={addOutboard}
-          placeholder="+ Add Outboard from Catalogue"
-          showUsage={false}
-        />
-        <ManualEntryForm
-          onAdd={addManualOutboard}
-          namePlaceholder="Gear name (e.g. 1176 Compressor)"
-          manufacturerSuggestions={catalogueManufacturers}
-          catalogueItems={catalogueOutboard}
-        />
-        {pendingOutboard.length > 0 && (
-          <table className="data-table" style={{ marginTop: 8 }}>
-            <thead>
-              <tr>
-                <th>Manufacturer</th>
-                <th>Name</th>
-                <th>Qty</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {pendingOutboard.map((item) => (
-                <tr key={item.key}>
-                  <td>
-                    <input
-                      value={item.manufacturer ?? ''}
-                      onChange={(e) => updateOutboard(item.key, { manufacturer: e.target.value || null })}
-                    />
-                  </td>
-                  <td>
-                    <input value={item.name} onChange={(e) => updateOutboard(item.key, { name: e.target.value })} />
-                  </td>
-                  <td style={{ maxWidth: 70 }}>
-                    <input
-                      type="number"
-                      min={1}
-                      value={item.quantity}
-                      onChange={(e) => updateOutboard(item.key, { quantity: Math.max(1, Number(e.target.value)) })}
-                    />
-                  </td>
-                  <td>
-                    <button className="btn small danger" onClick={() => removeOutboard(item)}>
-                      <X size={14} aria-hidden="true" />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+            </>
+          )}
 
-        <div className="section-title">Preamps</div>
-        <ManufacturerPickerDropdown
-          items={cataloguePreamps}
-          usedByOthers={() => 0}
-          getQuantity={(p) => p.channels}
-          selectedId={null}
-          onSelect={addPreamp}
-          placeholder="+ Add Preamp from Catalogue"
-          showUsage={false}
-        />
-        <ManualEntryForm
-          onAdd={addManualPreamp}
-          namePlaceholder="Preamp name (e.g. 8-channel)"
-          manufacturerSuggestions={catalogueManufacturers}
-          catalogueItems={cataloguePreamps}
-          countLabel="Channels"
-        />
-        {pendingPreamps.length > 0 && (
-          <table className="data-table" style={{ marginTop: 8 }}>
-            <thead>
-              <tr>
-                <th>Manufacturer</th>
-                <th>Name</th>
-                <th>Channels</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {pendingPreamps.map((item) => (
-                <tr key={item.key}>
-                  <td>
-                    <input
-                      value={item.manufacturer ?? ''}
-                      onChange={(e) => updatePreamp(item.key, { manufacturer: e.target.value || null })}
-                    />
-                  </td>
-                  <td>
-                    <input value={item.name} onChange={(e) => updatePreamp(item.key, { name: e.target.value })} />
-                  </td>
-                  <td style={{ maxWidth: 70 }}>
-                    <input
-                      type="number"
-                      min={1}
-                      value={item.channels}
-                      onChange={(e) => updatePreamp(item.key, { channels: Math.max(1, Number(e.target.value)) })}
-                    />
-                  </td>
-                  <td>
-                    <button className="btn small danger" onClick={() => removePreamp(item)}>
-                      <X size={14} aria-hidden="true" />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+          {gearTab === 'outboard' && (
+            <>
+              <ManufacturerPickerDropdown
+                items={catalogueOutboard}
+                usedByOthers={() => 0}
+                getQuantity={(o) => o.quantity}
+                selectedId={null}
+                onSelect={addOutboard}
+                placeholder="+ Add Outboard from Catalogue"
+                showUsage={false}
+              />
+              <ManualEntryForm
+                onAdd={addManualOutboard}
+                namePlaceholder="Gear name (e.g. 1176 Compressor)"
+                manufacturerSuggestions={catalogueManufacturers}
+                catalogueItems={catalogueOutboard}
+              />
+              {pendingOutboard.length > 0 && (
+                <table className="data-table" style={{ marginTop: 8 }}>
+                  <thead>
+                    <tr>
+                      <th>Manufacturer</th>
+                      <th>Name</th>
+                      <th>Qty</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pendingOutboard.map((item) => (
+                      <tr key={item.key}>
+                        <td>
+                          <input
+                            value={item.manufacturer ?? ''}
+                            onChange={(e) => updateOutboard(item.key, { manufacturer: e.target.value || null })}
+                          />
+                        </td>
+                        <td>
+                          <input value={item.name} onChange={(e) => updateOutboard(item.key, { name: e.target.value })} />
+                        </td>
+                        <td style={{ maxWidth: 70 }}>
+                          <input
+                            type="number"
+                            min={1}
+                            value={item.quantity}
+                            onChange={(e) => updateOutboard(item.key, { quantity: Math.max(1, Number(e.target.value)) })}
+                          />
+                        </td>
+                        <td>
+                          <button className="btn small danger" onClick={() => removeOutboard(item)}>
+                            <X size={14} aria-hidden="true" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+
+            </>
+          )}
+
+          {gearTab === 'preamps' && (
+            <>
+              <ManufacturerPickerDropdown
+                items={cataloguePreamps}
+                usedByOthers={() => 0}
+                getQuantity={(p) => p.channels}
+                selectedId={null}
+                onSelect={addPreamp}
+                placeholder="+ Add Preamp from Catalogue"
+                showUsage={false}
+              />
+              <ManualEntryForm
+                onAdd={addManualPreamp}
+                namePlaceholder="Preamp name (e.g. 8-channel)"
+                manufacturerSuggestions={catalogueManufacturers}
+                catalogueItems={cataloguePreamps}
+                countLabel="Channels"
+              />
+              {pendingPreamps.length > 0 && (
+                <table className="data-table" style={{ marginTop: 8 }}>
+                  <thead>
+                    <tr>
+                      <th>Manufacturer</th>
+                      <th>Name</th>
+                      <th>Channels</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pendingPreamps.map((item) => (
+                      <tr key={item.key}>
+                        <td>
+                          <input
+                            value={item.manufacturer ?? ''}
+                            onChange={(e) => updatePreamp(item.key, { manufacturer: e.target.value || null })}
+                          />
+                        </td>
+                        <td>
+                          <input value={item.name} onChange={(e) => updatePreamp(item.key, { name: e.target.value })} />
+                        </td>
+                        <td style={{ maxWidth: 70 }}>
+                          <input
+                            type="number"
+                            min={1}
+                            value={item.channels}
+                            onChange={(e) => updatePreamp(item.key, { channels: Math.max(1, Number(e.target.value)) })}
+                          />
+                        </td>
+                        <td>
+                          <button className="btn small danger" onClick={() => removePreamp(item)}>
+                            <X size={14} aria-hidden="true" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </>
+          )}
+        </div>
       </div>
       {importModalOpen && (
         <ImportGearModal
           allMics={allMics}
           allOutboard={allOutboard}
+          allPreamps={allPreamps}
           currentStudioId={studioSetupId}
           onImport={handleImportGear}
           onClose={() => setImportModalOpen(false)}

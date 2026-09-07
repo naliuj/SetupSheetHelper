@@ -9,6 +9,7 @@ import type {
   OutboardPoolType,
   Preamp,
   PreampPoolType,
+  PreampWithStudio,
   RoomLayoutFile,
   SetupLayoutOverride,
   Studio
@@ -87,6 +88,7 @@ export const IPC = {
     listPersonalPreamps: 'preamps:listPersonalPreamps',
     listSetupGear: 'preamps:listSetupGear',
     listAll: 'preamps:listAll',
+    listAllWithStudio: 'preamps:listAllWithStudio',
     upsert: 'preamps:upsert',
     remove: 'preamps:remove'
   },
@@ -330,6 +332,12 @@ export interface PickImportFileResult {
   canceled: boolean
   data?: StudioExportFile
   error?: string
+}
+
+/** Names the studios that were actually created, so the confirmation can say which ones landed
+ *  rather than just how many. */
+export interface ImportStudiosResult {
+  imported: string[]
 }
 
 export interface ExportedSetupItemOutboardSlot {
@@ -585,7 +593,7 @@ export interface RendererApi {
     removeMany(ids: number[]): Promise<void>
     exportToFile(studioIds: number[]): Promise<ExportStudiosResult>
     pickImportFile(): Promise<PickImportFileResult>
-    importStudios(studios: ExportedStudio[]): Promise<void>
+    importStudios(studios: ExportedStudio[]): Promise<ImportStudiosResult>
     moveToFolder(id: number, folderId: number | null): Promise<void>
     moveManyToFolder(ids: number[], folderId: number | null): Promise<void>
     reorder(ids: number[]): Promise<void>
@@ -635,6 +643,7 @@ export interface RendererApi {
     listPersonalPreamps(): Promise<Preamp[]>
     listSetupGear(setupId: number): Promise<Preamp[]>
     listAll(): Promise<Preamp[]>
+    listAllWithStudio(): Promise<PreampWithStudio[]>
     upsert(input: PreampUpsertInput): Promise<Preamp>
     remove(id: number): Promise<void>
   }
