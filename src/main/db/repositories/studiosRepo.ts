@@ -1,6 +1,10 @@
 import type { Studio } from '@shared/types/entities'
+import type { SaveStudioInventoryInput } from '@shared/types/ipc'
 import { getDb } from '../index'
 import { removeSetup } from './setupsRepo'
+import { removeMic, upsertMic } from './micsRepo'
+import { removeOutboard, upsertOutboard } from './outboardRepo'
+import { removePreamp, upsertPreamp } from './preampRepo'
 
 interface StudioRow {
   id: number
@@ -145,6 +149,79 @@ export function moveStudiosToFolder(ids: number[], folderId: number | null): voi
 }
 
 /** Batch reorder within a folder — assigns sequential sort_order in the given id order. */
+/** The studio editor's entire Save, in one transaction.
+ *
+ *  The editor used to drive this from the renderer as one IPC call per removal and per gear row,
+ *  commonly fifty or more, each its own implicit transaction, with the deletions going first. A
+ *  UNIQUE(studio_id, name) collision partway through committed the deletions and part of the
+ *  upserts and dropped the rest, and the only visible symptom was the page not navigating home.
+ *
+ *  Array order becomes sort_order, which is also how the gear editors elsewhere should behave —
+ *  see the audit note about new rows landing at sort_order 0. */
+export function saveStudioInventory(input: SaveStudioInventoryInput): Studio {
+  const db = getDb()
+  const run = db.transaction(() => {
+    const studio = input.studioId
+      ? updateCustomStudio(input.studioId, input.name, input.folderId)
+      : createCustomStudio(input.name, input.folderId)
+
+    for (const id of input.removedMicIds) removeMic(id)
+    for (const id of input.removedOutboardIds) removeOutboard(id)
+    for (const id of input.removedPreampIds) removePreamp(id)
+
+    // poolType/buildingId/setupId are fixed for a studio's own locker, so they are set here
+    // rather than trusted from the renderer for every row.
+    input.mics.forEach((item, index) => {
+      upsertMic({
+        id: item.existingId ?? undefined,
+        poolType: 'studio',
+        studioId: studio.id,
+        buildingId: null,
+        setupId: null,
+        name: item.name,
+        manufacturer: item.manufacturer,
+        category: item.category,
+        notes: null,
+        quantity: item.quantity,
+        sortOrder: index
+      })
+    })
+    input.outboard.forEach((item, index) => {
+      upsertOutboard({
+        id: item.existingId ?? undefined,
+        poolType: 'studio',
+        studioId: studio.id,
+        buildingId: null,
+        setupId: null,
+        name: item.name,
+        manufacturer: item.manufacturer,
+        category: item.category,
+        notes: null,
+        quantity: item.quantity,
+        sortOrder: index
+      })
+    })
+    input.preamps.forEach((item, index) => {
+      upsertPreamp({
+        id: item.existingId ?? undefined,
+        poolType: 'studio',
+        studioId: studio.id,
+        buildingId: null,
+        setupId: null,
+        name: item.name,
+        manufacturer: item.manufacturer,
+        category: item.category,
+        notes: null,
+        channels: item.channels,
+        sortOrder: index
+      })
+    })
+
+    return studio
+  })
+  return run()
+}
+
 export function reorderStudios(ids: number[]): void {
   const db = getDb()
   const run = db.transaction(() => {

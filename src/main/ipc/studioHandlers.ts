@@ -1,5 +1,5 @@
 import { ipcMain } from 'electron'
-import { IPC, type ExportedStudio } from '@shared/types/ipc'
+import { IPC, type ExportedStudio, type SaveStudioInventoryInput } from '@shared/types/ipc'
 import * as buildingsRepo from '../db/repositories/buildingsRepo'
 import * as studiosRepo from '../db/repositories/studiosRepo'
 import { exportStudiosToFile, importStudios, pickAndParseImportFile } from '../studios/exportImport'
@@ -24,6 +24,9 @@ export function registerStudioHandlers(): void {
   ipcMain.handle(IPC.studios.createTemporary, () => studiosRepo.createTemporaryStudio())
   ipcMain.handle(IPC.studios.updateCustomDetails, (_e, id: number, name: string, folderId: number | null) =>
     studiosRepo.updateCustomStudio(id, name, folderId)
+  )
+  ipcMain.handle(IPC.studios.saveInventory, (_e, input: SaveStudioInventoryInput) =>
+    studiosRepo.saveStudioInventory(input)
   )
   ipcMain.handle(IPC.studios.rename, (_e, id: number, name: string) => studiosRepo.renameStudio(id, name))
   ipcMain.handle(IPC.studios.remove, (_e, id: number) => studiosRepo.removeStudioCascade(id))

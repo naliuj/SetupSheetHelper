@@ -41,7 +41,8 @@ const api: RendererApi = {
     moveToFolder: (id, folderId) => ipcRenderer.invoke(IPC.studios.moveToFolder, id, folderId),
     moveManyToFolder: (ids, folderId) => ipcRenderer.invoke(IPC.studios.moveManyToFolder, ids, folderId),
     reorder: (ids) => ipcRenderer.invoke(IPC.studios.reorder, ids),
-    getDeleteImpact: (id) => ipcRenderer.invoke(IPC.studios.getDeleteImpact, id)
+    getDeleteImpact: (id) => ipcRenderer.invoke(IPC.studios.getDeleteImpact, id),
+    saveInventory: (input) => ipcRenderer.invoke(IPC.studios.saveInventory, input)
   },
   mics: {
     listAvailableForStudio: (studioId, setupId, facultyReserveEnabledForSetup) =>
