@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { temporal } from 'zundo'
 import type { RoomLayoutBlockDraft } from '@shared/types/setup'
-import { createSetupStore, useSetupStore } from './setupStore'
+import { createSetupStore, useSetupStore, type SaveError } from './setupStore'
 import { useToastStore } from './toastStore'
 
 /** What createLayoutStore's save() needs from its paired setup store — just enough to read the
@@ -33,6 +33,10 @@ interface LayoutState {
   panY: number
   isDirty: boolean
   isSaving: boolean
+  /** The last save failure, or null when the last save succeeded. Carries a timestamp so two
+   *  identical consecutive failures are still distinct values — the retry effect in
+   *  SetupEditorPane keys off this changing. */
+  saveError: SaveError | null
   /** When the in-progress drag/resize started, or null when there is none. save() is a no-op for
    *  as long as it is set: saving replaces the block list with the rows the database hands back,
    *  which remounts a freshly placed block under its new id and kills whatever gesture the user
@@ -109,6 +113,7 @@ export function createLayoutStore(setupStoreApi: SetupStoreApi) {
       panY: 0,
       isDirty: false,
       isSaving: false,
+      saveError: null,
       gestureStartedAt: null,
       beginGesture: () => set({ gestureStartedAt: Date.now() }),
       endGesture: () => set({ gestureStartedAt: null }),
@@ -292,10 +297,19 @@ export function createLayoutStore(setupStoreApi: SetupStoreApi) {
             const mapped = typeof id === 'string' ? (idMap[id] ?? id) : id
             if (nextIds.has(mapped)) selectedBlockIds.add(mapped)
           }
-          set({ blocks: nextBlocks, selectedBlockIds, isDirty: changedDuringSave, isSaving: false })
+          set({
+            blocks: nextBlocks,
+            selectedBlockIds,
+            isDirty: changedDuringSave,
+            isSaving: false,
+            saveError: null
+          })
         } catch (err) {
-          set({ isSaving: false })
-          throw err
+          // See setupStore.save() — never rethrows, for the same reason.
+          set({
+            isSaving: false,
+            saveError: { message: err instanceof Error ? err.message : String(err), at: Date.now() }
+          })
         }
       },
 

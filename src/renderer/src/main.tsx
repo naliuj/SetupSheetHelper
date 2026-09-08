@@ -2,6 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
 import LayoutWindowApp from './LayoutWindowApp'
+import ErrorBoundary from './components/ErrorBoundary'
 import './styles/global.css'
 
 // Both windows load the same bundle and index.html — main/layoutWindow.ts distinguishes the
@@ -10,5 +11,7 @@ import './styles/global.css'
 const isLayoutWindow = new URLSearchParams(window.location.search).get('window') === 'layout'
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
-  <React.StrictMode>{isLayoutWindow ? <LayoutWindowApp /> : <App />}</React.StrictMode>
+  <React.StrictMode>
+    <ErrorBoundary>{isLayoutWindow ? <LayoutWindowApp /> : <App />}</ErrorBoundary>
+  </React.StrictMode>
 )

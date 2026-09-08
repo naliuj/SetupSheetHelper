@@ -2,6 +2,7 @@ import { app, BrowserWindow, dialog, net, protocol, shell } from 'electron'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { closeDb, openDatabaseAtStartup } from './db'
+import { initLogging } from './log'
 import { registerAllIpcHandlers } from './ipc'
 import { installAppMenu } from './menu'
 import { initAutoUpdater } from './autoUpdater'
@@ -80,6 +81,10 @@ function createWindow(): BrowserWindow {
 }
 
 app.whenReady().then(() => {
+  // First thing after ready: everything below can fail, and until this runs those failures go
+  // nowhere a packaged build can show them.
+  initLogging()
+
   // Packaged builds get their icon from build.mac.icon (electron-builder) — this only covers the
   // Dock icon during `npm run dev`, since that runs the generic Electron binary rather than a
   // bundled app.

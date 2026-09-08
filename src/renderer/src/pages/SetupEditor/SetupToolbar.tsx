@@ -61,6 +61,8 @@ export default function SetupToolbar({
   const save = useSetupStoreState((s) => s.save)
   const isDirty = useSetupStoreState((s) => s.isDirty)
   const isSaving = useSetupStoreState((s) => s.isSaving)
+  const saveError = useSetupStoreState((s) => s.saveError)
+  const layoutSaveError = useLayoutStoreState((s) => s.saveError)
   const addItem = useSetupStoreState((s) => s.addItem)
   const selectedItemIds = useSetupStoreState((s) => s.selectedItemIds)
   const removeItems = useSetupStoreState((s) => s.removeItems)
@@ -564,7 +566,18 @@ export default function SetupToolbar({
       </div>
       <div className="spacer" />
       {exportMessage && <span className="card-sub">{exportMessage}</span>}
-      {isDirty && <span className="card-sub">Unsaved changes</span>}
+      {/* A failed save used to be completely silent: the store rethrew into a caller that
+          dropped the promise, so the only trace was "Unsaved changes" never clearing. */}
+      {(saveError || layoutSaveError) && !isSaving && (
+        <span
+          className="card-sub"
+          style={{ color: 'var(--color-danger)' }}
+          title={(saveError ?? layoutSaveError)?.message}
+        >
+          Couldn&apos;t save — retrying
+        </span>
+      )}
+      {isDirty && !saveError && !layoutSaveError && <span className="card-sub">Unsaved changes</span>}
       {isSaving && <span className="card-sub">Saving…</span>}
       {!isSaving && !isDirty && justSaved && (
         <span className="card-sub inline-icon-text">

@@ -10,6 +10,13 @@ import {
 import { useColumnPrefsStore } from './columnPrefsStore'
 import { useToastStore } from './toastStore'
 
+/** Why the last save failed. `at` exists so a repeat of the same failure is a NEW value, which
+ *  is what lets a retry re-arm rather than sitting idle behind an unchanged state slice. */
+export interface SaveError {
+  message: string
+  at: number
+}
+
 export interface UnresolvedGearHint {
   mic?: string
   outboard?: string
@@ -93,6 +100,10 @@ interface SetupState {
   unresolvedGearHints: Map<number | string, UnresolvedGearHint>
   isDirty: boolean
   isSaving: boolean
+  /** The last save failure, or null when the last save succeeded. Carries a timestamp so two
+   *  identical consecutive failures are still distinct values — the retry effect in
+   *  SetupEditorPane keys off this changing. */
+  saveError: SaveError | null
 
   startNewSetup(
     studioId: number,
@@ -172,6 +183,7 @@ export function createSetupStore() {
   unresolvedGearHints: new Map(),
   isDirty: false,
   isSaving: false,
+  saveError: null,
 
   startNewSetup: (studioId, name, sessionDate, folderId = null, engineer = null, artist = null) => {
     store.temporal.getState().clear()
@@ -649,11 +661,18 @@ export function createSetupStore() {
         items: nextItems,
         unresolvedGearHints: nextHints,
         isDirty: changedDuringSave,
-        isSaving: false
+        isSaving: false,
+        saveError: null
       })
     } catch (err) {
-      set({ isSaving: false })
-      throw err
+      // Deliberately does NOT rethrow. Every caller is fire-and-forget — the debounced autosave,
+      // the unmount flush — so throwing only ever produced an unhandled rejection nobody saw.
+      // isDirty stays set, so the work is still pending, and saveError drives both the toolbar's
+      // message and the retry.
+      set({
+        isSaving: false,
+        saveError: { message: err instanceof Error ? err.message : String(err), at: Date.now() }
+      })
     }
   }
     }),
