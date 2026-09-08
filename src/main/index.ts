@@ -1,6 +1,7 @@
-import { app, BrowserWindow, net, protocol, shell } from 'electron'
+import { app, BrowserWindow, dialog, net, protocol, shell } from 'electron'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { closeDb, openDatabaseAtStartup } from './db'
 import { registerAllIpcHandlers } from './ipc'
 import { installAppMenu } from './menu'
 import { initAutoUpdater } from './autoUpdater'
@@ -96,6 +97,23 @@ app.whenReady().then(() => {
     return net.fetch(pathToFileURL(filePath).toString())
   })
 
+  // Open the database HERE rather than letting it happen lazily inside the first IPC call. A
+  // failure (a migration that throws, an unreadable file) used to surface inside a renderer
+  // promise that nothing catches: the window appeared, every query failed, and the user was
+  // looking at an empty Home screen with no way to tell that from having lost their work.
+  const dbError = openDatabaseAtStartup()
+  if (dbError) {
+    dialog.showErrorBox(
+      'Setup Sheet Helper cannot open its database',
+      `${dbError.message}\n\n` +
+        'Your data has not been changed. A copy taken before the last update is in the ' +
+        `"backups" folder next to the database:\n${app.getPath('userData')}\n\n` +
+        'Send this message along with that folder and it can be recovered.'
+    )
+    app.exit(1)
+    return
+  }
+
   registerAllIpcHandlers()
   const mainWindow = createWindow()
   installAppMenu(mainWindow)
@@ -110,4 +128,11 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
+})
+
+// Checkpoints the WAL back into the main database file. Skipping this left every quit with a
+// stray -wal alongside the .sqlite, so anything reading that file on its own — a backup tool, one
+// of the maintenance scripts — saw a database missing the most recent writes.
+app.on('will-quit', () => {
+  closeDb()
 })
