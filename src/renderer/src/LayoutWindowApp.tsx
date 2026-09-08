@@ -4,6 +4,7 @@ import { APP_SETTINGS_KEYS } from '@shared/types/entities'
 import { KEYBIND_ACTIONS, normalizeKeyEvent } from '@shared/constants/keybindActions'
 import { useSetupStore } from './state/setupStore'
 import { useLayoutStore } from './state/layoutStore'
+import { registerFlusher, useQuitFlush } from '@renderer/state/flushRegistry'
 import { usePaletteStore } from './state/paletteStore'
 import { useThemeStore } from './state/themeStore'
 import { useKeybindPrefsStore } from './state/keybindPrefsStore'
@@ -140,6 +141,16 @@ export default function LayoutWindowApp(): JSX.Element {
     const timer = setTimeout(save, AUTOSAVE_DELAY_MS)
     return () => clearTimeout(timer)
   }, [blocks, isDirty, save])
+
+  // The same flush, but for quitting rather than closing this window: main asks every window
+  // before it exits. Registering the store here means the shared helper handles the ack.
+  useQuitFlush()
+  useEffect(() => {
+    return registerFlusher(async () => {
+      const state = useLayoutStore.getState()
+      if (state.isDirty) await state.save()
+    })
+  }, [])
 
   // Close-flush handshake: a raw window close (the red button) has no React unmount to hook, so
   // main/layoutWindow.ts intercepts the native close, asks here, and waits for this ack before

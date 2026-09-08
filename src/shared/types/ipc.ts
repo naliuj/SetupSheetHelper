@@ -627,6 +627,19 @@ export interface LayoutWindowState {
 export const LAYOUT_WINDOW_STATE_CHANNEL = 'layoutWindow:stateChanged'
 export const LAYOUT_WINDOW_EXPORT_REQUEST_CHANNEL = 'layoutWindow:exportImageRequested'
 export const LAYOUT_WINDOW_EXPORT_RESULT_CHANNEL = 'layoutWindow:exportImageResult'
+/** Quit-time flush, for EVERY window. The layout window's own close handshake below covers only
+ *  that window being closed; nothing covered Cmd+Q, which is the common way to leave the app. */
+export const APP_FLUSH_REQUEST_CHANNEL = 'app:flushRequested'
+export const APP_FLUSH_ACK_CHANNEL = 'app:flushAck'
+
+export interface AppFlushRequest {
+  requestId: string
+}
+
+export interface AppFlushAck {
+  requestId: string
+}
+
 export const LAYOUT_WINDOW_FLUSH_REQUEST_CHANNEL = 'layoutWindow:flushRequested'
 export const LAYOUT_WINDOW_FLUSH_ACK_CHANNEL = 'layoutWindow:flushAck'
 
@@ -810,6 +823,10 @@ export interface RendererApi {
   }
   app: {
     getVersion(): Promise<string>
+    /** Main asks, just before quitting, for any unsaved editor state to be written. Returns an
+     *  unsubscribe. The handler MUST ack, success or failure, or the quit waits out its timeout. */
+    onFlushRequested(callback: (request: AppFlushRequest) => void): () => void
+    sendFlushAck(ack: AppFlushAck): void
   }
   feedback: {
     submit(input: FeedbackSubmission): Promise<FeedbackSubmitResult>

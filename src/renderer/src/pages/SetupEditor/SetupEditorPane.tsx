@@ -6,6 +6,7 @@ import { useSetupStoreApi, useSetupStoreState } from '@renderer/state/setupStore
 import { useLayoutStoreApi, useLayoutStoreState } from '@renderer/state/layoutStoreContext'
 import { useCatalogStoreState } from '@renderer/state/catalogStoreContext'
 import { useLayoutWindowStore } from '@renderer/state/layoutWindowStore'
+import { registerFlusher } from '@renderer/state/flushRegistry'
 import InstrumentPalette from './palette/InstrumentPalette'
 import SetupSheetTable from './table/SetupSheetTable'
 import TableModeToolbar from './table/TableModeToolbar'
@@ -226,6 +227,18 @@ export default function SetupEditorPane({
     layoutSaveError,
     saveLayout
   ])
+
+  // Register this pane's stores for the quit-time flush. Split View gives each pane its own
+  // store instances, so registering from here covers both without the app root needing to know
+  // how many panes exist. Unregisters on unmount.
+  useEffect(() => {
+    return registerFlusher(async () => {
+      const setupState = setupStoreApi.getState()
+      if (setupState.isDirty) await setupState.save()
+      const layoutState = layoutStoreApi.getState()
+      if (layoutState.isDirty) await layoutState.save()
+    })
+  }, [setupStoreApi, layoutStoreApi])
 
   // Flush any pending edit immediately when this pane unmounts, so a quick navigation away right
   // after typing/dragging doesn't lose the last second of work. For the SINGLE-pane case this

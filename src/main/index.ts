@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { closeDb, openDatabaseAtStartup } from './db'
 import { initLogging } from './log'
+import { installQuitFlush } from './quitFlush'
 import { registerAllIpcHandlers } from './ipc'
 import { installAppMenu } from './menu'
 import { initAutoUpdater } from './autoUpdater'
@@ -120,6 +121,7 @@ app.whenReady().then(() => {
   }
 
   registerAllIpcHandlers()
+  installQuitFlush()
   const mainWindow = createWindow()
   installAppMenu(mainWindow)
   initAutoUpdater(mainWindow)
