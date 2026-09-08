@@ -27,6 +27,13 @@ import { getPreampsByIds, listAvailableForStudio as listAvailablePreamps } from 
 
 const EXPORT_VERSION = 1
 
+/** An export names its own layout-file extension, and that string gets interpolated into a path
+ *  that is then written to. join() normalizes, so a value like '../../../../etc/x' escapes the
+ *  layouts directory entirely and writes wherever the user can. The studio importer has carried
+ *  this guard since packs became web-fetchable; the setup importer reads the same shape of file
+ *  from the same kind of source and needs the same list. */
+const ALLOWED_LAYOUT_EXTENSIONS = new Set(['.pdf', '.png', '.jpg', '.jpeg'])
+
 function exportLayoutOverride(setupId: number): ExportedRoomLayoutFile | null {
   const override = getSetupLayoutOverride(setupId)
   if (!override || override.kind !== 'file' || !override.filePath || !existsSync(override.filePath)) return null
@@ -128,6 +135,12 @@ export async function pickAndParseSetupImportFile(): Promise<PickSetupImportFile
     if (typeof parsed.version !== 'number' || !Array.isArray(parsed.setups)) {
       return { canceled: false, error: 'This file is not a valid setups export.' }
     }
+    if (parsed.version > EXPORT_VERSION) {
+      return {
+        canceled: false,
+        error: `This file was made by a newer version of Setup Sheet Helper (format ${parsed.version}). Update the app to import it.`
+      }
+    }
     return { canceled: false, data: parsed as SetupExportFile }
   } catch {
     return { canceled: false, error: 'Could not read or parse that file.' }
@@ -214,15 +227,21 @@ export function importSetups(setups: ExportedSetup[], targetStudioId: number): v
     })
     replaceItemsForSetup(created.id, items)
 
-    if (setup.layoutOverride) {
-      const destPath = join(getLayoutsDir(), `setup_${created.id}${setup.layoutOverride.extension}`)
-      writeFileSync(destPath, Buffer.from(setup.layoutOverride.dataBase64, 'base64'))
+    // Dropped rather than written when the extension is not one we recognise — see
+    // ALLOWED_LAYOUT_EXTENSIONS. The setup still imports; it just arrives without its background.
+    const layoutOverride =
+      setup.layoutOverride && ALLOWED_LAYOUT_EXTENSIONS.has(setup.layoutOverride.extension.toLowerCase())
+        ? setup.layoutOverride
+        : null
+    if (layoutOverride) {
+      const destPath = join(getLayoutsDir(), `setup_${created.id}${layoutOverride.extension}`)
+      writeFileSync(destPath, Buffer.from(layoutOverride.dataBase64, 'base64'))
       upsertFileLayoutOverride({
         setupId: created.id,
         filePath: destPath,
-        originalName: setup.layoutOverride.originalName,
-        pageWidthPt: setup.layoutOverride.pageWidthPt,
-        pageHeightPt: setup.layoutOverride.pageHeightPt
+        originalName: layoutOverride.originalName,
+        pageWidthPt: layoutOverride.pageWidthPt,
+        pageHeightPt: layoutOverride.pageHeightPt
       })
     }
   }

@@ -10,7 +10,10 @@ import {
   serializeExportColumnOverrides,
   type ExportColumnOverrides
 } from '@shared/constants/setupColumns'
+import { copyFileSync } from 'node:fs'
+import { extname, join } from 'node:path'
 import { APP_SETTINGS_KEYS } from '@shared/types/entities'
+import { getLayoutsDir } from '../../userDataPaths'
 import { getDb } from '../index'
 import { getSetting } from './settingsRepo'
 import { listItemsBySetup, copyItemsToSetup } from './setupItemsRepo'
@@ -287,9 +290,23 @@ export function duplicateSetup(
   if (override?.kind === 'blank') {
     upsertBlankLayoutOverride(setup.id)
   } else if (override?.kind === 'file' && override.filePath) {
+    // Copy the backing file rather than pointing both setups at it. Layout files are named for
+    // the setup that owns them (layouts/setup_<id>.<ext>), so sharing the path meant the next
+    // upload for the SOURCE setup silently reached into this duplicate: same extension
+    // overwrote the file in place and changed this setup's floor plan, a different extension
+    // unlinked it and left this row naming a file that no longer exists.
+    let filePath = override.filePath
+    try {
+      const duplicatedPath = join(getLayoutsDir(), `setup_${setup.id}${extname(override.filePath)}`)
+      copyFileSync(override.filePath, duplicatedPath)
+      filePath = duplicatedPath
+    } catch {
+      // The source file is already missing. Keep the original reference — that is exactly the
+      // (already broken) state this duplicate would have inherited before, not a new failure.
+    }
     upsertFileLayoutOverride({
       setupId: setup.id,
-      filePath: override.filePath,
+      filePath,
       originalName: override.originalName,
       pageWidthPt: override.pageWidthPt,
       pageHeightPt: override.pageHeightPt
