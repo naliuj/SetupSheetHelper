@@ -1,18 +1,10 @@
 const Database = require('better-sqlite3')
-const path = require('node:path')
-const os = require('node:os')
 
-function getDbPath() {
-  const platform = process.platform
-  const appName = 'setup-sheet-helper'
-  if (platform === 'darwin') {
-    return path.join(os.homedir(), 'Library', 'Application Support', appName, `${appName}.sqlite`)
-  }
-  if (platform === 'win32') {
-    return path.join(process.env.APPDATA || '', appName, `${appName}.sqlite`)
-  }
-  return path.join(os.homedir(), '.config', appName, `${appName}.sqlite`)
-}
+// Resolved once here, and pointed at the app's REAL profile — see scripts/lib/appDbPath.cjs for
+// why these scripts used to open an abandoned database and report success. Pass a path as the
+// first argument to run against a copy instead.
+const { dbPathFromArgv } = require('./lib/appDbPath.cjs')
+const DB_PATH = dbPathFromArgv()
 
 // Longest-prefix-match first — duplicated here (rather than importing the TS module) so this
 // one-off script has no build step; keep in sync with src/shared/constants/manufacturers.ts.
@@ -54,7 +46,7 @@ function backfillTable(db, table) {
   console.log(`${table}: ${matched} matched, ${blank} left blank (review in admin UI)`)
 }
 
-const db = new Database(getDbPath())
+const db = new Database(DB_PATH)
 backfillTable(db, 'mics')
 backfillTable(db, 'outboard_gear')
 db.close()

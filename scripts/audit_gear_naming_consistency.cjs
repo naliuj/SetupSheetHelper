@@ -3,22 +3,14 @@
 // (e.g. "AKG C414-XLII" vs "AKG C414 B-XL II"). Reports candidates for manual review only —
 // does not modify anything.
 const Database = require('better-sqlite3')
-const path = require('node:path')
-const os = require('node:os')
 
-function getDbPath() {
-  const platform = process.platform
-  const appName = 'setup-sheet-helper'
-  if (platform === 'darwin') {
-    return path.join(os.homedir(), 'Library', 'Application Support', appName, `${appName}.sqlite`)
-  }
-  if (platform === 'win32') {
-    return path.join(process.env.APPDATA || '', appName, `${appName}.sqlite`)
-  }
-  return path.join(os.homedir(), '.config', appName, `${appName}.sqlite`)
-}
+// Resolved once here, and pointed at the app's REAL profile — see scripts/lib/appDbPath.cjs for
+// why these scripts used to open an abandoned database and report success. Pass a path as the
+// first argument to run against a copy instead.
+const { dbPathFromArgv } = require('./lib/appDbPath.cjs')
+const DB_PATH = dbPathFromArgv()
 
-const db = new Database(getDbPath(), { readonly: true })
+const db = new Database(DB_PATH, { readonly: true })
 
 function normalize(name) {
   return name.toLowerCase().replace(/[^a-z0-9]/g, '')

@@ -18,17 +18,11 @@ const fs = require('node:fs')
 const path = require('node:path')
 const os = require('node:os')
 
-function getDbPath() {
-  const platform = process.platform
-  const appName = 'setup-sheet-helper'
-  if (platform === 'darwin') {
-    return path.join(os.homedir(), 'Library', 'Application Support', appName, `${appName}.sqlite`)
-  }
-  if (platform === 'win32') {
-    return path.join(process.env.APPDATA || '', appName, `${appName}.sqlite`)
-  }
-  return path.join(os.homedir(), '.config', appName, `${appName}.sqlite`)
-}
+// Resolved once here, and pointed at the app's REAL profile — see scripts/lib/appDbPath.cjs for
+// why these scripts used to open an abandoned database and report success. Pass a path as the
+// first argument to run against a copy instead.
+const { dbPathFromArgv } = require('./lib/appDbPath.cjs')
+const DB_PATH = dbPathFromArgv()
 
 const MIC_RENAMES = [
   [45, 'C535 EB'],
@@ -128,10 +122,10 @@ function run(dbPath, live) {
 const live = process.argv.includes('--live')
 
 if (live) {
-  run(getDbPath(), true)
+  run(DB_PATH, true)
 } else {
   const tmpPath = path.join(os.tmpdir(), `setup-sheet-helper-gear-rename-dryrun-${Date.now()}.sqlite`)
-  fs.copyFileSync(getDbPath(), tmpPath)
+  fs.copyFileSync(DB_PATH, tmpPath)
   run(tmpPath, false)
   fs.unlinkSync(tmpPath)
   console.log('\n(Dry run only — the real database was not touched. Re-run with --live to apply.)')
