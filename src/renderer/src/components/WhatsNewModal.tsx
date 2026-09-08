@@ -14,26 +14,36 @@ export default function WhatsNewModal(): JSX.Element {
 
   return (
     <div className="modal-overlay" onClick={close}>
-      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 480, maxHeight: '80vh', overflowY: 'auto' }}>
+      {/* Fixed shell, scrolling middle. The whole box used to scroll, so a long changelog pushed
+          "Got it" out of view and the modal itself grew to 80vh — a release with nine bullets left
+          the button hard against the bottom of the window. Now the box is the same height whatever
+          the changelog is, and only the entries move. */}
+      <div
+        className="modal"
+        onClick={(e) => e.stopPropagation()}
+        style={{ width: 480, maxHeight: '80vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+      >
         <h2 style={{ marginTop: 0 }}>What&rsquo;s new</h2>
-        {newestFirst.map((entry) => (
-          <div key={entry.version} style={{ marginBottom: 16 }}>
-            <h3 style={{ marginBottom: 4 }}>
-              v{entry.version}
-              {entry.date && (
-                <span className="card-sub" style={{ fontWeight: 400 }}>
-                  {' '}
-                  — {entry.date}
-                </span>
-              )}
-            </h3>
-            <ul style={{ marginTop: 0 }}>
-              {entry.highlights.map((h, i) => (
-                <li key={i}>{h}</li>
-              ))}
-            </ul>
-          </div>
-        ))}
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
+          {newestFirst.map((entry) => (
+            <div key={entry.version} style={{ marginBottom: 16 }}>
+              <h3 style={{ marginBottom: 4 }}>
+                v{entry.version}
+                {entry.date && (
+                  <span className="card-sub" style={{ fontWeight: 400 }}>
+                    {' '}
+                    &mdash; {entry.date}
+                  </span>
+                )}
+              </h3>
+              <ul style={{ marginTop: 0 }}>
+                {entry.highlights.map((h, i) => (
+                  <li key={i}>{h}</li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
         <div className="modal-actions">
           <button className="btn primary" onClick={close}>
             Got it
