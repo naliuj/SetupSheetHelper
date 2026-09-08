@@ -1,8 +1,7 @@
 // The "What's New" changelog shown to users after an app upgrade (see whatsNewStore.ts) and
-// reachable anytime via the "What's New…" menu item. Every version bump gets an entry here, even
-// minimal/internal-only ones — never skip or merge entries, since changelogUtils.ts compares by
-// array index against this list, and a missing version would throw off that comparison for every
-// version after it.
+// reachable anytime via the "What's New…" menu item. Both show this list in full, so a version
+// without an entry here is simply a version nobody is told about. Give every bump one, even
+// minimal or internal-only ones.
 
 export interface ChangelogEntry {
   version: string
@@ -12,8 +11,8 @@ export interface ChangelogEntry {
   highlights: string[]
 }
 
-// Oldest → newest. Array order IS the chronology used for "what's new since last seen" — see
-// changelogUtils.ts.
+// Oldest → newest. WhatsNewModal reverses this for display, so the newest release is what the
+// user reads first.
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
   {
     version: '0.1.0',
@@ -351,7 +350,8 @@ export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
     version: '1.16.1',
     date: '2026-09-07',
     highlights: [
-      'Fixed resizing a block in Layout Mode right after placing it. The resize handles could come loose from the block and scatter across the room, and a resize begun within a second of placing would snap back to the original size.'
+      'Fixed resizing a block in Layout Mode right after placing it. The resize handles could come loose from the block and scatter across the room, and a resize begun within a second of placing would snap back to the original size.',
+      'This window now shows the full release history, and scrolls instead of stretching past the bottom of the screen.'
     ]
   }
 ]

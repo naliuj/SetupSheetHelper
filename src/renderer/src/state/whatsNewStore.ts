@@ -1,7 +1,6 @@
 import { create } from 'zustand'
 import { APP_SETTINGS_KEYS } from '@shared/types/entities'
 import { CHANGELOG_ENTRIES, type ChangelogEntry } from '@shared/constants/changelog'
-import { getNewChangelogEntries } from '@shared/utils/changelogUtils'
 
 interface WhatsNewState {
   open: boolean
@@ -19,9 +18,14 @@ export const useWhatsNewStore = create<WhatsNewState>((set) => ({
   // Called once at startup (App.tsx). Compares app.getVersion() against the persisted
   // last_seen_version. A fresh install (setting never recorded) silently records the current
   // version and does NOT open the modal — see APP_SETTINGS_KEYS.lastSeenVersion. A real upgrade
-  // (setting present and different) opens the modal with every entry newer than what was
-  // recorded, then immediately persists the new version so the modal won't re-show on next launch
-  // even if the user closes without reading — re-access is always available via the menu item.
+  // (setting present and different) opens the modal, then immediately persists the new version so
+  // it won't re-show on next launch even if the user closes without reading — re-access is always
+  // available via the menu item.
+  //
+  // Shows the WHOLE changelog, not just entries newer than the recorded version. Someone skipping
+  // several releases would otherwise get a different modal from someone tracking every one, and
+  // the full history reads fine now the list scrolls inside a fixed window (WhatsNewModal.tsx).
+  // last_seen_version therefore only decides WHETHER to open, never what to put in it.
   load: async () => {
     const [version, lastSeen] = await Promise.all([
       window.api.app.getVersion(),
@@ -32,15 +36,13 @@ export const useWhatsNewStore = create<WhatsNewState>((set) => ({
       return
     }
     if (lastSeen === version) return
-    const entries = getNewChangelogEntries(lastSeen)
     await window.api.settings.set(APP_SETTINGS_KEYS.lastSeenVersion, version)
-    if (entries.length > 0) set({ open: true, entries })
+    set({ open: true, entries: CHANGELOG_ENTRIES })
   },
 
-  // "What's New…" menu item (and the hidden debug keybind). Shows the complete history rather
-  // than re-deriving "what's new since last seen" — the user is explicitly asking to review, not
-  // being told what changed since their last launch. Deliberately does NOT touch
-  // last_seen_version, keeping this entry point's persistence free of side effects.
+  // "What's New…" menu item (and the hidden debug keybind). Same content as the automatic popup;
+  // the only difference is that this one deliberately does NOT touch last_seen_version, keeping
+  // the manual entry point free of persistence side effects.
   openManually: () => set({ open: true, entries: CHANGELOG_ENTRIES }),
 
   close: () => set({ open: false })
