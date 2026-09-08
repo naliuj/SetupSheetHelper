@@ -2,7 +2,7 @@ import { app, BrowserWindow, dialog, net, protocol, shell } from 'electron'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { closeDb, openDatabaseAtStartup } from './db'
-import { initLogging } from './log'
+import { attachRendererLogging, initLogging } from './log'
 import { installQuitFlush } from './quitFlush'
 import { registerAllIpcHandlers } from './ipc'
 import { installAppMenu } from './menu'
@@ -64,6 +64,7 @@ function createWindow(): BrowserWindow {
     }
   })
   saveBounds('main', mainWindow)
+  attachRendererLogging(mainWindow.webContents)
 
   mainWindow.once('ready-to-show', () => mainWindow.show())
 

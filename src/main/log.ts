@@ -1,4 +1,4 @@
-import { app } from 'electron'
+import { app, type WebContents } from 'electron'
 import { appendFileSync, mkdirSync, renameSync, rmSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -93,6 +93,20 @@ export function initLogging(): void {
   })
 
   write('info', [`--- ${app.getName()} ${app.getVersion()} started (${process.platform}) ---`])
+}
+
+/** Mirrors a window's renderer console warnings and errors into the same log file.
+ *
+ *  Patching console.error in main only ever captured MAIN-process output. Renderer errors — an
+ *  ErrorBoundary catch, a failed IPC call, a React warning — go to the devtools console, which a
+ *  packaged build does not open, so they were invisible to everyone. Call once per window.
+ *
+ *  Only levels 2 and 3 (warning, error); info and verbose would drown the file in noise. */
+export function attachRendererLogging(contents: WebContents): void {
+  contents.on('console-message', (_event, level, message, line, sourceId) => {
+    if (level < 2) return
+    write(level === 3 ? 'error' : 'warn', [`[renderer] ${message}`, sourceId ? `(${sourceId}:${line})` : ''])
+  })
 }
 
 /** Where the log lives, for the "something went wrong" dialog to point at. */
