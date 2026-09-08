@@ -71,6 +71,9 @@ export default function SetupEditorPane({
   const engineer = useSetupStoreState((s) => s.engineer)
   const artist = useSetupStoreState((s) => s.artist)
   const facultyReserveEnabled = useSetupStoreState((s) => s.facultyReserveEnabled)
+  // Watched purely so the autosave effect below re-arms on a notes-only edit. Session notes are
+  // written by save() and nothing else, and every other field it sends is already a dep here.
+  const sessionNotes = useSetupStoreState((s) => s.sessionNotes)
   const isDirty = useSetupStoreState((s) => s.isDirty)
   const save = useSetupStoreState((s) => s.save)
 
@@ -178,6 +181,7 @@ export default function SetupEditorPane({
     engineer,
     artist,
     facultyReserveEnabled,
+    sessionNotes,
     isDirty,
     save,
     layoutBlocks,

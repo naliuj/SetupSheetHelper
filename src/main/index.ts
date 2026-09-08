@@ -19,6 +19,25 @@ if (demoUserData) {
   app.setPath('sessionData', demoUserData)
 }
 
+// Two copies of the app on ONE profile quietly destroy each other's work. Saving a setup or a
+// layout is a whole-list replace — every row not in the payload is deleted — so with both windows
+// showing the same setup, whichever saves second deletes whatever the other just added, and
+// neither window shows anything wrong until the next reload.
+//
+// Chromium keys this lock on the userData directory, which the redirect above has already
+// applied, so `npm run dev:demo` still runs happily alongside a normal instance. Only a second
+// instance on the SAME profile is turned away, handing focus to the one already running.
+if (!app.requestSingleInstanceLock()) {
+  app.exit(0)
+}
+
+app.on('second-instance', () => {
+  const [existing] = BrowserWindow.getAllWindows()
+  if (!existing) return
+  if (existing.isMinimized()) existing.restore()
+  existing.focus()
+})
+
 // Registered before app ready so the scheme is treated as secure/standard,
 // letting pdfjs-dist fetch() the layout PDF bytes in the renderer without
 // piping large buffers through ipcRenderer.

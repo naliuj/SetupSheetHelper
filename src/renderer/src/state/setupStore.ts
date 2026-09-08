@@ -388,7 +388,15 @@ export function createSetupStore() {
     if (ids.length > 0) {
       useToastStore
         .getState()
-        .show(`Deleted ${ids.length} row${ids.length === 1 ? '' : 's'}`, () => store.temporal.getState().undo())
+        .show(`Deleted ${ids.length} row${ids.length === 1 ? '' : 's'}`, () => {
+          store.temporal.getState().undo()
+          // The delete has almost certainly been committed by now — the toast lives 5s, autosave
+          // fires at 1s — so undoing it is a NEW change that has to be written back. zundo
+          // restores the previous partialized slice, which does not include isDirty, so without
+          // this the rows come back on screen and are never saved. SetupToolbar's undo/redo does
+          // the same thing for the same reason.
+          set({ isDirty: true })
+        })
     }
   },
 
@@ -587,10 +595,16 @@ export function createSetupStore() {
       // there's nothing new to adopt except ids: rows that were new (string draft id)
       // swap in their DB-assigned id, everything else is untouched. Pending
       // unresolvedGearHints keyed by a draft id are remapped the same way.
-      const newIdByDraftId = new Map<string, number>()
+      // Keyed on the id we SENT, mapped to the id we got back, for every row whose id changed —
+      // not just rows that went in with a draft (string) id. A numeric id can change too: the
+      // repo re-INSERTs any row whose id is no longer in the table, which is exactly what an undo
+      // of a committed delete produces. Missing those left the store holding a dead id forever,
+      // so every later save re-inserted the row and deleted the previous copy — an endless churn
+      // that reset created_at each second and invalidated any id held elsewhere.
+      const newIdByOldId = new Map<number | string, number>()
       itemsBeforeSave.forEach((oldItem, index) => {
         const savedItem = saved[index]
-        if (typeof oldItem.id === 'string' && savedItem) newIdByDraftId.set(oldItem.id, savedItem.id)
+        if (savedItem && savedItem.id !== oldItem.id) newIdByOldId.set(oldItem.id, savedItem.id)
       })
 
       // Read the store fresh: the user may have kept editing during the awaited IPC call,
@@ -599,20 +613,44 @@ export function createSetupStore() {
       const currentHints = get().unresolvedGearHints
       let nextItems = currentItems
       let nextHints = currentHints
-      if (newIdByDraftId.size > 0) {
+      if (newIdByOldId.size > 0) {
+        // One lookup per row against its ORIGINAL id, so a swap that reuses an id another row
+        // just vacated cannot cascade.
         nextItems = currentItems.map((item) =>
-          typeof item.id === 'string' && newIdByDraftId.has(item.id)
-            ? { ...item, id: newIdByDraftId.get(item.id)! }
-            : item
+          newIdByOldId.has(item.id) ? { ...item, id: newIdByOldId.get(item.id)! } : item
         )
         nextHints = new Map<number | string, UnresolvedGearHint>()
         currentHints.forEach((hint, id) => {
-          const newId = typeof id === 'string' ? newIdByDraftId.get(id) : undefined
-          nextHints.set(newId ?? id, hint)
+          nextHints.set(newIdByOldId.get(id) ?? id, hint)
         })
       }
 
-      set({ setupId, items: nextItems, unresolvedGearHints: nextHints, isDirty: false, isSaving: false })
+      // Only the pre-await snapshot reached the database. Anything the user changed while those
+      // IPC calls were in flight is still unwritten, so clearing isDirty here would strand it:
+      // the autosave effect keys off isDirty and would clear its armed timer without ever saving
+      // those edits, while the toolbar cheerfully reported "Saved". Compare exactly the fields
+      // that were sent from the snapshot.
+      const after = get()
+      const changedDuringSave =
+        after.items !== itemsBeforeSave ||
+        after.name !== state.name ||
+        after.sessionDate !== state.sessionDate ||
+        after.engineer !== state.engineer ||
+        after.artist !== state.artist ||
+        after.facultyReserveEnabled !== state.facultyReserveEnabled ||
+        after.sessionNotes !== state.sessionNotes ||
+        // Only sent from the snapshot on the CREATE path; once a setupId exists its own action
+        // writes through directly. Compared here because that write-through is skipped while
+        // setupId is still null, which is exactly the window this guard covers.
+        after.outboardColumnCount !== state.outboardColumnCount
+
+      set({
+        setupId,
+        items: nextItems,
+        unresolvedGearHints: nextHints,
+        isDirty: changedDuringSave,
+        isSaving: false
+      })
     } catch (err) {
       set({ isSaving: false })
       throw err

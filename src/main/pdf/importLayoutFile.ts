@@ -24,6 +24,29 @@ export interface PickedLayoutFile {
   fileName: string
 }
 
+/** Paths a file dialog in this module has actually handed back.
+ *
+ *  The commit functions below are reachable over IPC and take the path as an argument, on a round
+ *  trip entirely separate from the pick that produced it. Nothing tied the two together, so any
+ *  path at all could be named and would be copied into the layouts directory under a predictable
+ *  name that the app then serves over app-file://. Gating on this set means only files the user
+ *  actually chose in a dialog can be committed. Entries are kept for the process lifetime: the
+ *  same pick is legitimately committed more than once (studio, then setup, or a retry). */
+const pickedPaths = new Set<string>()
+
+function assertPicked(sourcePath: string): void {
+  if (!pickedPaths.has(sourcePath)) {
+    throw new Error('That layout file was not chosen from a file picker.')
+  }
+}
+
+/** Interpolated straight into a filename, so it has to be a plain row id and nothing else. */
+function assertRowId(id: number, label: string): void {
+  if (!Number.isInteger(id) || id <= 0) {
+    throw new Error(`Invalid ${label}.`)
+  }
+}
+
 /** Just the file-picker step, no disk/DB writes — lets a caller decide afterward where (or
  *  whether) to commit the pick. */
 export async function pickLayoutFile(): Promise<PickedLayoutFile | null> {
@@ -35,10 +58,13 @@ export async function pickLayoutFile(): Promise<PickedLayoutFile | null> {
   if (result.canceled || result.filePaths.length === 0) return null
 
   const sourcePath = result.filePaths[0]
+  pickedPaths.add(sourcePath)
   return { sourcePath, fileName: basename(sourcePath) }
 }
 
 export async function commitPickedLayoutFileToStudio(studioId: number, sourcePath: string): Promise<RoomLayoutFile> {
+  assertRowId(studioId, 'studio id')
+  assertPicked(sourcePath)
   const extension = extname(sourcePath).toLowerCase()
   const destPath = join(getLayoutsDir(), `studio_${studioId}${extension}`)
 
@@ -80,6 +106,8 @@ export async function commitPickedLayoutFileToSetup(
   setupId: number,
   sourcePath: string
 ): Promise<SetupLayoutOverride> {
+  assertRowId(setupId, 'setup id')
+  assertPicked(sourcePath)
   const extension = extname(sourcePath).toLowerCase()
   const destPath = join(getLayoutsDir(), `setup_${setupId}${extension}`)
 

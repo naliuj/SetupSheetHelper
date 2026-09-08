@@ -13,6 +13,11 @@ function newDraftId(): string {
   return crypto.randomUUID()
 }
 
+/** Longest a drag/resize is assumed to still be live. Past this, save() treats the gesture as
+ *  abandoned (an end callback that never fired) and saves anyway rather than staying latched.
+ *  Comfortably longer than any real mouse gesture between two autosave ticks. */
+const GESTURE_MAX_MS = 10_000
+
 const DEFAULT_SIZE = 44
 export const MIN_ZOOM = 0.25
 export const MAX_ZOOM = 4
@@ -28,12 +33,19 @@ interface LayoutState {
   panY: number
   isDirty: boolean
   isSaving: boolean
-  /** True while a block is mid-drag or mid-resize. save() is a no-op for as long as this is set:
-   *  saving replaces the block list with the rows the database hands back, which remounts a
-   *  freshly placed block under its new id and kills whatever gesture the user has on it. Every
-   *  gesture ends with a store write, and that write re-arms autosave, so nothing is lost by
-   *  waiting. */
-  gestureActive: boolean
+  /** When the in-progress drag/resize started, or null when there is none. save() is a no-op for
+   *  as long as it is set: saving replaces the block list with the rows the database hands back,
+   *  which remounts a freshly placed block under its new id and kills whatever gesture the user
+   *  has on it. Every gesture ends with a store write, and that write re-arms autosave, so
+   *  nothing is lost by waiting.
+   *
+   *  A timestamp rather than a boolean because this gate is the only thing standing between a
+   *  dirty layout and the database. Konva's end callback is not guaranteed to run — the pane can
+   *  unmount mid-drag, or a handler above it can throw — and a stuck `true` silently disabled
+   *  EVERY subsequent save for the life of the store: autosave, the unmount flush, Split View's
+   *  close, and the popped-out window's close handshake all call this same save(). Expiring the
+   *  gesture bounds that failure to GESTURE_MAX_MS instead of forever. */
+  gestureStartedAt: number | null
   beginGesture(): void
   endGesture(): void
   /** Bumped whenever the Layout Mode gate resolves (blank sheet chosen, or a file committed to
@@ -97,9 +109,9 @@ export function createLayoutStore(setupStoreApi: SetupStoreApi) {
       panY: 0,
       isDirty: false,
       isSaving: false,
-      gestureActive: false,
-      beginGesture: () => set({ gestureActive: true }),
-      endGesture: () => set({ gestureActive: false }),
+      gestureStartedAt: null,
+      beginGesture: () => set({ gestureStartedAt: Date.now() }),
+      endGesture: () => set({ gestureStartedAt: null }),
       layoutBackgroundVersion: 0,
 
       loadForSetup: async (setupId) => {
@@ -184,9 +196,13 @@ export function createLayoutStore(setupStoreApi: SetupStoreApi) {
         if (ids.length > 0) {
           useToastStore
             .getState()
-            .show(`Deleted ${ids.length} block${ids.length === 1 ? '' : 's'}`, () =>
+            .show(`Deleted ${ids.length} block${ids.length === 1 ? '' : 's'}`, () => {
               store.temporal.getState().undo()
-            )
+              // Autosave (1s) beats the toast (5s), so by the time Undo is clicked the delete is
+              // already committed. zundo does not restore isDirty, so without this the blocks
+              // reappear on screen and are never written back.
+              set({ isDirty: true })
+            })
         }
       },
 
@@ -236,8 +252,14 @@ export function createLayoutStore(setupStoreApi: SetupStoreApi) {
         const setupId = setupStoreApi.getState().setupId
         if (!setupId) return
         // Leave isDirty set: the write that ends the gesture changes `blocks`, which re-arms the
-        // autosave timer, so this save is deferred rather than dropped.
-        if (get().gestureActive) return
+        // autosave timer, so this save is deferred rather than dropped. A gesture older than
+        // GESTURE_MAX_MS is treated as abandoned — see gestureStartedAt — and cleared here so the
+        // save below proceeds rather than the store staying permanently unsaveable.
+        const gestureStartedAt = get().gestureStartedAt
+        if (gestureStartedAt != null) {
+          if (Date.now() - gestureStartedAt < GESTURE_MAX_MS) return
+          set({ gestureStartedAt: null })
+        }
         const state = get()
         set({ isSaving: true })
         try {
@@ -245,19 +267,32 @@ export function createLayoutStore(setupStoreApi: SetupStoreApi) {
             setupId,
             state.blocks.map((b) => ({ ...b }))
           )
+          // Only the pre-await snapshot was written. If the user changed anything while the IPC
+          // was in flight — a keyboard nudge, a rename, a recolor, a delete — adopting `saved`
+          // wholesale would both discard that edit from the database AND roll it back off the
+          // screen. In that case keep the live blocks and apply nothing but the id swap, and stay
+          // dirty so the next autosave tick writes them.
+          const currentBlocks = get().blocks
+          const changedDuringSave = currentBlocks !== state.blocks
+          const nextBlocks = changedDuringSave
+            ? currentBlocks.map((b) =>
+                typeof b.id === 'string' && idMap[b.id] != null ? { ...b, id: idMap[b.id] } : b
+              )
+            : saved
+
           // A just-dropped block is selected under its draft id. Saving replaces it with the row's
           // numeric id, and leaving the selection pointing at the draft left its Transformer
           // attached to a Konva node that no longer existed: the block looked deselected while
           // stale resize handles kept painting, and a resize begun in that window bailed out
           // before resetting the node's scale. Re-key the selection so it survives the save, and
           // drop anything that no longer resolves to a block at all.
-          const savedIds = new Set<number | string>(saved.map((b) => b.id))
+          const nextIds = new Set<number | string>(nextBlocks.map((b) => b.id))
           const selectedBlockIds = new Set<number | string>()
           for (const id of get().selectedBlockIds) {
             const mapped = typeof id === 'string' ? (idMap[id] ?? id) : id
-            if (savedIds.has(mapped)) selectedBlockIds.add(mapped)
+            if (nextIds.has(mapped)) selectedBlockIds.add(mapped)
           }
-          set({ blocks: saved, selectedBlockIds, isDirty: false, isSaving: false })
+          set({ blocks: nextBlocks, selectedBlockIds, isDirty: changedDuringSave, isSaving: false })
         } catch (err) {
           set({ isSaving: false })
           throw err

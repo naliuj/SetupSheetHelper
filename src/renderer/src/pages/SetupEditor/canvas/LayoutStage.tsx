@@ -89,6 +89,12 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
     startPanY: number
   } | null>(null)
 
+  // Release the gesture gate if this stage goes away mid-drag. Konva's end callbacks only fire
+  // while the component is alive, so unmounting during a drag (mode switch, Split View close,
+  // switching setups) would otherwise leave layoutStore latched and silently drop every
+  // subsequent save. Harmless when no gesture is in progress.
+  useEffect(() => endGesture, [endGesture])
+
   // Keep the stage sized to whatever room the container actually has, so the (often much
   // larger, rendered at 2x for crispness) background image scales down to fit instead of
   // overflowing into scrollbars.
@@ -570,8 +576,13 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
               onDragStart={beginGesture}
               onDragMove={(x, y) => handleBlockDragMove(block, x, y)}
               onDragEnd={(x, y) => {
-                handleBlockDragEnd(block, x, y)
-                endGesture()
+                // finally: a throw in the handler must not leave the gate latched — see
+                // layoutStore's gestureStartedAt.
+                try {
+                  handleBlockDragEnd(block, x, y)
+                } finally {
+                  endGesture()
+                }
               }}
               onContextMenu={(clientX, clientY) => setBlockMenu({ blockId: block.id, x: clientX, y: clientY })}
             />
@@ -596,8 +607,11 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
               onTransformStart={beginGesture}
               onTransform={() => handleTransform(id)}
               onTransformEnd={() => {
-                handleTransformEnd(id)
-                endGesture()
+                try {
+                  handleTransformEnd(id)
+                } finally {
+                  endGesture()
+                }
               }}
             />
           ))}

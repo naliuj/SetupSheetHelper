@@ -8,6 +8,7 @@ import { useSetupStoreApi, useSetupStoreState } from '@renderer/state/setupStore
 import { useLayoutStoreApi, useLayoutStoreState } from '@renderer/state/layoutStoreContext'
 import { useKeybindPrefsStore } from '@renderer/state/keybindPrefsStore'
 import { useNavigationStore, type EditorMode } from '@renderer/state/navigationStore'
+import { useLayoutWindowStore } from '@renderer/state/layoutWindowStore'
 import Icon from '@renderer/components/Icon'
 import { exportStageToDataUrl } from './canvas/konvaExport'
 import SaveAsTemplateModal from './SaveAsTemplateModal'
@@ -302,6 +303,19 @@ export default function SetupToolbar({
     }
   }
 
+  /** Whether this setup is already open in the standalone window, read fresh at call time and
+   *  mirroring how SetupEditorPane derives the `layoutPoppedOut` prop.
+   *
+   *  Both this and setupId have to be read live rather than off the render closure, because the
+   *  keyboard and menu dispatch effects at the bottom of this file capture their handlers in dep
+   *  arrays that list neither: a new setup gains its id on its first autosave without remounting,
+   *  and the popped-out flag arrives asynchronously over IPC. Reading them stale meant Cmd+L
+   *  gating on setup `null` and the pop-out shortcut silently doing nothing. The exported /
+   *  save-as-template handlers above already use getState() for the same reason. */
+  function isPoppedOutNow(currentSetupId: number | null): boolean {
+    return currentSetupId != null && useLayoutWindowStore.getState().openForSetupId === currentSetupId
+  }
+
   // Layout Mode requires an effective room layout first (this setup's own override, or the
   // studio's shared file) — leaving Layout Mode is always allowed, but entering it checks and, if
   // neither exists, opens a blocking prompt instead of switching.
@@ -310,12 +324,15 @@ export default function SetupToolbar({
     // (Cmd+L) routes through this same function regardless of the button's disabled state, and
     // entering 'layout' locally while popped out would set a mode SetupEditor deliberately
     // doesn't mount anything for.
-    if (layoutPoppedOut) return
+    const currentSetupId = setupStoreApi.getState().setupId
+    if (isPoppedOutNow(currentSetupId)) return
     if (mode === 'layout') {
       onToggleMode('table')
       return
     }
-    const effective = studioId ? await window.api.layoutFile.getEffectiveForSetup(setupId, studioId) : null
+    // setupId stays null for an unsaved setup on purpose — getEffectiveForSetup then reports the
+    // studio's shared layout, which is exactly the right answer for a setup with no override yet.
+    const effective = studioId ? await window.api.layoutFile.getEffectiveForSetup(currentSetupId, studioId) : null
     if (effective) {
       onToggleMode('layout')
     } else {
@@ -328,25 +345,41 @@ export default function SetupToolbar({
    *  same "no room layout yet" gate as the local toggle above, reusing the same modal rather than
    *  duplicating the check. */
   async function requestPopOut(): Promise<void> {
-    if (layoutPoppedOut) {
+    const currentSetupId = setupStoreApi.getState().setupId
+    if (isPoppedOutNow(currentSetupId)) {
       await window.api.layoutWindow.focus()
       return
     }
-    if (!studioId || !setupId) return
-    const effective = await window.api.layoutFile.getEffectiveForSetup(setupId, studioId)
+    if (!studioId || !currentSetupId) return
+    const effective = await window.api.layoutFile.getEffectiveForSetup(currentSetupId, studioId)
     if (effective) {
-      openLayoutWindow(setupId, studioId)
+      await openLayoutWindow(currentSetupId, studioId)
     } else {
       setLayoutGatePurpose('popout')
       setLayoutGateOpen(true)
     }
   }
 
-  function openLayoutWindow(targetSetupId: number, targetStudioId: number): void {
+  async function openLayoutWindow(targetSetupId: number, targetStudioId: number): Promise<void> {
     // Popping out hands editing to the new window entirely — snap out of a local Layout Mode view
     // that has nothing left to show, and persist that as the setup's resting mode so reopening it
     // later (with the window closed) resumes on Table Mode rather than an empty canvas.
     if (mode === 'layout') onToggleMode('table')
+
+    // Flush before handing over. The standalone window loads its blocks from the database, and
+    // saving is a whole-list replace: an edit still sitting in this window's debounced autosave
+    // would not just be missing over there, it would be deleted outright by that window's first
+    // save. If the flush itself fails the store stays dirty and the pane's unmount flush gets
+    // another go, so opening anyway is no worse than the unconditional open this replaced.
+    const layoutState = layoutStoreApi.getState()
+    if (layoutState.isDirty) {
+      try {
+        await layoutState.save()
+      } catch {
+        // Deliberately non-blocking — surfacing save failures is a separate, app-wide gap.
+      }
+    }
+
     window.api.layoutWindow.open(targetSetupId, targetStudioId)
   }
 
@@ -609,7 +642,7 @@ export default function SetupToolbar({
             // Only matters for the local-toggle path: the standalone window fetches its own
             // effective layout fresh when it opens, so it has no stale version to bump.
             if (layoutGatePurpose === 'popout' && setupId && studioId) {
-              openLayoutWindow(setupId, studioId)
+              void openLayoutWindow(setupId, studioId)
             } else {
               layoutStoreApi.getState().bumpLayoutBackgroundVersion()
               onToggleMode('layout')
