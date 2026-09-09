@@ -15,6 +15,7 @@ import {
   type LayoutWindowFlushAck
 } from '@shared/types/ipc'
 import { restoreBounds, saveBounds } from './windowBounds'
+import { attachRendererLogging } from './log'
 
 /** One relay timeout for both the export-image round trip and the close-flush handshake — a
  *  hung/unresponsive renderer must never leave the caller waiting forever (export would hang the
@@ -98,6 +99,7 @@ function createLayoutWindow(setupId: number, studioId: number): BrowserWindow {
     }
   })
   saveBounds('layout', win)
+  attachRendererLogging(win.webContents)
   // This window is created from a button click in the MAIN window's renderer (via the IPC
   // handler below), not from the user directly activating it — on macOS, show() alone doesn't
   // reliably hand it OS keyboard focus in that case, which would silently leave every keybind

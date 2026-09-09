@@ -198,6 +198,9 @@ export default function StudioSetupPage(): JSX.Element {
   const [flashKey, setFlashKey] = useState<string | null>(null)
   const gearRowRefs = useRef(new Map<string, HTMLTableRowElement>())
   const [saving, setSaving] = useState(false)
+  /** Shown next to the Save button. A failed save used to be completely invisible: no catch, and
+   *  the click handler did not await, so it became an unhandled rejection. */
+  const [saveError, setSaveError] = useState<string | null>(null)
   const [importModalOpen, setImportModalOpen] = useState(false)
   // Set the first time a brand-new studio gets a row created early — purely so the Room layout
   // button has a studioId to attach the upload to before the user has clicked "Save Studio".
@@ -458,62 +461,50 @@ export default function StudioSetupPage(): JSX.Element {
   async function handleSave(): Promise<void> {
     if (!name.trim()) return
     setSaving(true)
+    setSaveError(null)
     try {
-      const studioId = activeStudioId
-        ? (await window.api.studios.updateCustomDetails(activeStudioId, name.trim(), selectedFolderId)).id
-        : (await window.api.studios.createCustom(name.trim(), selectedFolderId)).id
-
-      for (const id of removedMicIds) await window.api.mics.remove(id)
-      for (const id of removedOutboardIds) await window.api.outboard.remove(id)
-      for (const id of removedPreampIds) await window.api.preamps.remove(id)
-
-      for (const [index, item] of pendingMics.entries()) {
-        await window.api.mics.upsert({
-          id: item.existingId,
-          poolType: 'studio',
-          studioId,
-          buildingId: null,
-          setupId: null,
+      // One call, one transaction. This used to be one IPC round trip per removal and per gear
+      // row — often fifty or more, deletions first — so a single UNIQUE(studio_id, name)
+      // collision committed the deletions and part of the upserts and silently dropped the rest.
+      await window.api.studios.saveInventory({
+        studioId: activeStudioId ?? null,
+        name: name.trim(),
+        folderId: selectedFolderId,
+        // Sets in the editor; sent as arrays so the payload is plain structured-cloneable data.
+        removedMicIds: [...removedMicIds],
+        removedOutboardIds: [...removedOutboardIds],
+        removedPreampIds: [...removedPreampIds],
+        mics: pendingMics.map((item) => ({
+          existingId: item.existingId ?? null,
           name: item.name,
           manufacturer: item.manufacturer,
           category: item.category,
-          notes: null,
-          quantity: item.quantity,
-          sortOrder: index
-        })
-      }
-      for (const [index, item] of pendingOutboard.entries()) {
-        await window.api.outboard.upsert({
-          id: item.existingId,
-          poolType: 'studio',
-          studioId,
-          buildingId: null,
-          setupId: null,
+          quantity: item.quantity
+        })),
+        outboard: pendingOutboard.map((item) => ({
+          existingId: item.existingId ?? null,
           name: item.name,
           manufacturer: item.manufacturer,
           category: item.category,
-          notes: null,
-          quantity: item.quantity,
-          sortOrder: index
-        })
-      }
-      for (const [index, item] of pendingPreamps.entries()) {
-        await window.api.preamps.upsert({
-          id: item.existingId,
-          poolType: 'studio',
-          studioId,
-          buildingId: null,
-          setupId: null,
+          quantity: item.quantity
+        })),
+        preamps: pendingPreamps.map((item) => ({
+          existingId: item.existingId ?? null,
           name: item.name,
           manufacturer: item.manufacturer,
           category: item.category,
-          notes: null,
-          channels: item.channels,
-          sortOrder: index
-        })
-      }
-
+          channels: item.channels
+        }))
+      })
       goToHome()
+    } catch (err) {
+      // Previously absent, and the click handler did not await either — so a failure became an
+      // unhandled rejection whose only symptom was the page staying put.
+      setSaveError(
+        err instanceof Error && /UNIQUE/i.test(err.message)
+          ? 'Two pieces of gear in this studio have the same name. Rename one and save again.'
+          : 'Could not save this studio. Nothing was changed.'
+      )
     } finally {
       setSaving(false)
     }
@@ -538,6 +529,11 @@ export default function StudioSetupPage(): JSX.Element {
           }}
         />
         <div className="spacer" />
+        {saveError && (
+          <span className="card-sub" style={{ color: 'var(--color-danger)', maxWidth: '46ch' }}>
+            {saveError}
+          </span>
+        )}
         <button className="btn" onClick={handleCancel}>
           Cancel
         </button>

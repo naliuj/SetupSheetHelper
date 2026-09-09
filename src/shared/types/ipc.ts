@@ -54,7 +54,8 @@ export const IPC = {
     moveToFolder: 'studios:moveToFolder',
     moveManyToFolder: 'studios:moveManyToFolder',
     reorder: 'studios:reorder',
-    getDeleteImpact: 'studios:getDeleteImpact'
+    getDeleteImpact: 'studios:getDeleteImpact',
+    saveInventory: 'studios:saveInventory'
   },
   mics: {
     listAvailableForStudio: 'mics:listAvailableForStudio',
@@ -240,6 +241,47 @@ export interface PreampUpsertInput {
   notes: string | null
   channels?: number
   sortOrder?: number
+}
+
+/** One row of the studio editor's gear list. Deliberately narrower than MicUpsertInput: the pool
+ *  is always 'studio' and the building/setup ids are always null here, so main fills those in
+ *  rather than trusting the renderer to send them correctly for every row. */
+export interface StudioGearEntry {
+  /** The existing row this edits, or null for a row the user just added. */
+  existingId: number | null
+  name: string
+  manufacturer: string | null
+  category: string | null
+  quantity: number
+}
+
+export interface StudioPreampEntry {
+  existingId: number | null
+  name: string
+  manufacturer: string | null
+  category: string | null
+  channels: number
+}
+
+/** Everything the studio editor's Save button does, as one payload.
+ *
+ *  It used to issue one IPC call per removal and per gear row — commonly fifty or more, each its
+ *  own implicit transaction, deletions first. A UNIQUE(studio_id, name) collision partway through
+ *  (two pieces of outboard renamed to the same thing) committed the deletions and roughly a
+ *  quarter of the upserts, dropped the rest, and surfaced as nothing more than the page failing
+ *  to navigate home. */
+export interface SaveStudioInventoryInput {
+  /** null creates a new studio. */
+  studioId: number | null
+  name: string
+  folderId: number | null
+  removedMicIds: number[]
+  removedOutboardIds: number[]
+  removedPreampIds: number[]
+  /** Array order becomes sort_order. */
+  mics: StudioGearEntry[]
+  outboard: StudioGearEntry[]
+  preamps: StudioPreampEntry[]
 }
 
 export interface PaletteItemCreateInput {
@@ -585,6 +627,19 @@ export interface LayoutWindowState {
 export const LAYOUT_WINDOW_STATE_CHANNEL = 'layoutWindow:stateChanged'
 export const LAYOUT_WINDOW_EXPORT_REQUEST_CHANNEL = 'layoutWindow:exportImageRequested'
 export const LAYOUT_WINDOW_EXPORT_RESULT_CHANNEL = 'layoutWindow:exportImageResult'
+/** Quit-time flush, for EVERY window. The layout window's own close handshake below covers only
+ *  that window being closed; nothing covered Cmd+Q, which is the common way to leave the app. */
+export const APP_FLUSH_REQUEST_CHANNEL = 'app:flushRequested'
+export const APP_FLUSH_ACK_CHANNEL = 'app:flushAck'
+
+export interface AppFlushRequest {
+  requestId: string
+}
+
+export interface AppFlushAck {
+  requestId: string
+}
+
 export const LAYOUT_WINDOW_FLUSH_REQUEST_CHANNEL = 'layoutWindow:flushRequested'
 export const LAYOUT_WINDOW_FLUSH_ACK_CHANNEL = 'layoutWindow:flushAck'
 
@@ -634,6 +689,10 @@ export interface RendererApi {
     moveManyToFolder(ids: number[], folderId: number | null): Promise<void>
     reorder(ids: number[]): Promise<void>
     getDeleteImpact(id: number): Promise<StudioDeleteImpact>
+    /** Saves the studio editor's whole inventory in ONE transaction. See
+     *  SaveStudioInventoryInput for why this is a single call rather than the N the editor used
+     *  to make. */
+    saveInventory(input: SaveStudioInventoryInput): Promise<Studio>
   }
   mics: {
     listAvailableForStudio(
@@ -764,6 +823,10 @@ export interface RendererApi {
   }
   app: {
     getVersion(): Promise<string>
+    /** Main asks, just before quitting, for any unsaved editor state to be written. Returns an
+     *  unsubscribe. The handler MUST ack, success or failure, or the quit waits out its timeout. */
+    onFlushRequested(callback: (request: AppFlushRequest) => void): () => void
+    sendFlushAck(ack: AppFlushAck): void
   }
   feedback: {
     submit(input: FeedbackSubmission): Promise<FeedbackSubmitResult>

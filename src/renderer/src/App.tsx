@@ -10,6 +10,7 @@ import { usePdfLayoutPrefsStore } from './state/pdfLayoutPrefsStore'
 import { useKeybindPrefsStore } from './state/keybindPrefsStore'
 import { useHomeLayoutStore } from './state/homeLayoutStore'
 import { useLayoutWindowStore } from './state/layoutWindowStore'
+import { useQuitFlush } from './state/flushRegistry'
 import { normalizeKeyEvent } from '@shared/constants/keybindActions'
 import Home from './pages/Home/Home'
 import SettingsPage from './pages/SettingsPage/SettingsPage'
@@ -20,6 +21,9 @@ import WhatsNewModal from './components/WhatsNewModal'
 import appIcon from './assets/app-icon.png'
 
 export default function App(): JSX.Element {
+  // Answers main's before-quit request so a debounced autosave still lands when the user quits.
+  useQuitFlush()
+
   const view = useNavigationStore((s) => s.view)
   const goToHome = useNavigationStore((s) => s.goToHome)
   const goToSettings = useNavigationStore((s) => s.goToSettings)

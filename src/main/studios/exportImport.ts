@@ -10,6 +10,7 @@ import type {
   StudioExportFile
 } from '@shared/types/ipc'
 import { getLayoutsDir } from '../userDataPaths'
+import { getDb } from '../db/index'
 import * as studiosRepo from '../db/repositories/studiosRepo'
 import { listStudioMics, upsertMic } from '../db/repositories/micsRepo'
 import { listOutboardByStudio, upsertOutboard } from '../db/repositories/outboardRepo'
@@ -114,64 +115,76 @@ export async function pickAndParseImportFile(): Promise<PickImportFileResult> {
  *  across installations. preamps/roomLayoutFile default safely (empty/null) for older export files
  *  that predate them. */
 export function importStudios(studios: ExportedStudio[]): ImportStudiosResult {
-  const imported: string[] = []
-  for (const studio of studios) {
-    const created = studiosRepo.createCustomStudio(studio.name, null)
-    imported.push(created.name)
-    for (const mic of studio.mics) {
-      upsertMic({
-        poolType: 'studio',
-        studioId: created.id,
-        buildingId: null,
-        setupId: null,
-        name: mic.name,
-        manufacturer: mic.manufacturer,
-        category: mic.category,
-        notes: null,
-        quantity: mic.quantity
-      })
+  const db = getDb()
+  // All-or-nothing. Each studio is a create plus N gear upserts plus a layout-file write, and
+  // none of it was wrapped: a duplicate name or a bad base64 payload partway through left the
+  // studio row created, some of its gear inserted, the rest missing, and every later studio in
+  // the file unimported — while the renderer told the user "Nothing was changed."
+  //
+  // The layout FILE write is not transactional; nothing rolls back a filesystem write. That is
+  // harmless here: after a rollback no row references the file, and the next import overwrites
+  // it, since its name is derived from the studio id.
+  const run = db.transaction(() => {
+    const imported: string[] = []
+    for (const studio of studios) {
+      const created = studiosRepo.createCustomStudio(studio.name, null)
+      imported.push(created.name)
+      for (const mic of studio.mics) {
+        upsertMic({
+          poolType: 'studio',
+          studioId: created.id,
+          buildingId: null,
+          setupId: null,
+          name: mic.name,
+          manufacturer: mic.manufacturer,
+          category: mic.category,
+          notes: null,
+          quantity: mic.quantity
+        })
+      }
+      for (const gear of studio.outboardGear) {
+        upsertOutboard({
+          poolType: 'studio',
+          studioId: created.id,
+          buildingId: null,
+          setupId: null,
+          name: gear.name,
+          manufacturer: gear.manufacturer,
+          category: gear.category,
+          notes: null,
+          quantity: gear.quantity
+        })
+      }
+      for (const preamp of studio.preamps ?? []) {
+        upsertPreamp({
+          poolType: 'studio',
+          studioId: created.id,
+          buildingId: null,
+          setupId: null,
+          name: preamp.name,
+          manufacturer: preamp.manufacturer,
+          category: preamp.category,
+          notes: null,
+          channels: preamp.channels
+        })
+      }
+      const layoutFile =
+        studio.roomLayoutFile && ALLOWED_LAYOUT_EXTENSIONS.has(studio.roomLayoutFile.extension.toLowerCase())
+          ? studio.roomLayoutFile
+          : null
+      if (layoutFile) {
+        const destPath = join(getLayoutsDir(), `studio_${created.id}${layoutFile.extension}`)
+        writeFileSync(destPath, Buffer.from(layoutFile.dataBase64, 'base64'))
+        upsertLayoutFile({
+          studioId: created.id,
+          filePath: destPath,
+          originalName: layoutFile.originalName,
+          pageWidthPt: layoutFile.pageWidthPt,
+          pageHeightPt: layoutFile.pageHeightPt
+        })
+      }
     }
-    for (const gear of studio.outboardGear) {
-      upsertOutboard({
-        poolType: 'studio',
-        studioId: created.id,
-        buildingId: null,
-        setupId: null,
-        name: gear.name,
-        manufacturer: gear.manufacturer,
-        category: gear.category,
-        notes: null,
-        quantity: gear.quantity
-      })
-    }
-    for (const preamp of studio.preamps ?? []) {
-      upsertPreamp({
-        poolType: 'studio',
-        studioId: created.id,
-        buildingId: null,
-        setupId: null,
-        name: preamp.name,
-        manufacturer: preamp.manufacturer,
-        category: preamp.category,
-        notes: null,
-        channels: preamp.channels
-      })
-    }
-    const layoutFile =
-      studio.roomLayoutFile && ALLOWED_LAYOUT_EXTENSIONS.has(studio.roomLayoutFile.extension.toLowerCase())
-        ? studio.roomLayoutFile
-        : null
-    if (layoutFile) {
-      const destPath = join(getLayoutsDir(), `studio_${created.id}${layoutFile.extension}`)
-      writeFileSync(destPath, Buffer.from(layoutFile.dataBase64, 'base64'))
-      upsertLayoutFile({
-        studioId: created.id,
-        filePath: destPath,
-        originalName: layoutFile.originalName,
-        pageWidthPt: layoutFile.pageWidthPt,
-        pageHeightPt: layoutFile.pageHeightPt
-      })
-    }
-  }
-  return { imported }
+    return { imported }
+  })
+  return run()
 }

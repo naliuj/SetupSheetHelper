@@ -6,6 +6,7 @@ import { useSetupStoreApi, useSetupStoreState } from '@renderer/state/setupStore
 import { useLayoutStoreApi, useLayoutStoreState } from '@renderer/state/layoutStoreContext'
 import { useCatalogStoreState } from '@renderer/state/catalogStoreContext'
 import { useLayoutWindowStore } from '@renderer/state/layoutWindowStore'
+import { registerFlusher } from '@renderer/state/flushRegistry'
 import InstrumentPalette from './palette/InstrumentPalette'
 import SetupSheetTable from './table/SetupSheetTable'
 import TableModeToolbar from './table/TableModeToolbar'
@@ -14,6 +15,20 @@ import SetupToolbar from './SetupToolbar'
 import SetupSettingsPage from './SetupSettingsPage'
 
 const AUTOSAVE_DELAY_MS = 1000
+
+/** Longest a dirty editor may go unsaved while the user keeps typing.
+ *
+ *  The debounce above re-arms on every keystroke, so a continuous burst never reached the timer
+ *  at all: the exposure was not "the last second" but the entire uninterrupted burst, and quitting
+ *  mid-burst lost all of it. The delay shrinks as the burst runs on, so a save lands at least
+ *  this often no matter how fast the user types. */
+const AUTOSAVE_MAX_WAIT_MS = 5000
+
+/** How long to wait before trying again after a save fails. Slower than the normal debounce:
+ *  whatever is wrong is unlikely to be fixed within a second, and each attempt is several IPC
+ *  round trips. Retrying at all is new — a failed save used to sit dirty and untried until the
+ *  user happened to edit something else. */
+const AUTOSAVE_RETRY_MS = 10_000
 
 // Lazy so konva + react-konva + pdfjs (the app's heaviest dependencies, all reached only through
 // the canvas) live in their own chunk instead of the startup bundle — app launch and Table Mode
@@ -75,13 +90,18 @@ export default function SetupEditorPane({
   // written by save() and nothing else, and every other field it sends is already a dep here.
   const sessionNotes = useSetupStoreState((s) => s.sessionNotes)
   const isDirty = useSetupStoreState((s) => s.isDirty)
+  const saveError = useSetupStoreState((s) => s.saveError)
   const save = useSetupStoreState((s) => s.save)
 
   const layoutBlocks = useLayoutStoreState((s) => s.blocks)
   const layoutIsDirty = useLayoutStoreState((s) => s.isDirty)
+  const layoutSaveError = useLayoutStoreState((s) => s.saveError)
   const saveLayout = useLayoutStoreState((s) => s.save)
 
   const stageRef = useRef<Konva.Stage>(null)
+  /** When the current run of unsaved edits began, so the autosave below can cap how long a
+   *  continuous burst delays a save. Null whenever everything is saved. */
+  const dirtySinceRef = useRef<number | null>(null)
 
   // True while this exact setup's layout is open in the standalone Layout Mode window — see
   // layoutWindowStore.ts. Drives two things below: skipping the local LayoutStage mount (it has
@@ -168,11 +188,28 @@ export default function SetupEditorPane({
   // Mode's setupStore and Layout Mode's layoutStore are fully independent, but both flush on
   // the same timer for simplicity — each only actually writes if its own isDirty is set.
   useEffect(() => {
-    if (!isDirty && !layoutIsDirty) return
+    if (!isDirty && !layoutIsDirty) {
+      dirtySinceRef.current = null
+      return
+    }
+    if (dirtySinceRef.current == null) dirtySinceRef.current = Date.now()
+
+    // Normally the plain debounce, but never longer than AUTOSAVE_MAX_WAIT_MS after this edit
+    // burst first went dirty — see that constant. After a failure, back off instead: saveError
+    // is a fresh object each time, so a failed attempt re-runs this effect and schedules the
+    // next try without needing the user to touch anything.
+    const failed = saveError != null || layoutSaveError != null
+    const elapsed = Date.now() - dirtySinceRef.current
+    const delay = failed
+      ? AUTOSAVE_RETRY_MS
+      : Math.max(0, Math.min(AUTOSAVE_DELAY_MS, AUTOSAVE_MAX_WAIT_MS - elapsed))
+
     const timer = setTimeout(() => {
+      // Open a fresh window before saving, so a run of failures cannot collapse the delay to 0.
+      dirtySinceRef.current = Date.now()
       if (isDirty) save()
       if (layoutIsDirty) saveLayout()
-    }, AUTOSAVE_DELAY_MS)
+    }, delay)
     return () => clearTimeout(timer)
   }, [
     items,
@@ -183,11 +220,25 @@ export default function SetupEditorPane({
     facultyReserveEnabled,
     sessionNotes,
     isDirty,
+    saveError,
     save,
     layoutBlocks,
     layoutIsDirty,
+    layoutSaveError,
     saveLayout
   ])
+
+  // Register this pane's stores for the quit-time flush. Split View gives each pane its own
+  // store instances, so registering from here covers both without the app root needing to know
+  // how many panes exist. Unregisters on unmount.
+  useEffect(() => {
+    return registerFlusher(async () => {
+      const setupState = setupStoreApi.getState()
+      if (setupState.isDirty) await setupState.save()
+      const layoutState = layoutStoreApi.getState()
+      if (layoutState.isDirty) await layoutState.save()
+    })
+  }, [setupStoreApi, layoutStoreApi])
 
   // Flush any pending edit immediately when this pane unmounts, so a quick navigation away right
   // after typing/dragging doesn't lose the last second of work. For the SINGLE-pane case this

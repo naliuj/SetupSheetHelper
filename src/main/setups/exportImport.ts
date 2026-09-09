@@ -11,6 +11,7 @@ import type {
   SetupItemInput
 } from '@shared/types/ipc'
 import { getLayoutsDir } from '../userDataPaths'
+import { getDb } from '../db/index'
 import {
   getSetupWithItems,
   createSetup,
@@ -171,78 +172,86 @@ function findMatch<T extends { id: number; name: string; manufacturer: string | 
 /** Imported setups always land in the target studio's root (no folder) — folders are local to
  *  the installation they were created in, same reasoning as studio import. */
 export function importSetups(setups: ExportedSetup[], targetStudioId: number): void {
-  for (const setup of setups) {
-    const created = createSetup(
-      targetStudioId,
-      setup.name,
-      setup.sessionDate,
-      'setup',
-      null,
-      null,
-      setup.engineer,
-      setup.artist,
-      setup.facultyReserveEnabled,
-      setup.sessionNotes
-    )
-    setOutboardColumnCount(created.id, setup.outboardColumnCount)
-    // Guarded like columnOrder below: export files from before column visibility existed
-    // (migration 018) don't carry the field, and serializeVisibleColumns throws on undefined.
-    if (setup.visibleColumns) setVisibleColumns(created.id, setup.visibleColumns)
-    if (setup.columnOrder) setColumnOrder(created.id, setup.columnOrder)
-    if (setup.exportColumnOverrides) setExportColumnOverrides(created.id, setup.exportColumnOverrides)
+  const db = getDb()
+  // All-or-nothing, for the same reason as importStudios: a throw partway through (the column
+  // serializers reject undefined, a UNIQUE name collides) otherwise left an empty ghost setup in
+  // the target studio and silently skipped every setup after it. This function returns void, so
+  // the renderer could not report a partial import either.
+  const run = db.transaction(() => {
+    for (const setup of setups) {
+      const created = createSetup(
+        targetStudioId,
+        setup.name,
+        setup.sessionDate,
+        'setup',
+        null,
+        null,
+        setup.engineer,
+        setup.artist,
+        setup.facultyReserveEnabled,
+        setup.sessionNotes
+      )
+      setOutboardColumnCount(created.id, setup.outboardColumnCount)
+      // Guarded like columnOrder below: export files from before column visibility existed
+      // (migration 018) don't carry the field, and serializeVisibleColumns throws on undefined.
+      if (setup.visibleColumns) setVisibleColumns(created.id, setup.visibleColumns)
+      if (setup.columnOrder) setColumnOrder(created.id, setup.columnOrder)
+      if (setup.exportColumnOverrides) setExportColumnOverrides(created.id, setup.exportColumnOverrides)
 
-    const mics = listAvailableMics(targetStudioId, created.id, setup.facultyReserveEnabled)
-    const outboardGear = listAvailableOutboard(targetStudioId, created.id, setup.facultyReserveEnabled)
-    const preamps = listAvailablePreamps(targetStudioId, created.id, setup.facultyReserveEnabled)
+      const mics = listAvailableMics(targetStudioId, created.id, setup.facultyReserveEnabled)
+      const outboardGear = listAvailableOutboard(targetStudioId, created.id, setup.facultyReserveEnabled)
+      const preamps = listAvailablePreamps(targetStudioId, created.id, setup.facultyReserveEnabled)
 
-    const items: SetupItemInput[] = setup.items.map((item, index) => {
-      const mic = findMatch(mics, item.micName, item.micManufacturer)
-      const preamp = findMatch(preamps, item.preampName, item.preampManufacturer)
-      return {
-        id: `import-${index}`,
-        instrumentType: item.instrumentType,
-        sourceName: item.sourceName,
-        micId: mic?.id ?? null,
-        micText: mic ? null : item.micName,
-        phantomPower: item.phantomPower,
-        channel: item.channel,
-        tieLine: item.tieLine,
-        // Export files written before cue box became free text hold numbers here.
-        cueBox: item.cueBox != null ? String(item.cueBox) : null,
-        outboards: item.outboards.map((slot) => {
-          const outboard = findMatch(outboardGear, slot.outboardName, slot.outboardManufacturer)
-          return {
-            slotIndex: slot.slotIndex,
-            outboardId: outboard?.id ?? null,
-            outboardText: outboard ? null : slot.outboardName
-          }
-        }),
-        preampId: preamp?.id ?? null,
-        preampText: preamp ? null : item.preampName,
-        polarityFlip: item.polarityFlip,
-        notes: item.notes,
-        color: item.color,
-        groupId: item.groupId
-      }
-    })
-    replaceItemsForSetup(created.id, items)
-
-    // Dropped rather than written when the extension is not one we recognise — see
-    // ALLOWED_LAYOUT_EXTENSIONS. The setup still imports; it just arrives without its background.
-    const layoutOverride =
-      setup.layoutOverride && ALLOWED_LAYOUT_EXTENSIONS.has(setup.layoutOverride.extension.toLowerCase())
-        ? setup.layoutOverride
-        : null
-    if (layoutOverride) {
-      const destPath = join(getLayoutsDir(), `setup_${created.id}${layoutOverride.extension}`)
-      writeFileSync(destPath, Buffer.from(layoutOverride.dataBase64, 'base64'))
-      upsertFileLayoutOverride({
-        setupId: created.id,
-        filePath: destPath,
-        originalName: layoutOverride.originalName,
-        pageWidthPt: layoutOverride.pageWidthPt,
-        pageHeightPt: layoutOverride.pageHeightPt
+      const items: SetupItemInput[] = setup.items.map((item, index) => {
+        const mic = findMatch(mics, item.micName, item.micManufacturer)
+        const preamp = findMatch(preamps, item.preampName, item.preampManufacturer)
+        return {
+          id: `import-${index}`,
+          instrumentType: item.instrumentType,
+          sourceName: item.sourceName,
+          micId: mic?.id ?? null,
+          micText: mic ? null : item.micName,
+          phantomPower: item.phantomPower,
+          channel: item.channel,
+          tieLine: item.tieLine,
+          // Export files written before cue box became free text hold numbers here.
+          cueBox: item.cueBox != null ? String(item.cueBox) : null,
+          outboards: item.outboards.map((slot) => {
+            const outboard = findMatch(outboardGear, slot.outboardName, slot.outboardManufacturer)
+            return {
+              slotIndex: slot.slotIndex,
+              outboardId: outboard?.id ?? null,
+              outboardText: outboard ? null : slot.outboardName
+            }
+          }),
+          preampId: preamp?.id ?? null,
+          preampText: preamp ? null : item.preampName,
+          polarityFlip: item.polarityFlip,
+          notes: item.notes,
+          color: item.color,
+          groupId: item.groupId
+        }
       })
+      replaceItemsForSetup(created.id, items)
+
+      // Dropped rather than written when the extension is not one we recognise — see
+      // ALLOWED_LAYOUT_EXTENSIONS. The setup still imports; it just arrives without its background.
+      const layoutOverride =
+        setup.layoutOverride && ALLOWED_LAYOUT_EXTENSIONS.has(setup.layoutOverride.extension.toLowerCase())
+          ? setup.layoutOverride
+          : null
+      if (layoutOverride) {
+        const destPath = join(getLayoutsDir(), `setup_${created.id}${layoutOverride.extension}`)
+        writeFileSync(destPath, Buffer.from(layoutOverride.dataBase64, 'base64'))
+        upsertFileLayoutOverride({
+          setupId: created.id,
+          filePath: destPath,
+          originalName: layoutOverride.originalName,
+          pageWidthPt: layoutOverride.pageWidthPt,
+          pageHeightPt: layoutOverride.pageHeightPt
+        })
+      }
     }
-  }
+  })
+  run()
 }

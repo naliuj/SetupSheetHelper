@@ -5,12 +5,16 @@ import {
   LAYOUT_WINDOW_STATE_CHANNEL,
   LAYOUT_WINDOW_EXPORT_REQUEST_CHANNEL,
   LAYOUT_WINDOW_EXPORT_RESULT_CHANNEL,
+  APP_FLUSH_REQUEST_CHANNEL,
+  APP_FLUSH_ACK_CHANNEL,
   LAYOUT_WINDOW_FLUSH_REQUEST_CHANNEL,
   LAYOUT_WINDOW_FLUSH_ACK_CHANNEL,
   type MenuAction,
   type LayoutWindowState,
   type LayoutWindowExportRequest,
   type LayoutWindowExportResult,
+  type AppFlushRequest,
+  type AppFlushAck,
   type LayoutWindowFlushRequest,
   type LayoutWindowFlushAck,
   type RendererApi
@@ -41,7 +45,8 @@ const api: RendererApi = {
     moveToFolder: (id, folderId) => ipcRenderer.invoke(IPC.studios.moveToFolder, id, folderId),
     moveManyToFolder: (ids, folderId) => ipcRenderer.invoke(IPC.studios.moveManyToFolder, ids, folderId),
     reorder: (ids) => ipcRenderer.invoke(IPC.studios.reorder, ids),
-    getDeleteImpact: (id) => ipcRenderer.invoke(IPC.studios.getDeleteImpact, id)
+    getDeleteImpact: (id) => ipcRenderer.invoke(IPC.studios.getDeleteImpact, id),
+    saveInventory: (input) => ipcRenderer.invoke(IPC.studios.saveInventory, input)
   },
   mics: {
     listAvailableForStudio: (studioId, setupId, facultyReserveEnabledForSetup) =>
@@ -169,7 +174,13 @@ const api: RendererApi = {
     set: (key, value) => ipcRenderer.invoke(IPC.settings.set, key, value)
   },
   app: {
-    getVersion: () => ipcRenderer.invoke(IPC.app.getVersion)
+    getVersion: () => ipcRenderer.invoke(IPC.app.getVersion),
+    onFlushRequested: (callback) => {
+      const listener = (_event: unknown, request: AppFlushRequest): void => callback(request)
+      ipcRenderer.on(APP_FLUSH_REQUEST_CHANNEL, listener)
+      return () => ipcRenderer.removeListener(APP_FLUSH_REQUEST_CHANNEL, listener)
+    },
+    sendFlushAck: (ack: AppFlushAck) => ipcRenderer.send(APP_FLUSH_ACK_CHANNEL, ack)
   },
   feedback: {
     submit: (input) => ipcRenderer.invoke(IPC.feedback.submit, input)

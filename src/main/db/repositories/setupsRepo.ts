@@ -235,18 +235,25 @@ export function reorderSetups(ids: number[]): void {
  * reusable structure (which sources, what role), not a snapshot of one day's actual gear.
  */
 export function saveAsTemplate(setupId: number, name: string, folderId: number | null = null): Setup {
-  const source = getSetupWithItems(setupId)
-  if (!source) throw new Error('Setup not found')
-  const template = createSetup(source.studioId, name, null, 'template', 'custom', folderId)
-  // Column layout is part of the reusable structure (which columns, in what order) — without
-  // this, every sheet made from the template reverted to the global default and a column the
-  // user hides kept "coming back." Mirrors duplicateSetup below.
-  setOutboardColumnCount(template.id, source.outboardColumnCount)
-  setVisibleColumns(template.id, source.visibleColumns)
-  setColumnOrder(template.id, source.columnOrder)
-  setExportColumnOverrides(template.id, source.exportColumnOverrides)
-  copyItemsToSetup(setupId, template.id, { blankRoomSpecificFields: true })
-  return template
+  const db = getDb()
+  // One transaction: this is a create plus four column setters plus a bulk item copy, and a
+  // throw partway through used to leave an empty template behind. The inner helpers open their
+  // own transactions, which better-sqlite3 nests as savepoints, so wrapping the outside is free.
+  const run = db.transaction(() => {
+    const source = getSetupWithItems(setupId)
+    if (!source) throw new Error('Setup not found')
+    const template = createSetup(source.studioId, name, null, 'template', 'custom', folderId)
+    // Column layout is part of the reusable structure (which columns, in what order) — without
+    // this, every sheet made from the template reverted to the global default and a column the
+    // user hides kept "coming back." Mirrors duplicateSetup below.
+    setOutboardColumnCount(template.id, source.outboardColumnCount)
+    setVisibleColumns(template.id, source.visibleColumns)
+    setColumnOrder(template.id, source.columnOrder)
+    setExportColumnOverrides(template.id, source.exportColumnOverrides)
+    copyItemsToSetup(setupId, template.id, { blankRoomSpecificFields: true })
+    return template
+  })
+  return run()
 }
 
 /**
@@ -266,71 +273,84 @@ export function duplicateSetup(
   artist: string | null,
   facultyReserveEnabled: boolean
 ): Setup {
-  const source = getSetupWithItems(sourceSetupId)
-  if (!source) throw new Error('Setup not found')
-  const setup = createSetup(
-    source.studioId,
-    name,
-    sessionDate,
-    'setup',
-    null,
-    folderId,
-    engineer,
-    artist,
-    facultyReserveEnabled,
-    source.sessionNotes
-  )
-  setOutboardColumnCount(setup.id, source.outboardColumnCount)
-  setVisibleColumns(setup.id, source.visibleColumns)
-  setColumnOrder(setup.id, source.columnOrder)
-  setExportColumnOverrides(setup.id, source.exportColumnOverrides)
-  copyItemsToSetup(sourceSetupId, setup.id)
-  copyBlocksToSetup(sourceSetupId, setup.id)
-  const override = getSetupLayoutOverride(sourceSetupId)
-  if (override?.kind === 'blank') {
-    upsertBlankLayoutOverride(setup.id)
-  } else if (override?.kind === 'file' && override.filePath) {
-    // Copy the backing file rather than pointing both setups at it. Layout files are named for
-    // the setup that owns them (layouts/setup_<id>.<ext>), so sharing the path meant the next
-    // upload for the SOURCE setup silently reached into this duplicate: same extension
-    // overwrote the file in place and changed this setup's floor plan, a different extension
-    // unlinked it and left this row naming a file that no longer exists.
-    let filePath = override.filePath
-    try {
-      const duplicatedPath = join(getLayoutsDir(), `setup_${setup.id}${extname(override.filePath)}`)
-      copyFileSync(override.filePath, duplicatedPath)
-      filePath = duplicatedPath
-    } catch {
-      // The source file is already missing. Keep the original reference — that is exactly the
-      // (already broken) state this duplicate would have inherited before, not a new failure.
+  const db = getDb()
+  // One transaction — see saveAsTemplate. Failing between copyItemsToSetup and copyBlocksToSetup
+  // produced a duplicate with rows but no floor plan, indistinguishable from a legitimately blank
+  // layout. The layout FILE copy below is not rolled back; that is harmless, since after a
+  // rollback no row references it.
+  const run = db.transaction(() => {
+    const source = getSetupWithItems(sourceSetupId)
+    if (!source) throw new Error('Setup not found')
+    const setup = createSetup(
+      source.studioId,
+      name,
+      sessionDate,
+      'setup',
+      null,
+      folderId,
+      engineer,
+      artist,
+      facultyReserveEnabled,
+      source.sessionNotes
+    )
+    setOutboardColumnCount(setup.id, source.outboardColumnCount)
+    setVisibleColumns(setup.id, source.visibleColumns)
+    setColumnOrder(setup.id, source.columnOrder)
+    setExportColumnOverrides(setup.id, source.exportColumnOverrides)
+    copyItemsToSetup(sourceSetupId, setup.id)
+    copyBlocksToSetup(sourceSetupId, setup.id)
+    const override = getSetupLayoutOverride(sourceSetupId)
+    if (override?.kind === 'blank') {
+      upsertBlankLayoutOverride(setup.id)
+    } else if (override?.kind === 'file' && override.filePath) {
+      // Copy the backing file rather than pointing both setups at it. Layout files are named for
+      // the setup that owns them (layouts/setup_<id>.<ext>), so sharing the path meant the next
+      // upload for the SOURCE setup silently reached into this duplicate: same extension
+      // overwrote the file in place and changed this setup's floor plan, a different extension
+      // unlinked it and left this row naming a file that no longer exists.
+      let filePath = override.filePath
+      try {
+        const duplicatedPath = join(getLayoutsDir(), `setup_${setup.id}${extname(override.filePath)}`)
+        copyFileSync(override.filePath, duplicatedPath)
+        filePath = duplicatedPath
+      } catch {
+        // The source file is already missing. Keep the original reference — that is exactly the
+        // (already broken) state this duplicate would have inherited before, not a new failure.
+      }
+      upsertFileLayoutOverride({
+        setupId: setup.id,
+        filePath,
+        originalName: override.originalName,
+        pageWidthPt: override.pageWidthPt,
+        pageHeightPt: override.pageHeightPt
+      })
     }
-    upsertFileLayoutOverride({
-      setupId: setup.id,
-      filePath,
-      originalName: override.originalName,
-      pageWidthPt: override.pageWidthPt,
-      pageHeightPt: override.pageHeightPt
-    })
-  }
-  return setup
+    return setup
+  })
+  return run()
 }
 
 /** Instantiates a brand-new editable Setup from a template's item list. */
 export function instantiateFromTemplate(templateId: number): Setup {
-  const template = getSetupWithItems(templateId)
-  if (!template) throw new Error('Template not found')
-  const setup = createSetup(
-    template.studioId,
-    template.name,
-    new Date().toISOString().slice(0, 10),
-    'setup',
-    null
-  )
-  // Carry the template's column layout onto the new sheet (see saveAsTemplate's note).
-  setOutboardColumnCount(setup.id, template.outboardColumnCount)
-  setVisibleColumns(setup.id, template.visibleColumns)
-  setColumnOrder(setup.id, template.columnOrder)
-  setExportColumnOverrides(setup.id, template.exportColumnOverrides)
-  copyItemsToSetup(templateId, setup.id)
-  return setup
+  const db = getDb()
+  // One transaction — see saveAsTemplate.
+  const run = db.transaction(() => {
+    const template = getSetupWithItems(templateId)
+    if (!template) throw new Error('Template not found')
+    const setup = createSetup(
+      template.studioId,
+      template.name,
+      new Date().toISOString().slice(0, 10),
+      'setup',
+      null
+    )
+    // Carry the template's column layout onto the new sheet (see saveAsTemplate's note).
+    setOutboardColumnCount(setup.id, template.outboardColumnCount)
+    setVisibleColumns(setup.id, template.visibleColumns)
+    setColumnOrder(setup.id, template.columnOrder)
+    setExportColumnOverrides(setup.id, template.exportColumnOverrides)
+    copyItemsToSetup(templateId, setup.id)
+    return setup
+  })
+  return run()
 }
