@@ -353,5 +353,21 @@ export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
       'Fixed resizing a block in Layout Mode right after placing it. The resize handles could come loose from the block and scatter across the room, and a resize begun within a second of placing would snap back to the original size.',
       'This window now shows the full release history, and scrolls instead of stretching past the bottom of the screen.'
     ]
+  },
+  {
+    version: '1.16.2',
+    date: '2026-09-11',
+    highlights: [
+      'Quitting now saves your work first. Autosave waits for a pause in typing, so quitting mid-edit could drop whatever was still pending \u2014 and a long unbroken stretch of typing could go unsaved the whole time.',
+      'Edits made while a save was still finishing are no longer lost. Typing, or moving a block, in that moment could leave the work unwritten while the toolbar read "Saved", and in Layout Mode it could undo itself on screen as well.',
+      'Fixed Layout Mode getting permanently stuck on "Unsaved changes". A drag or resize interrupted partway through \u2014 by switching modes, or closing Split View \u2014 could leave the room layout unable to save for the rest of the session.',
+      'Undo after deleting rows or blocks now sticks. Clicking Undo in the "Deleted 1 row" message brought them back on screen but never saved them, so they were gone again the next time you opened the setup.',
+      'The app now tells you when a save fails and keeps retrying until it works. A failed save used to be completely silent.',
+      'Only one copy of the app runs at a time. Two windows open on the same data could each delete what the other had just added.',
+      'Duplicating a setup now copies its floor plan instead of sharing it. Uploading a new layout to either setup used to change, or erase, the other one\u2019s.',
+      'Saving a studio, and importing studios or setups, are now all or nothing. Two pieces of gear with the same name used to fail partway through \u2014 removing what you had deleted, saving some of what you added and dropping the rest, with no message at all.',
+      'Your data is backed up before an update changes the database, and the app explains itself instead of going blank if something does go wrong.',
+      'The app icon is now properly rounded on the Dock.'
+    ]
   }
 ]
