@@ -105,7 +105,7 @@ function PersonalMicsSection({
               <td>
                 <input value={m.name} onChange={(e) => updateName(m, e.target.value)} />
               </td>
-              <td>{m.category}</td>
+              <td className="data-table-text">{m.category}</td>
               <td style={{ maxWidth: 70 }}>
                 <input
                   type="number"
@@ -247,7 +247,7 @@ function PersonalOutboardSection({
               <td>
                 <input value={g.name} onChange={(e) => updateName(g, e.target.value)} />
               </td>
-              <td>{g.category}</td>
+              <td className="data-table-text">{g.category}</td>
               <td style={{ maxWidth: 70 }}>
                 <input
                   type="number"
@@ -392,7 +392,7 @@ function PersonalPreampsSection({
               <td>
                 <input value={p.name} onChange={(e) => updateName(p, e.target.value)} />
               </td>
-              <td>{p.category}</td>
+              <td className="data-table-text">{p.category}</td>
               <td style={{ maxWidth: 70 }}>
                 <input
                   type="number"

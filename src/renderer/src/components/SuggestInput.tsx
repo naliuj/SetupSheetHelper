@@ -114,7 +114,7 @@ export default function SuggestInput({ value, onChange, onBlur, placeholder, sug
                 onMouseEnter={() => setHighlightIndex(i)}
                 onClick={() => selectSuggestion(s)}
               >
-                <span>{s.label}</span>
+                <span title={s.label}>{s.label}</span>
               </div>
             ))}
           </div>,

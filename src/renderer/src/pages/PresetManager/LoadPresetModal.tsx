@@ -23,7 +23,7 @@ function FlatFolderRow({
     <div className={`folder-tree-row ${selected ? 'selected' : ''}`} style={{ paddingLeft: 10 }}>
       <span className="folder-tree-toggle" />
       <button className="folder-tree-label tree-label" onClick={onSelect}>
-        <span className="folder-tree-name">{name}</span>
+        <span className="folder-tree-name" title={name}>{name}</span>
       </button>
     </div>
   )

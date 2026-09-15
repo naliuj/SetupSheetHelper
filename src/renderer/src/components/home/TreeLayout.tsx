@@ -46,7 +46,7 @@ export default function TreeLayout({ folders, entries, emptyMessage }: HomeLayou
             {hasChildren && (isCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />)}
           </span>
           <Folder className="home-icon" size={15} aria-hidden="true" />
-          <span className="folder-tree-name">{node.name}</span>
+          <span className="folder-tree-name" title={node.name}>{node.name}</span>
         </button>
         {!isCollapsed && (
           <>
