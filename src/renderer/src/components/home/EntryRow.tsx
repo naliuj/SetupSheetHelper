@@ -18,7 +18,7 @@ export default function EntryRow({
     <div className={`home-row${selected ? ' selected' : ''}`} style={style}>
       <button type="button" className="home-row-main" onClick={entry.onActivate}>
         {entry.icon && <entry.icon className="home-icon" size={15} aria-hidden="true" />}
-        <span className="home-row-label">{entry.label}</span>
+        <span className="home-row-label" title={entry.label}>{entry.label}</span>
         {entry.meta && <span className="home-row-meta">{entry.meta}</span>}
       </button>
       {entry.secondaryAction && (

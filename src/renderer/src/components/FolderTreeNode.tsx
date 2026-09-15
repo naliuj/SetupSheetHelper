@@ -45,7 +45,7 @@ export default function FolderTreeNode({
         )}
         <button className="folder-tree-label tree-label" onClick={() => onSelect(node.id)}>
           <Folder className="home-icon" size={15} aria-hidden="true" />
-          <span className="folder-tree-name">{node.name}</span>
+          <span className="folder-tree-name" title={node.name}>{node.name}</span>
         </button>
         {onCreateSubfolder && (
           <button className="folder-tree-action" title="New Subfolder" onClick={() => onCreateSubfolder(node.id)}>

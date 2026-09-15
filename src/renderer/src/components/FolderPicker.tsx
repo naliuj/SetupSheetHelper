@@ -86,7 +86,7 @@ export default function FolderPicker({
           >
             <button type="button" className="folder-picker-select tree-label" onClick={() => onSelect(folder.id)}>
               <Folder className="home-icon" size={15} aria-hidden="true" />
-              <span className="folder-tree-name">{folder.name}</span>
+              <span className="folder-tree-name" title={folder.name}>{folder.name}</span>
             </button>
             <button
               type="button"

@@ -55,7 +55,7 @@ export default function ExportFolderTreeNode<T extends ExportableItem>({
         )}
         <span className="folder-tree-label tree-label">
           <Folder className="home-icon" size={15} aria-hidden="true" />
-          <span className="folder-tree-name">{node.name}</span>
+          <span className="folder-tree-name" title={node.name}>{node.name}</span>
         </span>
         <button
           className="folder-tree-action"

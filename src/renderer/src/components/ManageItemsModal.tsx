@@ -121,7 +121,7 @@ function FlatFolderRow({
       <span className="folder-tree-toggle" />
       <button className="folder-tree-label tree-label" onClick={onSelect}>
         <Folder className="home-icon" size={15} aria-hidden="true" />
-        <span className="folder-tree-name">{name}</span>
+        <span className="folder-tree-name" title={name}>{name}</span>
       </button>
       <button className="folder-tree-action" title="New Subfolder" onClick={onCreateSubfolder}>
         <Plus size={15} aria-hidden="true" />

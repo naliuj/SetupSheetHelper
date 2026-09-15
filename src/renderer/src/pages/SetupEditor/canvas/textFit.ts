@@ -6,9 +6,35 @@ function getMeasureContext(): CanvasRenderingContext2D {
   return measureCanvas.getContext('2d')!
 }
 
+/** Splits one over-wide line into character-level chunks that each fit within `maxWidth`.
+ *  Konva does the same thing: its wrap-at-word pass looks for a space or dash to break at, and
+ *  when a word has neither it falls back to the longest character prefix that fits. Without this,
+ *  a label typed as one unbroken word measured as a single short line, passed the height check on
+ *  the first iteration, and came back at full size — clipped rather than shrunk, which is the one
+ *  service this whole module exists to provide. */
+function breakLongLine(ctx: CanvasRenderingContext2D, line: string, maxWidth: number): string[] {
+  if (ctx.measureText(line).width <= maxWidth) return [line]
+  const chunks: string[] = []
+  let current = ''
+  for (const ch of line) {
+    const candidate = current + ch
+    // `current &&` keeps a single character that is wider than the line on its own from looping:
+    // it goes on a chunk of its own rather than being rejected forever.
+    if (current && ctx.measureText(candidate).width > maxWidth) {
+      chunks.push(current)
+      current = ch
+    } else {
+      current = candidate
+    }
+  }
+  if (current) chunks.push(current)
+  return chunks
+}
+
 /** Greedy word-wrap of `text` into lines that each fit within `maxWidth` at the context's current
  *  font — the same approach Konva's own `wrap="word"` uses internally, so this measurement tracks
- *  what actually gets drawn. */
+ *  what actually gets drawn. Every returned line fits `maxWidth`, so the caller can decide on line
+ *  COUNT alone. */
 function wrapLines(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
   const words = text.split(/\s+/).filter(Boolean)
   if (words.length === 0) return ['']
@@ -24,7 +50,7 @@ function wrapLines(ctx: CanvasRenderingContext2D, text: string, maxWidth: number
     }
   }
   lines.push(current)
-  return lines
+  return lines.flatMap((line) => breakLongLine(ctx, line, maxWidth))
 }
 
 export interface FitFontSizeOptions {

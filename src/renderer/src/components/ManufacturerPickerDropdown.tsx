@@ -373,7 +373,7 @@ export default function ManufacturerPickerDropdown<T extends PickerItem>({
           if (!atCapacity) handleLeafClick(item)
         }}
       >
-        <span>
+        <span title={item.manufacturer ? `${item.name} — ${item.manufacturer}` : item.name}>
           {item.name}
           {item.manufacturer && <span className="picker-menu-row-hint"> — {item.manufacturer}</span>}
         </span>
@@ -403,7 +403,7 @@ export default function ManufacturerPickerDropdown<T extends PickerItem>({
           close()
         }}
       >
-        <span>
+        <span title={group.hint ? `${group.label} — ${group.hint}` : group.label}>
           {group.label}
           {group.hint && <span className="picker-menu-row-hint"> — {group.hint}</span>}
         </span>
@@ -495,7 +495,7 @@ export default function ManufacturerPickerDropdown<T extends PickerItem>({
                 if (isLeaf && !atCapacity) handleLeafClick(node.item!)
               }}
             >
-              <span>{node.label}</span>
+              <span title={node.label}>{node.label}</span>
               {showUsage && isLeaf && quantity > 1 && (
                 <span className="picker-menu-row-suffix">
                   {used}/{quantity} in use
@@ -528,6 +528,14 @@ export default function ManufacturerPickerDropdown<T extends PickerItem>({
     )
   }
 
+  // Computed rather than written inline so the same string can be the `title`: the label
+  // truncates, and without the tooltip the hidden characters are unrecoverable.
+  const triggerLabel = selectedItem
+    ? stripManufacturerInTrigger && selectedItem.manufacturer
+      ? stripManufacturerPrefix(selectedItem.name, selectedItem.manufacturer)
+      : selectedItem.name
+    : customValue || placeholder
+
   return (
     <>
       <button
@@ -542,12 +550,8 @@ export default function ManufacturerPickerDropdown<T extends PickerItem>({
           }
         }}
       >
-        <span className="picker-trigger-label">
-          {selectedItem
-            ? stripManufacturerInTrigger && selectedItem.manufacturer
-              ? stripManufacturerPrefix(selectedItem.name, selectedItem.manufacturer)
-              : selectedItem.name
-            : customValue || placeholder}
+        <span className="picker-trigger-label" title={triggerLabel}>
+          {triggerLabel}
         </span>
         <Icon name="chevron-down" size={14} style={{ color: 'var(--color-text-dim)', flexShrink: 0 }} />
       </button>

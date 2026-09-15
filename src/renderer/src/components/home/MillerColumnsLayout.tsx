@@ -41,7 +41,7 @@ export default function MillerColumnsLayout({
                 style={{ paddingLeft: 10 }}
                 onClick={() => selectFolder(columnIndex, folder.id)}
               >
-                <span className="miller-folder-name">
+                <span className="miller-folder-name" title={folder.name}>
                   <Folder className="home-icon" size={15} aria-hidden="true" />
                   {folder.name}
                 </span>

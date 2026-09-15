@@ -60,6 +60,13 @@ button {
   cursor: pointer;
 }
 
+/* lucide-react stamps every icon it renders with `class="lucide lucide-<name>"`. The in-house
+   Icon.tsx sets flexShrink: 0 inline; directly-imported lucide icons had nothing, so beside a
+   long label in a flex row they squashed from 15px to a sliver instead of the text shrinking. */
+svg.lucide {
+  flex-shrink: 0;
+}
+
 input,
 select,
 textarea {
@@ -276,6 +283,8 @@ input[type='checkbox']:disabled {
      That is what let a long studio or session name push the card wider than its grid track
      instead of wrapping inside it. */
   min-width: 0;
+  /* Inherited, so it also reaches the cards whose label is bare text rather than a .card-title. */
+  overflow-wrap: anywhere;
 }
 
 .card.clickable {
@@ -298,17 +307,25 @@ input[type='checkbox']:disabled {
 .card-sub {
   font-size: 12px;
   color: var(--color-text-dim);
+  /* Also used outside .card — picker rows, folder meta — so it needs this in its own right. */
+  overflow-wrap: anywhere;
 }
 
 .inline-form {
   display: flex;
   gap: 8px;
   margin-top: 16px;
+  /* Several of these rows are button strips rather than forms — Settings' ten-tab strip is one.
+     Without this they run off the right edge instead of taking a second line. */
+  flex-wrap: wrap;
 }
 
 .inline-form input,
 .inline-form select {
   flex: 1;
+  /* flex:1 alone still refuses to go below the control's intrinsic width (~177px for a text
+     input), so a row of two or three of them overflows a narrow pane. */
+  min-width: 0;
 }
 
 /* Compact controls for the grouped palette editor (rows + add forms). Kept off .inline-form so
@@ -414,6 +431,14 @@ table.data-table td select {
   padding: 4px 6px;
 }
 
+/* For the cells that hold raw text rather than an input. Every other cell in these tables is an
+   input at `width: 100%`, which imposes no minimum, so a long value in a text cell is the one
+   thing that can widen its column until the whole Settings page scrolls sideways. `anywhere` is
+   what lets the cell's min-content drop below the longest word. */
+table.data-table td.data-table-text {
+  overflow-wrap: anywhere;
+}
+
 .warning-badge {
   color: var(--color-warning);
   font-size: 11px;
@@ -423,6 +448,9 @@ table.data-table td select {
   color: var(--color-text-dim);
   font-size: 13px;
   padding: 20px 0;
+  /* These messages quote what the user typed back at them ("No folders match …"), and a search
+     term with no spaces in it has no break opportunity of its own. */
+  overflow-wrap: anywhere;
 }
 
 .template-nudge {
@@ -512,6 +540,11 @@ table.data-table td select {
   padding: 10px 14px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   z-index: 200;
+  /* Centred with translateX(-50%), so an unbounded message grows off BOTH edges at once and
+     takes its Undo button with it. Every message today is a count; this is the guard for the
+     first one that is not. */
+  max-width: min(560px, calc(100vw - 48px));
+  overflow-wrap: anywhere;
 }
 
 .toast-undo {
@@ -521,6 +554,11 @@ table.data-table td select {
   padding: 0;
   font-weight: 600;
   cursor: pointer;
+  /* .toast is now bounded and wraps, and overflow-wrap is inherited — without these the button
+     broke as "Un / do" and shrank once a long message pushed the row to its max-width. The
+     message is what should wrap; the control beside it is not. */
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .picker-trigger {
@@ -875,6 +913,7 @@ table.data-table td select {
   padding: 10px;
   font-size: 12px;
   color: var(--color-text-dim);
+  overflow-wrap: anywhere;
 }
 
 .folder-picker-new {
