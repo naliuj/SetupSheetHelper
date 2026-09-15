@@ -30,11 +30,13 @@ import { run as utilitiesGobo } from './028_utilities_gobo'
 import { run as paletteBlockDefaultSize } from './029_palette_block_default_size'
 import { run as goboHeight } from './030_gobo_height'
 import { run as setupEditorMode } from './031_setup_editor_mode'
-// Numbered 34, not 32: versions 32 and 33 are taken by the parked feature/multi-setup branch
-// (032_multi_setups, 033_multi_setup_links). Anyone who has run a build of that branch already has
-// those two recorded in schema_migrations, so a migration reusing 32 would be silently skipped on
-// their machine and its column would never exist. Never reuse a version number that any shipped or
-// run branch has claimed — the runner keys off the version, not the file.
+// Numbered 34, not 32: versions 32 and 33 were burned by the abandoned Multi Setup feature
+// (032_multi_setups, 033_multi_setup_links), superseded by Split View. Deleting that branch did
+// NOT free the numbers: anyone who ran a build of it still has those two recorded in
+// schema_migrations, so a migration reusing 32 would be silently skipped on their machine and its
+// column would never exist. Never reuse a version number that any shipped or run branch has
+// claimed — the runner keys off the version, not the file. The work is kept at the
+// archive/multi-setup tag if it is ever wanted back.
 import { run as setupColumnOrder } from './034_setup_column_order'
 import { run as refreshBerkleeMicLockers } from './035_refresh_berklee_mic_lockers'
 import { run as exportColumnOverrides } from './036_export_column_overrides'
