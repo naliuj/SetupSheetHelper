@@ -272,6 +272,10 @@ input[type='checkbox']:disabled {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  /* Grid and flex children default to min-width:auto, i.e. "never shrink below your content".
+     That is what let a long studio or session name push the card wider than its grid track
+     instead of wrapping inside it. */
+  min-width: 0;
 }
 
 .card.clickable {
@@ -285,6 +289,10 @@ input[type='checkbox']:disabled {
 .card-title {
   font-weight: 600;
   font-size: 14px;
+  /* `anywhere`, not `break-word`: only `anywhere` lowers the element's min-content width, which
+     is the part that actually lets it shrink inside a fixed grid track. A name with no spaces
+     in it ("Supercalifragilistic…") otherwise ran straight out past the card's border. */
+  overflow-wrap: anywhere;
 }
 
 .card-sub {
@@ -700,8 +708,17 @@ table.data-table td select {
 
 .card-title-icon {
   display: flex;
-  align-items: center;
+  /* flex-start, not center: once a long name wraps to two or three lines, a vertically centred
+     icon floats away from the line it belongs to. The nudge keeps it optically on the first. */
+  align-items: flex-start;
   gap: 6px;
+}
+
+/* Without this the icon is the thing that gives way to a long name — it was being squeezed from
+   16px down to a sliver. */
+.card-title-icon > svg {
+  flex-shrink: 0;
+  margin-top: 2px;
 }
 
 .folder-tree-name {
