@@ -251,8 +251,9 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
 
     let page = pdfDoc.addPage([pageWidth, pageHeight])
     let cursorY = pageHeight - MARGIN
-    // Top of the current page's row area (bottom of the header/underline) — reset by
-    // drawHeaderRow() on every page, read by drawOuterFrameForCurrentPage() to bound the frame.
+    // Top of the current page's row area — the header underline's y, which is also the first
+    // row's rowTopY. Reset by drawHeaderRow() on every page, read by
+    // drawOuterFrameForCurrentPage() to bound the frame.
     let tableTopY = 0
 
     const drawTitle = (): void => {
@@ -347,7 +348,10 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
         thickness: 0.5,
         color: gridLineColor
       })
-      tableTopY = cursorY
+      // The underline's y, NOT the bare cursor: cursorY is rowPadding below it, and a frame
+      // bounded by the bare cursor overhangs the row band by that much at both ends. At the
+      // bottom that overhang drew as a short empty row after the last row of content.
+      tableTopY = cursorY + dens.rowPadding
     }
 
     /** Bounds however many rows landed on the current page with a left/right/bottom frame (the
@@ -357,9 +361,14 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
       if (gridStyle !== 'full' && gridStyle !== 'outer') return
       const left = MARGIN - ROW_FILL_INSET
       const right = MARGIN + tableWidth + ROW_FILL_INSET
-      page.drawLine({ start: { x: left, y: tableTopY }, end: { x: left, y: cursorY }, thickness: 0.75, color: gridLineColor })
-      page.drawLine({ start: { x: right, y: tableTopY }, end: { x: right, y: cursorY }, thickness: 0.75, color: gridLineColor })
-      page.drawLine({ start: { x: left, y: cursorY }, end: { x: right, y: cursorY }, thickness: 0.75, color: gridLineColor })
+      // Every row spans [cursorY - rowHeight + rowPadding, cursorY + rowPadding] — the padding
+      // shifts the whole band up off the bare cursor. So the frame has to be offset the same way,
+      // or it closes rowPadding BELOW the last row's own bottom line and the gap between the two
+      // reads as a short, empty, fully ruled row. Same offset already baked into tableTopY.
+      const bottom = cursorY + dens.rowPadding
+      page.drawLine({ start: { x: left, y: tableTopY }, end: { x: left, y: bottom }, thickness: 0.75, color: gridLineColor })
+      page.drawLine({ start: { x: right, y: tableTopY }, end: { x: right, y: bottom }, thickness: 0.75, color: gridLineColor })
+      page.drawLine({ start: { x: left, y: bottom }, end: { x: right, y: bottom }, thickness: 0.75, color: gridLineColor })
     }
 
     const startNewPage = (): void => {
