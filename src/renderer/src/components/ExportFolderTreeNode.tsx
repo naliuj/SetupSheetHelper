@@ -74,7 +74,9 @@ export default function ExportFolderTreeNode<T extends ExportableItem>({
               style={{ paddingLeft: (depth + 1) * 16 + 20, cursor: 'pointer' }}
             >
               <input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => onToggleItem(item.id)} />
-              {item.name}
+              <span className="folder-tree-name" title={item.name}>
+                {item.name}
+              </span>
             </label>
           ))}
           {node.children.map((child) => (

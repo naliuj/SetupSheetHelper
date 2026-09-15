@@ -1045,6 +1045,10 @@ table.data-table td select {
 }
 
 .miller-folder-name {
+  /* Without min-width:0 the rest of this rule is inert — see .truncate. The name never shrank,
+     so it ran past the 220px column and pushed the caret out of it. */
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1071,12 +1075,14 @@ table.data-table td select {
   font-size: 13px;
 }
 
+/* Only the sizing lives here now. This element also carries .inline-icon-text, which sets
+   display:inline-flex — same specificity, later in the file, so it won. That made this a flex
+   CONTAINER, and text-overflow does not apply to a flex container's content, so names in Manage
+   setups/studios/presets were hard-clipped mid-character with no ellipsis at all. The truncation
+   moved to an inner .truncate span; this keeps the row sizing. */
 .manage-item-label {
   flex: 1;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .drag-handle {
@@ -1093,6 +1099,23 @@ table.data-table td select {
   display: inline-flex;
   align-items: center;
   gap: 4px;
+}
+
+/* Truncate a flex child to one line. `min-width: 0` is the half that gets forgotten: a flex or
+   grid child defaults to min-width:auto, so with `white-space: nowrap` its minimum size is the
+   whole string — it never shrinks, and the ellipsis never fires. Always pair this with a `title`
+   carrying the same text, or the hidden characters are simply unrecoverable. */
+.truncate {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* For the badge, count or status text sitting beside a .truncate label — without this the flex
+   algorithm shrinks the short, fixed thing instead of the long, variable one next to it. */
+.no-shrink {
+  flex-shrink: 0;
 }
 
 /* Row-select gutter — hint that the whole cell is a click target (select / shift-range /

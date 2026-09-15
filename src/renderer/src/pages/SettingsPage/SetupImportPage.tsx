@@ -95,7 +95,9 @@ export default function SetupImportPage({ file, onBack, onDone }: Props): JSX.El
               checked={targetStudioId === studio.id}
               onChange={() => setTargetStudioId(studio.id)}
             />
-            {studio.name}
+            <span className="folder-tree-name" title={studio.name}>
+              {studio.name}
+            </span>
           </label>
         ))}
         {berkleeStudios.map((studio) => (
@@ -110,9 +112,11 @@ export default function SetupImportPage({ file, onBack, onDone }: Props): JSX.El
               checked={targetStudioId === studio.id}
               onChange={() => setTargetStudioId(studio.id)}
             />
-            {studio.name}
+            <span className="folder-tree-name" title={studio.name}>
+              {studio.name}
+            </span>
             {studio.buildingId != null && (
-              <span className="card-sub"> ({buildingNameById.get(studio.buildingId) ?? ''})</span>
+              <span className="card-sub no-shrink"> ({buildingNameById.get(studio.buildingId) ?? ''})</span>
             )}
           </label>
         ))}
@@ -134,8 +138,10 @@ export default function SetupImportPage({ file, onBack, onDone }: Props): JSX.El
         {file.setups.map((setup, index) => (
           <label key={index} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0' }}>
             <input type="checkbox" checked={selectedIndexes.has(index)} onChange={() => toggle(index)} />
-            {setup.name}
-            <span className="card-sub">
+            <span className="truncate" title={setup.name}>
+              {setup.name}
+            </span>
+            <span className="card-sub no-shrink">
               ({setup.items.length} item{setup.items.length === 1 ? '' : 's'}
               {setup.layoutOverride ? ', layout included' : ''})
             </span>

@@ -176,9 +176,18 @@ export default function OpenAlongsideModal({
                       onClick={() => setSelectedId(s.id)}
                       onDoubleClick={() => onConfirm(s)}
                     >
-                      {s.name || 'Untitled Setup'}
-                      {s.artist && <span className="card-sub"> — {s.artist}</span>}
-                      <span className="card-sub"> · {studioNames.get(s.studioId) ?? 'Unknown studio'}</span>
+                      {/* The name has to be a real element, not a bare text node. As a text node
+                          it is an anonymous flex item that no selector can reach — so the row's
+                          own `> span:first-child` ellipsis rule was landing on the ARTIST instead,
+                          and the name, inheriting nowrap, could never shrink at all. */}
+                      <span className="truncate" title={s.name || 'Untitled Setup'}>
+                        {s.name || 'Untitled Setup'}
+                      </span>
+                      {s.artist && <span className="card-sub no-shrink"> — {s.artist}</span>}
+                      <span className="card-sub no-shrink">
+                        {' · '}
+                        {studioNames.get(s.studioId) ?? 'Unknown studio'}
+                      </span>
                     </div>
                   ))
                 )}

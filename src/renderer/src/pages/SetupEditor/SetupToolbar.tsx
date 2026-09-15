@@ -565,7 +565,15 @@ export default function SetupToolbar({
         )}
       </div>
       <div className="spacer" />
-      {exportMessage && <span className="card-sub">{exportMessage}</span>}
+      {/* The message is a full filesystem path the user chose, and Chromium will not break one
+          at its slashes — so unbounded it refuses to shrink and shoves Setup settings, Layout
+          Mode, Split View and the rest past the right edge of the window, unreachable until it
+          clears. Same treatment StudioSetupPage already gives its save error. */}
+      {exportMessage && (
+        <span className="card-sub truncate" style={{ maxWidth: '46ch' }} title={exportMessage}>
+          {exportMessage}
+        </span>
+      )}
       {/* A failed save used to be completely silent: the store rethrew into a caller that
           dropped the promise, so the only trace was "Unsaved changes" never clearing. */}
       {(saveError || layoutSaveError) && !isSaving && (

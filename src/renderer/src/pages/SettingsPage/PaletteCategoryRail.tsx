@@ -62,8 +62,13 @@ function CategoryRow({
       >
         <GripVertical size={15} aria-hidden="true" />
       </span>
-      <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{cat.name}</span>
-      <span style={{ fontSize: 11, opacity: selected ? 0.8 : 1, color: selected ? 'var(--color-on-accent)' : 'var(--color-text-dim)' }}>
+      <span className="truncate" style={{ flex: 1 }} title={cat.name}>
+        {cat.name}
+      </span>
+      <span
+        className="no-shrink"
+        style={{ fontSize: 11, opacity: selected ? 0.8 : 1, color: selected ? 'var(--color-on-accent)' : 'var(--color-text-dim)' }}
+      >
         {cat.count}
       </span>
     </div>

@@ -218,9 +218,12 @@ export default function PaletteBlockList({
             }}
           />
         ) : (
-          <h3 style={{ margin: 0, fontSize: 16 }}>{category || 'New category'}</h3>
+          <h3 className="truncate" style={{ margin: 0, fontSize: 16 }} title={category || 'New category'}>
+            {category || 'New category'}
+          </h3>
         )}
         <span
+          className="no-shrink"
           style={{
             fontSize: 11,
             color: 'var(--color-text-dim)',
