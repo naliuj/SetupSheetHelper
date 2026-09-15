@@ -22,8 +22,12 @@ import { getOutboardByIds } from '../db/repositories/outboardRepo'
 import { getPreampsByIds } from '../db/repositories/preampRepo'
 import { getSetting } from '../db/repositories/settingsRepo'
 import { resolveMicText, resolveOutboardSlotText, resolvePreampText } from '../db/resolveGearLabels'
-import { fitColumns, wrapText, type ColumnSpec } from './pdfLayout'
+import { fitColumns, sanitizeForWinAnsi, wrapText, type ColumnSpec } from './pdfLayout'
 import { orderedVisibleColumns } from '@shared/constants/setupColumns'
+
+/** Short alias for sanitizeForWinAnsi — applied to every user-supplied string before it is
+ *  measured or drawn, so one unencodable character cannot abort the export. */
+const safe = sanitizeForWinAnsi
 
 // US Letter, points. Portrait is the short edge (612) horizontal; landscape swaps them.
 const LETTER_SHORT = 612
@@ -188,17 +192,24 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
         if (text) outboardParts.push(text)
       }
 
+      // Every value here is drawn in Helvetica (WinAnsi) and so must be sanitised — see
+      // sanitizeForWinAnsi. The one exception is phantomPower: it is our own glyph, drawn in
+      // ZapfDingbats via fontForColumn, and sanitising it would replace the check mark.
       const values: Record<string, string> = {
-        sourceName: item.sourceName || '',
-        mic: resolveMicText(item, micById),
+        sourceName: safe(item.sourceName || ''),
+        mic: safe(resolveMicText(item, micById)),
         phantomPower: item.phantomPower ? '✓' : '',
-        outboard: outboardParts.join(', '),
+        outboard: safe(outboardParts.join(', ')),
         channel: item.channel != null ? String(item.channel) : '',
-        preamp: resolvePreampText(item, preampById),
-        tieLine: item.tieLine != null ? `${isConflict ? '⚠ ' : ''}${item.tieLine}` : '',
-        cueBox: item.cueBox ?? '',
+        preamp: safe(resolvePreampText(item, preampById)),
+        // '!' rather than a warning glyph: U+26A0 is absent from WinAnsi AND from ZapfDingbats,
+        // and this column draws in Helvetica. Measuring it threw before a byte was written, so a
+        // duplicated tie line — which is what this marker exists to flag — failed the whole
+        // export. See the note on the check mark above fontForColumn for the same hazard.
+        tieLine: item.tieLine != null ? `${isConflict ? '! ' : ''}${item.tieLine}` : '',
+        cueBox: safe(item.cueBox ?? ''),
         polarity: item.polarityFlip ? 'Ø' : '',
-        notes: item.notes ?? ''
+        notes: safe(item.notes ?? '')
       }
       resolvedValues.set(item.id, values)
     }
@@ -245,34 +256,61 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
     let tableTopY = 0
 
     const drawTitle = (): void => {
+      // The title block is drawn before any table exists, so it needs its own page break:
+      // startNewPage() would stamp column headers onto what is still the cover area.
+      const titleNewPage = (): void => {
+        page = pdfDoc.addPage([pageWidth, pageHeight])
+        cursorY = pageHeight - MARGIN
+      }
+
+      /** Draws pre-wrapped lines, breaking to a new page rather than off the bottom of this one.
+       *  Without the bound, long session notes were drawn at a negative y — written to the file
+       *  but invisible — and, worse, left cursorY negative so the table's own column headers were
+       *  drawn off-page too and page one came out blank below the title. */
+      const drawBlockLines = (
+        lines: string[],
+        size: number,
+        lineGap: number,
+        lineFont: PDFFont,
+        color?: ReturnType<typeof rgb>
+      ): void => {
+        for (const line of lines) {
+          if (cursorY < MARGIN + size) titleNewPage()
+          page.drawText(line, { x: MARGIN, y: cursorY, size, font: lineFont, color })
+          cursorY -= lineGap
+        }
+      }
+
       const formattedDate = setup.sessionDate ? formatPdfDate(setup.sessionDate, dateFormat) : null
-      page.drawText(`${setup.name}${formattedDate ? `  —  ${formattedDate}` : ''}`, {
-        x: MARGIN,
-        y: cursorY,
-        size: 14,
-        font: boldFont,
-        color: accentColor ? hexToAccentRgb(accentColor) : undefined
-      })
-      cursorY -= 18
+      // Wrapped, not drawn blind: a setup name of ~55 characters plus an appended date runs past
+      // the right margin, and this file has had a working wrapText all along.
+      const titleText = `${safe(setup.name)}${formattedDate ? `  \u2014  ${formattedDate}` : ''}`
+      drawBlockLines(
+        wrapText(titleText, boldFont, 14, usableWidth),
+        14,
+        18,
+        boldFont,
+        accentColor ? hexToAccentRgb(accentColor) : undefined
+      )
 
       if (setup.engineer || setup.artist) {
         const parts: string[] = []
-        if (setup.engineer) parts.push(`Engineer: ${setup.engineer}`)
-        if (setup.artist) parts.push(`Artist: ${setup.artist}`)
-        page.drawText(parts.join('   '), { x: MARGIN, y: cursorY, size: 10, font })
-        cursorY -= 18
+        if (setup.engineer) parts.push(`Engineer: ${safe(setup.engineer)}`)
+        if (setup.artist) parts.push(`Artist: ${safe(setup.artist)}`)
+        drawBlockLines(wrapText(parts.join('   '), font, 10, usableWidth), 10, 18, font)
       } else {
         cursorY -= 6
       }
 
       if (setup.sessionNotes) {
-        const noteLines = setup.sessionNotes
-          .split('\n')
-          .flatMap((line) => wrapText(line, font, 9, usableWidth))
-        for (const line of noteLines) {
-          page.drawText(line, { x: MARGIN, y: cursorY, size: 9, font, color: rgb(0.35, 0.35, 0.35) })
-          cursorY -= 12
-        }
+        // wrapText splits on newlines itself, so paragraphs survive without pre-splitting here.
+        drawBlockLines(
+          wrapText(safe(setup.sessionNotes), font, 9, usableWidth),
+          9,
+          12,
+          font,
+          rgb(0.35, 0.35, 0.35)
+        )
         cursorY -= 6
       }
     }
