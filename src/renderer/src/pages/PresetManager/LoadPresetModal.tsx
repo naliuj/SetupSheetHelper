@@ -166,8 +166,12 @@ export default function LoadPresetModal({ onClose }: { onClose: () => void }): J
                       onClick={() => setSelectedId(p.id)}
                       onDoubleClick={() => loadPreset(p.id)}
                     >
-                      {p.name}
-                      {p.description && <span className="card-sub"> — {p.description}</span>}
+                      {/* See OpenAlongsideModal — a bare text node cannot be truncated, and left
+                          the ellipsis rule applying to the description instead of the name. */}
+                      <span className="truncate" title={p.name}>
+                        {p.name}
+                      </span>
+                      {p.description && <span className="card-sub no-shrink"> — {p.description}</span>}
                     </div>
                   ))
                 )}

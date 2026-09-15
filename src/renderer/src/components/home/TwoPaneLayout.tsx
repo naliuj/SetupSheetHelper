@@ -37,7 +37,11 @@ export default function TwoPaneLayout({
             onClick={() => onSelectFolder(folder.id)}
           >
             <Folder className="home-icon" size={15} aria-hidden="true" />
-            <span>{folder.name}</span>
+            {/* .folder-tree-name, exactly as TreeLayout does for the identical job — it already
+                carries the min-width/ellipsis guards this span was missing entirely. */}
+            <span className="folder-tree-name" title={folder.name}>
+              {folder.name}
+            </span>
           </button>
         ))}
       </div>

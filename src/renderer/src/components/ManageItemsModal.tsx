@@ -198,7 +198,9 @@ function SortableItemRow({
       </span>
       <span className="manage-item-label inline-icon-text">
         {item.icon && <item.icon size={15} className="home-icon" aria-hidden="true" />}
-        {item.label}
+        <span className="truncate" title={item.label}>
+          {item.label}
+        </span>
       </span>
       {onEdit && (
         <button className="btn small" onClick={onEdit}>

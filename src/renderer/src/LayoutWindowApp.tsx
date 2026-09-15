@@ -227,11 +227,15 @@ export default function LayoutWindowApp(): JSX.Element {
     <div className="page" style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: 0 }}>
       <div className="top-bar">
         <img src={appIcon} alt="" className="top-bar-icon" />
-        <h1>{setupName ?? 'Layout'}</h1>
+        {/* In this window the save state is the only feedback there is, so it must never be the
+            thing a long setup name pushes off the edge. */}
+        <h1 className="truncate" title={setupName ?? 'Layout'}>
+          {setupName ?? 'Layout'}
+        </h1>
         <div className="spacer" />
-        {isSaving && <span className="card-sub">Saving…</span>}
-        {!isSaving && isDirty && <span className="card-sub">Unsaved changes</span>}
-        {!isSaving && !isDirty && <span className="card-sub">Saved</span>}
+        {isSaving && <span className="card-sub no-shrink">Saving…</span>}
+        {!isSaving && isDirty && <span className="card-sub no-shrink">Unsaved changes</span>}
+        {!isSaving && !isDirty && <span className="card-sub no-shrink">Saved</span>}
       </div>
       <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
         <InstrumentPalette />

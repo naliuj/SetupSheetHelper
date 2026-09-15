@@ -64,8 +64,12 @@ function GearPickList<T extends { id: number; name: string; manufacturer: string
           {items.map((item) => (
             <label key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0' }}>
               <input type="checkbox" checked={selected.has(item.id)} onChange={() => onToggle(item.id)} />
-              {formatGearLabel(item.name, item.manufacturer)}
-              {countOf(item) > 1 ? ` (${countLabel}${countOf(item)})` : ''}
+              <span className="truncate" title={formatGearLabel(item.name, item.manufacturer)}>
+                {formatGearLabel(item.name, item.manufacturer)}
+              </span>
+              <span className="no-shrink">
+                {countOf(item) > 1 ? ` (${countLabel}${countOf(item)})` : ''}
+              </span>
             </label>
           ))}
         </div>
@@ -117,7 +121,9 @@ function StudioPickerFolderNode({
               style={{ paddingLeft: (depth + 1) * 16 + 20, cursor: 'pointer' }}
               onClick={() => onSelect(studio.id)}
             >
-              {studio.name}
+              <span className="folder-tree-name" title={studio.name}>
+                {studio.name}
+              </span>
             </div>
           ))}
           {node.children.map((child) => (

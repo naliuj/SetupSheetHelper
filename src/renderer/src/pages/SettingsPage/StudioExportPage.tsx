@@ -78,7 +78,9 @@ export default function StudioExportPage({ onBack }: Props): JSX.Element {
           {unfiledStudios.map((studio) => (
             <label key={studio.id} className="folder-tree-row" style={{ paddingLeft: 20, cursor: 'pointer' }}>
               <input type="checkbox" checked={selectedIds.has(studio.id)} onChange={() => toggle(studio.id)} />
-              {studio.name}
+              <span className="folder-tree-name" title={studio.name}>
+                {studio.name}
+              </span>
             </label>
           ))}
           {tree.map((node) => (

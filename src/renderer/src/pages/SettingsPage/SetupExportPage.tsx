@@ -75,7 +75,9 @@ export default function SetupExportPage({ onBack }: Props): JSX.Element {
           {unfiledSetups.map((setup) => (
             <label key={setup.id} className="folder-tree-row" style={{ paddingLeft: 20, cursor: 'pointer' }}>
               <input type="checkbox" checked={selectedIds.has(setup.id)} onChange={() => toggle(setup.id)} />
-              {setup.name}
+              <span className="folder-tree-name" title={setup.name}>
+                {setup.name}
+              </span>
             </label>
           ))}
           {tree.map((node) => (
