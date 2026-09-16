@@ -2,6 +2,13 @@ import { Fragment, memo, useMemo, useState, type CSSProperties } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { readableTextColor } from '@shared/constants/swatches'
+import {
+  STEREO_BRACE_BOTTOM,
+  STEREO_BRACE_STROKE,
+  STEREO_BRACE_TOP,
+  STEREO_BRACE_VIEWBOX,
+  STEREO_LANE_WIDTH
+} from '@shared/constants/stereoBrace'
 import { useThemeStore } from '@renderer/state/themeStore'
 import { AlertTriangle, GripVertical, Link2, X } from 'lucide-react'
 import { computeUsedByOthers, type GearUsage } from '@renderer/state/usageCounts'
@@ -145,6 +152,9 @@ function OutboardSlotCell({
 
 // Every callback takes the row's id (rather than closing over it in the table's map) so the
 // table can pass referentially-stable functions and React.memo below can actually bail out.
+/** How far each half is pushed past its own cell edge so the stroke bridges the row divider. */
+const BRACE_SEAM_BLEED = 2
+
 interface Props {
   item: SetupItemDraft
   mics: Mic[]
@@ -292,7 +302,12 @@ function SetupSheetRow({
     transition,
     opacity: isDragging ? 0.4 : 1,
     background: selected ? selectedBg : (colorTint ?? undefined),
-    boxShadow: selected ? `inset 3px 0 0 ${rowFg ?? 'var(--color-accent)'}` : undefined,
+    // The selection bar is drawn at the row's left edge, which is INSIDE the neutral stereo lane
+    // when that column is on — so there it takes the accent like everything else on the lane. With
+    // the column hidden it lands on the tint instead and needs the row's own foreground.
+    boxShadow: selected
+      ? `inset 3px 0 0 ${showStereoLink ? 'var(--color-accent)' : (rowFg ?? 'var(--color-accent)')}`
+      : undefined,
     ...(rowFg
       ? { '--row-fg': rowFg, '--row-edge': `color-mix(in srgb, ${rowFg} 28%, transparent)` }
       : {})
@@ -611,29 +626,47 @@ function SetupSheetRow({
       {showStereoLink && (
         <td
           style={{
-            width: 20,
+            width: STEREO_LANE_WIDTH,
             padding: 0,
             position: 'relative',
             overflow: 'visible',
+            // The lane deliberately does NOT take the row tint. That is what lets the brace be one
+            // colour on every row: it always sits on the page background, so its contrast never
+            // depends on which swatch the row happens to use. Reverting this would put the accent
+            // back on top of a saturated tint, where it vanishes on a blue row.
+            background: 'var(--color-bg)',
             zIndex: hasSeamBelow ? seamZIndex : undefined
           }}
         >
           {bracket && (
-            <div
+            <svg
               aria-hidden="true"
+              width={STEREO_BRACE_VIEWBOX.width}
+              viewBox={`0 0 ${STEREO_BRACE_VIEWBOX.width} ${STEREO_BRACE_VIEWBOX.height}`}
+              preserveAspectRatio="none"
               style={{
                 position: 'absolute',
-                left: 2,
-                width: 6,
-                // Top cell draws the upper half of the "[" (spine down to the seam + top tick);
-                // bottom cell draws the lower half (spine up from the seam + bottom tick).
-                top: bracket === 'top' ? 3 : 0,
-                bottom: bracket === 'bottom' ? 3 : 0,
-                borderLeft: '2px solid var(--row-fg, var(--color-accent))',
-                borderTop: bracket === 'top' ? '2px solid var(--row-fg, var(--color-accent))' : undefined,
-                borderBottom: bracket === 'bottom' ? '2px solid var(--row-fg, var(--color-accent))' : undefined
+                left: 5,
+                // Each half bleeds past its own cell edge at the seam, so the stroke bridges the
+                // 1px row divider and the two halves read as one continuous brace instead of
+                // meeting with a nick in the middle.
+                top: bracket === 'bottom' ? -BRACE_SEAM_BLEED : 0,
+                bottom: bracket === 'top' ? -BRACE_SEAM_BLEED : 0,
+                overflow: 'visible'
               }}
-            />
+            >
+              <path
+                d={bracket === 'top' ? STEREO_BRACE_TOP : STEREO_BRACE_BOTTOM}
+                fill="none"
+                stroke="var(--color-accent)"
+                strokeWidth={STEREO_BRACE_STROKE}
+                // Keeps the line weight constant while preserveAspectRatio="none" stretches the
+                // shape to whatever height this row turned out to be.
+                vectorEffect="non-scaling-stroke"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
           )}
           {hasSeamBelow &&
             (() => {
@@ -649,36 +682,38 @@ function SetupSheetRow({
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.opacity = '1'
-                    e.currentTarget.style.color = 'var(--row-fg, var(--color-accent))'
+                    e.currentTarget.style.color = 'var(--color-accent)'
                   }}
                   onMouseLeave={(e) => {
                     if (!seamLinked) {
-                      e.currentTarget.style.opacity = '0.5'
-                      e.currentTarget.style.color = 'var(--row-fg, var(--color-text-dim))'
+                      e.currentTarget.style.opacity = '0.72'
+                      e.currentTarget.style.color = 'var(--color-text-dim)'
                     }
                   }}
                   style={{
                     position: 'absolute',
-                    left: 6,
+                    // Clear of the brace's spine, which sits at x=5..19 of the lane.
+                    left: STEREO_LANE_WIDTH - 6,
                     top: '100%',
-                    transform: 'translateY(-50%)',
-                    zIndex: 2,
-                    padding: 2,
+                    transform: 'translate(-50%, -50%)',
+                    zIndex: 4,
+                    padding: 1,
                     border: 'none',
-                    background: 'transparent',
+                    // A lane-coloured disc, so the glyph reads cleanly where it crosses the row
+                    // divider instead of sitting on top of the line.
+                    background: 'var(--color-bg)',
+                    borderRadius: '50%',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    // 0.5 at rest was half the legibility problem on a saturated tint: a dim grey
-                    // at half opacity composites to nearly nothing over a mid-tone row.
+                    // No row-dependent colour here at all: the lane is neutral, so one value works
+                    // everywhere. 0.5 at rest was too faint even on neutral.
                     opacity: seamLinked ? 1 : 0.72,
-                    color: seamLinked
-                      ? 'var(--row-fg, var(--color-accent))'
-                      : 'var(--row-fg, var(--color-text-dim))'
+                    color: seamLinked ? 'var(--color-accent)' : 'var(--color-text-dim)'
                   }}
                 >
-                  <Link2 size={13} aria-hidden="true" />
+                  <Link2 size={12} aria-hidden="true" />
                 </button>
               )
             })()}

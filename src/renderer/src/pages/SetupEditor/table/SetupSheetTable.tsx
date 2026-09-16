@@ -1,4 +1,5 @@
 import { Fragment, useCallback, useMemo } from 'react'
+import { STEREO_LANE_WIDTH } from '@shared/constants/stereoBrace'
 import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import type { SetupItemDraft, SetupItemOutboardSlot } from '@shared/types/setup'
@@ -347,7 +348,7 @@ export default function SetupSheetTable(): JSX.Element {
           <table className="data-table">
             <thead>
               <tr>
-                {showStereoLink && <th aria-label="Stereo pair link" style={{ width: 20 }}></th>}
+                {showStereoLink && <th aria-label="Stereo pair link" style={{ width: STEREO_LANE_WIDTH }}></th>}
                 <th></th>
                 <th>Source name</th>
                 {orderedColumns.map((key) =>
