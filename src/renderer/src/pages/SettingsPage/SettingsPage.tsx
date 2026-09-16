@@ -6,6 +6,7 @@ import { useThemeStore } from '@renderer/state/themeStore'
 import { useBerkleeFeaturesStore } from '@renderer/state/berkleeFeaturesStore'
 import { useColumnPrefsStore } from '@renderer/state/columnPrefsStore'
 import { useHomeLayoutStore } from '@renderer/state/homeLayoutStore'
+import { THEME_PREFERENCES } from '@shared/constants/theme'
 import { HOME_LAYOUTS } from '@shared/constants/homeLayout'
 import ColumnOrderList from '@renderer/components/ColumnOrderList'
 import ToggleSwitch from '@renderer/components/ToggleSwitch'
@@ -58,8 +59,9 @@ const TAB_IDS: Tab[] = [
 export default function SettingsPage(): JSX.Element {
   const goToHome = useNavigationStore((s) => s.goToHome)
   const closeSettings = useNavigationStore((s) => s.closeSettings)
-  const theme = useThemeStore((s) => s.theme)
-  const setTheme = useThemeStore((s) => s.setTheme)
+  const themePreference = useThemeStore((s) => s.preference)
+  const resolvedTheme = useThemeStore((s) => s.resolved)
+  const setThemePreference = useThemeStore((s) => s.setPreference)
   const berkleeFeaturesEnabled = useBerkleeFeaturesStore((s) => s.enabled)
   const enableBerkleeFeatures = useBerkleeFeaturesStore((s) => s.enable)
   const disableBerkleeFeatures = useBerkleeFeaturesStore((s) => s.disable)
@@ -370,7 +372,23 @@ export default function SettingsPage(): JSX.Element {
 
       {activeTab === 'theme' && (
         <div className="panel">
-          <ToggleSwitch checked={theme === 'dark'} onChange={(on) => setTheme(on ? 'dark' : 'light')} label="Dark mode" />
+          <label style={{ display: 'block', marginBottom: 6 }}>Appearance</label>
+          <div className="inline-form" style={{ marginTop: 0 }}>
+            {THEME_PREFERENCES.map((t) => (
+              <button
+                key={t.id}
+                className={themePreference === t.id ? 'btn primary' : 'btn'}
+                onClick={() => setThemePreference(t.id)}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+          <p className="card-sub" style={{ marginTop: 4 }}>
+            {THEME_PREFERENCES.find((t) => t.id === themePreference)?.description}
+            {/* Only Follow OS leaves any doubt about what you'll actually get, so only it says. */}
+            {themePreference === 'system' && ` Currently ${resolvedTheme === 'dark' ? 'dark' : 'light'}.`}
+          </p>
         </div>
       )}
 

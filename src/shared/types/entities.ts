@@ -117,6 +117,9 @@ export const APP_SETTINGS_KEYS = {
   /** '1' | '0'. Remembered "Colored rows" choice from the Export Options modal — a general
    *  preference, not something to re-toggle on every export. Absent → off. */
   defaultPdfExportColoredRows: 'default_pdf_export_colored_rows',
+  /** ThemePreference: 'light' | 'dark' | 'system'. Absent → 'system', but migration 039 writes an
+   *  explicit 'dark' into every database that predates it, so absence only ever means "fresh
+   *  profile" — see parseThemePreference. */
   theme: 'theme',
   berkleeFeaturesEnabled: 'berklee_features_enabled',
   /** JSON array of SetupColumnKey — the columns a newly created setup starts with. Absent → all. */

@@ -1,12 +1,11 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import type Konva from 'konva'
-import { APP_SETTINGS_KEYS } from '@shared/types/entities'
 import { KEYBIND_ACTIONS, normalizeKeyEvent } from '@shared/constants/keybindActions'
 import { useSetupStore } from './state/setupStore'
 import { useLayoutStore } from './state/layoutStore'
 import { registerFlusher, useQuitFlush } from '@renderer/state/flushRegistry'
 import { usePaletteStore } from './state/paletteStore'
-import { useThemeStore } from './state/themeStore'
+import { useThemeSync } from './hooks/useThemeSync'
 import { useKeybindPrefsStore } from './state/keybindPrefsStore'
 import InstrumentPalette from './pages/SetupEditor/palette/InstrumentPalette'
 import { exportStageToDataUrl } from './pages/SetupEditor/canvas/konvaExport'
@@ -89,27 +88,20 @@ function readLaunchParams(): { setupId: number; studioId: number } | null {
  *
  *  Deliberately light on bootstrap compared to App.tsx: no column/PDF/home-layout prefs, no
  *  Berklee-onboarding/What's-New checks, no setupStore items — this window never touches Table
- *  Mode data, only theme (so it doesn't look broken next to the main window), the shared palette,
+ *  Mode data, only theme (kept in step with the main window by useThemeSync), the shared palette,
  *  keybind overrides, and layoutStore itself. */
 export default function LayoutWindowApp(): JSX.Element {
+  // Why this window in particular needed the shared hook: it used to read the theme once at its
+  // own startup and never hear about changes, so toggling the theme in the main window left this
+  // one on the old one until it was closed and reopened.
+  useThemeSync()
   const [params] = useState(readLaunchParams)
-  const theme = useThemeStore((s) => s.theme)
   const blocks = useLayoutStore((s) => s.blocks)
   const isDirty = useLayoutStore((s) => s.isDirty)
   const isSaving = useLayoutStore((s) => s.isSaving)
   const save = useLayoutStore((s) => s.save)
   const stageRef = useRef<Konva.Stage>(null)
   const [setupName, setSetupName] = useState<string | null>(null)
-
-  useEffect(() => {
-    window.api.settings.get(APP_SETTINGS_KEYS.theme).then((saved) => {
-      if (saved === 'light' || saved === 'dark') useThemeStore.setState({ theme: saved })
-    })
-  }, [])
-
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme
-  }, [theme])
 
   useEffect(() => {
     usePaletteStore.getState().load()

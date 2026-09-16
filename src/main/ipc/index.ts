@@ -13,6 +13,7 @@ import { registerBerkleeHandlers } from './berkleeHandlers'
 import { registerAppHandlers } from './appHandlers'
 import { registerFeedbackHandlers } from './feedbackHandlers'
 import { registerLayoutWindowHandlers } from '../layoutWindow'
+import { registerThemeHandlers } from '../theme'
 
 export function registerAllIpcHandlers(): void {
   registerStudioHandlers()
@@ -30,4 +31,5 @@ export function registerAllIpcHandlers(): void {
   registerAppHandlers()
   registerFeedbackHandlers()
   registerLayoutWindowHandlers()
+  registerThemeHandlers()
 }

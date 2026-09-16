@@ -2,6 +2,7 @@ import { app, BrowserWindow, dialog, net, protocol, shell } from 'electron'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { closeDb, openDatabaseAtStartup } from './db'
+import { initTheme, themeBackgroundColor } from './theme'
 import { attachRendererLogging, initLogging } from './log'
 import { installQuitFlush } from './quitFlush'
 import { registerAllIpcHandlers } from './ipc'
@@ -56,6 +57,9 @@ function createWindow(): BrowserWindow {
     x: savedBounds?.x,
     y: savedBounds?.y,
     show: false,
+    // What Chromium paints where the renderer hasn't yet — a fast resize, or the frame before
+    // first paint. Without it that area is white, which reads as a flash on a dark theme.
+    backgroundColor: themeBackgroundColor(),
     webPreferences: {
       preload: join(__dirname, '../preload/index.mjs'),
       contextIsolation: true,
@@ -122,6 +126,9 @@ app.whenReady().then(() => {
   }
 
   registerAllIpcHandlers()
+  // After the database is open (it reads the stored preference) and before any window is created
+  // (createWindow needs themeBackgroundColor, and the sync bootstrap channel must already answer).
+  initTheme()
   installQuitFlush()
   const mainWindow = createWindow()
   installAppMenu(mainWindow)

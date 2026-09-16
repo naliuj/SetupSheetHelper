@@ -44,7 +44,18 @@ function backupBeforeMigrating(db: Database.Database, dbPath: string): void {
   }
 }
 
-export function runMigrations(db: Database.Database, dbPath?: string): void {
+/** Context handed to every RunMigration.
+ *
+ *  `freshDatabase` exists for one reason that is hard to get any other way: a migration cannot
+ *  tell a brand-new profile from an upgrade. On a fresh database the whole chain applies in one
+ *  batch, so by the time a late migration runs, `schema_migrations` already holds every earlier
+ *  version either way. The caller knows, because it saw whether the file existed before it
+ *  opened it. */
+export interface MigrationContext {
+  freshDatabase: boolean
+}
+
+export function runMigrations(db: Database.Database, dbPath?: string, ctx?: MigrationContext): void {
   db.exec(`CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY)`)
 
   const applied = new Set(
@@ -61,7 +72,7 @@ export function runMigrations(db: Database.Database, dbPath?: string): void {
   for (const migration of pending) {
     const applyMigration = db.transaction(() => {
       if ('sql' in migration) db.exec(migration.sql)
-      else migration.run(db)
+      else migration.run(db, ctx ?? { freshDatabase: false })
       db.prepare('INSERT INTO schema_migrations (version) VALUES (?)').run(migration.version)
     })
     applyMigration()
