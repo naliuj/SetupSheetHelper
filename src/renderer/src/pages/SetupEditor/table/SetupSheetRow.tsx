@@ -1,6 +1,8 @@
-import { Fragment, memo, useMemo, useState } from 'react'
+import { Fragment, memo, useMemo, useState, type CSSProperties } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import { readableTextColor } from '@shared/constants/swatches'
+import { useThemeStore } from '@renderer/state/themeStore'
 import { AlertTriangle, GripVertical, Link2, X } from 'lucide-react'
 import { computeUsedByOthers, type GearUsage } from '@renderer/state/usageCounts'
 import { buildGearSearchGroups } from '@renderer/state/gearSearchGroups'
@@ -234,6 +236,8 @@ function SetupSheetRow({
   onDelete: onDeleteById
 }: Props): JSX.Element {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id })
+  // Only the resolved theme, not the preference — what matters is the colour actually on screen.
+  const resolvedTheme = useThemeStore((s) => s.resolved)
   // Which field's "Custom…" modal is open, if any — only one can be open per row at a time, so a
   // single slot covers both mic and preamp (outboard's modal lives in OutboardSlotCell instead,
   // since that's already its own component).
@@ -270,13 +274,29 @@ function SetupSheetRow({
     ? `color-mix(in srgb, ${item.color} var(--row-color-tint-percent), var(--color-bg))`
     : null
   const selectedBg = colorTint ?? 'color-mix(in srgb, var(--color-accent) 12%, var(--color-surface-alt))'
+  // A tinted row publishes its own foreground, and everything drawn ON the tint reads that instead
+  // of a theme colour: the drag handle, the warning badges, the pair bracket and its seam button,
+  // the selection bar, and the cell dividers (at a fraction, so they stay dividers rather than
+  // turning into rules).
+  //
+  // LIGHT ONLY, and the condition is load-bearing rather than a shortcut. readableTextColor judges
+  // the raw swatch. In light mode that IS the row background, because the tint mixes at 100%. In
+  // dark mode the background is the swatch mixed 32% toward #14161a, which is always dark however
+  // light the swatch is — so judging the raw swatch there returns near-black for a pale pink and
+  // lands 2.2:1 on a background that is actually dark. Dark mode has never had the problem this
+  // solves: its 32% mix doubles as a contrast guarantee, and the existing foreground measures 6:1
+  // or better on every swatch in the palette.
+  const rowFg = item.color && resolvedTheme === 'light' ? readableTextColor(item.color) : null
   const rowStyle = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.4 : 1,
     background: selected ? selectedBg : (colorTint ?? undefined),
-    boxShadow: selected ? 'inset 3px 0 0 var(--color-accent)' : undefined
-  }
+    boxShadow: selected ? `inset 3px 0 0 ${rowFg ?? 'var(--color-accent)'}` : undefined,
+    ...(rowFg
+      ? { '--row-fg': rowFg, '--row-edge': `color-mix(in srgb, ${rowFg} 28%, transparent)` }
+      : {})
+  } as CSSProperties
   function handleMicChange(micId: number | null): void {
     const mic = micId != null ? mics.find((m) => m.id === micId) ?? null : null
     const nextNotes = applyMicPoolNotesTag(item.notes ?? '', mic?.poolType ?? null)
@@ -609,9 +629,9 @@ function SetupSheetRow({
                 // bottom cell draws the lower half (spine up from the seam + bottom tick).
                 top: bracket === 'top' ? 3 : 0,
                 bottom: bracket === 'bottom' ? 3 : 0,
-                borderLeft: '2px solid var(--color-accent)',
-                borderTop: bracket === 'top' ? '2px solid var(--color-accent)' : undefined,
-                borderBottom: bracket === 'bottom' ? '2px solid var(--color-accent)' : undefined
+                borderLeft: '2px solid var(--row-fg, var(--color-accent))',
+                borderTop: bracket === 'top' ? '2px solid var(--row-fg, var(--color-accent))' : undefined,
+                borderBottom: bracket === 'bottom' ? '2px solid var(--row-fg, var(--color-accent))' : undefined
               }}
             />
           )}
@@ -629,12 +649,12 @@ function SetupSheetRow({
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.opacity = '1'
-                    e.currentTarget.style.color = 'var(--color-accent)'
+                    e.currentTarget.style.color = 'var(--row-fg, var(--color-accent))'
                   }}
                   onMouseLeave={(e) => {
                     if (!seamLinked) {
                       e.currentTarget.style.opacity = '0.5'
-                      e.currentTarget.style.color = 'var(--color-text-dim)'
+                      e.currentTarget.style.color = 'var(--row-fg, var(--color-text-dim))'
                     }
                   }}
                   style={{
@@ -650,8 +670,12 @@ function SetupSheetRow({
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    opacity: seamLinked ? 1 : 0.5,
-                    color: seamLinked ? 'var(--color-accent)' : 'var(--color-text-dim)'
+                    // 0.5 at rest was half the legibility problem on a saturated tint: a dim grey
+                    // at half opacity composites to nearly nothing over a mid-tone row.
+                    opacity: seamLinked ? 1 : 0.72,
+                    color: seamLinked
+                      ? 'var(--row-fg, var(--color-accent))'
+                      : 'var(--row-fg, var(--color-text-dim))'
                   }}
                 >
                   <Link2 size={13} aria-hidden="true" />

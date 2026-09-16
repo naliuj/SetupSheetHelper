@@ -22,16 +22,25 @@
 
 :root[data-theme='light'] {
   color-scheme: light;
-  --color-bg: #f4f6f9;
+  /* The elevation ramp runs bg -> surface -> surface-alt in BOTH themes: bg is the recessed
+     ground (the page, and input wells), surface is a raised sheet, surface-alt is a control
+     sitting on one. Light mode used to invert it — surface-alt was DARKER than the page and only
+     1.05:1 against it — so buttons, cards, dropdowns and the gutter hover had no separation at
+     all, and every dropdown read as a recessed grey panel wearing a raised shadow. The page is
+     now a definite grey so the sheets above it have somewhere to be. */
+  --color-bg: #e4e9f0;
   --color-surface: #ffffff;
-  --color-surface-alt: #eef1f5;
-  --color-border: #d3d9e0;
+  --color-surface-alt: #f3f6fa;
+  --color-border: #bcc7d6;
   --color-text: #1a1d23;
   --color-text-dim: #5c6672;
-  --color-accent: #1c66cf;
+  /* Accent, warning and danger are each a step darker than the first light palette used, so they
+     clear 4.5:1 as TEXT on the new page colour as well as on white. The warning was the worst at
+     3.69:1, on an 11px badge. */
+  --color-accent: #1a5fc4;
   --color-on-accent: #ffffff;
-  --color-warning: #b8770f;
-  --color-danger: #d63a53;
+  --color-warning: #8f5a00;
+  --color-danger: #bd2a41;
   --radius: 2px;
   /* Light mode's --color-bg is near-white, so mixing toward it (like the 32% used in dark mode)
      washes every row color out much lighter/pastel than its picker swatch. Use the color at full
@@ -420,7 +429,10 @@ table.data-table th {
 }
 
 table.data-table td {
-  border-bottom: 1px solid var(--color-border);
+  /* --row-edge is published by a colour-tinted setup-sheet row (SetupSheetRow), so the divider
+     stays visible on a saturated tint instead of disappearing into it. Every other table falls
+     through to the border colour. */
+  border-bottom: 1px solid var(--row-edge, var(--color-border));
   padding: 4px 8px;
   vertical-align: middle;
 }
@@ -440,7 +452,7 @@ table.data-table td.data-table-text {
 }
 
 .warning-badge {
-  color: var(--color-warning);
+  color: var(--row-fg, var(--color-warning));
   font-size: 11px;
 }
 
@@ -1126,7 +1138,9 @@ table.data-table td.data-table-text {
 
 .drag-handle {
   cursor: grab;
-  color: var(--color-text-dim);
+  /* On a tinted row this is the difference between a visible grip and nothing at all — see
+     --row-fg in SetupSheetRow. */
+  color: var(--row-fg, var(--color-text-dim));
   flex-shrink: 0;
   touch-action: none;
   display: inline-flex;
@@ -1206,6 +1220,12 @@ table.data-table td.data-table-text {
   height: 16px;
   border-radius: 2px;
   background: #fff;
+  /* The knob is white and the OFF track is --color-border, which is near-white in light mode:
+     1.67:1, so the whole control read as a blank grey pill with no visible knob. The edge is what
+     defines it. Mixed from --color-text so it inverts by theme — in dark mode it resolves to a
+     near-white line on a white knob, i.e. invisible, which is correct there since the dark track
+     already gives 11.9:1 on its own. */
+  border: 1px solid color-mix(in srgb, var(--color-text) 22%, transparent);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
   transition: left 0.15s;
 }
