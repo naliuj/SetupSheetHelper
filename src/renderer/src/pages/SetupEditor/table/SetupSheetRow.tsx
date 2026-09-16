@@ -155,9 +155,6 @@ function OutboardSlotCell({
 
 // Every callback takes the row's id (rather than closing over it in the table's map) so the
 // table can pass referentially-stable functions and React.memo below can actually bail out.
-/** How far each half is pushed past its own cell edge so the stroke bridges the row divider. */
-const BRACE_SEAM_BLEED = 2
-
 interface Props {
   item: SetupItemDraft
   mics: Mic[]
@@ -661,13 +658,16 @@ function SetupSheetRow({
                 // Anchoring at the seam rather than the outer edge is what lets the span be less
                 // than the full row: the join stays exact and only the outer end moves in.
                 width: STEREO_BRACE_SCREEN_WIDTH,
-                // The extra bleed carries each half past its own cell edge at the seam, so the
-                // stroke bridges the 1px row divider and the two halves read as one continuous
-                // brace instead of meeting with a nick in the middle.
-                height: `calc(${STEREO_BRACE_SPAN_PERCENT}% + ${BRACE_SEAM_BLEED}px)`,
-                ...(bracket === 'top'
-                  ? { bottom: -BRACE_SEAM_BLEED }
-                  : { top: -BRACE_SEAM_BLEED }),
+                height: `calc(${STEREO_BRACE_SPAN_PERCENT}%)`,
+                // Flush with the cell edge, NOT pushed past it. Each half used to bleed 2px over
+                // the divider to be sure the stroke bridged it, but only the top half's bleed is
+                // ever visible — the top row's lane cell paints an opaque background and sits
+                // higher in the stacking order, so it covers the bottom half's. The result was the
+                // top arm poking 2px below where the bottom arm began, which is what read as the
+                // middle of the brace dipping. Flush, both spikes land on the divider and coincide
+                // as one point; their round caps are 0.9px each, so they still overlap across the
+                // 1px border with nothing left to bridge.
+                ...(bracket === 'top' ? { bottom: 0 } : { top: 0 }),
                 overflow: 'visible'
               }}
             >

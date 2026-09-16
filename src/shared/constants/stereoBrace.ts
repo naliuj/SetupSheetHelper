@@ -10,6 +10,13 @@
  *  Drawn in a 14x24 box, top tip and bottom tip pointing right toward the content, middle spike
  *  pointing left.
  *
+ *  The spike arrives HORIZONTALLY: the control point next to each spike endpoint shares its y
+ *  (5,24 beside 1.5,24 on the top half; 5,0 beside 1.5,0 on the bottom). That is what makes the
+ *  middle point aim straight left instead of sloping into the seam. It also matters that both
+ *  halves do it, because they are tangent to one another there — the two spikes lie along the same
+ *  line and read as one point rather than a wedge. Give either control point a different y and the
+ *  point tilts again.
+ *
  *  The two are EXACT MIRRORS of each other about the join, and that is worth preserving. An earlier
  *  pair was not: the top ran y=1.5..24 while the bottom ran y=0..22.5, so the top half hugged the
  *  bottom of its row while the bottom half floated a unit and a half above the bottom of its own.
@@ -17,8 +24,8 @@
  *  now spans the full 0..24, with the spine mirrored (17..5 against 7..19), so the brace is
  *  symmetric about the row boundary and both outer tips sit the same distance from the pair's
  *  edges. If you edit one, mirror the other. */
-export const STEREO_BRACE_TOP = 'M 13 0 C 9.5 0, 8.5 1.5, 8.5 5 L 8.5 17 C 8.5 21, 6 22.5, 1.5 24'
-export const STEREO_BRACE_BOTTOM = 'M 1.5 0 C 6 1.5, 8.5 3, 8.5 7 L 8.5 19 C 8.5 22.5, 9.5 24, 13 24'
+export const STEREO_BRACE_TOP = 'M 13 0 C 9.5 0, 8.5 1.5, 8.5 5 L 8.5 17 C 8.5 21, 5 24, 1.5 24'
+export const STEREO_BRACE_BOTTOM = 'M 1.5 0 C 5 0, 8.5 3, 8.5 7 L 8.5 19 C 8.5 22.5, 9.5 24, 13 24'
 
 /** The path coordinate box. Width matters to callers: the on-screen lane and the PDF's left margin
  *  both have to reserve at least this much, or the curls have no room and the brace reads as a
