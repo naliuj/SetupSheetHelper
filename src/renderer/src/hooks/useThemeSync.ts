@@ -11,13 +11,17 @@ import { useThemeStore } from '@renderer/state/themeStore'
  *  mounts, so by the time this runs the store and the DOM attribute are already correct. What is
  *  left is staying correct. */
 export function useThemeSync(): void {
-  const resolved = useThemeStore((s) => s.resolved)
-
-  useEffect(() => window.api.theme.onChanged((state) => useThemeStore.setState(state)), [])
-
-  // Writes the same value main.tsx already wrote on the first pass, so this cannot cause a flash;
-  // it earns its keep on every change after that.
-  useEffect(() => {
-    document.documentElement.dataset.theme = resolved
-  }, [resolved])
+  useEffect(
+    () =>
+      window.api.theme.onChanged((state) => {
+        // The attribute is written HERE, before setState, rather than in an effect keyed off the
+        // store. Effects run child-first, so anything deeper in the tree that reads a resolved CSS
+        // variable — useThemeColor, for the Konva canvas — would otherwise run before this
+        // component's effect and read the OLD palette. Writing it in the callback means the DOM is
+        // already correct before any render caused by this change, at any depth.
+        document.documentElement.dataset.theme = state.resolved
+        useThemeStore.setState(state)
+      }),
+    []
+  )
 }

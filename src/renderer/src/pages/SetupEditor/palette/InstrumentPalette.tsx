@@ -74,7 +74,7 @@ export default function InstrumentPalette(): JSX.Element {
             <div
               onClick={() => toggleCategory(category)}
               className="inline-icon-text"
-              style={{ cursor: 'pointer', fontSize: 12, fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: 4 }}
+              style={{ cursor: 'pointer', fontSize: 12, fontWeight: 600, color: 'var(--color-text-dim)', marginBottom: 4 }}
             >
               {isCollapsed ? <ChevronRight size={13} /> : <ChevronDown size={13} />} {category}
             </div>
