@@ -25,6 +25,15 @@ export const STEREO_BRACE_BOTTOM = 'M 1.5 0 C 6 1.5, 8.5 3, 8.5 7 L 8.5 19 C 8.5
  *  vertical squiggle rather than a brace. */
 export const STEREO_BRACE_VIEWBOX = { width: 14, height: 24 }
 
+/** Left inset of the path box inside the on-screen lane, in CSS px. The box then spans lane 5..19
+ *  of 26, leaving room to its right for the seam link button.
+ *
+ *  Do not slide the brace right to sit under that button. The two cannot share an axis: the brace's
+ *  leftward POINT exists only at the seam, which is exactly where the button is, so a button on the
+ *  brace's spine covers the point and the brace collapses to a spine with two small hooks — no
+ *  longer a curly brace at all. The button belongs beside the point, not on it. */
+export const STEREO_BRACE_LANE_INSET = 5
+
 /** Stroke weight, in CSS px on screen and points in the PDF. Below ~1.4 the brace disappears
  *  against a row; above ~2.5 it starts competing with the source name beside it. */
 export const STEREO_BRACE_STROKE = 1.8

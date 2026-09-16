@@ -4,6 +4,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { readableTextColor } from '@shared/constants/swatches'
 import {
   STEREO_BRACE_BOTTOM,
+  STEREO_BRACE_LANE_INSET,
   STEREO_BRACE_STROKE,
   STEREO_BRACE_TOP,
   STEREO_BRACE_VIEWBOX,
@@ -620,9 +621,10 @@ function SetupSheetRow({
       {/* Slim leftmost stereo-pair link column (toggleable via the Columns menu). Every row except
           the last hosts a link-icon toggle on its bottom seam (faint at rest, accent on hover), so
           any two adjacent rows can be paired regardless of position. When a pair is linked, an
-          accent bracket "[" is drawn against the left edge spanning both rows (spine + an inward
-          tick top and bottom, split across the two cells). A high z-index on seam-hosting cells lets
-          the seam-straddling icon paint over the next row (later in DOM order). */}
+          accent curly brace spans both rows, drawn as two halves that overlap at the seam (see
+          stereoBrace.ts); the toggle sits to the right of the brace's point so the point stays
+          visible. A high z-index on seam-hosting cells lets the seam-straddling button paint over
+          the next row (later in DOM order). */}
       {showStereoLink && (
         <td
           style={{
@@ -641,17 +643,26 @@ function SetupSheetRow({
           {bracket && (
             <svg
               aria-hidden="true"
-              width={STEREO_BRACE_VIEWBOX.width}
               viewBox={`0 0 ${STEREO_BRACE_VIEWBOX.width} ${STEREO_BRACE_VIEWBOX.height}`}
               preserveAspectRatio="none"
               style={{
                 position: 'absolute',
-                left: 5,
-                // Each half bleeds past its own cell edge at the seam, so the stroke bridges the
-                // 1px row divider and the two halves read as one continuous brace instead of
-                // meeting with a nick in the middle.
-                top: bracket === 'bottom' ? -BRACE_SEAM_BLEED : 0,
-                bottom: bracket === 'top' ? -BRACE_SEAM_BLEED : 0,
+                left: STEREO_BRACE_LANE_INSET,
+                // Anchor each half at its OUTER edge and give it an explicit stretched height.
+                //
+                // Sizing this with `top: 0; bottom: -bleed` does not work, and fails silently: an
+                // <svg> with a width and no height is a replaced element whose height resolves from
+                // the viewBox ratio, so the box came out a fixed 24px tall and `bottom` was dropped
+                // as over-constrained. The brace was then 24px regardless of the row, anchored to
+                // the cell's top — the top half stopped short of the seam, the bottom half stopped
+                // short of its row's floor, and preserveAspectRatio="none" never had a stretched
+                // box to act on. Setting width and height in CSS is what makes the stretch real.
+                width: STEREO_BRACE_VIEWBOX.width,
+                // The extra bleed carries each half past its own cell edge at the seam, so the
+                // stroke bridges the 1px row divider and the two halves read as one continuous
+                // brace instead of meeting with a nick in the middle.
+                height: `calc(100% + ${BRACE_SEAM_BLEED}px)`,
+                ...(bracket === 'top' ? { top: 0 } : { bottom: 0 }),
                 overflow: 'visible'
               }}
             >
@@ -692,7 +703,9 @@ function SetupSheetRow({
                   }}
                   style={{
                     position: 'absolute',
-                    // Clear of the brace's spine, which sits at x=5..19 of the lane.
+                    // To the RIGHT of the brace's leftward point, not on top of it. The point only
+                    // exists here at the seam, and it is what makes the mark read as a brace rather
+                    // than a bracket — a button centred on the brace's spine covers it completely.
                     left: STEREO_LANE_WIDTH - 6,
                     top: '100%',
                     transform: 'translate(-50%, -50%)',
