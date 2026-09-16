@@ -625,7 +625,7 @@ export type MenuAction =
 
 export interface LayoutWindowState {
   /** The setup currently open in the standalone Layout Mode window, or null if it's closed. The
-   *  main window uses this to grey out its own Layout Mode toggle for that one setup — see
+   *  main window uses this to gray out its own Layout Mode toggle for that one setup — see
    *  layoutWindowStore.ts. */
   openForSetupId: number | null
 }

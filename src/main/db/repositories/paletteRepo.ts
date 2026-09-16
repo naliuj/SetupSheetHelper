@@ -121,11 +121,11 @@ export function reorderPaletteItems(ids: number[]): void {
 }
 
 /** Throws the whole palette away and re-seeds it from DEFAULT_PALETTE_ITEMS: custom blocks are
- *  deleted, hidden built-ins come back, and every label, colour, shape, category, placed size and
+ *  deleted, hidden built-ins come back, and every label, color, shape, category, placed size and
  *  position returns to what a fresh install has.
  *
  *  Safe to delete rows outright. Blocks already dropped on a layout copy their label, shape and
- *  colour at drop time and hold no reference back to palette_items, so existing floor plans are
+ *  color at drop time and hold no reference back to palette_items, so existing floor plans are
  *  untouched by this. The table is AUTOINCREMENT, so the new rows cannot reuse an old id either.
  */
 export function resetPaletteToDefaults(): PaletteItem[] {

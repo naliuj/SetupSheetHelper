@@ -24,7 +24,7 @@ export function parseThemePreference(value: string | null | undefined): ThemePre
   return THEME_PREFERENCE_IDS.includes(value as ThemePreference) ? (value as ThemePreference) : 'system'
 }
 
-/** Window background colours, matching --color-bg in global.css for each theme.
+/** Window background colors, matching --color-bg in global.css for each theme.
  *
  *  Deliberately duplicated from the stylesheet: main cannot read CSS custom properties, and
  *  BrowserWindow's `backgroundColor` has to be a literal at construction time. Keep in sync with

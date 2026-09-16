@@ -8,7 +8,7 @@ interface LayoutWindowState {
   hydrate(): Promise<void>
 }
 
-/** Only meaningful in the MAIN window — SetupToolbar reads it to grey out the Layout Mode toggle
+/** Only meaningful in the MAIN window — SetupToolbar reads it to gray out the Layout Mode toggle
  *  for whichever setup is popped out, and SetupEditor reads it to skip mounting its own LayoutStage
  *  for that setup (see the comment on that mount in SetupEditor.tsx). The standalone Layout window
  *  itself has no use for this — it doesn't render a toggle or a second canvas. */

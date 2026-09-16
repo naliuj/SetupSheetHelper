@@ -137,7 +137,7 @@ export default function SetupSheetTable(): JSX.Element {
     }
 
     // A row can only belong to one pair — before linking this seam, break any existing link the two
-    // rows already have with their *other* neighbours (the row above `topItem`, or below
+    // rows already have with their *other* neighbors (the row above `topItem`, or below
     // `bottomItem`), so linking (2,3) after (1,2) cleanly moves row 2 into the new pair.
     const above = currentItems[idx - 1]
     if (above && above.groupId != null && above.groupId === topItem.groupId) {
@@ -220,9 +220,9 @@ export default function SetupSheetTable(): JSX.Element {
   }, [])
 
   /** Shared "is this row part of an actively-linked pair, and who's its partner" check, reused by
-   *  every ongoing-sync handler below. A row's partner is whichever *adjacent* neighbour (the row
+   *  every ongoing-sync handler below. A row's partner is whichever *adjacent* neighbor (the row
    *  directly above or below) shares its non-null groupId — no odd/even position rule. A row can
-   *  only be linked to one neighbour (enforced in handleTogglePairLink), so at most one side
+   *  only be linked to one neighbor (enforced in handleTogglePairLink), so at most one side
    *  matches. Works from EITHER row of the pair (editing either side updates the other), unlike the
    *  one-time link-time auto-fill which always seeds bottom from top. `direction` is +1 when the
    *  partner is below `itemId` and -1 when it's above — used to keep numeric fields like channel

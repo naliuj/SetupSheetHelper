@@ -18,7 +18,7 @@ const DEFAULT_COLOR = DEFAULT_SWATCH
 
 /** Title/color/musician-name form, shared by one-off custom block creation (canvas "Add
  *  Instrument" and the sidebar's "+ Add custom block") and editing an existing block (Layout
- *  Mode's right-click "Edit") — same dialogue either way, just seeded with the block's current
+ *  Mode's right-click "Edit") — same dialog either way, just seeded with the block's current
  *  values and a different heading/confirm label. Confirming a fresh one places a block directly
  *  on the canvas; nothing gets added to the palette/sidebar. */
 export default function CustomBlockModal({

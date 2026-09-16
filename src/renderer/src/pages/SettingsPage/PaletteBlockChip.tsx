@@ -35,7 +35,7 @@ export default function PaletteBlockChip({
     boxShadow: '0 1px 2px var(--color-shadow)',
     flexShrink: 0,
     overflow: 'hidden',
-    // The chip is a fixed ~44px box and its text is centred, so a single long word was clipped at
+    // The chip is a fixed ~44px box and its text is centered, so a single long word was clipped at
     // BOTH ends and showed a meaningless middle fragment. `anywhere` is the one value that lowers
     // min-content enough for the word to break and fit — see .card-title in global.css.
     overflowWrap: 'anywhere',

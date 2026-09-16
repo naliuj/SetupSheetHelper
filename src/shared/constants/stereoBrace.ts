@@ -55,7 +55,7 @@ export const STEREO_BRACE_SCREEN_WIDTH = 15
  *  table looked flat. 15 x (72% of 29 + 2 bleed) = 15 x 22.9 is 1:1.53, so the two now agree.
  *
  *  BADGE CLEARANCE. The brace's outer tips sit at the pair's top and bottom edges, which is exactly
- *  where the NEIGHBOURING seams' link buttons are centred, and those buttons carry an opaque disc
+ *  where the NEIGHBORING seams' link buttons are centered, and those buttons carry an opaque disc
  *  that paints over the tips (the row above owns its own seam button and sits higher in the stacking
  *  order). A tip needs roughly 7px of clearance from the row edge to escape that disc; 72% of a 29px
  *  row leaves 8px. Raising this number back toward 100 buries the fold again. */

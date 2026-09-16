@@ -7,7 +7,7 @@ function readCssVar(property: string): string {
 
 /** The resolved value of a CSS custom property, re-read whenever the theme changes.
  *
- *  For Konva. It paints to a canvas, so every colour it draws has to be a literal string — `var()`
+ *  For Konva. It paints to a canvas, so every color it draws has to be a literal string — `var()`
  *  is not available to it at all. That is how the marquee rectangle ended up hardcoded to a steel
  *  blue that was neither theme's accent, and stayed that way through a whole theme being added.
  *  Reading the token keeps the canvas on the same value as the DOM instead of a near-match that

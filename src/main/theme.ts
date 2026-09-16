@@ -44,7 +44,7 @@ function broadcastTheme(): void {
   const background = THEME_BACKGROUNDS[state.resolved]
   for (const win of BrowserWindow.getAllWindows()) {
     if (win.isDestroyed()) continue
-    // Keeps the colour Chromium paints into not-yet-rendered areas (a fast resize, a new pop-out)
+    // Keeps the color Chromium paints into not-yet-rendered areas (a fast resize, a new pop-out)
     // matching the theme, rather than leaving whatever the window was born with.
     win.setBackgroundColor(background)
     win.webContents.send(THEME_CHANGED_CHANNEL, state)

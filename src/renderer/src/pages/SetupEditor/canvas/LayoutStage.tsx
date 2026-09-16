@@ -47,7 +47,7 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
   // Konva draws to a canvas and cannot use var(), so the accent has to be resolved to a literal.
   const accent = useThemeColor('--color-accent')
   // A translucent wash with a SOLID edge. Node opacity would dim the stroke along with the fill,
-  // so the alpha goes on the fill colour itself (#RRGGBBAA, which canvas accepts) and the stroke
+  // so the alpha goes on the fill color itself (#RRGGBBAA, which canvas accepts) and the stroke
   // stays at full strength. Falls back to the flat accent if the token is ever not a 6-digit hex.
   const marqueeFill = /^#[0-9a-fA-F]{6}$/.test(accent) ? `${accent}2e` : accent
   const setupId = useSetupStoreState((s) => s.setupId)

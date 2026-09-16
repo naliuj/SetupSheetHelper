@@ -3,7 +3,7 @@
 
 macOS does not mask app icons the way iOS does — whatever shape the artwork is, is the shape the
 Dock shows. Our source art is a full-bleed square, so on most systems it rendered as a hard
-square next to every rounded neighbour. (Newer macOS shapes some icons itself, which is why it
+square next to every rounded neighbor. (Newer macOS shapes some icons itself, which is why it
 looked right on some installations and not others.) This bakes the shape in, so it is a squircle
 everywhere.
 
@@ -13,7 +13,7 @@ Two things make an icon sit correctly on the Dock:
     curvature — the straight edge eases into the corner instead of meeting an arc tangentially.
     |x|^n + |y|^n = 1 with n = 5 is the usual approximation and is visually indistinguishable at
     icon sizes.
-  * The artwork occupies 824 of the 1024pt canvas, centred. That inset is Apple's grid; every
+  * The artwork occupies 824 of the 1024pt canvas, centered. That inset is Apple's grid; every
     system icon follows it, so an icon that fills its canvas looks oversized beside them.
 
 Usage: python3 tools/make_icon.py [source.png]

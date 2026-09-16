@@ -74,7 +74,7 @@ export default function App(): JSX.Element {
   }, [])
 
   // Whether the standalone Layout Mode window is currently open, and for which setup — read by
-  // SetupToolbar (grey out the local toggle) and SetupEditor (skip mounting its own LayoutStage).
+  // SetupToolbar (gray out the local toggle) and SetupEditor (skip mounting its own LayoutStage).
   useEffect(() => {
     useLayoutWindowStore.getState().hydrate()
   }, [])

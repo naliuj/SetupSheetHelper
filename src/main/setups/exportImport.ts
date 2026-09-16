@@ -234,7 +234,7 @@ export function importSetups(setups: ExportedSetup[], targetStudioId: number): v
       })
       replaceItemsForSetup(created.id, items)
 
-      // Dropped rather than written when the extension is not one we recognise — see
+      // Dropped rather than written when the extension is not one we recognize — see
       // ALLOWED_LAYOUT_EXTENSIONS. The setup still imports; it just arrives without its background.
       const layoutOverride =
         setup.layoutOverride && ALLOWED_LAYOUT_EXTENSIONS.has(setup.layoutOverride.extension.toLowerCase())

@@ -246,7 +246,7 @@ function SetupSheetRow({
   onDelete: onDeleteById
 }: Props): JSX.Element {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id })
-  // Only the resolved theme, not the preference — what matters is the colour actually on screen.
+  // Only the resolved theme, not the preference — what matters is the color actually on screen.
   const resolvedTheme = useThemeStore((s) => s.resolved)
   // Which field's "Custom…" modal is open, if any — only one can be open per row at a time, so a
   // single slot covers both mic and preamp (outboard's modal lives in OutboardSlotCell instead,
@@ -285,7 +285,7 @@ function SetupSheetRow({
     : null
   const selectedBg = colorTint ?? 'color-mix(in srgb, var(--color-accent) 12%, var(--color-surface-alt))'
   // A tinted row publishes its own foreground, and everything drawn ON the tint reads that instead
-  // of a theme colour: the drag handle, the warning badges, the pair bracket and its seam button,
+  // of a theme color: the drag handle, the warning badges, the pair bracket and its seam button,
   // the selection bar, and the cell dividers (at a fraction, so they stay dividers rather than
   // turning into rules).
   //
@@ -632,7 +632,7 @@ function SetupSheetRow({
             position: 'relative',
             overflow: 'visible',
             // The lane deliberately does NOT take the row tint. That is what lets the brace be one
-            // colour on every row: it always sits on the page background, so its contrast never
+            // color on every row: it always sits on the page background, so its contrast never
             // depends on which swatch the row happens to use. Reverting this would put the accent
             // back on top of a saturated tint, where it vanishes on a blue row.
             background: 'var(--color-bg)',
@@ -710,14 +710,14 @@ function SetupSheetRow({
                     position: 'absolute',
                     // To the RIGHT of the brace's leftward point, not on top of it. The point only
                     // exists here at the seam, and it is what makes the mark read as a brace rather
-                    // than a bracket — a button centred on the brace's spine covers it completely.
+                    // than a bracket — a button centered on the brace's spine covers it completely.
                     left: STEREO_LANE_WIDTH - 6,
                     top: '100%',
                     transform: 'translate(-50%, -50%)',
                     zIndex: 4,
                     padding: 1,
                     border: 'none',
-                    // A lane-coloured disc, so the glyph reads cleanly where it crosses the row
+                    // A lane-colored disc, so the glyph reads cleanly where it crosses the row
                     // divider instead of sitting on top of the line.
                     background: 'var(--color-bg)',
                     borderRadius: '50%',
@@ -725,7 +725,7 @@ function SetupSheetRow({
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    // No row-dependent colour here at all: the lane is neutral, so one value works
+                    // No row-dependent color here at all: the lane is neutral, so one value works
                     // everywhere. 0.5 at rest was too faint even on neutral.
                     opacity: seamLinked ? 1 : 0.72,
                     color: seamLinked ? 'var(--color-accent)' : 'var(--color-text-dim)'

@@ -26,7 +26,7 @@ interface Props {
   onToggleMode: (mode: EditorMode) => void
   onOpenSettings: () => void
   /** True while this exact setup's layout is open in the standalone Layout Mode window — see
-   *  layoutWindowStore.ts. Greys out the local Layout Mode toggle (there's nothing to switch to
+   *  layoutWindowStore.ts. Grays out the local Layout Mode toggle (there's nothing to switch to
    *  locally) and changes what the pop-out button does (focus the existing window vs. open one). */
   layoutPoppedOut: boolean
   /** False when this toolbar belongs to Split View's inactive pane — gates the two dispatch

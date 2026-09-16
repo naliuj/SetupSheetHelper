@@ -19,7 +19,7 @@
   /* The most-raised surface — popups and dropdowns. Its own token because "raised" is not the
      same direction in both themes: dark builds up from near-black, so raised means LIGHTER than a
      panel; light tops out at white, so a panel is already the ceiling and the popup has to reach
-     it. Using surface-alt for this made every light-mode dropdown a grey panel wearing a raised
+     it. Using surface-alt for this made every light-mode dropdown a gray panel wearing a raised
      shadow. */
   --color-surface-raised: #232830;
   /* Drop shadows and the modal scrim. Tuned for a dark ground here; a light UI needs much less of
@@ -36,8 +36,8 @@
      ground (the page, and input wells), surface is a raised sheet, surface-alt is a control
      sitting on one. Light mode used to invert it — surface-alt was DARKER than the page and only
      1.05:1 against it — so buttons, cards, dropdowns and the gutter hover had no separation at
-     all, and every dropdown read as a recessed grey panel wearing a raised shadow. The page is
-     now a definite grey so the sheets above it have somewhere to be. */
+     all, and every dropdown read as a recessed gray panel wearing a raised shadow. The page is
+     now a definite gray so the sheets above it have somewhere to be. */
   --color-bg: #e4e9f0;
   --color-surface: #ffffff;
   --color-surface-alt: #f3f6fa;
@@ -45,7 +45,7 @@
   --color-text: #1a1d23;
   --color-text-dim: #5c6672;
   /* Accent, warning and danger are each a step darker than the first light palette used, so they
-     clear 4.5:1 as TEXT on the new page colour as well as on white. The warning was the worst at
+     clear 4.5:1 as TEXT on the new page color as well as on white. The warning was the worst at
      3.69:1, on an 11px badge. */
   --color-accent: #1a5fc4;
   --color-on-accent: #ffffff;
@@ -442,9 +442,9 @@ table.data-table th {
 }
 
 table.data-table td {
-  /* --row-edge is published by a colour-tinted setup-sheet row (SetupSheetRow), so the divider
+  /* --row-edge is published by a color-tinted setup-sheet row (SetupSheetRow), so the divider
      stays visible on a saturated tint instead of disappearing into it. Every other table falls
-     through to the border colour. */
+     through to the border color. */
   border-bottom: 1px solid var(--row-edge, var(--color-border));
   padding: 4px 8px;
   vertical-align: middle;
@@ -565,7 +565,7 @@ table.data-table td.data-table-text {
   padding: 10px 14px;
   box-shadow: 0 4px 12px var(--color-shadow);
   z-index: 200;
-  /* Centred with translateX(-50%), so an unbounded message grows off BOTH edges at once and
+  /* Centered with translateX(-50%), so an unbounded message grows off BOTH edges at once and
      takes its Undo button with it. Every message today is a count; this is the guard for the
      first one that is not. */
   max-width: min(560px, calc(100vw - 48px));
@@ -771,7 +771,7 @@ table.data-table td.data-table-text {
 
 .card-title-icon {
   display: flex;
-  /* flex-start, not center: once a long name wraps to two or three lines, a vertically centred
+  /* flex-start, not center: once a long name wraps to two or three lines, a vertically centered
      icon floats away from the line it belongs to. The nudge keeps it optically on the first. */
   align-items: flex-start;
   gap: 6px;
@@ -1234,7 +1234,7 @@ table.data-table td.data-table-text {
   border-radius: 2px;
   background: #fff;
   /* The knob is white and the OFF track is --color-border, which is near-white in light mode:
-     1.67:1, so the whole control read as a blank grey pill with no visible knob. The edge is what
+     1.67:1, so the whole control read as a blank gray pill with no visible knob. The edge is what
      defines it. Mixed from --color-text so it inverts by theme — in dark mode it resolves to a
      near-white line on a white knob, i.e. invisible, which is correct there since the dark track
      already gives 11.9:1 on its own. */
