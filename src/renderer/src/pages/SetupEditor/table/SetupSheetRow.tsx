@@ -6,6 +6,8 @@ import {
   STEREO_BRACE_BOTTOM,
   STEREO_BRACE_LANE_INSET,
   STEREO_BRACE_STROKE,
+  STEREO_BRACE_SCREEN_WIDTH,
+  STEREO_BRACE_SPAN_PERCENT,
   STEREO_BRACE_TOP,
   STEREO_BRACE_VIEWBOX,
   STEREO_LANE_WIDTH
@@ -648,21 +650,24 @@ function SetupSheetRow({
               style={{
                 position: 'absolute',
                 left: STEREO_BRACE_LANE_INSET,
-                // Anchor each half at its OUTER edge and give it an explicit stretched height.
+                // Anchor each half at its SEAM edge and give it an explicit sized box.
                 //
-                // Sizing this with `top: 0; bottom: -bleed` does not work, and fails silently: an
-                // <svg> with a width and no height is a replaced element whose height resolves from
-                // the viewBox ratio, so the box came out a fixed 24px tall and `bottom` was dropped
-                // as over-constrained. The brace was then 24px regardless of the row, anchored to
-                // the cell's top — the top half stopped short of the seam, the bottom half stopped
-                // short of its row's floor, and preserveAspectRatio="none" never had a stretched
-                // box to act on. Setting width and height in CSS is what makes the stretch real.
-                width: STEREO_BRACE_VIEWBOX.width,
+                // Both dimensions have to be set in CSS. An <svg> with a width and no height is a
+                // replaced element whose height resolves from the viewBox ratio, so the box came
+                // out a fixed 24px tall, `bottom` was dropped as over-constrained, and each half
+                // sat anchored to the top of its own cell — the halves did not reach each other and
+                // preserveAspectRatio="none" never had a stretched box to act on.
+                //
+                // Anchoring at the seam rather than the outer edge is what lets the span be less
+                // than the full row: the join stays exact and only the outer end moves in.
+                width: STEREO_BRACE_SCREEN_WIDTH,
                 // The extra bleed carries each half past its own cell edge at the seam, so the
                 // stroke bridges the 1px row divider and the two halves read as one continuous
                 // brace instead of meeting with a nick in the middle.
-                height: `calc(100% + ${BRACE_SEAM_BLEED}px)`,
-                ...(bracket === 'top' ? { top: 0 } : { bottom: 0 }),
+                height: `calc(${STEREO_BRACE_SPAN_PERCENT}% + ${BRACE_SEAM_BLEED}px)`,
+                ...(bracket === 'top'
+                  ? { bottom: -BRACE_SEAM_BLEED }
+                  : { top: -BRACE_SEAM_BLEED }),
                 overflow: 'visible'
               }}
             >

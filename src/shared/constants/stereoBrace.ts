@@ -34,6 +34,26 @@ export const STEREO_BRACE_VIEWBOX = { width: 14, height: 24 }
  *  longer a curly brace at all. The button belongs beside the point, not on it. */
 export const STEREO_BRACE_LANE_INSET = 5
 
+/** Rendered width of the path box on screen, in CSS px — deliberately NOT the viewBox width, which
+ *  is only a coordinate space. preserveAspectRatio="none" stretches one onto the other. */
+export const STEREO_BRACE_SCREEN_WIDTH = 15
+
+/** How much of its own row each half spans, as a percentage, measured from the seam outwards.
+ *
+ *  Two things are set by this one number, and the same value serves both.
+ *
+ *  CURVATURE. The path is stretched to whatever box it is given, so the box's aspect ratio IS the
+ *  brace's shape. At the full row the box was 14 x 31 (1:2.21) while the PDF draws the identical
+ *  path at 11pt over a 17pt row (1:1.55) — which is the whole reason print looked curly and the
+ *  table looked flat. 15 x (72% of 29 + 2 bleed) = 15 x 22.9 is 1:1.53, so the two now agree.
+ *
+ *  BADGE CLEARANCE. The brace's outer tips sit at the pair's top and bottom edges, which is exactly
+ *  where the NEIGHBOURING seams' link buttons are centred, and those buttons carry an opaque disc
+ *  that paints over the tips (the row above owns its own seam button and sits higher in the stacking
+ *  order). A tip needs roughly 7px of clearance from the row edge to escape that disc; 72% of a 29px
+ *  row leaves 8px. Raising this number back toward 100 buries the fold again. */
+export const STEREO_BRACE_SPAN_PERCENT = 72
+
 /** Stroke weight, in CSS px on screen and points in the PDF. Below ~1.4 the brace disappears
  *  against a row; above ~2.5 it starts competing with the source name beside it. */
 export const STEREO_BRACE_STROKE = 1.8
