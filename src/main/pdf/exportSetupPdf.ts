@@ -333,7 +333,10 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
       if (setup.engineer) metaParts.push(`Engineer: ${safe(setup.engineer)}`)
       if (setup.artist) metaParts.push(`Artist: ${safe(setup.artist)}`)
       if (metaParts.length > 0) {
-        drawBlockLines(wrapText(metaParts.join('   '), font, 10, usableWidth), 10, 18, font)
+        // Separated, not just spaced. Three spaces render narrow at 10pt, and with a third field
+        // in front of Engineer the line ran together — "Studio 2 (160) Engineer" reads as one
+        // phrase. U+00B7 is WinAnsi (0xB7) and is the same separator the app uses on screen.
+        drawBlockLines(wrapText(metaParts.join(' \u00b7 '), font, 10, usableWidth), 10, 18, font)
       } else {
         cursorY -= 6
       }
