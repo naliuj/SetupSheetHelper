@@ -32,7 +32,7 @@ export default function PaletteBlockChip({
     fontWeight: 700,
     color: readableTextColor(color),
     background: color,
-    boxShadow: '0 1px 2px rgba(0,0,0,.3)',
+    boxShadow: '0 1px 2px var(--color-shadow)',
     flexShrink: 0,
     overflow: 'hidden',
     // The chip is a fixed ~44px box and its text is centred, so a single long word was clipped at

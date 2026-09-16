@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useThemeColor } from '@renderer/hooks/useThemeColor'
 import { Stage, Layer, Rect, Transformer } from 'react-konva'
 import type Konva from 'konva'
 import { MIN_ZOOM, MAX_ZOOM } from '@renderer/state/layoutStore'
@@ -43,6 +44,12 @@ const ZOOM_STEP = 1.05
 const MARQUEE_THRESHOLD = 5
 
 export default function LayoutStage({ studioId, stageRef, active, paneActive = true }: Props): JSX.Element {
+  // Konva draws to a canvas and cannot use var(), so the accent has to be resolved to a literal.
+  const accent = useThemeColor('--color-accent')
+  // A translucent wash with a SOLID edge. Node opacity would dim the stroke along with the fill,
+  // so the alpha goes on the fill colour itself (#RRGGBBAA, which canvas accepts) and the stroke
+  // stays at full strength. Falls back to the flat accent if the token is ever not a 6-digit hex.
+  const marqueeFill = /^#[0-9a-fA-F]{6}$/.test(accent) ? `${accent}2e` : accent
   const setupId = useSetupStoreState((s) => s.setupId)
   const blocks = useLayoutStoreState((s) => s.blocks)
   const addBlock = useLayoutStoreState((s) => s.addBlock)
@@ -621,8 +628,10 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
               y={Math.min(marquee.startY, marquee.y)}
               width={Math.abs(marquee.x - marquee.startX)}
               height={Math.abs(marquee.y - marquee.startY)}
-              fill="rgba(79, 124, 172, 0.2)"
-              stroke="#4f7cac"
+              // Was a hardcoded steel blue belonging to neither theme — at 0.2 alpha it was
+              // barely perceptible over the light page, and the stroke measured 3.5:1.
+              fill={marqueeFill}
+              stroke={accent}
               strokeWidth={1 / finalScale}
               listening={false}
             />

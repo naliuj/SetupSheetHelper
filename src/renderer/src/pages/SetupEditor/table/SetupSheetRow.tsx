@@ -1,6 +1,18 @@
-import { Fragment, memo, useMemo, useState } from 'react'
+import { Fragment, memo, useMemo, useState, type CSSProperties } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import { readableTextColor } from '@shared/constants/swatches'
+import {
+  STEREO_BRACE_BOTTOM,
+  STEREO_BRACE_LANE_INSET,
+  STEREO_BRACE_STROKE,
+  STEREO_BRACE_SCREEN_WIDTH,
+  STEREO_BRACE_SPAN_PERCENT,
+  STEREO_BRACE_TOP,
+  STEREO_BRACE_VIEWBOX,
+  STEREO_LANE_WIDTH
+} from '@shared/constants/stereoBrace'
+import { useThemeStore } from '@renderer/state/themeStore'
 import { AlertTriangle, GripVertical, Link2, X } from 'lucide-react'
 import { computeUsedByOthers, type GearUsage } from '@renderer/state/usageCounts'
 import { buildGearSearchGroups } from '@renderer/state/gearSearchGroups'
@@ -234,6 +246,8 @@ function SetupSheetRow({
   onDelete: onDeleteById
 }: Props): JSX.Element {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id })
+  // Only the resolved theme, not the preference — what matters is the colour actually on screen.
+  const resolvedTheme = useThemeStore((s) => s.resolved)
   // Which field's "Custom…" modal is open, if any — only one can be open per row at a time, so a
   // single slot covers both mic and preamp (outboard's modal lives in OutboardSlotCell instead,
   // since that's already its own component).
@@ -270,13 +284,34 @@ function SetupSheetRow({
     ? `color-mix(in srgb, ${item.color} var(--row-color-tint-percent), var(--color-bg))`
     : null
   const selectedBg = colorTint ?? 'color-mix(in srgb, var(--color-accent) 12%, var(--color-surface-alt))'
+  // A tinted row publishes its own foreground, and everything drawn ON the tint reads that instead
+  // of a theme colour: the drag handle, the warning badges, the pair bracket and its seam button,
+  // the selection bar, and the cell dividers (at a fraction, so they stay dividers rather than
+  // turning into rules).
+  //
+  // LIGHT ONLY, and the condition is load-bearing rather than a shortcut. readableTextColor judges
+  // the raw swatch. In light mode that IS the row background, because the tint mixes at 100%. In
+  // dark mode the background is the swatch mixed 32% toward #14161a, which is always dark however
+  // light the swatch is — so judging the raw swatch there returns near-black for a pale pink and
+  // lands 2.2:1 on a background that is actually dark. Dark mode has never had the problem this
+  // solves: its 32% mix doubles as a contrast guarantee, and the existing foreground measures 6:1
+  // or better on every swatch in the palette.
+  const rowFg = item.color && resolvedTheme === 'light' ? readableTextColor(item.color) : null
   const rowStyle = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.4 : 1,
     background: selected ? selectedBg : (colorTint ?? undefined),
-    boxShadow: selected ? 'inset 3px 0 0 var(--color-accent)' : undefined
-  }
+    // The selection bar is drawn at the row's left edge, which is INSIDE the neutral stereo lane
+    // when that column is on — so there it takes the accent like everything else on the lane. With
+    // the column hidden it lands on the tint instead and needs the row's own foreground.
+    boxShadow: selected
+      ? `inset 3px 0 0 ${showStereoLink ? 'var(--color-accent)' : (rowFg ?? 'var(--color-accent)')}`
+      : undefined,
+    ...(rowFg
+      ? { '--row-fg': rowFg, '--row-edge': `color-mix(in srgb, ${rowFg} 28%, transparent)` }
+      : {})
+  } as CSSProperties
   function handleMicChange(micId: number | null): void {
     const mic = micId != null ? mics.find((m) => m.id === micId) ?? null : null
     const nextNotes = applyMicPoolNotesTag(item.notes ?? '', mic?.poolType ?? null)
@@ -585,35 +620,69 @@ function SetupSheetRow({
       {/* Slim leftmost stereo-pair link column (toggleable via the Columns menu). Every row except
           the last hosts a link-icon toggle on its bottom seam (faint at rest, accent on hover), so
           any two adjacent rows can be paired regardless of position. When a pair is linked, an
-          accent bracket "[" is drawn against the left edge spanning both rows (spine + an inward
-          tick top and bottom, split across the two cells). A high z-index on seam-hosting cells lets
-          the seam-straddling icon paint over the next row (later in DOM order). */}
+          accent curly brace spans both rows, drawn as two halves that overlap at the seam (see
+          stereoBrace.ts); the toggle sits to the right of the brace's point so the point stays
+          visible. A high z-index on seam-hosting cells lets the seam-straddling button paint over
+          the next row (later in DOM order). */}
       {showStereoLink && (
         <td
           style={{
-            width: 20,
+            width: STEREO_LANE_WIDTH,
             padding: 0,
             position: 'relative',
             overflow: 'visible',
+            // The lane deliberately does NOT take the row tint. That is what lets the brace be one
+            // colour on every row: it always sits on the page background, so its contrast never
+            // depends on which swatch the row happens to use. Reverting this would put the accent
+            // back on top of a saturated tint, where it vanishes on a blue row.
+            background: 'var(--color-bg)',
             zIndex: hasSeamBelow ? seamZIndex : undefined
           }}
         >
           {bracket && (
-            <div
+            <svg
               aria-hidden="true"
+              viewBox={`0 0 ${STEREO_BRACE_VIEWBOX.width} ${STEREO_BRACE_VIEWBOX.height}`}
+              preserveAspectRatio="none"
               style={{
                 position: 'absolute',
-                left: 2,
-                width: 6,
-                // Top cell draws the upper half of the "[" (spine down to the seam + top tick);
-                // bottom cell draws the lower half (spine up from the seam + bottom tick).
-                top: bracket === 'top' ? 3 : 0,
-                bottom: bracket === 'bottom' ? 3 : 0,
-                borderLeft: '2px solid var(--color-accent)',
-                borderTop: bracket === 'top' ? '2px solid var(--color-accent)' : undefined,
-                borderBottom: bracket === 'bottom' ? '2px solid var(--color-accent)' : undefined
+                left: STEREO_BRACE_LANE_INSET,
+                // Anchor each half at its SEAM edge and give it an explicit sized box.
+                //
+                // Both dimensions have to be set in CSS. An <svg> with a width and no height is a
+                // replaced element whose height resolves from the viewBox ratio, so the box came
+                // out a fixed 24px tall, `bottom` was dropped as over-constrained, and each half
+                // sat anchored to the top of its own cell — the halves did not reach each other and
+                // preserveAspectRatio="none" never had a stretched box to act on.
+                //
+                // Anchoring at the seam rather than the outer edge is what lets the span be less
+                // than the full row: the join stays exact and only the outer end moves in.
+                width: STEREO_BRACE_SCREEN_WIDTH,
+                height: `calc(${STEREO_BRACE_SPAN_PERCENT}%)`,
+                // Flush with the cell edge, NOT pushed past it. Each half used to bleed 2px over
+                // the divider to be sure the stroke bridged it, but only the top half's bleed is
+                // ever visible — the top row's lane cell paints an opaque background and sits
+                // higher in the stacking order, so it covers the bottom half's. The result was the
+                // top arm poking 2px below where the bottom arm began, which is what read as the
+                // middle of the brace dipping. Flush, both spikes land on the divider and coincide
+                // as one point; their round caps are 0.9px each, so they still overlap across the
+                // 1px border with nothing left to bridge.
+                ...(bracket === 'top' ? { bottom: 0 } : { top: 0 }),
+                overflow: 'visible'
               }}
-            />
+            >
+              <path
+                d={bracket === 'top' ? STEREO_BRACE_TOP : STEREO_BRACE_BOTTOM}
+                fill="none"
+                stroke="var(--color-accent)"
+                strokeWidth={STEREO_BRACE_STROKE}
+                // Keeps the line weight constant while preserveAspectRatio="none" stretches the
+                // shape to whatever height this row turned out to be.
+                vectorEffect="non-scaling-stroke"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
           )}
           {hasSeamBelow &&
             (() => {
@@ -633,28 +702,36 @@ function SetupSheetRow({
                   }}
                   onMouseLeave={(e) => {
                     if (!seamLinked) {
-                      e.currentTarget.style.opacity = '0.5'
+                      e.currentTarget.style.opacity = '0.72'
                       e.currentTarget.style.color = 'var(--color-text-dim)'
                     }
                   }}
                   style={{
                     position: 'absolute',
-                    left: 6,
+                    // To the RIGHT of the brace's leftward point, not on top of it. The point only
+                    // exists here at the seam, and it is what makes the mark read as a brace rather
+                    // than a bracket — a button centred on the brace's spine covers it completely.
+                    left: STEREO_LANE_WIDTH - 6,
                     top: '100%',
-                    transform: 'translateY(-50%)',
-                    zIndex: 2,
-                    padding: 2,
+                    transform: 'translate(-50%, -50%)',
+                    zIndex: 4,
+                    padding: 1,
                     border: 'none',
-                    background: 'transparent',
+                    // A lane-coloured disc, so the glyph reads cleanly where it crosses the row
+                    // divider instead of sitting on top of the line.
+                    background: 'var(--color-bg)',
+                    borderRadius: '50%',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    opacity: seamLinked ? 1 : 0.5,
+                    // No row-dependent colour here at all: the lane is neutral, so one value works
+                    // everywhere. 0.5 at rest was too faint even on neutral.
+                    opacity: seamLinked ? 1 : 0.72,
                     color: seamLinked ? 'var(--color-accent)' : 'var(--color-text-dim)'
                   }}
                 >
-                  <Link2 size={13} aria-hidden="true" />
+                  <Link2 size={12} aria-hidden="true" />
                 </button>
               )
             })()}

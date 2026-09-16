@@ -25,6 +25,13 @@ import { getSetting } from '../db/repositories/settingsRepo'
 import { resolveMicText, resolveOutboardSlotText, resolvePreampText } from '../db/resolveGearLabels'
 import { fitColumns, sanitizeForWinAnsi, wrapText, type ColumnSpec } from './pdfLayout'
 import { orderedVisibleColumns } from '@shared/constants/setupColumns'
+import { isHexColor } from '@shared/constants/swatches'
+import {
+  STEREO_BRACE_BOTTOM,
+  STEREO_BRACE_STROKE,
+  STEREO_BRACE_TOP,
+  scaleBracePath
+} from '@shared/constants/stereoBrace'
 import { layoutPixelsToPoints } from '@shared/constants/roomLayout'
 
 /** Short alias for sanitizeForWinAnsi — applied to every user-supplied string before it is
@@ -39,6 +46,12 @@ const CELL_PAD = 2 // horizontal breathing room inside a cell, each side
 // Shared left/right inset for every filled rectangle and frame (row tint, zebra band, header
 // shading, outer grid frame) so their edges all line up instead of drifting by a point or two.
 const ROW_FILL_INSET = 2
+
+/** How wide the stereo brace is drawn in the PDF, and how far its right edge sits from the table.
+ *  The old bracket used 6pt of margin; the brace needs more for its curls, and the left margin has
+ *  the room — it is 36pt and otherwise empty. */
+const BRACE_WIDTH_PT = 11
+const BRACE_MARGIN_GAP = 4
 
 /** Font size + spacing that vary with the chosen density. Compact packs more rows per page;
  *  normal stays larger and more legible. Sizes stay above a ~7pt legibility floor. */
@@ -83,15 +96,6 @@ function findTieLineConflicts(items: { tieLine: number | null }[]): Set<number> 
     counts.set(item.tieLine, (counts.get(item.tieLine) ?? 0) + 1)
   }
   return new Set([...counts.entries()].filter(([, count]) => count > 1).map(([tieLine]) => tieLine))
-}
-
-/** #rgb / #rrggbb only — the same shape parsePdfAccentColor already enforces for the accent.
- *  A row's color normally comes from the app's own swatch picker, but exportImport.ts passes
- *  item.color straight through from an imported .json, so it is untrusted. Anything else reached
- *  hexToComponents as NaN and pdf-lib's rgb() THROWS on NaN — aborting the whole export with no
- *  file written, the same failure mode as an unencodable character (see sanitizeForWinAnsi). */
-function isHexColor(hex: string | null | undefined): hex is string {
-  return !!hex && /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(hex)
 }
 
 /** `line` with a trailing ellipsis, shortened character by character until it fits `width`.
@@ -507,21 +511,27 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
 
       const rowTopY = cursorY + dens.rowPadding
 
-      // Stereo-pair bracket "[" in the left margin: a vertical spine spanning this row, plus an
-      // inward tick at the outer edge (top of the top row, bottom of the bottom row). The two rows'
-      // halves join into one bracket. Drawn per-row so a pair split across a page break still reads.
+      // Stereo-pair brace in the left margin, from the SAME path the table draws (see
+      // stereoBrace.ts). The square bracket this replaces was built from two drawLine calls here
+      // and CSS borders on screen — two definitions of one shape, which is exactly how they drifted
+      // apart. Drawn per-row so a pair split across a page break still reads, and scaled to each
+      // row's own height so unequal rows still meet at the spike.
+      //
+      // drawSvgPath's y is the TOP of the path box and its y axis runs downward, unlike the rest of
+      // this file.
       const linkRole = pairRoleById.get(item.id)
       if (linkRole) {
-        const spineX = MARGIN - 9
-        const tickX = MARGIN - 3
-        page.drawLine({
-          start: { x: spineX, y: rowBottomY },
-          end: { x: spineX, y: rowTopY },
-          thickness: 1,
-          color: bracketColor
-        })
-        const tickY = linkRole === 'top' ? rowTopY : rowBottomY
-        page.drawLine({ start: { x: spineX, y: tickY }, end: { x: tickX, y: tickY }, thickness: 1, color: bracketColor })
+        const braceHeight = rowTopY - rowBottomY
+        page.drawSvgPath(
+          scaleBracePath(linkRole === 'top' ? STEREO_BRACE_TOP : STEREO_BRACE_BOTTOM, BRACE_WIDTH_PT, braceHeight),
+          {
+            x: MARGIN - BRACE_MARGIN_GAP - BRACE_WIDTH_PT,
+            y: rowTopY,
+            borderColor: bracketColor,
+            borderWidth: STEREO_BRACE_STROKE,
+            borderLineCap: 1
+          }
+        )
       }
 
       let x = MARGIN

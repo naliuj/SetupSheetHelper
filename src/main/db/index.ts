@@ -1,4 +1,5 @@
 import Database from 'better-sqlite3'
+import { existsSync } from 'node:fs'
 import { getDbPath } from '../userDataPaths'
 import { runMigrations } from './migrate'
 
@@ -14,6 +15,9 @@ export function getDb(): Database.Database {
   if (openError) throw openError
 
   const dbPath = getDbPath()
+  // Captured BEFORE the open, because better-sqlite3 creates the file — after this line the
+  // answer is always "it exists". See MigrationContext for what depends on it.
+  const freshDatabase = !existsSync(dbPath)
   const opened = new Database(dbPath)
   opened.pragma('journal_mode = WAL')
   opened.pragma('foreign_keys = ON')
@@ -24,7 +28,7 @@ export function getDb(): Database.Database {
   opened.pragma('busy_timeout = 5000')
 
   try {
-    runMigrations(opened, dbPath)
+    runMigrations(opened, dbPath, { freshDatabase })
   } catch (err) {
     // Assign `db` only once migrations have actually succeeded. Caching the connection first
     // meant a migration failure left every later call returning a HALF-MIGRATED database: the

@@ -39,6 +39,17 @@ export const ALL_SWATCH_HEXES: string[] = COLOR_SWATCHES.flatMap((g) => [
   g.darkest
 ])
 
+/** #rgb / #rrggbb only — the same shape parsePdfAccentColor enforces for the PDF accent.
+ *
+ *  A row's color normally comes from the swatch grid above, but exportImport.ts passes item.color
+ *  straight through from an imported .json, so it is untrusted. Both exports care: pdf-lib's rgb()
+ *  THROWS on the NaN a malformed value parses to, aborting the whole export with no file written,
+ *  and exceljs silently writes it into xl/styles.xml as an invalid ARGB that Excel then offers to
+ *  repair. */
+export function isHexColor(hex: string | null | undefined): hex is string {
+  return !!hex && /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(hex)
+}
+
 /** Picks black or white text for legibility on a solid color fill, via relative luminance — so a
  *  light-shade fill (e.g. light amber) gets dark text instead of unreadable white. */
 export function readableTextColor(hex: string): '#ffffff' | '#1a1d23' {

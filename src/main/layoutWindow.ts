@@ -1,3 +1,4 @@
+import { themeBackgroundColor } from './theme'
 import { BrowserWindow, ipcMain } from 'electron'
 import { randomUUID } from 'node:crypto'
 import { join } from 'node:path'
@@ -86,6 +87,7 @@ function requestFlush(win: BrowserWindow, onDone: () => void): void {
 function createLayoutWindow(setupId: number, studioId: number): BrowserWindow {
   const savedBounds = restoreBounds('layout')
   const win = new BrowserWindow({
+    backgroundColor: themeBackgroundColor(),
     width: savedBounds?.width ?? 1100,
     height: savedBounds?.height ?? 800,
     x: savedBounds?.x,

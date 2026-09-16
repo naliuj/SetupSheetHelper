@@ -1,7 +1,6 @@
 import { useEffect } from 'react'
-import { APP_SETTINGS_KEYS } from '@shared/types/entities'
 import { useNavigationStore } from './state/navigationStore'
-import { useThemeStore } from './state/themeStore'
+import { useThemeSync } from './hooks/useThemeSync'
 import { usePaletteStore } from './state/paletteStore'
 import { useBerkleeFeaturesStore } from './state/berkleeFeaturesStore'
 import { useWhatsNewStore } from './state/whatsNewStore'
@@ -23,29 +22,14 @@ import appIcon from './assets/app-icon.png'
 export default function App(): JSX.Element {
   // Answers main's before-quit request so a debounced autosave still lands when the user quits.
   useQuitFlush()
+  // Follows theme changes from any window, and from the OS under a 'system' preference.
+  useThemeSync()
 
   const view = useNavigationStore((s) => s.view)
   const goToHome = useNavigationStore((s) => s.goToHome)
   const goToSettings = useNavigationStore((s) => s.goToSettings)
-  const theme = useThemeStore((s) => s.theme)
   const onboardingPromptOpen = useBerkleeFeaturesStore((s) => s.onboardingPromptOpen)
   const whatsNewOpen = useWhatsNewStore((s) => s.open)
-
-  // Load the persisted theme once at startup, before the user ever opens Settings. Hydrates
-  // via setState directly (not the persisting setTheme action) so loading doesn't write it
-  // right back to app_settings.
-  useEffect(() => {
-    window.api.settings.get(APP_SETTINGS_KEYS.theme).then((saved) => {
-      if (saved === 'light' || saved === 'dark') {
-        useThemeStore.setState({ theme: saved })
-      }
-    })
-  }, [])
-
-  // Keep the DOM attribute in sync with the store so global.css can key off it.
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme
-  }, [theme])
 
   // Load the global Layout Mode palette once at startup — shared across every studio/setup.
   useEffect(() => {

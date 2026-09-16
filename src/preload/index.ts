@@ -9,6 +9,9 @@ import {
   APP_FLUSH_ACK_CHANNEL,
   LAYOUT_WINDOW_FLUSH_REQUEST_CHANNEL,
   LAYOUT_WINDOW_FLUSH_ACK_CHANNEL,
+  THEME_CHANGED_CHANNEL,
+  THEME_SYNC_CHANNEL,
+  type ThemeStateMessage,
   type MenuAction,
   type LayoutWindowState,
   type LayoutWindowExportRequest,
@@ -172,6 +175,19 @@ const api: RendererApi = {
   settings: {
     get: (key) => ipcRenderer.invoke(IPC.settings.get, key),
     set: (key, value) => ipcRenderer.invoke(IPC.settings.set, key, value)
+  },
+  theme: {
+    // The only sendSync in this bridge. index.html's CSP is `script-src 'self'`, so there is no
+    // inline bootstrap script available to set data-theme before first paint, and an async invoke
+    // resolves too late — a light-mode user would see a dark frame. One SQLite read against an
+    // already-open handle, once per window. See THEME_SYNC_CHANNEL.
+    getSync: () => ipcRenderer.sendSync(THEME_SYNC_CHANNEL) as ThemeStateMessage,
+    set: (preference) => ipcRenderer.invoke(IPC.theme.set, preference),
+    onChanged: (callback) => {
+      const listener = (_event: unknown, state: ThemeStateMessage): void => callback(state)
+      ipcRenderer.on(THEME_CHANGED_CHANNEL, listener)
+      return () => ipcRenderer.removeListener(THEME_CHANGED_CHANNEL, listener)
+    }
   },
   app: {
     getVersion: () => ipcRenderer.invoke(IPC.app.getVersion),

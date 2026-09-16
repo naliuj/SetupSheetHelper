@@ -17,6 +17,7 @@ import type {
 import type { ChannelPreset, ChannelPresetItemInput, ChannelPresetWithItems } from './channelPreset'
 import type { PaletteItem } from './palette'
 import type { ExportColumnOverrides, SetupColumnKey } from '../constants/setupColumns'
+import type { ResolvedTheme, ThemePreference } from '../constants/theme'
 import type {
   EditorMode,
   Folder,
@@ -152,6 +153,12 @@ export const IPC = {
   settings: {
     get: 'settings:get',
     set: 'settings:set'
+  },
+  theme: {
+    /** Deliberately NOT settings.set — main has to broadcast the change to every window, and the
+     *  generic setter gives it no hook to do that from. That omission is why the pop-out Layout
+     *  window used to keep the old theme until it was reopened. */
+    set: 'theme:set'
   },
   app: {
     getVersion: 'app:getVersion'
@@ -503,6 +510,9 @@ export interface ExportSetupPdfResult {
 
 export interface ExportSetupSpreadsheetInput {
   setupId: number
+  /** Flattened room-layout PNG, from captureLayoutImage in the renderer — the same capture the PDF
+   *  export uses. Null/absent writes the data sheet alone. */
+  layoutImageDataUrl?: string | null
   /** The exact columns to write, resolved by the renderer's export chips (Source name is implied
    *  and always leftmost; 'outboard' expands to one column per slot). Omitted by stale callers,
    *  which fall back to the setup's own visible columns. */
@@ -642,6 +652,23 @@ export interface AppFlushAck {
 
 export const LAYOUT_WINDOW_FLUSH_REQUEST_CHANNEL = 'layoutWindow:flushRequested'
 export const LAYOUT_WINDOW_FLUSH_ACK_CHANNEL = 'layoutWindow:flushAck'
+
+/** Theme changes, pushed to every window — whether the user picked one or the OS switched under a
+ *  'system' preference. */
+export const THEME_CHANGED_CHANNEL = 'theme:changed'
+
+/** The one SYNCHRONOUS channel in the app (ipcRenderer.sendSync). index.html's CSP is
+ *  `script-src 'self'`, so the usual inline bootstrap script that sets data-theme before first
+ *  paint is unavailable, and an async invoke cannot resolve in time — a light-mode user would get
+ *  a dark frame. Preload reads this once, synchronously, and main.tsx applies it before
+ *  createRoot. */
+export const THEME_SYNC_CHANNEL = 'theme:getSync'
+
+export interface ThemeStateMessage {
+  preference: ThemePreference
+  /** What data-theme should be set to — 'system' already resolved against the OS. */
+  resolved: ResolvedTheme
+}
 
 export interface LayoutWindowExportRequest {
   requestId: string
@@ -820,6 +847,15 @@ export interface RendererApi {
   settings: {
     get(key: string): Promise<string | null>
     set(key: string, value: string): Promise<void>
+  }
+  theme: {
+    /** SYNCHRONOUS, uniquely in this API. Read once at module scope in main.tsx so `data-theme` is
+     *  on <html> before React paints — see THEME_SYNC_CHANNEL for why nothing async will do. */
+    getSync(): ThemeStateMessage
+    set(preference: ThemePreference): Promise<void>
+    /** Fires when the user changes the preference in ANY window, and when the OS appearance
+     *  changes under a 'system' preference. Returns an unsubscribe. */
+    onChanged(callback: (state: ThemeStateMessage) => void): () => void
   }
   app: {
     getVersion(): Promise<string>

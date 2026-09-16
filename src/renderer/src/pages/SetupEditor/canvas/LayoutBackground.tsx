@@ -9,6 +9,18 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl
 
 const RENDER_SCALE = 2
 
+/** The page edge. Without it the sheet has none: it is white, and in light mode the stage around
+ *  it is near-white too (1.22:1), so the canvas reads as an infinite white void rather than a
+ *  piece of paper on a desk. A soft drop shadow rather than a stroke, because it has to work on
+ *  the dark stage as well, where a grey outline would look like part of the drawing. Applied to
+ *  the imported floor plans too, which are white sheets with the same problem. */
+const PAPER_SHADOW = {
+  shadowColor: '#000000',
+  shadowBlur: 18,
+  shadowOpacity: 0.28,
+  shadowOffsetY: 2
+} as const
+
 interface Props {
   studioId: number
   setupId: number | null
@@ -82,9 +94,17 @@ export default function LayoutBackground({ studioId, setupId, onSize }: Props): 
 
   if (blank) {
     return (
-      <Rect x={0} y={0} width={BLANK_SHEET_WIDTH_PX} height={BLANK_SHEET_HEIGHT_PX} fill="white" listening={false} />
+      <Rect
+        x={0}
+        y={0}
+        width={BLANK_SHEET_WIDTH_PX}
+        height={BLANK_SHEET_HEIGHT_PX}
+        fill="white"
+        listening={false}
+        {...PAPER_SHADOW}
+      />
     )
   }
   if (!image) return null
-  return <KonvaImage image={image} x={0} y={0} listening={false} name="layout-bg-image" />
+  return <KonvaImage image={image} x={0} y={0} listening={false} name="layout-bg-image" {...PAPER_SHADOW} />
 }
