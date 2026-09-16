@@ -13,6 +13,7 @@ import Icon from '@renderer/components/Icon'
 import { exportStageToDataUrl } from './canvas/konvaExport'
 import SaveAsTemplateModal from './SaveAsTemplateModal'
 import ExportOptionsModal, { type ExportOptions } from './ExportOptionsModal'
+import { LAYOUT_EXPORT_PIXEL_RATIO } from '@shared/constants/roomLayout'
 import SpreadsheetExportModal from './SpreadsheetExportModal'
 import type { SetupColumnKey } from '@shared/constants/setupColumns'
 import RequireLayoutFileModal from './RequireLayoutFileModal'
@@ -183,12 +184,16 @@ export default function SetupToolbar({
             layoutStoreApi.getState().selectBlock(null)
             // let the deselect re-render (hides the resize/rotate handles) before flattening the stage
             await new Promise((resolve) => setTimeout(resolve, 30))
-            dataUrl = exportStageToDataUrl(stageRef.current, 2, !coloredRows)
+            dataUrl = exportStageToDataUrl(stageRef.current, LAYOUT_EXPORT_PIXEL_RATIO, !coloredRows)
           } else {
             // Popped out: ask the standalone Layout window to render its own live stage and send
             // back the PNG (see main/layoutWindow.ts's requestExportImage relay). Null means it
             // didn't respond in time (closed mid-request, or hung) rather than "no layout exists".
-            dataUrl = await window.api.layoutWindow.requestExportImage(currentSetupId, 2, !coloredRows)
+            dataUrl = await window.api.layoutWindow.requestExportImage(
+              currentSetupId,
+              LAYOUT_EXPORT_PIXEL_RATIO,
+              !coloredRows
+            )
             layoutUnreachable = !dataUrl
           }
         }

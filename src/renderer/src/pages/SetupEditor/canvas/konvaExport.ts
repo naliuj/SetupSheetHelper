@@ -1,5 +1,6 @@
 import Konva from 'konva'
 import { COLOR_SWATCHES, readableTextColor } from '@shared/constants/swatches'
+import { LAYOUT_EXPORT_PIXEL_RATIO } from '@shared/constants/roomLayout'
 
 // Flat, uniform fill for every block in black-and-white export mode (not a per-block pastel of
 // its own color) — guarantees legible dark text regardless of the block's original color. Border
@@ -21,7 +22,11 @@ const MONOCHROME_BORDER_WIDTH = 1.5
  *  imperatively on the Konva nodes right before capture and reverted right after, rather than as
  *  React/store state, since the PDF generator never sees this stage: it only receives the PNG
  *  this function returns (see exportSetupPdf.ts's embedPng of layoutImageDataUrl). */
-export function exportStageToDataUrl(stage: Konva.Stage, pixelRatio = 2, monochrome = false): string {
+export function exportStageToDataUrl(
+  stage: Konva.Stage,
+  pixelRatio = LAYOUT_EXPORT_PIXEL_RATIO,
+  monochrome = false
+): string {
   const prevScale = { x: stage.scaleX(), y: stage.scaleY() }
   const prevPosition = { x: stage.x(), y: stage.y() }
   const prevSize = { width: stage.width(), height: stage.height() }

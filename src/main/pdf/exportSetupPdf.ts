@@ -16,7 +16,8 @@ import {
   parsePdfGridStyle
 } from '@shared/constants/pdfLayout'
 import { getSetupWithItems } from '../db/repositories/setupsRepo'
-import { getLayoutFileForStudio } from '../db/repositories/roomLayoutFileRepo'
+import { getStudio } from '../db/repositories/studiosRepo'
+import { listBuildings } from '../db/repositories/buildingsRepo'
 import { getMicsByIds } from '../db/repositories/micsRepo'
 import { getOutboardByIds } from '../db/repositories/outboardRepo'
 import { getPreampsByIds } from '../db/repositories/preampRepo'
@@ -24,6 +25,7 @@ import { getSetting } from '../db/repositories/settingsRepo'
 import { resolveMicText, resolveOutboardSlotText, resolvePreampText } from '../db/resolveGearLabels'
 import { fitColumns, sanitizeForWinAnsi, wrapText, type ColumnSpec } from './pdfLayout'
 import { orderedVisibleColumns } from '@shared/constants/setupColumns'
+import { layoutPixelsToPoints } from '@shared/constants/roomLayout'
 
 /** Short alias for sanitizeForWinAnsi — applied to every user-supplied string before it is
  *  measured or drawn, so one unencodable character cannot abort the export. */
@@ -81,6 +83,26 @@ function findTieLineConflicts(items: { tieLine: number | null }[]): Set<number> 
     counts.set(item.tieLine, (counts.get(item.tieLine) ?? 0) + 1)
   }
   return new Set([...counts.entries()].filter(([, count]) => count > 1).map(([tieLine]) => tieLine))
+}
+
+/** #rgb / #rrggbb only — the same shape parsePdfAccentColor already enforces for the accent.
+ *  A row's color normally comes from the app's own swatch picker, but exportImport.ts passes
+ *  item.color straight through from an imported .json, so it is untrusted. Anything else reached
+ *  hexToComponents as NaN and pdf-lib's rgb() THROWS on NaN — aborting the whole export with no
+ *  file written, the same failure mode as an unencodable character (see sanitizeForWinAnsi). */
+function isHexColor(hex: string | null | undefined): hex is string {
+  return !!hex && /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(hex)
+}
+
+/** `line` with a trailing ellipsis, shortened character by character until it fits `width`.
+ *  U+2026 is WinAnsi (0x85) and measures in Helvetica, so it needs no sanitising. */
+function withEllipsis(line: string, font: PDFFont, size: number, width: number): string {
+  const ellipsis = '\u2026'
+  let text = line.trimEnd()
+  while (text.length > 0 && font.widthOfTextAtSize(text + ellipsis, size) > width) {
+    text = text.slice(0, -1).trimEnd()
+  }
+  return text + ellipsis
 }
 
 function hexToComponents(hex: string): { r: number; g: number; b: number } {
@@ -142,8 +164,20 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
   const setup = getSetupWithItems(input.setupId)
   if (!setup) return { canceled: true }
 
-  const layout = getLayoutFileForStudio(setup.studioId)
   const conflicts = findTieLineConflicts(setup.items)
+
+  // Which room this sheet is for was never printed anywhere on it — the one thing a person
+  // holding the paper in a corridor of near-identical control rooms most needs. Quick Setup's
+  // throwaway studio is skipped (it is a placeholder named "Quick Setup", not a room), and the
+  // building is appended when there is one, since "Studio A" alone is ambiguous across buildings
+  // — the same `Name (Building)` shape the import picker already uses.
+  const studio = getStudio(setup.studioId)
+  const buildingName =
+    studio && studio.buildingId != null
+      ? (listBuildings().find((b) => b.id === studio.buildingId)?.name ?? null)
+      : null
+  const studioLabel =
+    studio && !studio.isTemporary ? `${studio.name}${buildingName ? ` (${buildingName})` : ''}` : null
 
   // Table style is a global, persistent preference (Settings > PDF Layout), not a per-export
   // option — read directly here rather than threading it through ExportSetupPdfInput, the same
@@ -294,11 +328,12 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
         accentColor ? hexToAccentRgb(accentColor) : undefined
       )
 
-      if (setup.engineer || setup.artist) {
-        const parts: string[] = []
-        if (setup.engineer) parts.push(`Engineer: ${safe(setup.engineer)}`)
-        if (setup.artist) parts.push(`Artist: ${safe(setup.artist)}`)
-        drawBlockLines(wrapText(parts.join('   '), font, 10, usableWidth), 10, 18, font)
+      const metaParts: string[] = []
+      if (studioLabel) metaParts.push(`Studio: ${safe(studioLabel)}`)
+      if (setup.engineer) metaParts.push(`Engineer: ${safe(setup.engineer)}`)
+      if (setup.artist) metaParts.push(`Artist: ${safe(setup.artist)}`)
+      if (metaParts.length > 0) {
+        drawBlockLines(wrapText(metaParts.join('   '), font, 10, usableWidth), 10, 18, font)
       } else {
         cursorY -= 6
       }
@@ -411,16 +446,38 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
         wrappedByKey.set(col.key, lines)
         if (lines.length > maxLines) maxLines = lines.length
       }
-      const rowHeight = maxLines * dens.lineHeight + dens.rowPadding
+      let rowHeight = maxLines * dens.lineHeight + dens.rowPadding
 
-      // Page-break before drawing when this row won't fit (height-aware). A row taller than a whole
-      // page body is pathological; we still draw it from the top of a fresh page and let it run.
+      // Page-break before drawing when this row won't fit (height-aware).
       if (cursorY - rowHeight < MARGIN) {
         startNewPage()
       }
 
+      // Still taller than a whole page body even on a fresh page — reachable with a pasted
+      // paragraph in Notes, which is ~65 lines in a narrow column. It used to be drawn at full
+      // height and allowed to run off the bottom: the overflow was written into the file but fell
+      // outside the page box, so it vanished with nothing to say it had. Keep what fits and mark
+      // every cell that lost lines, so the loss is visible rather than silent.
+      const linesThatFit = Math.max(1, Math.floor((cursorY - MARGIN - dens.rowPadding) / dens.lineHeight))
+      if (maxLines > linesThatFit) {
+        for (const col of visibleColumns) {
+          const lines = wrappedByKey.get(col.key)!
+          if (lines.length <= linesThatFit) continue
+          const kept = lines.slice(0, linesThatFit)
+          kept[kept.length - 1] = withEllipsis(
+            kept[kept.length - 1],
+            fontForColumn(col.key),
+            dens.bodySize,
+            col.width - 2 * CELL_PAD
+          )
+          wrappedByKey.set(col.key, kept)
+        }
+        maxLines = linesThatFit
+        rowHeight = maxLines * dens.lineHeight + dens.rowPadding
+      }
+
       const rowBottomY = cursorY - rowHeight + dens.rowPadding
-      const usesCustomColor = input.coloredRows && !!item.color
+      const usesCustomColor = input.coloredRows && isHexColor(item.color)
       const isOddRow = zebraStripes && visualRowIndex % 2 === 1
       if (usesCustomColor) {
         // Zebra striping alternates the SAME row color between a light and dark tint, rather than
@@ -519,8 +576,16 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
     const pngImage = await pdfDoc.embedPng(imageBytes)
     const imgDims = pngImage.size()
 
-    const pageWidth = layout?.pageWidthPt ?? imgDims.width
-    const pageHeight = layout?.pageHeightPt ?? imgDims.height
+    // Sized from the capture itself, not from a layout record. Two reasons. The record this used
+    // to read was the STUDIO's shared layout, while the renderer captures the EFFECTIVE one (a
+    // per-setup override wins) — so a setup with its own layout in a studio that has none fell
+    // through to `imgDims` in POINTS and produced a 44x34 inch page. And even the right record
+    // would be the wrong box: exportStageToDataUrl captures getClientRect over ALL content, so a
+    // block dragged past the edge of the floor plan makes the image larger than the page.
+    // Converting the pixels back is exact for the cases that do have a known size — a 3168px
+    // capture of a 792pt plan converts to 792pt.
+    const pageWidth = layoutPixelsToPoints(imgDims.width)
+    const pageHeight = layoutPixelsToPoints(imgDims.height)
     const layoutPage = pdfDoc.addPage([pageWidth, pageHeight])
     const scale = Math.min(pageWidth / imgDims.width, pageHeight / imgDims.height)
     const drawWidth = imgDims.width * scale
