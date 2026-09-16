@@ -73,7 +73,7 @@ function byManufacturerThenModel(
 }
 
 /** The pending row already holding this model, if any. Compares on manufacturer + name through
- *  gearIdentityKey, the same normalisation the rest of the app uses to decide two rows are the
+ *  gearIdentityKey, the same normalization the rest of the app uses to decide two rows are the
  *  same box, so casing and stray spacing don't hide a match. */
 function findPendingRow<T extends { key: string; name: string; manufacturer: string | null }>(
   rows: T[],
@@ -185,7 +185,7 @@ export default function StudioSetupPage(): JSX.Element {
   const [removedPreampIds, setRemovedPreampIds] = useState<Set<number>>(new Set())
   // allMics/allOutboard (studio-tagged) feed the "Import Gear from Another Studio" modal;
   // micCatalogueSource/outboardCatalogueSource/preampCatalogueSource are the comprehensive
-  // every-pool lists feeding the "Add from Catalogue" dropdowns — origin deliberately doesn't
+  // every-pool lists feeding the "Add from Catalog" dropdowns — origin deliberately doesn't
   // matter there.
   const [allMics, setAllMics] = useState<MicWithStudio[]>([])
   const [allOutboard, setAllOutboard] = useState<OutboardGearWithStudio[]>([])
@@ -609,7 +609,7 @@ export default function StudioSetupPage(): JSX.Element {
                 getQuantity={(m) => m.quantity}
                 selectedId={null}
                 onSelect={pickMicFromCatalogue}
-                placeholder="+ Add Mic from Catalogue"
+                placeholder="+ Add Mic from Catalog"
                 showUsage={false}
               />
               <ManualEntryForm
@@ -677,7 +677,7 @@ export default function StudioSetupPage(): JSX.Element {
                 getQuantity={(o) => o.quantity}
                 selectedId={null}
                 onSelect={pickOutboardFromCatalogue}
-                placeholder="+ Add Outboard from Catalogue"
+                placeholder="+ Add Outboard from Catalog"
                 showUsage={false}
               />
               <ManualEntryForm
@@ -745,7 +745,7 @@ export default function StudioSetupPage(): JSX.Element {
                 getQuantity={(p) => p.channels}
                 selectedId={null}
                 onSelect={pickPreampFromCatalogue}
-                placeholder="+ Add Preamp from Catalogue"
+                placeholder="+ Add Preamp from Catalog"
                 showUsage={false}
               />
               <ManualEntryForm

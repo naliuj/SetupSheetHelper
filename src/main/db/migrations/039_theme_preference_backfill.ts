@@ -4,7 +4,7 @@ import type { MigrationContext } from '../migrate'
 /** Pins the appearance of every profile that predates the Light / Dark / Follow-OS selector.
  *
  *  No schema change. Before this release the theme setting held 'light' or 'dark', and ABSENT
- *  meant dark — the renderer store simply initialised to dark and only overwrote itself if a row
+ *  meant dark — the renderer store simply initialized to dark and only overwrote itself if a row
  *  existed. The selector adds 'system' and makes absent mean 'system', which is right for a new
  *  install and wrong for everyone else: an existing user who never opened Settings would have
  *  their app change appearance on update, unasked.

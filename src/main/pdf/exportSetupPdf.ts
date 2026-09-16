@@ -99,7 +99,7 @@ function findTieLineConflicts(items: { tieLine: number | null }[]): Set<number> 
 }
 
 /** `line` with a trailing ellipsis, shortened character by character until it fits `width`.
- *  U+2026 is WinAnsi (0x85) and measures in Helvetica, so it needs no sanitising. */
+ *  U+2026 is WinAnsi (0x85) and measures in Helvetica, so it needs no sanitizing. */
 function withEllipsis(line: string, font: PDFFont, size: number, width: number): string {
   const ellipsis = '\u2026'
   let text = line.trimEnd()
@@ -230,9 +230,9 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
         if (text) outboardParts.push(text)
       }
 
-      // Every value here is drawn in Helvetica (WinAnsi) and so must be sanitised — see
+      // Every value here is drawn in Helvetica (WinAnsi) and so must be sanitized — see
       // sanitizeForWinAnsi. The one exception is phantomPower: it is our own glyph, drawn in
-      // ZapfDingbats via fontForColumn, and sanitising it would replace the check mark.
+      // ZapfDingbats via fontForColumn, and sanitizing it would replace the check mark.
       const values: Record<string, string> = {
         sourceName: safe(item.sourceName || ''),
         mic: safe(resolveMicText(item, micById)),

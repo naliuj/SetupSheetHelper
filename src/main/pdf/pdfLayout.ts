@@ -45,7 +45,7 @@ const WINANSI_REPLACEMENTS = new Map<string, string>([
   ['\u2260', '!='],
   ['\u266d', 'b'],
   ['\u266f', '#'],
-  // Latin letters that do NOT decompose under NFKD, so the normalisation pass below cannot save
+  // Latin letters that do NOT decompose under NFKD, so the normalization pass below cannot save
   // them. Polish and Croatian names are the realistic case.
   ['\u0142', 'l'],
   ['\u0141', 'L'],
@@ -77,7 +77,7 @@ function isWinAnsiEncodable(ch: string): boolean {
  *  all rather than a file with an odd-looking character in it.
  *
  *  Three passes, cheapest first: a small map of characters with an obvious ASCII reading; NFKD
- *  normalisation, which splits an accented letter into a base letter plus a combining mark so
+ *  normalization, which splits an accented letter into a base letter plus a combining mark so
  *  "Dvořák" degrades to "Dvorak" rather than "Dvo?ak"; then '?' for anything still unencodable. */
 export function sanitizeForWinAnsi(text: string): string {
   if (!text) return text

@@ -175,7 +175,7 @@ export default function SetupEditorPane({
 
   // Separate from the load effect above: re-runs whenever facultyReserveEnabled changes (not
   // just on studio/setup switch), so toggling the Setup Settings checkbox reflects in the "Add
-  // from Catalogue" dropdowns immediately — no save required first. Gated on setupLoaded so a
+  // from Catalog" dropdowns immediately — no save required first. Gated on setupLoaded so a
   // setup open triggers exactly one catalog load, with the real persisted faculty flag —
   // previously it double-loaded (once with the store default, again when the setup resolved).
   useEffect(() => {
