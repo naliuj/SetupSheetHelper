@@ -11,6 +11,21 @@ import { getOutboardByIds } from '../db/repositories/outboardRepo'
 import { getPreampsByIds } from '../db/repositories/preampRepo'
 import { resolveMicText, resolveOutboardSlotText, resolvePreampText } from '../db/resolveGearLabels'
 import { COLUMN_LABELS, orderedVisibleColumns } from '@shared/constants/setupColumns'
+import { isHexColor } from '@shared/constants/swatches'
+import { layoutPixelsToPoints } from '@shared/constants/roomLayout'
+import { pngSize } from './pngSize'
+
+/** OOXML measures a drawing's extent in EMU, and exceljs's `ext` is in the 96-dpi "pixel" it
+ *  multiplies by 9525 to get there. An app convention it is not — which is why it lives here
+ *  rather than in roomLayout.ts with the layout px/pt relationship. */
+const OOXML_IMAGE_DPI = 96
+
+/** Capture pixels -> the on-sheet size that prints at the layout's true physical dimensions.
+ *  Composed rather than reduced to its current constant (a divide by 3) so it tracks if either
+ *  layout constant ever moves. */
+function layoutPixelsToSheetPixels(px: number): number {
+  return layoutPixelsToPoints(px) * (OOXML_IMAGE_DPI / 72)
+}
 
 /** One spreadsheet column, keyed the same way SetupColumnKey is (plus 'sourceName', which is
  *  always shown and isn't itself a toggleable key). Order and visibility both come from the setup
@@ -41,6 +56,19 @@ const BASE_WIDTHS: Record<string, number> = {
 function sanitizeSheetName(name: string): string {
   const cleaned = (name || 'Setup').replace(/[:\\/?*[\]]/g, '').trim() || 'Setup'
   return cleaned.slice(0, 31)
+}
+
+/** Excel sheet names must be unique, case-insensitively, and exceljs will happily write a
+ *  duplicate that Excel then refuses to open. Reachable without contrivance: a setup actually
+ *  named "Room layout". */
+function uniqueSheetName(workbook: ExcelJS.Workbook, desired: string): string {
+  const taken = new Set(workbook.worksheets.map((ws) => ws.name.toLowerCase()))
+  if (!taken.has(desired.toLowerCase())) return desired
+  for (let n = 2; ; n++) {
+    const suffix = ` (${n})`
+    const candidate = desired.slice(0, 31 - suffix.length) + suffix
+    if (!taken.has(candidate.toLowerCase())) return candidate
+  }
 }
 
 /** App-stored row color is plain `#rrggbb` (6 hex digits, no alpha); exceljs wants 8-hex
@@ -96,7 +124,7 @@ export async function exportSetupSpreadsheet(input: ExportSetupSpreadsheetInput)
   const workbook = new ExcelJS.Workbook()
   workbook.creator = 'Setup Sheet Helper'
   workbook.title = setup.name
-  const worksheet = workbook.addWorksheet(sanitizeSheetName(setup.name))
+  const worksheet = workbook.addWorksheet(uniqueSheetName(workbook, sanitizeSheetName(setup.name)))
   worksheet.columns = columns.map((c) => ({ header: c.header, key: c.key, width: c.width }))
   worksheet.getRow(1).font = { bold: true }
   worksheet.views = [{ state: 'frozen', ySplit: 1 }]
@@ -121,11 +149,37 @@ export async function exportSetupSpreadsheet(input: ExportSetupSpreadsheetInput)
     if (shownColumns.has('notes')) values.notes = item.notes ?? ''
 
     const row = worksheet.addRow(values)
-    if (item.color) {
+    // Validated, not merely truthy: an imported .json can carry anything, and an unparseable value
+    // used to land in xl/styles.xml as rgb="FFNOT-A-COLOR" — schema-invalid, tolerated by
+    // LibreOffice, a repair prompt in Excel.
+    if (isHexColor(item.color)) {
       const argb = hexToArgb(item.color)
       row.eachCell({ includeEmpty: true }, (cell) => {
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb } }
       })
+    }
+  }
+
+  // Second sheet, after the data: a workbook opens on sheet 1, and the sheet is the document —
+  // the PDF appends its layout page for the same reason. Guarded rather than trusted, so a
+  // malformed capture costs the picture rather than the whole export.
+  if (input.layoutImageDataUrl) {
+    try {
+      const bytes = Buffer.from(input.layoutImageDataUrl.replace(/^data:image\/png;base64,/, ''), 'base64')
+      const { width, height } = pngSize(bytes)
+      const layoutSheet = workbook.addWorksheet(uniqueSheetName(workbook, 'Room layout'), {
+        // It is a figure, not a table; gridlines behind it just read as noise.
+        views: [{ showGridLines: false }]
+      })
+      const imageId = workbook.addImage({ base64: bytes.toString('base64'), extension: 'png' })
+      layoutSheet.addImage(imageId, {
+        tl: { col: 0, row: 0 },
+        ext: { width: layoutPixelsToSheetPixels(width), height: layoutPixelsToSheetPixels(height) },
+        // Anchored absolutely so resizing a column cannot stretch the floor plan out of scale.
+        editAs: 'absolute'
+      })
+    } catch (err) {
+      console.error('[spreadsheet] skipping the room layout sheet:', err)
     }
   }
 

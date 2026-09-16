@@ -25,6 +25,7 @@ import { getSetting } from '../db/repositories/settingsRepo'
 import { resolveMicText, resolveOutboardSlotText, resolvePreampText } from '../db/resolveGearLabels'
 import { fitColumns, sanitizeForWinAnsi, wrapText, type ColumnSpec } from './pdfLayout'
 import { orderedVisibleColumns } from '@shared/constants/setupColumns'
+import { isHexColor } from '@shared/constants/swatches'
 import { layoutPixelsToPoints } from '@shared/constants/roomLayout'
 
 /** Short alias for sanitizeForWinAnsi — applied to every user-supplied string before it is
@@ -83,15 +84,6 @@ function findTieLineConflicts(items: { tieLine: number | null }[]): Set<number> 
     counts.set(item.tieLine, (counts.get(item.tieLine) ?? 0) + 1)
   }
   return new Set([...counts.entries()].filter(([, count]) => count > 1).map(([tieLine]) => tieLine))
-}
-
-/** #rgb / #rrggbb only — the same shape parsePdfAccentColor already enforces for the accent.
- *  A row's color normally comes from the app's own swatch picker, but exportImport.ts passes
- *  item.color straight through from an imported .json, so it is untrusted. Anything else reached
- *  hexToComponents as NaN and pdf-lib's rgb() THROWS on NaN — aborting the whole export with no
- *  file written, the same failure mode as an unencodable character (see sanitizeForWinAnsi). */
-function isHexColor(hex: string | null | undefined): hex is string {
-  return !!hex && /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(hex)
 }
 
 /** `line` with a trailing ellipsis, shortened character by character until it fits `width`.

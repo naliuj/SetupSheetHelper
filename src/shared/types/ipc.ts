@@ -510,6 +510,9 @@ export interface ExportSetupPdfResult {
 
 export interface ExportSetupSpreadsheetInput {
   setupId: number
+  /** Flattened room-layout PNG, from captureLayoutImage in the renderer — the same capture the PDF
+   *  export uses. Null/absent writes the data sheet alone. */
+  layoutImageDataUrl?: string | null
   /** The exact columns to write, resolved by the renderer's export chips (Source name is implied
    *  and always leftmost; 'outboard' expands to one column per slot). Omitted by stale callers,
    *  which fall back to the setup's own visible columns. */

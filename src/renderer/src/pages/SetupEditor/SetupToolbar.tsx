@@ -10,10 +10,9 @@ import { useKeybindPrefsStore } from '@renderer/state/keybindPrefsStore'
 import { useNavigationStore, type EditorMode } from '@renderer/state/navigationStore'
 import { useLayoutWindowStore } from '@renderer/state/layoutWindowStore'
 import Icon from '@renderer/components/Icon'
-import { exportStageToDataUrl } from './canvas/konvaExport'
 import SaveAsTemplateModal from './SaveAsTemplateModal'
 import ExportOptionsModal, { type ExportOptions } from './ExportOptionsModal'
-import { LAYOUT_EXPORT_PIXEL_RATIO } from '@shared/constants/roomLayout'
+import { captureLayoutImage, type LayoutCaptureResult } from './captureLayoutImage'
 import SpreadsheetExportModal from './SpreadsheetExportModal'
 import type { SetupColumnKey } from '@shared/constants/setupColumns'
 import RequireLayoutFileModal from './RequireLayoutFileModal'
@@ -83,6 +82,10 @@ export default function SetupToolbar({
   const [defaultExportInclude, setDefaultExportInclude] = useState<PdfExportInclude>('both')
   const [defaultExportColoredRows, setDefaultExportColoredRows] = useState(false)
   const [exportHasLayout, setExportHasLayout] = useState(false)
+  // Remembered "Room layout" choice for the SPREADSHEET export specifically. Defaults off, so the
+  // existing Cmd+Shift+E -> Enter flow produces byte-identical output for anyone who never touches
+  // the toggle; the choice is then remembered, matching defaultPdfExportColoredRows.
+  const [defaultSpreadsheetLayout, setDefaultSpreadsheetLayout] = useState(false)
   const [layoutGateOpen, setLayoutGateOpen] = useState(false)
   // Which action the "no room layout yet" gate should complete once the user picks/commits a
   // file — toggling Layout Mode locally, or opening it in the standalone window. Set right before
@@ -168,35 +171,19 @@ export default function SetupToolbar({
       const currentSetupId = setupStoreApi.getState().setupId
       if (!currentSetupId) return
 
-      // Skip flattening the canvas entirely for a sheet-only export — no need to pay for it.
-      // The layout stage now stays mounted (just visually hidden) even in Table Mode, so
-      // capturing it no longer requires switching modes first — but it can still be genuinely
-      // empty if there's no effective room layout (this setup's own override, or the studio's
-      // shared file) at all, which is what actually needs checking here (stageRef.current itself
-      // is basically always populated now) UNLESS this setup's layout is popped out into its own
-      // window, in which case there's no local stage at all — see the relay fallback below.
+      // Skipped entirely for a sheet-only export — no need to pay for flattening the canvas.
       let dataUrl: string | null = null
       let layoutUnreachable = false
       if (include !== 'sheet') {
-        const layout = studioId ? await window.api.layoutFile.getEffectiveForSetup(currentSetupId, studioId) : null
-        if (layout) {
-          if (stageRef.current) {
-            layoutStoreApi.getState().selectBlock(null)
-            // let the deselect re-render (hides the resize/rotate handles) before flattening the stage
-            await new Promise((resolve) => setTimeout(resolve, 30))
-            dataUrl = exportStageToDataUrl(stageRef.current, LAYOUT_EXPORT_PIXEL_RATIO, !coloredRows)
-          } else {
-            // Popped out: ask the standalone Layout window to render its own live stage and send
-            // back the PNG (see main/layoutWindow.ts's requestExportImage relay). Null means it
-            // didn't respond in time (closed mid-request, or hung) rather than "no layout exists".
-            dataUrl = await window.api.layoutWindow.requestExportImage(
-              currentSetupId,
-              LAYOUT_EXPORT_PIXEL_RATIO,
-              !coloredRows
-            )
-            layoutUnreachable = !dataUrl
-          }
-        }
+        const capture = await captureLayoutImage({
+          setupId: currentSetupId,
+          studioId,
+          stage: stageRef.current,
+          monochrome: !coloredRows,
+          deselect: () => layoutStoreApi.getState().selectBlock(null)
+        })
+        if (capture.status === 'ok') dataUrl = capture.dataUrl
+        layoutUnreachable = capture.status === 'unreachable'
       }
 
       if (include === 'layout' && !dataUrl) {
@@ -238,14 +225,22 @@ export default function SetupToolbar({
   // The spreadsheet's only per-export decision is which columns go in the file, so it gets its
   // own small dialog (SpreadsheetExportModal) rather than PDF export's full options modal —
   // Export is autofocused there so Cmd/Ctrl+Shift+E → Enter stays a two-keystroke export.
-  function handleExportSpreadsheet(): void {
+  async function handleExportSpreadsheet(): Promise<void> {
     setExportMessage(null)
+    const setupId = setupStoreApi.getState().setupId
+    if (!setupId) return
+    const [remembered, effective] = await Promise.all([
+      window.api.settings.get(APP_SETTINGS_KEYS.defaultSpreadsheetExportLayout),
+      studioId ? window.api.layoutFile.getEffectiveForSetup(setupId, studioId) : Promise.resolve(null)
+    ])
+    setDefaultSpreadsheetLayout(remembered === '1')
+    setExportHasLayout(!!effective)
     setSpreadsheetModalOpen(true)
   }
 
   // Runs once the dialog above resolves the column list. Shares the toolbar's
   // exporting/exportMessage state with the PDF export.
-  async function performSpreadsheetExport(includeColumns: SetupColumnKey[]): Promise<void> {
+  async function performSpreadsheetExport(includeColumns: SetupColumnKey[], includeLayout: boolean): Promise<void> {
     setExporting(true)
     setExportMessage(null)
     try {
@@ -253,8 +248,42 @@ export default function SetupToolbar({
       await layoutStoreApi.getState().save()
       const currentSetupId = setupStoreApi.getState().setupId
       if (!currentSetupId) return
-      const result = await window.api.exportSpreadsheet.exportSetup({ setupId: currentSetupId, includeColumns })
-      if (!result.canceled) setExportMessage(`Exported to ${result.filePath}`)
+
+      // Deliberately NOT the PDF's abort-on-failure. A PDF can be layout-only, so a failed capture
+      // there means there is nothing to write at all. The spreadsheet always has its data sheet,
+      // so throwing away a good export over an optional extra sheet would be the wrong trade —
+      // skip the sheet, finish the export, and say so.
+      let capture: LayoutCaptureResult = { status: 'none' }
+      if (includeLayout) {
+        capture = await captureLayoutImage({
+          setupId: currentSetupId,
+          studioId,
+          stage: stageRef.current,
+          monochrome: false,
+          deselect: () => layoutStoreApi.getState().selectBlock(null)
+        })
+      }
+
+      const result = await window.api.exportSpreadsheet.exportSetup({
+        setupId: currentSetupId,
+        includeColumns,
+        layoutImageDataUrl: capture.status === 'ok' ? capture.dataUrl : null
+      })
+      if (!result.canceled) {
+        await window.api.settings.set(
+          APP_SETTINGS_KEYS.defaultSpreadsheetExportLayout,
+          includeLayout ? '1' : '0'
+        )
+        if (includeLayout && capture.status === 'unreachable') {
+          setExportMessage(
+            `Exported to ${result.filePath} — the room layout sheet was skipped (couldn't reach the Layout window).`
+          )
+        } else if (includeLayout && capture.status === 'none') {
+          setExportMessage(`Exported to ${result.filePath} — this setup has no room layout, so that sheet was skipped.`)
+        } else {
+          setExportMessage(`Exported to ${result.filePath}`)
+        }
+      }
     } catch (err) {
       setExportMessage(`Export failed — ${err instanceof Error ? err.message : 'please try again.'}`)
     } finally {
@@ -652,6 +681,8 @@ export default function SetupToolbar({
       )}
       {spreadsheetModalOpen && (
         <SpreadsheetExportModal
+          hasLayout={exportHasLayout}
+          defaultIncludeLayout={defaultSpreadsheetLayout}
           onClose={() => setSpreadsheetModalOpen(false)}
           onExport={performSpreadsheetExport}
         />
