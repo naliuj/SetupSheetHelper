@@ -369,5 +369,20 @@ export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
       'Your data is backed up before an update changes the database, and the app explains itself instead of going blank if something does go wrong.',
       'The app icon is now properly rounded on the Dock.'
     ]
+  },
+  {
+    version: '1.17.0',
+    date: '2026-09-16',
+    highlights: [
+      "Fixed PDF export failing completely and writing no file at all. Duplicating a row that had a tie line was enough to break it every time, and so were an arrow or emoji pasted into a note, an accented name in the Engineer or Artist field, and a row colour from an imported setup. There was no message \u2014 the save dialog simply never appeared.",
+      'Long session notes no longer blank out the first page of the PDF. Past the bottom of the page they were still being written, invisibly, and took the table\u2019s column headers down with them. Notes now carry onto the next page, the setup name and the Engineer and Artist fields wrap instead of running off the edge, and a row too tall for a page is trimmed with an ellipsis rather than drawn off the bottom where nothing could show it.',
+      'Fixed the PDF\u2019s room layout page coming out at the wrong size \u2014 up to 44 by 34 inches \u2014 for a setup with its own floor plan inside a studio that has none. The table also no longer ends with an empty ruled row underneath the last one.',
+      'Appearance is now Light, Dark, or Follow OS, in Settings. A pop-out Layout window follows a change straight away instead of staying on the theme it started with, and light mode no longer flashes dark for a moment while the app opens.',
+      'Light mode is properly readable. Coloured rows were painted at full strength with dark text on top, so any of the darker swatches came out close to black on black, taking the drag handle, warnings and row dividers with it. Buttons, cards and dropdowns had no separation from the page behind them, and a room layout with nothing on it was invisible against its own canvas.',
+      'The spreadsheet export now includes the room layout, on its own sheet after the setup. An imported setup with an unrecognised row colour could also make Excel offer to repair the file.',
+      'Linked stereo pairs are marked with a curly brace on an uncoloured strip down the left, so it reads the same on every row colour and matches what prints in the PDF.',
+      'Long studio, setup, folder and preset names stay inside their cards, rows, menus and sidebars instead of running past the edge or being cut off mid-word, and hovering one shows it in full. A long "Exported to \u2026" path no longer pushes Setup settings, Layout Mode and Split View off the toolbar.',
+      'A Layout Mode block label typed as a single long word now shrinks to fit its block instead of being clipped at full size.'
+    ]
   }
 ]
