@@ -43,6 +43,7 @@ import { run as exportColumnOverrides } from './036_export_column_overrides'
 import { run as berkleePreamps } from './037_berklee_preamps'
 import { run as standardizeGearNames } from './038_standardize_gear_names'
 import { run as themePreferenceBackfill } from './039_theme_preference_backfill'
+import { run as studio2Cmc6Mk4Quantity } from './040_studio2_cmc6_mk4_quantity'
 
 import type { MigrationContext } from '../migrate'
 
@@ -97,5 +98,6 @@ export const MIGRATIONS: Migration[] = [
   { version: 36, run: exportColumnOverrides },
   { version: 37, run: berkleePreamps },
   { version: 38, run: standardizeGearNames },
-  { version: 39, run: themePreferenceBackfill }
+  { version: 39, run: themePreferenceBackfill },
+  { version: 40, run: studio2Cmc6Mk4Quantity }
 ]
