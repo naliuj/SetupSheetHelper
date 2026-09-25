@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import { staggeredPosition } from '@shared/utils/staggeredGrid'
-import { readableTextColor } from '@shared/constants/swatches'
+import { resolveLabelColor } from '@shared/constants/swatches'
 import { useLayoutStoreState } from '@renderer/state/layoutStoreContext'
 import { usePaletteStore } from '@renderer/state/paletteStore'
 import { groupByCategory } from '@renderer/state/paletteGrouping'
@@ -34,9 +34,14 @@ export default function InstrumentPalette(): JSX.Element {
     })
   }
 
-  function handleCustomBlockConfirm(title: string, color: string, personName: string | null): void {
+  function handleCustomBlockConfirm(
+    title: string,
+    color: string,
+    personName: string | null,
+    labelColor: string | null
+  ): void {
     const { x, y } = staggeredPosition(blocks.length)
-    addBlock(title, 'rect', color, x, y, undefined, undefined, personName)
+    addBlock({ label: title, shape: 'rect', color, x, y, personName, labelColor })
   }
 
   return (
@@ -91,7 +96,8 @@ export default function InstrumentPalette(): JSX.Element {
                         shape: item.shape,
                         color: item.color,
                         defaultWidth: item.defaultWidth,
-                        defaultHeight: item.defaultHeight
+                        defaultHeight: item.defaultHeight,
+                        labelColor: item.labelColor
                       })
                     )
                   }
@@ -100,7 +106,7 @@ export default function InstrumentPalette(): JSX.Element {
                     marginBottom: 4,
                     cursor: 'grab',
                     background: item.color,
-                    color: readableTextColor(item.color),
+                    color: resolveLabelColor(item.color, item.labelColor),
                     padding: '5px 8px',
                     fontSize: 12
                   }}

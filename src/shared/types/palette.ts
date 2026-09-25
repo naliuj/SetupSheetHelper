@@ -13,4 +13,7 @@ export interface PaletteItem {
    *  a non-square size (e.g. the gobo, a long thin bar). */
   defaultWidth: number | null
   defaultHeight: number | null
+  /** Default label text color, copied onto a block when it is dropped from the palette. null =
+   *  Auto. Like the rest of the item it is a starting point: the placed block keeps no link back. */
+  labelColor: string | null
 }

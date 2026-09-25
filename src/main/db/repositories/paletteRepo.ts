@@ -14,6 +14,7 @@ interface PaletteItemRow {
   sort_order: number
   default_width: number | null
   default_height: number | null
+  label_color: string | null
 }
 
 function mapRow(row: PaletteItemRow): PaletteItem {
@@ -28,7 +29,8 @@ function mapRow(row: PaletteItemRow): PaletteItem {
     isHidden: row.is_hidden === 1,
     sortOrder: row.sort_order,
     defaultWidth: row.default_width,
-    defaultHeight: row.default_height
+    defaultHeight: row.default_height,
+    labelColor: row.label_color
   }
 }
 
@@ -52,33 +54,37 @@ export function createCustomPaletteItem(input: {
   shape: 'rect' | 'circle'
   color: string
   category: string
+  labelColor?: string | null
 }): PaletteItem {
   const db = getDb()
   const maxSortOrder = (db.prepare('SELECT MAX(sort_order) as m FROM palette_items').get() as { m: number | null }).m
   const info = db
     .prepare(
-      `INSERT INTO palette_items (instrument_key, label, shape, color, category, is_builtin, sort_order)
-       VALUES (NULL, ?, ?, ?, ?, 0, ?)`
+      `INSERT INTO palette_items (instrument_key, label, shape, color, category, is_builtin, sort_order, label_color)
+       VALUES (NULL, ?, ?, ?, ?, 0, ?, ?)`
     )
-    .run(input.label, input.shape, input.color, input.category, (maxSortOrder ?? 0) + 1)
+    .run(input.label, input.shape, input.color, input.category, (maxSortOrder ?? 0) + 1, input.labelColor ?? null)
   const row = db.prepare('SELECT * FROM palette_items WHERE id = ?').get(info.lastInsertRowid) as PaletteItemRow
   return mapRow(row)
 }
 
 export function updatePaletteItem(
   id: number,
-  patch: Partial<Pick<PaletteItem, 'label' | 'shape' | 'color' | 'category' | 'isHidden'>>
+  patch: Partial<Pick<PaletteItem, 'label' | 'shape' | 'color' | 'category' | 'isHidden' | 'labelColor'>>
 ): PaletteItem {
   const db = getDb()
   const existing = db.prepare('SELECT * FROM palette_items WHERE id = ?').get(id) as PaletteItemRow
   db.prepare(
-    'UPDATE palette_items SET label = ?, shape = ?, color = ?, category = ?, is_hidden = ? WHERE id = ?'
+    'UPDATE palette_items SET label = ?, shape = ?, color = ?, category = ?, is_hidden = ?, label_color = ? WHERE id = ?'
   ).run(
     patch.label ?? existing.label,
     patch.shape ?? existing.shape,
     patch.color ?? existing.color,
     patch.category ?? existing.category,
     patch.isHidden != null ? (patch.isHidden ? 1 : 0) : existing.is_hidden,
+    // NOT `??` like the fields above: null is a real value here (reset to Auto), and `??` would
+    // read it as "no change" and keep the old color. Only an absent key means leave it alone.
+    patch.labelColor !== undefined ? patch.labelColor : existing.label_color,
     id
   )
   const row = db.prepare('SELECT * FROM palette_items WHERE id = ?').get(id) as PaletteItemRow
@@ -137,6 +143,7 @@ export function resetPaletteToDefaults(): PaletteItem[] {
   )
   const reset = db.transaction(() => {
     db.prepare('DELETE FROM palette_items').run()
+    // label_color is left out of the INSERT, so every re-seeded item comes back as Auto.
     DEFAULT_PALETTE_ITEMS.forEach((item, index) => insert.run({ ...item, sortOrder: index }))
   })
   reset()

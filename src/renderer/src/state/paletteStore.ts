@@ -7,10 +7,16 @@ interface PaletteState {
 
   load(): Promise<void>
   loadAll(): Promise<void>
-  addCustom(label: string, shape: 'rect' | 'circle', color: string, category: string): Promise<void>
+  addCustom(
+    label: string,
+    shape: 'rect' | 'circle',
+    color: string,
+    category: string,
+    labelColor?: string | null
+  ): Promise<void>
   update(
     id: number,
-    patch: Partial<Pick<PaletteItem, 'label' | 'shape' | 'color' | 'category' | 'isHidden'>>
+    patch: Partial<Pick<PaletteItem, 'label' | 'shape' | 'color' | 'category' | 'isHidden' | 'labelColor'>>
   ): Promise<void>
   removeCustom(id: number): Promise<void>
   reorder(ids: number[]): Promise<void>
@@ -50,8 +56,8 @@ export const usePaletteStore = create<PaletteState>((set, get) => ({
     await get().loadAll()
   },
 
-  addCustom: async (label, shape, color, category) => {
-    await window.api.palette.createCustom({ label, shape, color, category })
+  addCustom: async (label, shape, color, category, labelColor = null) => {
+    await window.api.palette.createCustom({ label, shape, color, category, labelColor })
     await get().load()
     await get().loadAll()
   },

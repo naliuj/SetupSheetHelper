@@ -45,6 +45,7 @@ import { run as standardizeGearNames } from './038_standardize_gear_names'
 import { run as themePreferenceBackfill } from './039_theme_preference_backfill'
 import { run as studio2Cmc6Mk4Quantity } from './040_studio2_cmc6_mk4_quantity'
 import { run as studio3Cmc6Mk4Name } from './041_studio3_cmc6_mk4_name'
+import { run as blockLabelColor } from './042_block_label_color'
 
 import type { MigrationContext } from '../migrate'
 
@@ -101,5 +102,6 @@ export const MIGRATIONS: Migration[] = [
   { version: 38, run: standardizeGearNames },
   { version: 39, run: themePreferenceBackfill },
   { version: 40, run: studio2Cmc6Mk4Quantity },
-  { version: 41, run: studio3Cmc6Mk4Name }
+  { version: 41, run: studio3Cmc6Mk4Name },
+  { version: 42, run: blockLabelColor }
 ]

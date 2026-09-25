@@ -296,6 +296,7 @@ export interface PaletteItemCreateInput {
   shape: 'rect' | 'circle'
   color: string
   category: string
+  labelColor?: string | null
 }
 
 export interface PaletteItemUpdateInput {
@@ -304,6 +305,8 @@ export interface PaletteItemUpdateInput {
   color?: string
   category?: string
   isHidden?: boolean
+  /** null resets to Auto; leave it out to keep the current value. */
+  labelColor?: string | null
 }
 
 export interface SetupItemInput {
@@ -345,6 +348,7 @@ export interface RoomLayoutBlockInput {
   rotation: number
   zIndex: number
   personName: string | null
+  labelColor: string | null
 }
 
 export interface ExportedStudioGear {

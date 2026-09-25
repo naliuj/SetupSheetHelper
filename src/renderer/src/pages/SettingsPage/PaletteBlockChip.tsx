@@ -1,4 +1,4 @@
-import { readableTextColor } from '@shared/constants/swatches'
+import { resolveLabelColor } from '@shared/constants/swatches'
 
 // The preview box a rect chip is fit within. A plain rect (no custom default size) renders as a
 // square; one with a default size (e.g. the gobo, 120x20) is scaled to that aspect ratio so it
@@ -14,13 +14,16 @@ export default function PaletteBlockChip({
   shape,
   color,
   defaultWidth,
-  defaultHeight
+  defaultHeight,
+  labelColor
 }: {
   label: string
   shape: 'rect' | 'circle'
   color: string
   defaultWidth?: number | null
   defaultHeight?: number | null
+  /** The item's default text color; null/absent = Auto, as on the canvas. */
+  labelColor?: string | null
 }): JSX.Element {
   const common: React.CSSProperties = {
     display: 'flex',
@@ -30,7 +33,7 @@ export default function PaletteBlockChip({
     lineHeight: 1.1,
     fontSize: 10,
     fontWeight: 700,
-    color: readableTextColor(color),
+    color: resolveLabelColor(color, labelColor),
     background: color,
     boxShadow: '0 1px 2px var(--color-shadow)',
     flexShrink: 0,

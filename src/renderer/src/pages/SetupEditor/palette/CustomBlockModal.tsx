@@ -1,17 +1,20 @@
 import { useState } from 'react'
 import { useEscapeToClose } from '@renderer/hooks/useEscapeToClose'
-import { DEFAULT_SWATCH } from '@shared/constants/swatches'
+import { DEFAULT_SWATCH, labelShadowFor, resolveLabelColor } from '@shared/constants/swatches'
 import SwatchPicker from '@renderer/components/SwatchPicker'
+import TextColorPicker from '@renderer/components/TextColorPicker'
 
 interface Props {
   initialTitle?: string
   initialColor?: string
   initialPersonName?: string | null
+  /** The block's label color, or null/absent for Auto. */
+  initialLabelColor?: string | null
   heading?: string
   description?: string | null
   confirmLabel?: string
   onClose: () => void
-  onConfirm: (title: string, color: string, personName: string | null) => void
+  onConfirm: (title: string, color: string, personName: string | null, labelColor: string | null) => void
 }
 
 const DEFAULT_COLOR = DEFAULT_SWATCH
@@ -25,6 +28,7 @@ export default function CustomBlockModal({
   initialTitle = '',
   initialColor = DEFAULT_COLOR,
   initialPersonName = '',
+  initialLabelColor = null,
   heading = 'Add custom block',
   description = 'Placed directly on the layout — not added to the sidebar.',
   confirmLabel = 'Add block',
@@ -35,10 +39,12 @@ export default function CustomBlockModal({
   const [title, setTitle] = useState(initialTitle)
   const [color, setColor] = useState(initialColor)
   const [personName, setPersonName] = useState(initialPersonName ?? '')
+  const [labelColor, setLabelColor] = useState<string | null>(initialLabelColor ?? null)
+  const previewText = resolveLabelColor(color, labelColor)
 
   function handleConfirm(): void {
     if (!title.trim()) return
-    onConfirm(title.trim(), color, personName.trim() || null)
+    onConfirm(title.trim(), color, personName.trim() || null, labelColor)
     onClose()
   }
 
@@ -60,9 +66,31 @@ export default function CustomBlockModal({
           autoFocus
           onFocus={(e) => e.target.select()}
         />
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
           Color
           <SwatchPicker value={color} onChange={(c) => setColor(c ?? DEFAULT_COLOR)} />
+          <span style={{ marginLeft: 8 }}>Text color</span>
+          <TextColorPicker value={labelColor} onChange={setLabelColor} />
+          {/* The block as it will look, since the text color only makes sense against the fill. */}
+          <span
+            aria-hidden="true"
+            style={{
+              marginLeft: 'auto',
+              maxWidth: 110,
+              padding: '3px 8px',
+              borderRadius: 'var(--radius)',
+              background: color,
+              color: previewText,
+              textShadow: `0 0 2px ${labelShadowFor(previewText)}`,
+              fontSize: 12,
+              fontWeight: 600,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            {title.trim() || 'Preview'}
+          </span>
         </div>
         <label className="card-sub" style={{ display: 'block', marginBottom: 4 }}>
           Musician name (optional)

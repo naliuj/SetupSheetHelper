@@ -38,6 +38,8 @@ interface PaletteDragPayload {
   /** Optional default placed size from the palette item (null/absent → addBlock's square default). */
   defaultWidth?: number | null
   defaultHeight?: number | null
+  /** The palette item's default label color, copied onto the new block. null/absent → Auto. */
+  labelColor?: string | null
 }
 
 const ZOOM_STEP = 1.05
@@ -54,8 +56,7 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
   const blocks = useLayoutStoreState((s) => s.blocks)
   const addBlock = useLayoutStoreState((s) => s.addBlock)
   const updateBlockTransform = useLayoutStoreState((s) => s.updateBlockTransform)
-  const renameBlock = useLayoutStoreState((s) => s.renameBlock)
-  const updateBlockColor = useLayoutStoreState((s) => s.updateBlockColor)
+  const updateBlock = useLayoutStoreState((s) => s.updateBlock)
   const removeBlocks = useLayoutStoreState((s) => s.removeBlocks)
   const duplicateBlocks = useLayoutStoreState((s) => s.duplicateBlocks)
   const moveBlocksBy = useLayoutStoreState((s) => s.moveBlocksBy)
@@ -364,15 +365,16 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
 
       const pos = toCanvasCoords(e.clientX, e.clientY)
       if (!pos) return
-      addBlock(
-        payload.label,
-        payload.shape,
-        payload.color,
-        pos.x,
-        pos.y,
-        payload.defaultWidth ?? undefined,
-        payload.defaultHeight ?? undefined
-      )
+      addBlock({
+        label: payload.label,
+        shape: payload.shape,
+        color: payload.color,
+        x: pos.x,
+        y: pos.y,
+        width: payload.defaultWidth ?? undefined,
+        height: payload.defaultHeight ?? undefined,
+        labelColor: payload.labelColor ?? null
+      })
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [addBlock, stageRef]
@@ -679,21 +681,21 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
           initialTitle={editingBlock.label}
           initialColor={editingBlock.color}
           initialPersonName={editingBlock.personName}
+          initialLabelColor={editingBlock.labelColor}
           heading="Edit block"
           description={null}
           confirmLabel="Save"
           onClose={() => setEditingBlockId(null)}
-          onConfirm={(title, color, personName) => {
-            renameBlock(editingBlock.id, title, personName)
-            updateBlockColor(editingBlock.id, color)
-          }}
+          onConfirm={(title, color, personName, labelColor) =>
+            updateBlock(editingBlock.id, { label: title, color, personName, labelColor })
+          }
         />
       )}
       {addInstrumentAt && (
         <CustomBlockModal
           onClose={() => setAddInstrumentAt(null)}
-          onConfirm={(title, color, personName) =>
-            addBlock(title, 'rect', color, addInstrumentAt.x, addInstrumentAt.y, undefined, undefined, personName)
+          onConfirm={(title, color, personName, labelColor) =>
+            addBlock({ label: title, shape: 'rect', color, x: addInstrumentAt.x, y: addInstrumentAt.y, personName, labelColor })
           }
         />
       )}

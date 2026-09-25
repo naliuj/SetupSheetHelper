@@ -2,7 +2,7 @@ import { forwardRef } from 'react'
 import { Circle, Group, Rect, Text } from 'react-konva'
 import type Konva from 'konva'
 import type { RoomLayoutBlockDraft } from '@shared/types/setup'
-import { readableTextColor } from '@shared/constants/swatches'
+import { labelShadowFor, resolveLabelColor } from '@shared/constants/swatches'
 import { fitFontSize } from './textFit'
 
 interface Props {
@@ -48,8 +48,11 @@ const LayoutBlockIcon = forwardRef<Konva.Group, Props>(function LayoutBlockIcon(
   // "Chair" blocks), which is why a selection could look completely unmarked.
   const strokeColor = '#00a1ff'
   const strokeWidth = selected ? 3 : 0
-  const labelColor = readableTextColor(block.color)
-  const labelShadow = labelColor === '#ffffff' ? '#000000' : '#ffffff'
+  // The user's text color when one is set, otherwise black or white chosen from the fill. The
+  // shadow follows the text, not the fill: keying it off `=== '#ffffff'` only ever worked because
+  // the text could only be one of two colors.
+  const labelColor = resolveLabelColor(block.color, block.labelColor)
+  const labelShadow = labelShadowFor(labelColor)
   // Fit the label inside the shape's bounds — a circle's usable box is its inscribed square,
   // a rect's is itself minus a small margin.
   const isCircle = block.shape === 'circle'

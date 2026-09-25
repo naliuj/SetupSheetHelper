@@ -25,6 +25,23 @@ export const MAX_ZOOM = 4
 // menu zoom is a deliberate single action, not a continuous gesture.
 const KEYBOARD_ZOOM_STEP = 1.2
 
+/** What it takes to place a block. Only the identity and position are required; size falls back
+ *  to DEFAULT_SIZE, and the person name and label color to none/Auto. */
+export interface NewBlock {
+  label: string
+  shape: 'rect' | 'circle'
+  color: string
+  x: number
+  y: number
+  width?: number
+  height?: number
+  personName?: string | null
+  labelColor?: string | null
+}
+
+/** The fields the block Edit dialog can change. */
+export type BlockPatch = Partial<Pick<RoomLayoutBlockDraft, 'label' | 'color' | 'personName' | 'labelColor'>>
+
 interface LayoutState {
   blocks: RoomLayoutBlockDraft[]
   selectedBlockIds: Set<number | string>
@@ -58,22 +75,14 @@ interface LayoutState {
   layoutBackgroundVersion: number
 
   loadForSetup(setupId: number | null): Promise<void>
-  addBlock(
-    label: string,
-    shape: 'rect' | 'circle',
-    color: string,
-    x: number,
-    y: number,
-    width?: number,
-    height?: number,
-    personName?: string | null
-  ): string
+  addBlock(block: NewBlock): string
   updateBlockTransform(
     id: number | string,
     patch: Partial<Pick<RoomLayoutBlockDraft, 'x' | 'y' | 'width' | 'height' | 'rotation'>>
   ): void
-  renameBlock(id: number | string, label: string, personName?: string | null): void
-  updateBlockColor(id: number | string, color: string): void
+  /** Applies every edit from the block's Edit dialog in ONE state change, so one Edit is one
+   *  Undo step. The dialog used to call a rename and a recolor separately, which cost two. */
+  updateBlock(id: number | string, patch: BlockPatch): void
   duplicateBlocks(ids: (number | string)[]): void
   removeBlocks(ids: (number | string)[]): void
   moveBlocksBy(ids: (number | string)[], dx: number, dy: number): void
@@ -129,7 +138,7 @@ export function createLayoutStore(setupStoreApi: SetupStoreApi) {
         set({ blocks, selectedBlockIds: new Set(), zoomScale: 1, panX: 0, panY: 0, isDirty: false })
       },
 
-      addBlock: (label, shape, color, x, y, width = DEFAULT_SIZE, height = DEFAULT_SIZE, personName = null) => {
+      addBlock: ({ label, shape, color, x, y, width, height, personName, labelColor }) => {
         const id = newDraftId()
         const maxZ = get().blocks.reduce((max, b) => Math.max(max, b.zIndex), 0)
         const draft: RoomLayoutBlockDraft = {
@@ -139,11 +148,12 @@ export function createLayoutStore(setupStoreApi: SetupStoreApi) {
           color,
           x,
           y,
-          width,
-          height,
+          width: width ?? DEFAULT_SIZE,
+          height: height ?? DEFAULT_SIZE,
           rotation: 0,
           zIndex: maxZ + 1,
-          personName
+          personName: personName ?? null,
+          labelColor: labelColor ?? null
         }
         set({ blocks: [...get().blocks, draft], isDirty: true, selectedBlockIds: new Set([id]) })
         return id
@@ -155,17 +165,9 @@ export function createLayoutStore(setupStoreApi: SetupStoreApi) {
           isDirty: true
         })),
 
-      renameBlock: (id, label, personName) =>
+      updateBlock: (id, patch) =>
         set((state) => ({
-          blocks: state.blocks.map((b) =>
-            b.id === id ? { ...b, label, ...(personName !== undefined ? { personName } : {}) } : b
-          ),
-          isDirty: true
-        })),
-
-      updateBlockColor: (id, color) =>
-        set((state) => ({
-          blocks: state.blocks.map((b) => (b.id === id ? { ...b, color } : b)),
+          blocks: state.blocks.map((b) => (b.id === id ? { ...b, ...patch } : b)),
           isDirty: true
         })),
 

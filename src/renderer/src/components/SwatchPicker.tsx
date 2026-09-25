@@ -9,6 +9,12 @@ interface Props {
   /** Extra class on the trigger button (e.g. `palette-color` to match the old swatch sizing). */
   className?: string
   title?: string
+  /** Passed to SwatchGrid: the null button's text, and a row of swatches above the grid. */
+  noneLabel?: string
+  extraSwatches?: { hex: string; name: string }[]
+  /** What the trigger shows while the value is null. Defaults to a dash; when given, the trigger
+   *  widens enough to hold it in both states so it doesn't jump when a color is picked. */
+  emptyLabel?: string
 }
 
 /** Drop-in replacement for a native `<input type="color">`: a small swatch trigger that opens the
@@ -19,7 +25,16 @@ interface Props {
 const GAP = 4
 const EDGE = 8
 
-export default function SwatchPicker({ value, onChange, allowNone, className, title }: Props): JSX.Element {
+export default function SwatchPicker({
+  value,
+  onChange,
+  allowNone,
+  className,
+  title,
+  noneLabel,
+  extraSwatches,
+  emptyLabel
+}: Props): JSX.Element {
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 })
   const triggerRef = useRef<HTMLButtonElement>(null)
@@ -89,7 +104,7 @@ export default function SwatchPicker({ value, onChange, allowNone, className, ti
           className
             ? { background: value ?? 'transparent' }
             : {
-                width: 26,
+                width: emptyLabel ? 44 : 26,
                 height: 26,
                 padding: 0,
                 borderRadius: 'var(--radius)',
@@ -99,7 +114,7 @@ export default function SwatchPicker({ value, onChange, allowNone, className, ti
               }
         }
       >
-        {!value && <span style={{ fontSize: 11, color: 'var(--color-text-dim)' }}>—</span>}
+        {!value && <span style={{ fontSize: 11, color: 'var(--color-text-dim)' }}>{emptyLabel ?? '—'}</span>}
       </button>
       {open &&
         createPortal(
@@ -108,7 +123,13 @@ export default function SwatchPicker({ value, onChange, allowNone, className, ti
             className="picker-menu"
             style={{ position: 'fixed', top: pos.top, left: pos.left, padding: 8 }}
           >
-            <SwatchGrid value={value} onSelect={handleSelect} allowNone={allowNone} />
+            <SwatchGrid
+              value={value}
+              onSelect={handleSelect}
+              allowNone={allowNone}
+              noneLabel={noneLabel}
+              extraSwatches={extraSwatches}
+            />
           </div>,
           document.body
         )}

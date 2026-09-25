@@ -1,5 +1,5 @@
 import Konva from 'konva'
-import { COLOR_SWATCHES, readableTextColor } from '@shared/constants/swatches'
+import { COLOR_SWATCHES, labelShadowFor, readableTextColor } from '@shared/constants/swatches'
 import { LAYOUT_EXPORT_PIXEL_RATIO } from '@shared/constants/roomLayout'
 
 // Flat, uniform fill for every block in black-and-white export mode (not a per-block pastel of
@@ -44,8 +44,12 @@ export function exportStageToDataUrl(
     const labels = stage.find<Konva.Text>('.block-label')
     const prevShapeAttrs = shapes.map((s) => ({ fill: s.fill(), stroke: s.stroke(), strokeWidth: s.strokeWidth() }))
     const prevLabelAttrs = labels.map((l) => ({ fill: l.fill(), shadowColor: l.shadowColor() }))
+    // Every label is forced back to the readable automatic color here, INCLUDING ones the user
+    // gave a custom text color. Black and white turns every fill into the same light gray, so a
+    // label chosen to stand out against its own fill — white on a dark blue, say — would all but
+    // vanish on the gray. The custom color comes back in the finally below, as the fill does.
     const monoLabelColor = readableTextColor(MONOCHROME_BLOCK_FILL)
-    const monoLabelShadow = monoLabelColor === '#ffffff' ? '#000000' : '#ffffff'
+    const monoLabelShadow = labelShadowFor(monoLabelColor)
 
     try {
       if (bgImage) {
