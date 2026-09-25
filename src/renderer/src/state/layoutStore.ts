@@ -270,22 +270,32 @@ export function createLayoutStore(setupStoreApi: SetupStoreApi) {
         const state = get()
         set({ isSaving: true })
         try {
-          const { blocks: saved, idMap } = await window.api.roomLayoutBlocks.saveForSetup(
+          const { idMap } = await window.api.roomLayoutBlocks.saveForSetup(
             setupId,
             state.blocks.map((b) => ({ ...b }))
           )
-          // Only the pre-await snapshot was written. If the user changed anything while the IPC
-          // was in flight — a keyboard nudge, a rename, a recolor, a delete — adopting `saved`
-          // wholesale would both discard that edit from the database AND roll it back off the
-          // screen. In that case keep the live blocks and apply nothing but the id swap, and stay
-          // dirty so the next autosave tick writes them.
+          // A save must never create an undo step.
+          //
+          // It used to adopt the database's copy of the blocks wholesale, which is a NEW array on
+          // every save, and undo history dedupes on `past.blocks === current.blocks`. So each
+          // autosave recorded a step of its own: after any pause longer than the one-second
+          // autosave, the first Cmd+Z silently undid the save instead of the edit. It could never
+          // get further either, because undo marks the layout dirty, which saves, which records
+          // another step. The "Deleted N blocks" toast's Undo fell into the same hole: autosave
+          // always lands before the toast is clicked, so it undid the save, not the delete.
+          //
+          // So keep the live array. It already holds exactly what was written, plus anything
+          // changed while the IPC was in flight, which must not be clobbered either. The one
+          // thing a save can change is ids — a placed block's draft id, or a block that came back
+          // through Undo after its row was deleted — and those are swapped in place.
+          const remapId = <T extends number | string>(id: T): T | number => idMap[String(id)] ?? id
+          const hasRemap = Object.keys(idMap).length > 0
+          const remapBlocks = (blocks: RoomLayoutBlockDraft[]): RoomLayoutBlockDraft[] =>
+            blocks.map((b) => (idMap[String(b.id)] != null ? { ...b, id: idMap[String(b.id)] } : b))
+
           const currentBlocks = get().blocks
           const changedDuringSave = currentBlocks !== state.blocks
-          const nextBlocks = changedDuringSave
-            ? currentBlocks.map((b) =>
-                typeof b.id === 'string' && idMap[b.id] != null ? { ...b, id: idMap[b.id] } : b
-              )
-            : saved
+          const nextBlocks = hasRemap ? remapBlocks(currentBlocks) : currentBlocks
 
           // A just-dropped block is selected under its draft id. Saving replaces it with the row's
           // numeric id, and leaving the selection pointing at the draft left its Transformer
@@ -296,16 +306,35 @@ export function createLayoutStore(setupStoreApi: SetupStoreApi) {
           const nextIds = new Set<number | string>(nextBlocks.map((b) => b.id))
           const selectedBlockIds = new Set<number | string>()
           for (const id of get().selectedBlockIds) {
-            const mapped = typeof id === 'string' ? (idMap[id] ?? id) : id
+            const mapped = remapId(id)
             if (nextIds.has(mapped)) selectedBlockIds.add(mapped)
           }
-          set({
-            blocks: nextBlocks,
-            selectedBlockIds,
-            isDirty: changedDuringSave,
-            isSaving: false,
-            saveError: null
-          })
+
+          const temporal = store.temporal
+          if (hasRemap) {
+            // Rewrite the same swap into every snapshot, past and future. Otherwise undoing to a
+            // point before the save restores the old id for a block that is now a saved row, and
+            // the next save inserts it all over again under yet another id.
+            const remapSnapshot = (snap: Partial<LayoutState>): Partial<LayoutState> =>
+              snap.blocks ? { ...snap, blocks: remapBlocks(snap.blocks) } : snap
+            temporal.setState((t) => ({
+              pastStates: t.pastStates.map(remapSnapshot),
+              futureStates: t.futureStates.map(remapSnapshot)
+            }))
+          }
+          // Paused so the id swap itself is not recorded as a step.
+          temporal.getState().pause()
+          try {
+            set({
+              blocks: nextBlocks,
+              selectedBlockIds,
+              isDirty: changedDuringSave,
+              isSaving: false,
+              saveError: null
+            })
+          } finally {
+            temporal.getState().resume()
+          }
         } catch (err) {
           // See setupStore.save() — never rethrows, for the same reason.
           set({

@@ -80,9 +80,10 @@ export function copyBlocksToSetup(sourceSetupId: number, targetSetupId: number):
  *  incoming set is DELETEd). */
 export function replaceBlocksForSetup(setupId: number, blocks: RoomLayoutBlockInput[]): SaveLayoutBlocksResult {
   const db = getDb()
-  // Which client-side draft id each INSERT became. The returned block list is ordered by
-  // z_index/id rather than input order, so this is the only reliable way for the renderer to carry
-  // anything keyed by a draft id (the selection, above all) across the save.
+  // Which row id each INSERT became, keyed by the id the renderer sent. The returned block list is
+  // ordered by z_index/id rather than input order, so this is the only reliable way for the
+  // renderer to carry anything keyed by a block id (its selection and undo history) across the
+  // save.
   const idMap: Record<string, number> = {}
   const insert = db.prepare(
     `INSERT INTO room_layout_blocks (setup_id, label, shape, color, x, y, width, height, rotation, z_index, person_name, label_color)
@@ -129,7 +130,10 @@ export function replaceBlocksForSetup(setupId: number, blocks: RoomLayoutBlockIn
         const info = insert.run(params)
         const newId = Number(info.lastInsertRowid)
         keepIds.add(newId)
-        if (typeof block.id === 'string') idMap[block.id] = newId
+        // Every insert, not just drafts: a numeric id lands here too when its row no longer
+        // exists (the block came back through Undo after a delete), and the renderer must learn
+        // the new id or it keeps a dangling one and re-inserts the block on every save.
+        idMap[String(block.id)] = newId
       }
     }
 

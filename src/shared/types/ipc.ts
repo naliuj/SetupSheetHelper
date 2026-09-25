@@ -328,9 +328,13 @@ export interface SetupItemInput {
   groupId: string | null
 }
 
-/** What saving a layout hands back. `idMap` records which client-side draft id each newly
- *  inserted block received, so the renderer can carry selection (and anything else keyed by a
- *  draft id) across the save instead of pointing at an id that no longer exists. */
+/** What saving a layout hands back. `idMap` records the row id every INSERTED block received,
+ *  keyed by the id the renderer sent as a string, so the renderer can carry selection and its
+ *  undo history across the save instead of pointing at an id that no longer exists.
+ *
+ *  That covers two kinds of block. A client-side draft id (a block just placed), and a NUMERIC
+ *  id whose row is gone — which is what undoing a delete produces: the block comes back under
+ *  its old id, the save re-inserts it, and the row gets a new id. */
 export interface SaveLayoutBlocksResult {
   blocks: RoomLayoutBlock[]
   idMap: Record<string, number>
