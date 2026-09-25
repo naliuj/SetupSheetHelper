@@ -80,6 +80,9 @@ export interface RoomLayoutBlock {
   /** Optional musician/player name, so the canvas can double as a seating chart. Blank for
    *  ordinary gear blocks — purely additive, doesn't change rendering unless set. */
   personName: string | null
+  /** The label's text color. null = Auto: black or white, chosen from the fill. See
+   *  resolveLabelColor in swatches.ts. */
+  labelColor: string | null
 }
 
 export interface Setup {

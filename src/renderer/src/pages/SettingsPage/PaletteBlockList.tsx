@@ -6,6 +6,7 @@ import { GripVertical } from 'lucide-react'
 import type { PaletteItem } from '@shared/types/palette'
 import { DEFAULT_SWATCH } from '@shared/constants/swatches'
 import SwatchPicker from '@renderer/components/SwatchPicker'
+import TextColorPicker from '@renderer/components/TextColorPicker'
 import PaletteBlockChip from './PaletteBlockChip'
 
 interface Props {
@@ -16,8 +17,8 @@ interface Props {
   /** Every other category name, for the per-block "Move to…" menu. */
   otherCategories: string[]
   onReorder(orderedIds: number[]): void
-  onAddBlock(label: string, shape: 'rect' | 'circle', color: string): void
-  onUpdate(id: number, patch: Partial<Pick<PaletteItem, 'label' | 'shape' | 'color'>>): void
+  onAddBlock(label: string, shape: 'rect' | 'circle', color: string, labelColor: string | null): void
+  onUpdate(id: number, patch: Partial<Pick<PaletteItem, 'label' | 'shape' | 'color' | 'labelColor'>>): void
   onRemove(item: PaletteItem): void
   onMoveTo(id: number, toCategory: string): void
   onRename(newName: string): void
@@ -113,6 +114,7 @@ function BlockRow({
         color={item.color}
         defaultWidth={item.defaultWidth}
         defaultHeight={item.defaultHeight}
+        labelColor={item.labelColor}
       />
       <input
         className="palette-input"
@@ -123,6 +125,11 @@ function BlockRow({
         className="palette-color"
         value={item.color}
         onChange={(color) => color && onUpdate(item.id, { color })}
+      />
+      <TextColorPicker
+        value={item.labelColor}
+        onChange={(labelColor) => onUpdate(item.id, { labelColor })}
+        title="Default text color"
       />
       <select
         className="palette-select"
@@ -166,6 +173,7 @@ export default function PaletteBlockList({
   const [renameValue, setRenameValue] = useState(category)
   const [addLabel, setAddLabel] = useState('')
   const [addColor, setAddColor] = useState(DEFAULT_SWATCH)
+  const [addLabelColor, setAddLabelColor] = useState<string | null>(null)
   const [addShape, setAddShape] = useState<'rect' | 'circle'>('rect')
 
   function handleDragEnd(event: DragEndEvent): void {
@@ -187,7 +195,7 @@ export default function PaletteBlockList({
   function commitAdd(): void {
     const label = addLabel.trim()
     if (!label) return
-    onAddBlock(label, addShape, addColor)
+    onAddBlock(label, addShape, addColor, addLabelColor)
     setAddLabel('')
   }
 
@@ -300,6 +308,7 @@ export default function PaletteBlockList({
           <option value="circle">Circle</option>
         </select>
         <SwatchPicker className="palette-color" value={addColor} onChange={(color) => setAddColor(color ?? DEFAULT_SWATCH)} />
+        <TextColorPicker value={addLabelColor} onChange={setAddLabelColor} title="Default text color" />
         <button className="btn small primary" onClick={commitAdd} disabled={!addLabel.trim()}>
           + Add block
         </button>

@@ -68,3 +68,28 @@ export function readableTextColor(hex: string): '#ffffff' | '#1a1d23' {
   const luminance = 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b)
   return luminance > 0.5 ? '#1a1d23' : '#ffffff'
 }
+
+/** The two text colors people reach for first, offered ahead of the swatch grid in the block
+ *  text-color picker. Neither is in COLOR_SWATCHES — its nearest are Slate lightest and darkest,
+ *  which aren't quite white or black — so they are listed here rather than added to the grid,
+ *  where they would also turn up as row and block fill choices. */
+export const LABEL_TEXT_SWATCHES: { hex: string; name: string }[] = [
+  { hex: '#ffffff', name: 'White' },
+  { hex: '#000000', name: 'Black' }
+]
+
+/** A Layout Mode block's label color: the user's pick when there is a valid one, otherwise the
+ *  automatic black-or-white choice for the block's fill. null means Auto.
+ *
+ *  Validated here, at the point of use, because nothing validates block colors on the way in —
+ *  and an unparseable value would otherwise reach Konva as a fill it cannot draw. */
+export function resolveLabelColor(fill: string, labelColor: string | null | undefined): string {
+  return isHexColor(labelColor) ? labelColor : readableTextColor(fill)
+}
+
+/** The shadow that keeps a label legible over a busy floor plan: dark behind light text, light
+ *  behind dark text. Decided from the TEXT color's own luminance, so it works for any color — and
+ *  for the two automatic colors it gives exactly the shadow the canvas has always used. */
+export function labelShadowFor(textColor: string): '#ffffff' | '#000000' {
+  return readableTextColor(textColor) === '#ffffff' ? '#ffffff' : '#000000'
+}

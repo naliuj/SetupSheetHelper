@@ -15,6 +15,7 @@ interface RoomLayoutBlockRow {
   rotation: number
   z_index: number
   person_name: string | null
+  label_color: string | null
 }
 
 function mapRow(row: RoomLayoutBlockRow): RoomLayoutBlock {
@@ -30,7 +31,8 @@ function mapRow(row: RoomLayoutBlockRow): RoomLayoutBlock {
     height: row.height,
     rotation: row.rotation,
     zIndex: row.z_index,
-    personName: row.person_name
+    personName: row.person_name,
+    labelColor: row.label_color
   }
 }
 
@@ -48,8 +50,8 @@ export function copyBlocksToSetup(sourceSetupId: number, targetSetupId: number):
   const db = getDb()
   const blocks = listBlocksBySetup(sourceSetupId)
   const insert = db.prepare(
-    `INSERT INTO room_layout_blocks (setup_id, label, shape, color, x, y, width, height, rotation, z_index, person_name)
-     VALUES (@setupId, @label, @shape, @color, @x, @y, @width, @height, @rotation, @zIndex, @personName)`
+    `INSERT INTO room_layout_blocks (setup_id, label, shape, color, x, y, width, height, rotation, z_index, person_name, label_color)
+     VALUES (@setupId, @label, @shape, @color, @x, @y, @width, @height, @rotation, @zIndex, @personName, @labelColor)`
   )
   const copy = db.transaction(() => {
     for (const block of blocks) {
@@ -64,7 +66,8 @@ export function copyBlocksToSetup(sourceSetupId: number, targetSetupId: number):
         height: block.height,
         rotation: block.rotation,
         zIndex: block.zIndex,
-        personName: block.personName
+        personName: block.personName,
+        labelColor: block.labelColor
       })
     }
   })
@@ -82,13 +85,14 @@ export function replaceBlocksForSetup(setupId: number, blocks: RoomLayoutBlockIn
   // anything keyed by a draft id (the selection, above all) across the save.
   const idMap: Record<string, number> = {}
   const insert = db.prepare(
-    `INSERT INTO room_layout_blocks (setup_id, label, shape, color, x, y, width, height, rotation, z_index, person_name)
-     VALUES (@setupId, @label, @shape, @color, @x, @y, @width, @height, @rotation, @zIndex, @personName)`
+    `INSERT INTO room_layout_blocks (setup_id, label, shape, color, x, y, width, height, rotation, z_index, person_name, label_color)
+     VALUES (@setupId, @label, @shape, @color, @x, @y, @width, @height, @rotation, @zIndex, @personName, @labelColor)`
   )
   const update = db.prepare(
     `UPDATE room_layout_blocks SET
       label = @label, shape = @shape, color = @color, x = @x, y = @y, width = @width,
-      height = @height, rotation = @rotation, z_index = @zIndex, person_name = @personName, updated_at = datetime('now')
+      height = @height, rotation = @rotation, z_index = @zIndex, person_name = @personName,
+      label_color = @labelColor, updated_at = datetime('now')
      WHERE id = @id AND setup_id = @setupId`
   )
   const deleteStmt = db.prepare('DELETE FROM room_layout_blocks WHERE id = ?')
@@ -113,7 +117,10 @@ export function replaceBlocksForSetup(setupId: number, blocks: RoomLayoutBlockIn
         height: block.height,
         rotation: block.rotation,
         zIndex: block.zIndex,
-        personName: block.personName
+        // ?? null because better-sqlite3 rejects a missing named parameter outright rather than
+        // binding NULL — one block without the key would fail the whole save transaction.
+        personName: block.personName,
+        labelColor: block.labelColor ?? null
       }
       if (typeof block.id === 'number' && existingIds.has(block.id)) {
         update.run({ ...params, id: block.id })

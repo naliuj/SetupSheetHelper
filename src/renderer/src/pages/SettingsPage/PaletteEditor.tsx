@@ -88,12 +88,18 @@ export default function PaletteEditor(): JSX.Element {
     reorder(categoryNames.flatMap((c) => (c === category ? orderedIds : idsByCategory(c))))
   }
 
-  function handleAddBlock(category: string, label: string, shape: 'rect' | 'circle', color: string): void {
+  function handleAddBlock(
+    category: string,
+    label: string,
+    shape: 'rect' | 'circle',
+    color: string,
+    labelColor: string | null
+  ): void {
     // Once the block persists, `category` appears in categoryNames and `showTransient` flips false
     // on its own — so the transient row is replaced by the real one without a stale reselection.
     // Deliberately don't clear newCategoryName here (that would briefly drop the row from the rail
     // before the async load resolves, bouncing the selection away).
-    addCustom(label, shape, color, category)
+    addCustom(label, shape, color, category, labelColor)
   }
 
   function handleRemove(item: PaletteItem): void {
@@ -188,6 +194,7 @@ export default function PaletteEditor(): JSX.Element {
                   color={item.color}
                   defaultWidth={item.defaultWidth}
                   defaultHeight={item.defaultHeight}
+                  labelColor={item.labelColor}
                 />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 600 }}>{item.label}</div>
@@ -206,7 +213,7 @@ export default function PaletteEditor(): JSX.Element {
             items={selectedGroup?.items ?? []}
             otherCategories={categoryNames.filter((c) => c !== selection)}
             onReorder={(ids) => handleReorderBlocks(selection, ids)}
-            onAddBlock={(label, shape, color) => handleAddBlock(selection, label, shape, color)}
+            onAddBlock={(label, shape, color, labelColor) => handleAddBlock(selection, label, shape, color, labelColor)}
             onUpdate={(id, patch) => update(id, patch)}
             onRemove={handleRemove}
             onMoveTo={handleMoveTo}
