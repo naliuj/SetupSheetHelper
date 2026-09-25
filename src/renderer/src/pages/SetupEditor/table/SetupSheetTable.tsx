@@ -11,7 +11,7 @@ import { computeTieLineConflicts } from '@renderer/state/tieLineConflicts'
 import { computeUsageCounts, buildGearUsage } from '@renderer/state/usageCounts'
 import { formatGearLabel, gearIdentityKey, stripManufacturerPrefix } from '@shared/utils/manufacturerPrefix'
 import type { Suggestion } from '@renderer/components/SuggestInput'
-import SetupSheetRow from './SetupSheetRow'
+import SetupSheetRow, { SHEET_EDGE_INSET } from './SetupSheetRow'
 import { GENERIC_INSTRUMENT_TYPE } from './tableConstants'
 
 /** Quick Setup's free-text suggestions. Two things this has to get right, both of which used to
@@ -335,7 +335,7 @@ export default function SetupSheetTable(): JSX.Element {
   }
 
   return (
-    <div style={{ padding: 12, height: '100%', boxSizing: 'border-box' }} onDoubleClick={handleBlankAreaDoubleClick}>
+    <div style={{ padding: SHEET_EDGE_INSET, height: '100%', boxSizing: 'border-box' }} onDoubleClick={handleBlankAreaDoubleClick}>
       <div className="section-title" style={{ marginTop: 0 }}>
         Setup sheet
       </div>

@@ -1190,6 +1190,18 @@ table.data-table td.data-table-text {
   background: var(--color-surface-alt);
 }
 
+/* The selected-row marker, drawn by SetupSheetRow inside the row's first cell. Its `left` is set
+   inline from SHEET_EDGE_INSET, pushing it back across the table's inset onto the pane's edge.
+   bottom: -1px covers the cell's own divider, so a run of selected rows is one unbroken bar. */
+.row-selection-bar {
+  position: absolute;
+  top: 0;
+  bottom: -1px;
+  width: 3px;
+  background: var(--color-accent);
+  pointer-events: none;
+}
+
 /* Toggle switch — for true on/off settings. Sharpened to match the flat 2px aesthetic:
    rounded-rect track, square-ish knob, accent track when on. */
 .toggle-switch {

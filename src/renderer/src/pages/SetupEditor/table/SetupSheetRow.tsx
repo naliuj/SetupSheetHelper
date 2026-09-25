@@ -155,6 +155,10 @@ function OutboardSlotCell({
 
 // Every callback takes the row's id (rather than closing over it in the table's map) so the
 // table can pass referentially-stable functions and React.memo below can actually bail out.
+/** Padding between the setup sheet table and the edge of its pane. The selection bar reaches
+ *  back across exactly this distance to sit on the pane's edge, so the two must agree. */
+export const SHEET_EDGE_INSET = 12
+
 interface Props {
   item: SetupItemDraft
   mics: Mic[]
@@ -302,16 +306,22 @@ function SetupSheetRow({
     transition,
     opacity: isDragging ? 0.4 : 1,
     background: selected ? selectedBg : (colorTint ?? undefined),
-    // The selection bar is drawn at the row's left edge, which is INSIDE the neutral stereo lane
-    // when that column is on — so there it takes the accent like everything else on the lane. With
-    // the column hidden it lands on the tint instead and needs the row's own foreground.
-    boxShadow: selected
-      ? `inset 3px 0 0 ${showStereoLink ? 'var(--color-accent)' : (rowFg ?? 'var(--color-accent)')}`
-      : undefined,
     ...(rowFg
       ? { '--row-fg': rowFg, '--row-edge': `color-mix(in srgb, ${rowFg} 28%, transparent)` }
       : {})
   } as CSSProperties
+  // The selection bar runs down the far left edge of the pane, out past the table's own inset
+  // (SHEET_EDGE_INSET), so it reads as a margin marker rather than something drawn on the row.
+  //
+  // It is its own element inside the row's FIRST CELL, never a box-shadow on the <tr>. A row's
+  // box-shadow paints in the row's background layer, underneath its cells, so any cell with a
+  // background of its own covers it — and the stereo lane is opaque by design (it keeps the page
+  // background so the brace reads the same on every row). That is how selected rows lost their
+  // bar when the lane was introduced. Sitting outside the table, the bar is always on the page
+  // background too, so it is always the accent: nothing about the row's tint can reach it.
+  const selectionBar = selected ? (
+    <span aria-hidden="true" className="row-selection-bar" style={{ left: -SHEET_EDGE_INSET }} />
+  ) : null
   function handleMicChange(micId: number | null): void {
     const mic = micId != null ? mics.find((m) => m.id === micId) ?? null : null
     const nextNotes = applyMicPoolNotesTag(item.notes ?? '', mic?.poolType ?? null)
@@ -639,6 +649,7 @@ function SetupSheetRow({
             zIndex: hasSeamBelow ? seamZIndex : undefined
           }}
         >
+          {selectionBar}
           {bracket && (
             <svg
               aria-hidden="true"
@@ -741,8 +752,9 @@ function SetupSheetRow({
         className="gutter-cell"
         onClick={(e) => onGutterClickById(e, item.id)}
         title="Click to select · Shift-click for a range · Cmd/Ctrl-click to toggle"
-        style={{ cursor: 'pointer', userSelect: 'none' }}
+        style={{ cursor: 'pointer', userSelect: 'none', position: 'relative' }}
       >
+        {!showStereoLink && selectionBar}
         <span className="drag-handle" {...attributes} {...listeners} style={{ cursor: 'grab' }}>
           <GripVertical size={16} aria-hidden="true" />
         </span>
