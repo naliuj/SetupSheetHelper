@@ -50,9 +50,10 @@ export function isHexColor(hex: string | null | undefined): hex is string {
   return !!hex && /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(hex)
 }
 
-/** Picks black or white text for legibility on a solid color fill, via relative luminance — so a
- *  light-shade fill (e.g. light amber) gets dark text instead of unreadable white. */
-export function readableTextColor(hex: string): '#ffffff' | '#1a1d23' {
+/** WCAG 2.x relative luminance of a #rgb / #rrggbb color. Exported because the contrast checks
+ *  built on it (readableTextColor below, the label-color warning in the text-color picker) all
+ *  need the same number, and a second copy of this math is exactly how the thresholds drift. */
+export function relativeLuminance(hex: string): number {
   const normalized = hex.replace('#', '')
   const full =
     normalized.length === 3
@@ -65,8 +66,40 @@ export function readableTextColor(hex: string): '#ffffff' | '#1a1d23' {
   const g = parseInt(full.slice(2, 4), 16) / 255
   const b = parseInt(full.slice(4, 6), 16) / 255
   const toLinear = (c: number): number => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)
-  const luminance = 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b)
-  return luminance > 0.5 ? '#1a1d23' : '#ffffff'
+  return 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b)
+}
+
+/** WCAG contrast ratio between two colors, 1:1 (identical) to 21:1 (black on white). */
+export function contrastRatio(a: string, b: string): number {
+  const [lighter, darker] = [relativeLuminance(a), relativeLuminance(b)].sort((x, y) => y - x)
+  return (lighter + 0.05) / (darker + 0.05)
+}
+
+/** The two colors readableTextColor chooses between. */
+const TEXT_ON_FILL_LIGHT = '#ffffff' as const
+const TEXT_ON_FILL_DARK = '#1a1d23' as const
+
+/** The fill luminance where white and dark text score the SAME contrast ratio — so it is the point
+ *  at which the better choice flips. Solving
+ *
+ *    1.05 / (L + 0.05)  ===  (L + 0.05) / (Ldark + 0.05)
+ *
+ *  for L gives sqrt(1.05 * (Ldark + 0.05)) - 0.05, ≈ 0.208 for #1a1d23. Derived rather than
+ *  hardcoded so it stays correct if TEXT_ON_FILL_DARK is ever retuned.
+ *
+ *  This was a flat 0.5 until the accessibility audit: 0.5 is the midpoint of the luminance RANGE,
+ *  but luminance is heavily bottom-weighted, so it sits nowhere near the midpoint of the contrast
+ *  curve. 16 of the 50 swatches got white text where dark text was strictly better, 13 of them
+ *  failing WCAG AA outright — worst was Amber base #f59e0b at 2.15:1, which dark text takes to
+ *  7.86:1. Three base shades (#ef4444, #6366f1, #a855f7) cannot reach 4.5:1 against either color
+ *  and top out at ~4.3-4.5:1; they are deliberately left as-is rather than retuned, because these
+ *  hexes are already stored in user data. */
+const TEXT_FLIP_LUMINANCE = Math.sqrt(1.05 * (relativeLuminance(TEXT_ON_FILL_DARK) + 0.05)) - 0.05
+
+/** Picks black or white text for legibility on a solid color fill, via relative luminance — so a
+ *  light-shade fill (e.g. light amber) gets dark text instead of unreadable white. */
+export function readableTextColor(hex: string): '#ffffff' | '#1a1d23' {
+  return relativeLuminance(hex) > TEXT_FLIP_LUMINANCE ? TEXT_ON_FILL_DARK : TEXT_ON_FILL_LIGHT
 }
 
 /** The two text colors people reach for first, offered ahead of the swatch grid in the block
