@@ -1,21 +1,21 @@
 import type { Mic, OutboardGear, Preamp } from '@shared/types/entities'
 import type { ChannelPresetItem } from '@shared/types/channelPreset'
 import type { ResolvedChannelPresetItem } from './setupStore'
+import { canonicalMicKey } from '@shared/constants/berkleeMicRenames'
+
+/** Trimmed, case-insensitive name+manufacturer — how outboard and preamps have always matched. */
+function plainGearKey(manufacturer: string | null, name: string): string {
+  return `${(manufacturer ?? '').trim().toLowerCase()}|${name.trim().toLowerCase()}`
+}
 
 function findMatch<T extends { name: string; manufacturer: string | null }>(
   items: T[],
   name: string,
-  manufacturer: string | null
+  manufacturer: string | null,
+  keyOf: (manufacturer: string | null, name: string) => string = plainGearKey
 ): T | null {
-  const normalizedName = name.trim().toLowerCase()
-  const normalizedManufacturer = (manufacturer ?? '').trim().toLowerCase()
-  return (
-    items.find(
-      (item) =>
-        item.name.trim().toLowerCase() === normalizedName &&
-        (item.manufacturer ?? '').trim().toLowerCase() === normalizedManufacturer
-    ) ?? null
-  )
+  const wanted = keyOf(manufacturer, name)
+  return items.find((item) => keyOf(item.manufacturer, item.name) === wanted) ?? null
 }
 
 /** Matches a Channel Preset's captured mic/outboard (by name+manufacturer) against the
@@ -28,7 +28,9 @@ export function resolveChannelPresetItems(
   preamps: Preamp[]
 ): ResolvedChannelPresetItem[] {
   return presetItems.map((item) => {
-    const mic = item.micName ? findMatch(mics, item.micName, item.micManufacturer) : null
+    // Mics match through canonicalMicKey, so a preset saved before a Berklee mic was renamed
+    // (e.g. "VMA Tube Microphone") still finds it under its current name, and vice versa.
+    const mic = item.micName ? findMatch(mics, item.micName, item.micManufacturer, canonicalMicKey) : null
     const outboard = item.outboardName ? findMatch(outboardGear, item.outboardName, item.outboardManufacturer) : null
     const preamp = item.preampName ? findMatch(preamps, item.preampName, item.preampManufacturer) : null
     return {
