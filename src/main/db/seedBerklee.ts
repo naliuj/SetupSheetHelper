@@ -2,6 +2,7 @@ import type Database from 'better-sqlite3'
 import { copyFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import seedData from './migrations/berkleeSeedData.json'
+import { canonicalMicKey } from '@shared/constants/berkleeMicRenames'
 import { getBundledLayoutsDir, getLayoutsDir } from '../userDataPaths'
 
 /** Room-layout PDFs bundled with the app (resources/layouts, see package.json's
@@ -113,22 +114,66 @@ export function seedBerkleeData(db: Database.Database): void {
   run()
 }
 
-/** "Factory reset" for the Faculty Reserve mics editor — wipes every faculty_reserve mic (any
- *  user-added ones included) and re-inserts exactly the fixture's faculty_reserve set, same
- *  insertion shape as seedBerkleeData's faculty-reserve branch above. Outboard/preamps are left
- *  alone deliberately: the fixture has no faculty-reserve entries for either (see
- *  berkleeSeedData.json), so there's no "factory" baseline to reset them to. */
+/** "Factory reset" for the Faculty Reserve mics editor: afterwards the faculty-reserve mics are
+ *  exactly the fixture's set — edits undone, user-added mics gone, deleted ones back. Outboard and
+ *  preamps are left alone deliberately: the fixture has no faculty-reserve entries for either (see
+ *  berkleeSeedData.json), so there's no "factory" baseline to reset them to.
+ *
+ *  Reconciled in place rather than wiped and re-inserted. The old version deleted every row and
+ *  inserted fresh ones, so every faculty mic got a new id and `ON DELETE SET NULL` blanked the mic
+ *  on every saved sheet that used one — even mics the reset put straight back, and without copying
+ *  the name into `mic_text` first the way removeMic does. Sheets went silently empty.
+ *
+ *  Now each fixture mic is matched to an existing row by canonicalMicKey (so a row still under a
+ *  retired spelling counts), lowest id first, and that row is overwritten with the fixture's values
+ *  BY ID — sheets stay linked. A fixture mic with no row is inserted. A row that matches nothing (a
+ *  mic the user added, or a second copy of one) is removed by removeMic's rule: its name goes into
+ *  `mic_text` on any sheet using it that has no text of its own, then the row is deleted, so the
+ *  sheet keeps showing what was actually used. */
 export function resetFacultyReserveMics(db: Database.Database): void {
   const insertMic = db.prepare(
     `INSERT INTO mics (pool_type, studio_id, building_id, name, manufacturer, category, notes, quantity, sort_order)
      VALUES ('faculty_reserve', NULL, NULL, ?, ?, ?, ?, ?, ?)`
   )
+  const restoreMic = db.prepare(
+    `UPDATE mics SET name = ?, manufacturer = ?, category = ?, notes = ?, quantity = ?, sort_order = ?
+      WHERE id = ?`
+  )
+  const preserveName = db.prepare(
+    `UPDATE setup_items
+        SET mic_text = (SELECT name FROM mics WHERE id = ?)
+      WHERE mic_id = ? AND mic_text IS NULL`
+  )
+  const deleteMic = db.prepare('DELETE FROM mics WHERE id = ?')
+
   const run = db.transaction(() => {
-    db.prepare(`DELETE FROM mics WHERE pool_type = 'faculty_reserve'`).run()
+    const existing = db
+      .prepare(`SELECT id, name, manufacturer FROM mics WHERE pool_type = 'faculty_reserve' ORDER BY id`)
+      .all() as { id: number; name: string; manufacturer: string | null }[]
+
+    // canonical key → existing row ids still unclaimed, lowest id first
+    const unclaimed = new Map<string, number[]>()
+    for (const row of existing) {
+      const key = canonicalMicKey(row.manufacturer, row.name)
+      unclaimed.set(key, [...(unclaimed.get(key) ?? []), row.id])
+    }
+
+    const kept = new Set<number>()
     for (const m of seedData.mics) {
-      if (m.poolType === 'faculty_reserve') {
+      if (m.poolType !== 'faculty_reserve') continue
+      const id = unclaimed.get(canonicalMicKey(m.manufacturer, m.name))?.shift()
+      if (id != null) {
+        restoreMic.run(m.name, m.manufacturer, m.category, m.notes, m.quantity, m.sortOrder, id)
+        kept.add(id)
+      } else {
         insertMic.run(m.name, m.manufacturer, m.category, m.notes, m.quantity, m.sortOrder)
       }
+    }
+
+    for (const row of existing) {
+      if (kept.has(row.id)) continue
+      preserveName.run(row.id, row.id)
+      deleteMic.run(row.id)
     }
   })
   run()

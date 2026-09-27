@@ -1,10 +1,12 @@
-/** Every spelling change ever made to a Berklee seed mic, old spelling → current one.
+/** Retired mic spellings, old → current, and the matching key built on them.
  *
- *  One list, three consumers:
- *   - migration 043 applies it to already-seeded Berklee lockers;
- *   - berkleeSeedData.json already carries the current spellings, for fresh seeds;
- *   - canonicalMicKey below lets anything that matches a mic BY NAME treat the old and new
- *     spellings as the same mic.
+ *  Two lists:
+ *   - BERKLEE_MIC_RENAMES (and the manufacturer map): every spelling change made to a Berklee seed
+ *     mic. Migration 043 APPLIES these to seeded lockers; berkleeSeedData.json already carries the
+ *     current spellings for fresh seeds. FROZEN — see below.
+ *   - MIC_SPELLING_ALIASES: spellings that are only ever MATCHED, never applied to anyone's data.
+ *  canonicalMicKey reads both, so anything that matches a mic BY NAME treats old and new spellings
+ *  as the same mic.
  *
  *  That last use is why this exists. Saved setups point at mics by id, so a rename is invisible
  *  to them. But channel presets and setup-file import store a mic as name + manufacturer text,
@@ -13,6 +15,13 @@
  *  unlinked text. Rewriting the stored presets would be the wrong fix: a user's own custom studio
  *  may still say "AT-4050", and the preset must keep matching that too. So the matchers accept
  *  either spelling instead.
+ *
+ *  WHY THE FIRST LIST IS FROZEN: migration 043 shipped in 1.18.0 and reads BERKLEE_MIC_RENAMES,
+ *  BERKLEE_MIC_MANUFACTURER_RENAMES and canonicalMicManufacturer at run time, not a copy. An entry
+ *  added to any of them changes what 043 does on an install that hasn't upgraded yet, while every
+ *  1.18.0 install keeps what 043 did then — the two would quietly disagree about the same Berklee
+ *  locker. Never edit them. A new spelling to match goes in MIC_SPELLING_ALIASES; a new spelling to
+ *  APPLY needs a new migration with its own copy of the list.
  *
  *  CURATED PAIRS ONLY — never a general normalizer. Migration 038's warning stands: near-identical
  *  names are often different products (U 87 vs U 87 Ai, C451 vs C451 EB vs C451B), so each entry
@@ -26,12 +35,13 @@ export interface MicRename {
   to: string
 }
 
-/** Manufacturer spelling fixes, exact old value → current. */
+/** Manufacturer spelling fixes, exact old value → current. FROZEN — read by migration 043. */
 export const BERKLEE_MIC_MANUFACTURER_RENAMES: Record<string, string> = {
   // The brand writes itself with a hyphen.
   'Audio Technica': 'Audio-Technica'
 }
 
+/** FROZEN — applied by migration 043. Add new spellings to MIC_SPELLING_ALIASES instead. */
 export const BERKLEE_MIC_RENAMES: MicRename[] = [
   // --- 2026-09 naming audit (migration 043) -----------------------------------------------------
   // The same mic entered with a word tacked on in one room — the "CMC6 MK4 Cardioid" class.
@@ -71,21 +81,43 @@ export const BERKLEE_MIC_RENAMES: MicRename[] = [
   { manufacturer: 'Soyuz', from: '0131 FET', to: '013 FET' }
 ]
 
+/** Spellings that are matched but never applied: old names that live on in presets, setup files
+ *  and other people's studios. Safe to extend — nothing but canonicalMicKey reads this. */
+export const MIC_SPELLING_ALIASES: MicRename[] = [
+  // The Record Co's three studio packs on the Studio Downloads site, standardized 2026-09-27 to the
+  // Berklee standard. Anyone who imported a pack before then has these spellings in a custom
+  // studio, and their presets and setup files still need to match the republished rooms.
+  { manufacturer: 'Audio-Technica', from: 'AT-2020', to: 'AT2020' },
+  { manufacturer: 'Audio-Technica', from: 'AT-2021', to: 'AT2021' },
+  { manufacturer: 'Audio-Technica', from: 'AT-2050', to: 'AT2050' },
+  { manufacturer: 'Audio-Technica', from: 'AT-4047', to: 'AT4047' },
+  { manufacturer: 'Audio-Technica', from: 'AT-4049', to: 'AT4049' },
+  { manufacturer: 'Audio-Technica', from: 'AT-4053b', to: 'AT4053b' },
+  { manufacturer: 'Audio-Technica', from: 'AT-4081', to: 'AT4081' },
+  // Also makes Berklee's own "D-112" (left alone: its family is consistent) match the Record Co's
+  // "D112" — the same AKG kick mic, in AKG's own spelling.
+  { manufacturer: 'AKG', from: 'D-112', to: 'D112' }
+]
+
 const MANUFACTURER_BY_OLD = new Map(
   Object.entries(BERKLEE_MIC_MANUFACTURER_RENAMES).map(([from, to]) => [from.toLowerCase(), to.toLowerCase()])
 )
 const NAME_BY_OLD = new Map(
-  BERKLEE_MIC_RENAMES.map((r) => [`${r.manufacturer.toLowerCase()}|${r.from.toLowerCase()}`, r.to.toLowerCase()])
+  [...BERKLEE_MIC_RENAMES, ...MIC_SPELLING_ALIASES].map((r) => [
+    `${r.manufacturer.toLowerCase()}|${r.from.toLowerCase()}`,
+    r.to.toLowerCase()
+  ])
 )
 
-/** A manufacturer trimmed and lowercased, with a retired spelling mapped onto its current one. */
+/** A manufacturer trimmed and lowercased, with a retired spelling mapped onto its current one.
+ *  FROZEN BEHAVIOR — migration 043 calls this, so it must only ever read the frozen map. */
 export function canonicalMicManufacturer(manufacturer: string | null | undefined): string {
   const raw = (manufacturer ?? '').trim().toLowerCase()
   return MANUFACTURER_BY_OLD.get(raw) ?? raw
 }
 
 /** A mic's identity for matching by name: trimmed and lowercased (the rule the name matchers
- *  have always used), with any retired Berklee spelling mapped onto its current one. Two mics
+ *  have always used), with any retired spelling — from either list — mapped onto its current one. Two mics
  *  with equal keys are the same mic. Deliberately does NOT collapse inner whitespace or strip
  *  punctuation — beyond the curated pairs above, matching behaves exactly as it did before. */
 export function canonicalMicKey(manufacturer: string | null | undefined, name: string): string {
