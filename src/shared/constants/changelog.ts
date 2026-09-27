@@ -384,5 +384,16 @@ export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
       'Long studio, setup, folder and preset names stay inside their cards, rows, menus and sidebars instead of running past the edge or being cut off mid-word, and hovering one shows it in full. A long "Exported to \u2026" path no longer pushes Setup settings, Layout Mode and Split View off the toolbar.',
       'A Layout Mode block label typed as a single long word now shrinks to fit its block instead of being clipped at full size.'
     ]
+  },
+  {
+    version: '1.18.0',
+    date: '2026-09-27',
+    highlights: [
+      "Layout Mode blocks can have their own text color: Auto, White, Black or any swatch, set from the block's Edit dialog. Items in the Layout Palette can carry a default text color that new blocks pick up when you drop them.",
+      'Selected rows show their blue bar again. It went missing when the stereo pairing brace changed, and it now runs along the left edge of the window.',
+      'Undo in Layout Mode now works after a pause. If you waited more than a second before pressing Cmd+Z, the first press did nothing and pressing again never got further, and the Undo button on the "Deleted blocks" message didn\u2019t bring the blocks back.',
+      'Berklee mic names are now spelled the same way in every room, so one mic no longer shows up twice in lists that span studios \u2014 "VMA Tube" beside "VMA Tube Microphone", say, or "AT-4050" beside "AT4041". Channel presets and setup files saved with the old names still find the right mic.',
+      'Studio 2 now lists four Schoeps CMC6 Mk4s, up from two.'
+    ]
   }
 ]
