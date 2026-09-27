@@ -25,6 +25,7 @@ import { getSetupLayoutOverride, upsertFileLayoutOverride } from '../db/reposito
 import { getMicsByIds, listAvailableForStudio as listAvailableMics } from '../db/repositories/micsRepo'
 import { getOutboardByIds, listAvailableForStudio as listAvailableOutboard } from '../db/repositories/outboardRepo'
 import { getPreampsByIds, listAvailableForStudio as listAvailablePreamps } from '../db/repositories/preampRepo'
+import { canonicalMicKey } from '@shared/constants/berkleeMicRenames'
 
 const EXPORT_VERSION = 1
 
@@ -148,25 +149,25 @@ export async function pickAndParseSetupImportFile(): Promise<PickSetupImportFile
   }
 }
 
+/** Trimmed, case-insensitive name+manufacturer — how outboard and preamps have always matched. */
+function plainGearKey(manufacturer: string | null, name: string): string {
+  return `${(manufacturer ?? '').trim().toLowerCase()}|${name.trim().toLowerCase()}`
+}
+
 /** Case-insensitive, trimmed name+manufacturer match against the target studio's available
  *  gear — same rule as the Channel Preset resolver (channelPresetResolution.ts). Read-only:
  *  never creates gear, so unmatched references are left as plain text rather than risking
- *  duplicate-looking catalog entries from a bad guess. */
+ *  duplicate-looking catalog entries from a bad guess. Mics pass canonicalMicKey, so a file
+ *  exported before a Berklee mic was renamed still links to it rather than importing as text. */
 function findMatch<T extends { id: number; name: string; manufacturer: string | null }>(
   items: T[],
   name: string | null,
-  manufacturer: string | null
+  manufacturer: string | null,
+  keyOf: (manufacturer: string | null, name: string) => string = plainGearKey
 ): T | null {
   if (!name) return null
-  const normalizedName = name.trim().toLowerCase()
-  const normalizedManufacturer = (manufacturer ?? '').trim().toLowerCase()
-  return (
-    items.find(
-      (item) =>
-        item.name.trim().toLowerCase() === normalizedName &&
-        (item.manufacturer ?? '').trim().toLowerCase() === normalizedManufacturer
-    ) ?? null
-  )
+  const wanted = keyOf(manufacturer, name)
+  return items.find((item) => keyOf(item.manufacturer, item.name) === wanted) ?? null
 }
 
 /** Imported setups always land in the target studio's root (no folder) — folders are local to
@@ -203,7 +204,7 @@ export function importSetups(setups: ExportedSetup[], targetStudioId: number): v
       const preamps = listAvailablePreamps(targetStudioId, created.id, setup.facultyReserveEnabled)
 
       const items: SetupItemInput[] = setup.items.map((item, index) => {
-        const mic = findMatch(mics, item.micName, item.micManufacturer)
+        const mic = findMatch(mics, item.micName, item.micManufacturer, canonicalMicKey)
         const preamp = findMatch(preamps, item.preampName, item.preampManufacturer)
         return {
           id: `import-${index}`,

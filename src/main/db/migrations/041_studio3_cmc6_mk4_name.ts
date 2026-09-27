@@ -12,8 +12,8 @@ import type Database from 'better-sqlite3'
  *
  *  Renames in place rather than deleting and re-inserting, so the row keeps its id and
  *  `setup_items.mic_id` on saved sheets keeps resolving. Skips if that studio somehow already has
- *  a "CMC6 Mk4" (a user could have added one by hand): `UNIQUE(studio_id, name)` would otherwise
- *  throw, and a migration that throws takes the app's ability to open the database with it.
+ *  a "CMC6 Mk4" (a user could have added one by hand), rather than leave two rows with one name.
+ *  (`mics` has no UNIQUE constraint, so nothing would throw; the guard prevents a duplicate.)
  *
  *  A no-op where Berklee data was never seeded, and on a fresh install already seeded from the
  *  current JSON. */
