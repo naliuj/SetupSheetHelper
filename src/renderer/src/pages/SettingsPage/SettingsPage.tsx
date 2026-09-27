@@ -23,6 +23,7 @@ import type { ImportFeedback } from './ImportExportTab'
 import SetupExportPage from './SetupExportPage'
 import SetupImportPage from './SetupImportPage'
 import FeedbackForm from './FeedbackForm'
+import AccessibilityEditor from './AccessibilityEditor'
 import ManagePresetsModal from '../PresetManager/ManagePresetsModal'
 
 type Subview =
@@ -39,6 +40,7 @@ type Tab =
   | 'facultyReserve'
   | 'backup'
   | 'theme'
+  | 'accessibility'
   | 'pdfLayout'
   | 'keybinds'
   | 'palette'
@@ -50,6 +52,7 @@ const TAB_IDS: Tab[] = [
   'facultyReserve',
   'backup',
   'theme',
+  'accessibility',
   'pdfLayout',
   'keybinds',
   'palette',
@@ -86,6 +89,7 @@ export default function SettingsPage(): JSX.Element {
     { id: 'general', label: 'General' },
     { id: 'columns', label: 'Columns' },
     { id: 'theme', label: 'Theme' },
+    { id: 'accessibility', label: 'Accessibility' },
     { id: 'pdfLayout', label: 'PDF Layout' },
     { id: 'keybinds', label: 'Keybinds' },
     { id: 'personalGear', label: 'Personal Gear Locker' },
@@ -389,6 +393,12 @@ export default function SettingsPage(): JSX.Element {
             {/* Only Follow OS leaves any doubt about what you'll actually get, so only it says. */}
             {themePreference === 'system' && ` Currently ${resolvedTheme === 'dark' ? 'dark' : 'light'}.`}
           </p>
+        </div>
+      )}
+
+      {activeTab === 'accessibility' && (
+        <div className="panel">
+          <AccessibilityEditor />
         </div>
       )}
 

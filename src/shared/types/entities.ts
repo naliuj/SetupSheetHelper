@@ -156,5 +156,9 @@ export const APP_SETTINGS_KEYS = {
   layoutWindowBounds: 'layout_window_bounds',
   /** Number string, 0-1 — the left pane's share of Split View's width (see SplitDivider.tsx).
    *  Absent/unparsable/out-of-clamp-range → 0.5. */
-  splitViewRatio: 'split_view_ratio'
+  splitViewRatio: 'split_view_ratio',
+  /** ContrastPreference: 'system' | 'more' | 'standard' — how strongly UI boundaries are drawn.
+   *  Absent/garbage → 'system'. See parseContrastPreference; no backfill needed, since there is no
+   *  older default to preserve. */
+  contrastPreference: 'contrast_preference'
 } as const

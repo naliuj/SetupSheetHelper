@@ -4,6 +4,7 @@ import App from './App'
 import LayoutWindowApp from './LayoutWindowApp'
 import ErrorBoundary from './components/ErrorBoundary'
 import { useThemeStore } from './state/themeStore'
+import { useA11yPrefsStore } from './state/a11yPrefsStore'
 import './styles/global.css'
 
 // BEFORE createRoot, and synchronously — this is the whole reason window.api.theme.getSync exists.
@@ -14,6 +15,13 @@ import './styles/global.css'
 const bootstrapTheme = window.api.theme.getSync()
 document.documentElement.dataset.theme = bootstrapTheme.resolved
 useThemeStore.setState(bootstrapTheme)
+
+// Same bootstrap, same reason: an increased-contrast user would otherwise get one frame of faint
+// borders. `data-contrast` carries the PREFERENCE verbatim — global.css resolves 'system' itself
+// through @media (prefers-contrast: more), so there is nothing for main to resolve first.
+const bootstrapA11y = window.api.accessibility.getSync()
+document.documentElement.dataset.contrast = bootstrapA11y.contrast
+useA11yPrefsStore.setState(bootstrapA11y)
 
 // Both windows load the same bundle and index.html — main/layoutWindow.ts distinguishes the
 // standalone Layout Mode window with a `?window=layout` query param at loadFile/loadURL time (see

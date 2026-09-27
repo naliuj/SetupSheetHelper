@@ -11,6 +11,9 @@ import {
   LAYOUT_WINDOW_FLUSH_ACK_CHANNEL,
   THEME_CHANGED_CHANNEL,
   THEME_SYNC_CHANNEL,
+  ACCESSIBILITY_CHANGED_CHANNEL,
+  ACCESSIBILITY_SYNC_CHANNEL,
+  type AccessibilityStateMessage,
   type ThemeStateMessage,
   type MenuAction,
   type LayoutWindowState,
@@ -187,6 +190,17 @@ const api: RendererApi = {
       const listener = (_event: unknown, state: ThemeStateMessage): void => callback(state)
       ipcRenderer.on(THEME_CHANGED_CHANNEL, listener)
       return () => ipcRenderer.removeListener(THEME_CHANGED_CHANNEL, listener)
+    }
+  },
+  accessibility: {
+    // sendSync for the same pre-paint reason as theme.getSync above — data-contrast has to be on
+    // <html> before React renders, or increased contrast flashes in a frame late on every launch.
+    getSync: () => ipcRenderer.sendSync(ACCESSIBILITY_SYNC_CHANNEL) as AccessibilityStateMessage,
+    setContrast: (preference) => ipcRenderer.invoke(IPC.accessibility.setContrast, preference),
+    onChanged: (callback) => {
+      const listener = (_event: unknown, state: AccessibilityStateMessage): void => callback(state)
+      ipcRenderer.on(ACCESSIBILITY_CHANGED_CHANNEL, listener)
+      return () => ipcRenderer.removeListener(ACCESSIBILITY_CHANGED_CHANNEL, listener)
     }
   },
   app: {

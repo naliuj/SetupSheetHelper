@@ -9,6 +9,11 @@
   --color-surface: #1c1f25;
   --color-surface-alt: #232830;
   --color-border: #313742;
+  /* The Settings → Accessibility "Increased" border, swapped in for --color-border below. Chosen by
+     measurement, not by eye: it is the least-changed value that clears 3.0:1 against all three
+     surface tokens (3.70 on bg, 3.37 on surface, 3.02 on surface-alt), which is what WCAG 1.4.11
+     asks of a UI component boundary. The default #313742 manages only 1.51/1.38/1.24. */
+  --color-border-strong: #6d7179;
   --color-text: #eef1f5;
   --color-text-dim: #939ba7;
   --color-accent: #3d9bff;
@@ -42,6 +47,9 @@
   --color-surface: #ffffff;
   --color-surface-alt: #f3f6fa;
   --color-border: #bcc7d6;
+  /* Same 3.0:1 test against this theme's three surfaces: 3.05 on bg, 3.72 on white, 3.44 on
+     surface-alt. Default #bcc7d6 manages 1.40/1.71/1.58 — worst against the page itself. */
+  --color-border-strong: #7e858f;
   --color-text: #1a1d23;
   --color-text-dim: #5c6672;
   /* Accent, warning and danger are each a step darker than the first light palette used, so they
@@ -59,6 +67,30 @@
      washes every row color out much lighter/pastel than its picker swatch. Use the color at full
      strength instead so a row's tint actually matches what was picked. */
   --row-color-tint-percent: 100%;
+}
+
+/* Increased contrast (Settings → Accessibility). Only --color-border is redirected: every border,
+   divider and control outline in the app already goes through it, including the setup sheet's cell
+   grid, which is the surface this actually matters on — a dense table whose structure disappears
+   when its boundaries sit at 1.4:1.
+
+   Redirecting the token rather than restating hexes per theme is what keeps this to two rules:
+   --color-border-strong is declared in BOTH theme blocks above, so it has already resolved to the
+   right value for the active theme by the time it is read here.
+
+   These must stay AFTER the light theme block — :root[data-contrast] and :root[data-theme] have
+   equal specificity, so source order is what decides which --color-border wins. */
+:root[data-contrast='more'] {
+  --color-border: var(--color-border-strong);
+}
+
+/* 'system' is resolved here rather than in main: Chromium maps the OS switch (System Settings →
+   Accessibility → Increase contrast, on macOS) onto this query, so following it costs one media
+   query and no listener — and no Electron API whose macOS support varies by version. */
+@media (prefers-contrast: more) {
+  :root[data-contrast='system'] {
+    --color-border: var(--color-border-strong);
+  }
 }
 
 * {
