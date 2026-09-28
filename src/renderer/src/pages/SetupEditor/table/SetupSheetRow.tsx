@@ -193,6 +193,12 @@ interface Props {
   micUsageCounts: Map<number, number>
   gearUsage: GearUsage
   onGutterClick: (e: React.MouseEvent, id: number | string) => void
+  /** Arrow-key selection from the gutter's select button — walks focus row to row, extending the
+   *  selection when Shift is held. Resolved by the table, which is the thing that knows the order. */
+  onGutterKeyDown: (e: React.KeyboardEvent, id: number | string) => void
+  /** 1-based position, for the gutter select button's accessible name. Index-derived like
+   *  seamZIndex, so it costs this memoized row nothing extra. */
+  rowNumber: number
   onChange: (id: number | string, patch: Partial<SetupItemDraft>) => void
   onOutboardSlotChange: (
     id: number | string,
@@ -241,6 +247,8 @@ function SetupSheetRow({
   micUsageCounts,
   gearUsage,
   onGutterClick: onGutterClickById,
+  onGutterKeyDown: onGutterKeyDownById,
+  rowNumber,
   onChange: onChangeById,
   onOutboardSlotChange: onOutboardSlotChangeById,
   onSyncPairMic,
@@ -755,6 +763,23 @@ function SetupSheetRow({
         style={{ cursor: 'pointer', userSelect: 'none', position: 'relative' }}
       >
         {!showStereoLink && selectionBar}
+        {/* The gutter's three selection gestures (select / shift-range / cmd-toggle) were mouse-only:
+            this cell was a bare <td onClick>, so none of them had a keyboard path — and since
+            delete, duplicate and Number Selected Rows all act on a selection, those keybinds were
+            unreachable until a mouse had been used first.
+
+            A transparent button filling the cell rather than a visible control beside the handle:
+            the whole cell was already the click target, so this adds a focus stop and an announced
+            name without changing the look or the hit area. No stopPropagation — the click bubbles to
+            the same td handler the mouse uses, which is what keeps Space/Enter (plain select) and
+            Shift-click/Cmd-click behaving identically to before. */}
+        <button
+          type="button"
+          className="gutter-select"
+          aria-label={`Select row ${rowNumber}${sourceName.value ? `: ${sourceName.value}` : ''}`}
+          aria-pressed={selected}
+          onKeyDown={(e) => onGutterKeyDownById(e, item.id)}
+        />
         <span className="drag-handle" {...attributes} {...listeners} style={{ cursor: 'grab' }}>
           <GripVertical size={16} aria-hidden="true" />
         </span>

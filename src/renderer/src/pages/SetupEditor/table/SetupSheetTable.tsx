@@ -115,6 +115,29 @@ export default function SetupSheetTable(): JSX.Element {
     [selectRangeTo, toggleItem, selectItem]
   )
 
+  // Arrow-key navigation for the gutter select buttons. Reads the freshest store state via
+  // getState() rather than closing over `items`, for the same reason handleTogglePairLink does:
+  // a stable identity (empty deps) is what keeps every memoized row from re-rendering on each
+  // keystroke.
+  //
+  // Plain arrows walk focus without changing the selection; Shift+arrow extends to the neighbor,
+  // matching shift-click. selectRangeTo already falls back to a plain select when there is no
+  // anchor yet, so an unselected sheet needs no special case here.
+  const handleGutterKeyDown = useCallback((e: React.KeyboardEvent, itemId: number | string): void => {
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
+    const state = setupStoreApi.getState()
+    const idx = state.items.findIndex((i) => i.id === itemId)
+    if (idx === -1) return
+    const neighbor = state.items[e.key === 'ArrowDown' ? idx + 1 : idx - 1]
+    if (!neighbor) return
+    // Only now — an arrow at either end should stay an ordinary arrow, not a swallowed one.
+    e.preventDefault()
+    if (e.shiftKey) state.selectRangeTo(neighbor.id)
+    const row = (e.currentTarget as HTMLElement).closest('tr')
+    const nextRow = e.key === 'ArrowDown' ? row?.nextElementSibling : row?.previousElementSibling
+    nextRow?.querySelector<HTMLButtonElement>('.gutter-select')?.focus()
+  }, [])
+
   // Toggles a mic-group link on the seam *below* `itemId` — i.e. links `itemId`'s row with the one
   // directly beneath it, whatever position they're at (no odd/even bucket). Reads the freshest
   // store state at click time via getState() rather than closing over `items`/`mics` props, so this
@@ -397,6 +420,8 @@ export default function SetupSheetTable(): JSX.Element {
                     micUsageCounts={micUsageCounts}
                     gearUsage={gearUsage}
                     onGutterClick={handleGutterClick}
+                    onGutterKeyDown={handleGutterKeyDown}
+                    rowNumber={i + 1}
                     onChange={updateItemFields}
                     onOutboardSlotChange={updateItemOutboardSlot}
                     onDelete={removeItem}
