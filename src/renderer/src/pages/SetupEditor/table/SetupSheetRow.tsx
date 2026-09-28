@@ -17,7 +17,7 @@ import { AlertTriangle, GripVertical, Link2, X } from 'lucide-react'
 import { computeUsedByOthers, type GearUsage } from '@renderer/state/usageCounts'
 import { buildGearSearchGroups } from '@renderer/state/gearSearchGroups'
 import type { SetupItemDraft, SetupItemOutboardSlot } from '@shared/types/setup'
-import type { SetupColumnKey } from '@shared/constants/setupColumns'
+import { COLUMN_LABELS, type SetupColumnKey } from '@shared/constants/setupColumns'
 import type { Mic, OutboardGear, Preamp } from '@shared/types/entities'
 import type { UnresolvedGearHint } from '@renderer/state/setupStore'
 import ManufacturerPickerDropdown from '@renderer/components/ManufacturerPickerDropdown'
@@ -436,6 +436,14 @@ function SetupSheetRow({
   const cueBox = useBufferedField(item.cueBox ?? '', (v) => onChange({ cueBox: v.trim() || null }))
   const notes = useBufferedField(item.notes ?? '', (v) => onChange({ notes: v }))
 
+  /** Accessible name for a cell control. The cells carry no label of their own: four of them
+   *  (channel, tie line, cue box, notes) have no placeholder either, so a screen reader announced
+   *  nothing at all for them. Column name plus the row's identity, because tabbing through the
+   *  sheet is not table-navigation mode — the header association from scope="col" only helps a
+   *  reader that is walking the grid, not one moving control to control. */
+  const cellLabel = (key: SetupColumnKey): string =>
+    `${COLUMN_LABELS[key]}, ${sourceName.value || `row ${rowNumber}`}`
+
   // One cell per column key, dispatched so the row can render in whatever order the user chose.
   // Deliberately a plain function called from a .map (not a component) — it closes over the
   // useBufferedField results above, which MUST stay unconditional at the top level of the
@@ -494,6 +502,7 @@ function SetupSheetRow({
           <td key={key} style={{ textAlign: 'center' }}>
             <input
               type="checkbox"
+              aria-label={cellLabel('phantomPower')}
               checked={item.phantomPower}
               onChange={(e) => onChange({ phantomPower: e.target.checked })}
               onClick={(e) => e.stopPropagation()}
@@ -526,6 +535,7 @@ function SetupSheetRow({
             <input
               type="number"
               min={1}
+              aria-label={cellLabel('channel')}
               value={channel.value}
               onChange={(e) => handleChannelInputChange(e.target.value)}
               onBlur={channel.onBlur}
@@ -583,6 +593,7 @@ function SetupSheetRow({
             <input
               type="number"
               min={1}
+              aria-label={cellLabel('tieLine')}
               value={tieLine.value}
               onChange={(e) => handleTieLineInputChange(e.target.value)}
               onBlur={tieLine.onBlur}
@@ -601,6 +612,7 @@ function SetupSheetRow({
           <td key={key}>
             <input
               type="text"
+              aria-label={cellLabel('cueBox')}
               value={cueBox.value}
               onChange={(e) => cueBox.onChange(e.target.value)}
               onBlur={cueBox.onBlur}
@@ -613,6 +625,7 @@ function SetupSheetRow({
           <td key={key} style={{ textAlign: 'center' }}>
             <input
               type="checkbox"
+              aria-label={cellLabel('polarity')}
               checked={item.polarityFlip}
               onChange={(e) => onChange({ polarityFlip: e.target.checked })}
               onClick={(e) => e.stopPropagation()}
@@ -623,6 +636,7 @@ function SetupSheetRow({
         return (
           <td key={key}>
             <input
+              aria-label={cellLabel('notes')}
               value={notes.value}
               onChange={(e) => notes.onChange(e.target.value)}
               onBlur={notes.onBlur}
@@ -786,6 +800,7 @@ function SetupSheetRow({
       </td>
       <td>
         <input
+          aria-label={`Source name, row ${rowNumber}`}
           value={sourceName.value}
           placeholder="Source name"
           onChange={(e) => sourceName.onChange(e.target.value)}

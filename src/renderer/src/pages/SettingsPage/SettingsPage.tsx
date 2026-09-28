@@ -227,8 +227,11 @@ export default function SettingsPage(): JSX.Element {
       {activeTab === 'general' && (
         <div className="panel">
           <div>
-            <label style={{ display: 'block', marginBottom: 4 }}>Default engineer name</label>
+            <label htmlFor="default-engineer-name" style={{ display: 'block', marginBottom: 4 }}>
+              Default engineer name
+            </label>
             <input
+              id="default-engineer-name"
               value={defaultEngineerName}
               onChange={(e) => setDefaultEngineerName(e.target.value)}
               onBlur={handleDefaultEngineerNameBlur}
@@ -239,12 +242,23 @@ export default function SettingsPage(): JSX.Element {
           </div>
 
           <div style={{ marginTop: 20 }}>
-            <label style={{ display: 'block', marginBottom: 6 }}>Home screen layout</label>
-            <div className="inline-form" style={{ marginTop: 0, flexWrap: 'wrap' }}>
+            {/* role=group rather than a <label>: a label before a row of buttons points at nothing,
+                so a screen reader would announce four unexplained buttons. Same pattern as the
+                Accessibility tab's contrast picker. */}
+            <div id="home-layout-label" style={{ marginBottom: 6 }}>
+              Home screen layout
+            </div>
+            <div
+              className="inline-form"
+              style={{ marginTop: 0, flexWrap: 'wrap' }}
+              role="group"
+              aria-labelledby="home-layout-label"
+            >
               {HOME_LAYOUTS.map((l) => (
                 <button
                   key={l.id}
                   className={homeLayout === l.id ? 'btn primary' : 'btn'}
+                  aria-pressed={homeLayout === l.id}
                   onClick={() => setHomeLayout(l.id)}
                 >
                   {l.label}
@@ -376,12 +390,15 @@ export default function SettingsPage(): JSX.Element {
 
       {activeTab === 'theme' && (
         <div className="panel">
-          <label style={{ display: 'block', marginBottom: 6 }}>Appearance</label>
-          <div className="inline-form" style={{ marginTop: 0 }}>
+          <div id="appearance-label" style={{ marginBottom: 6 }}>
+            Appearance
+          </div>
+          <div className="inline-form" style={{ marginTop: 0 }} role="group" aria-labelledby="appearance-label">
             {THEME_PREFERENCES.map((t) => (
               <button
                 key={t.id}
                 className={themePreference === t.id ? 'btn primary' : 'btn'}
+                aria-pressed={themePreference === t.id}
                 onClick={() => setThemePreference(t.id)}
               >
                 {t.label}

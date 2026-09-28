@@ -372,21 +372,24 @@ export default function SetupSheetTable(): JSX.Element {
           <table className="data-table">
             <thead>
               <tr>
-                {showStereoLink && <th aria-label="Stereo pair link" style={{ width: STEREO_LANE_WIDTH }}></th>}
-                <th></th>
-                <th>Source name</th>
+                {showStereoLink && <th scope="col" aria-label="Stereo pair link" style={{ width: STEREO_LANE_WIDTH }}></th>}
+                {/* Named rather than left empty, following the stereo lane above: a blank header
+                    leaves its whole column unannounced, and this one holds the row-select button
+                    and drag handle. */}
+                <th scope="col" aria-label="Select and reorder"></th>
+                <th scope="col">Source name</th>
                 {orderedColumns.map((key) =>
                   key === 'outboard' ? (
                     <Fragment key={key}>
                       {Array.from({ length: outboardColumnCount }, (_, i) => (
-                        <th key={i}>{i === 0 ? 'Outboard' : `Outboard ${i + 1}`}</th>
+                        <th scope="col" key={i}>{i === 0 ? 'Outboard' : `Outboard ${i + 1}`}</th>
                       ))}
                     </Fragment>
                   ) : (
-                    <th key={key}>{COLUMN_LABELS[key]}</th>
+                    <th scope="col" key={key}>{COLUMN_LABELS[key]}</th>
                   )
                 )}
-                <th></th>
+                <th scope="col" aria-label="Delete"></th>
               </tr>
             </thead>
             <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>

@@ -622,10 +622,10 @@ export default function StudioSetupPage(): JSX.Element {
                 <table className="data-table" style={{ marginTop: 8 }}>
                   <thead>
                     <tr>
-                      <th>Manufacturer</th>
-                      <th>Name</th>
-                      <th>Qty</th>
-                      <th></th>
+                      <th scope="col">Manufacturer</th>
+                      <th scope="col">Name</th>
+                      <th scope="col">Qty</th>
+                      <th scope="col"></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -690,10 +690,10 @@ export default function StudioSetupPage(): JSX.Element {
                 <table className="data-table" style={{ marginTop: 8 }}>
                   <thead>
                     <tr>
-                      <th>Manufacturer</th>
-                      <th>Name</th>
-                      <th>Qty</th>
-                      <th></th>
+                      <th scope="col">Manufacturer</th>
+                      <th scope="col">Name</th>
+                      <th scope="col">Qty</th>
+                      <th scope="col"></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -759,10 +759,10 @@ export default function StudioSetupPage(): JSX.Element {
                 <table className="data-table" style={{ marginTop: 8 }}>
                   <thead>
                     <tr>
-                      <th>Manufacturer</th>
-                      <th>Name</th>
-                      <th>Channels</th>
-                      <th></th>
+                      <th scope="col">Manufacturer</th>
+                      <th scope="col">Name</th>
+                      <th scope="col">Channels</th>
+                      <th scope="col"></th>
                     </tr>
                   </thead>
                   <tbody>

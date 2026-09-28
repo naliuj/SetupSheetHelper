@@ -92,10 +92,11 @@ export default function CustomBlockModal({
             {title.trim() || 'Preview'}
           </span>
         </div>
-        <label className="card-sub" style={{ display: 'block', marginBottom: 4 }}>
+        <label htmlFor="custom-block-person" className="card-sub" style={{ display: 'block', marginBottom: 4 }}>
           Musician name (optional)
         </label>
         <input
+          id="custom-block-person"
           value={personName}
           onChange={(e) => setPersonName(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleConfirm()}
