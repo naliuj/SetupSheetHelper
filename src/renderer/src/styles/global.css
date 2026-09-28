@@ -1210,6 +1210,21 @@ table.data-table td.data-table-text {
   white-space: nowrap;
 }
 
+/* Present to assistive technology, absent from the layout. The clip-path/1px-box recipe rather
+   than display:none or visibility:hidden, both of which remove the element from the accessibility
+   tree as well — which would defeat the point for a live region. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* For the badge, count or status text sitting beside a .truncate label — without this the flex
    algorithm shrinks the short, fixed thing instead of the long, variable one next to it. */
 .no-shrink {
@@ -1350,23 +1365,21 @@ table.data-table td.data-table-text {
   line-height: 1;
 }
 
-/* Keyboard focus rings — additive only, doesn't touch any existing selector. :focus-visible
-   (rather than :focus) so mouse/touch users don't get a ring on click, only actual keyboard
-   navigation. The custom checkbox needs its own rule since its native appearance (and outline)
-   was stripped to build the checked/unchecked square look. */
-:where(
-    .btn,
-    .card.clickable,
-    .toggle-switch,
-    .field-chip,
-    .picker-trigger,
-    .nav-crumbs button,
-    .folder-tree-label,
-    .folder-tree-action,
-    input,
-    select,
-    textarea
-  ):focus-visible {
+/* Keyboard focus rings. :focus-visible (rather than :focus) so mouse/touch users don't get a ring
+   on click, only actual keyboard navigation. The custom checkbox needs its own rule below, since
+   its native appearance (and outline) was stripped to build the checked/unchecked square look.
+
+   This was a hand-maintained allowlist of ten selectors (.btn, .card.clickable, .picker-trigger,
+   …). Everything on it still matches, but the list was the wrong shape: a control had to be
+   enrolled by hand to be visibly focusable, so anything not on it silently had no ring at all —
+   .toast-undo was the live example, and dnd-kit's drag handles (spans it gives role="button" and
+   tabIndex={0}) were another. Matching what is actually focusable inverts the default: new
+   controls are covered, and the rare exception opts out rather than every control opting in.
+
+   Still inside :where(), so this contributes zero specificity and any element wanting a different
+   ring — .gutter-select needs an inset one, because its edges are its table cell's edges — keeps
+   winning with an ordinary class selector. */
+:where(a[href], button, input, select, textarea, summary, [tabindex]):focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 1px;
 }
