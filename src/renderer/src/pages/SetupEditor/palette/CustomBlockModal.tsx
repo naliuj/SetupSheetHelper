@@ -70,7 +70,7 @@ export default function CustomBlockModal({
           Color
           <SwatchPicker value={color} onChange={(c) => setColor(c ?? DEFAULT_COLOR)} />
           <span style={{ marginLeft: 8 }}>Text color</span>
-          <TextColorPicker value={labelColor} onChange={setLabelColor} />
+          <TextColorPicker value={labelColor} onChange={setLabelColor} fill={color} />
           {/* The block as it will look, since the text color only makes sense against the fill. */}
           <span
             aria-hidden="true"

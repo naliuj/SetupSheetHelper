@@ -131,6 +131,7 @@ function BlockRow({
         value={item.labelColor}
         onChange={(labelColor) => onUpdate(item.id, { labelColor })}
         title="Default text color"
+        fill={item.color}
       />
       <select
         className="palette-select"
@@ -309,7 +310,12 @@ export default function PaletteBlockList({
           <option value="circle">Circle</option>
         </select>
         <SwatchPicker className="palette-color" value={addColor} onChange={(color) => setAddColor(color ?? DEFAULT_SWATCH)} />
-        <TextColorPicker value={addLabelColor} onChange={setAddLabelColor} title="Default text color" />
+        <TextColorPicker
+          value={addLabelColor}
+          onChange={setAddLabelColor}
+          title="Default text color"
+          fill={addColor}
+        />
         <button className="btn small primary" onClick={commitAdd} disabled={!addLabel.trim()}>
           + Add block
         </button>
