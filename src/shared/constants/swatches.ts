@@ -30,6 +30,27 @@ export const COLOR_SWATCHES: SwatchGroup[] = [
 /** The default color for a newly created block/palette item (was the old free-form `#6c7ba0`). */
 export const DEFAULT_SWATCH = COLOR_SWATCHES[0].base
 
+/** The palette's own name for a hex, e.g. "Amber dark" — or null for a color that is not one of
+ *  the swatches (an imported .json can carry anything).
+ *
+ *  Exists because a row's color is the one place in the app where color carries meaning on its own:
+ *  Layout Mode blocks always draw a text label and use shape as well as hue, warnings pair an icon
+ *  with text, and phantom power is a checkbox — but a tinted row is a background and nothing else.
+ *  That is invisible to a screen reader, and for the ~8% of men with red-green color blindness the
+ *  ten hues collapse to about four distinguishable groups, four of which (Red, Orange, Amber,
+ *  Green) sit in the band that collapses. The picker already builds this string for its own
+ *  buttons; this makes the same name available where the color is USED. */
+export function swatchName(hex: string | null | undefined): string | null {
+  if (!isHexColor(hex)) return null
+  const target = hex.toLowerCase()
+  for (const group of COLOR_SWATCHES) {
+    for (const shade of ['lightest', 'light', 'base', 'dark', 'darkest'] as const) {
+      if (group[shade].toLowerCase() === target) return `${group.name} ${shade}`
+    }
+  }
+  return null
+}
+
 /** Every swatch hex in one flat list (one entry per shade row), for membership checks. */
 export const ALL_SWATCH_HEXES: string[] = COLOR_SWATCHES.flatMap((g) => [
   g.lightest,

@@ -1,7 +1,7 @@
 import { Fragment, memo, useMemo, useState, type CSSProperties } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { readableTextColor } from '@shared/constants/swatches'
+import { readableTextColor, swatchName } from '@shared/constants/swatches'
 import {
   STEREO_BRACE_BOTTOM,
   STEREO_BRACE_LANE_INSET,
@@ -444,6 +444,11 @@ function SetupSheetRow({
   const cellLabel = (key: SetupColumnKey): string =>
     `${COLUMN_LABELS[key]}, ${sourceName.value || `row ${rowNumber}`}`
 
+  /** A row's tint is the one signal in the app carried by color alone — no label, icon or shape
+   *  goes with it, in the editor or in either export. Naming it here puts it somewhere a screen
+   *  reader can reach and a mouse can hover, without changing how the sheet looks. */
+  const colorName = swatchName(item.color)
+
   // One cell per column key, dispatched so the row can render in whatever order the user chose.
   // Deliberately a plain function called from a .map (not a component) — it closes over the
   // useBufferedField results above, which MUST stay unconditional at the top level of the
@@ -773,7 +778,9 @@ function SetupSheetRow({
       <td
         className="gutter-cell"
         onClick={(e) => onGutterClickById(e, item.id)}
-        title="Click to select · Shift-click for a range · Cmd/Ctrl-click to toggle"
+        title={`Click to select · Shift-click for a range · Cmd/Ctrl-click to toggle${
+          colorName ? ` · ${colorName}` : ''
+        }`}
         style={{ cursor: 'pointer', userSelect: 'none', position: 'relative' }}
       >
         {!showStereoLink && selectionBar}
@@ -790,7 +797,9 @@ function SetupSheetRow({
         <button
           type="button"
           className="gutter-select"
-          aria-label={`Select row ${rowNumber}${sourceName.value ? `: ${sourceName.value}` : ''}`}
+          aria-label={`Select row ${rowNumber}${sourceName.value ? `: ${sourceName.value}` : ''}${
+            colorName ? `, ${colorName}` : ''
+          }`}
           aria-pressed={selected}
           onKeyDown={(e) => onGutterKeyDownById(e, item.id)}
         />
