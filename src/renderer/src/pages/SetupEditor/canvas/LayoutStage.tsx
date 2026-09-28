@@ -311,6 +311,10 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
       // visit.
       const isArrow = e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight'
       if (!isArrow || !active) return
+      // Bare and Shift-arrows only. Cmd/Ctrl- and Alt-arrows belong to the rebindable actions
+      // (Select Next/Previous Block defaults to CmdOrCtrl+Arrow), and nudging as well would both
+      // move the block and change the selection on one keypress.
+      if (e.metaKey || e.ctrlKey || e.altKey) return
       e.preventDefault()
       const step = e.shiftKey ? 10 : 1
       const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0
