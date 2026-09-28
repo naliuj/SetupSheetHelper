@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useBerkleeFeaturesStore } from '@renderer/state/berkleeFeaturesStore'
+import { useModalDialog } from '@renderer/hooks/useModalDialog'
 
 /** Shown once, on first launch of a fresh database — deliberately has no backdrop-click or
  *  Escape dismissal, since it's a one-time forced choice rather than a cancelable dialog. */
@@ -17,9 +18,11 @@ export default function BerkleeOnboardingModal(): JSX.Element {
     }
   }
 
+  const dialog = useModalDialog('Pre-load Berklee studios and gear?')
+
   return (
     <div className="modal-overlay">
-      <div className="modal" style={{ width: 420 }}>
+      <div className="modal" {...dialog} style={{ width: 420 }}>
         <h2>Pre-load Berklee studios and gear?</h2>
         <p className="card-sub">
           Set up Setup Sheet Helper with Berklee College of Music&rsquo;s real buildings, studios, and gear lists —

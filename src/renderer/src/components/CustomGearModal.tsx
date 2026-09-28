@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useEscapeToClose } from '@renderer/hooks/useEscapeToClose'
+import { useModalDialog } from '@renderer/hooks/useModalDialog'
 
 interface Props {
   /** "Mic" | "Preamp" | "Outboard" — used in the heading only. */
@@ -23,9 +24,11 @@ export default function CustomGearModal({ kind, initialValue = '', onClose, onCo
     onClose()
   }
 
+  const dialog = useModalDialog(`Custom ${kind}`)
+
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 320 }}>
+      <div className="modal" {...dialog} onClick={(e) => e.stopPropagation()} style={{ width: 320 }}>
         <h2 style={{ marginTop: 0 }}>Custom {kind}</h2>
         <input
           placeholder="Gear name"

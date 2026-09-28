@@ -150,6 +150,13 @@ export default function SettingsPage(): JSX.Element {
       if (e.key !== 'Escape') return
       // The Manage-presets modal is layered on top and owns Escape while open — let it handle it.
       if (managePresetsOpen) return
+      // So does any other dialog a tab panel has opened. This used to be the managePresetsOpen
+      // flag alone, which meant one Escape closed both PaletteEditor's "Reset the whole palette?"
+      // confirm AND the entire Settings page under it — and FacultyReserveEditor's reset the same
+      // way. SettingsPage cannot know about every dialog its panels render, so it asks the DOM:
+      // every modal now carries role="dialog", which makes "is something layered above me?" a
+      // question with a general answer rather than one flag per case.
+      if (document.querySelector('[role="dialog"]')) return
       if (subview.kind === 'main') closeSettings()
       else setSubview({ kind: 'main' })
     }

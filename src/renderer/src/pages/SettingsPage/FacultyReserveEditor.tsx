@@ -6,6 +6,8 @@ import { stripManufacturerPrefix } from '@shared/utils/manufacturerPrefix'
 import { useGearCatalogueSuggestions } from '@renderer/state/useGearCatalogueSuggestions'
 import { useModelSuggestions } from '@renderer/state/useModelSuggestions'
 import SuggestInput from '@renderer/components/SuggestInput'
+import { useModalDialog } from '@renderer/hooks/useModalDialog'
+import { useEscapeToClose } from '@renderer/hooks/useEscapeToClose'
 
 function FacultyReserveMicsSection({
   manufacturerSuggestions,
@@ -99,6 +101,12 @@ function FacultyReserveMicsSection({
     reload()
   }
 
+  // Same as PaletteEditor's confirms: no Escape of its own until now, masked by SettingsPage
+  // closing the whole page on Escape instead.
+  useEscapeToClose(() => setConfirmResetOpen(false), confirmResetOpen)
+
+  const resetDialog = useModalDialog('Factory reset faculty reserve mics?', confirmResetOpen)
+
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 0 }}>
@@ -179,7 +187,7 @@ function FacultyReserveMicsSection({
 
       {confirmResetOpen && (
         <div className="modal-overlay" onClick={() => setConfirmResetOpen(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 420 }}>
+          <div className="modal" {...resetDialog} onClick={(e) => e.stopPropagation()} style={{ width: 420 }}>
             <h2 style={{ marginTop: 0 }}>Factory reset faculty reserve mics?</h2>
             <p className="card-sub">
               Every faculty reserve mic — including any you've added or edited — is replaced with Berklee's original

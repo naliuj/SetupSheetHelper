@@ -5,6 +5,8 @@ import { groupByCategory } from '@renderer/state/paletteGrouping'
 import PaletteCategoryRail, { type RailCategory } from './PaletteCategoryRail'
 import PaletteBlockList from './PaletteBlockList'
 import PaletteBlockChip from './PaletteBlockChip'
+import { useModalDialog } from '@renderer/hooks/useModalDialog'
+import { useEscapeToClose } from '@renderer/hooks/useEscapeToClose'
 
 /** Sentinel "category" id for the Hidden built-ins view (real category names can't collide — a
  *  category is a user-facing label, and this is namespaced). */
@@ -145,6 +147,15 @@ export default function PaletteEditor(): JSX.Element {
   const selectedGroup = groups.find((g) => g.category === selection)
   const isTransientSelected = selection === newCategoryName && !categoryNames.includes(selection)
 
+  // These two confirms never had their own Escape handler. It looked like they did, because
+  // SettingsPage's Escape closed the entire Settings page out from under them — which is also why
+  // that handler now defers to any open dialog.
+  useEscapeToClose(() => setResetOpen(false), resetOpen && !deleteTarget)
+  useEscapeToClose(() => setDeleteTarget(null), !!deleteTarget)
+
+  const resetDialog = useModalDialog('Reset the whole palette?', resetOpen)
+  const deleteDialog = useModalDialog(deleteTarget ? `Delete "${deleteTarget}"?` : 'Delete category?', !!deleteTarget)
+
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
@@ -229,7 +240,7 @@ export default function PaletteEditor(): JSX.Element {
 
       {resetOpen && (
         <div className="modal-overlay" onClick={() => setResetOpen(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 460 }}>
+          <div className="modal" {...resetDialog} onClick={(e) => e.stopPropagation()} style={{ width: 460 }}>
             <h2 style={{ marginTop: 0 }}>Reset the whole palette?</h2>
             <p className="card-sub">
               Every block goes back to how it ships: original colors, shapes, categories and order,
@@ -257,7 +268,7 @@ export default function PaletteEditor(): JSX.Element {
 
       {deleteTarget && (
         <div className="modal-overlay" onClick={() => setDeleteTarget(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 420 }}>
+          <div className="modal" {...deleteDialog} onClick={(e) => e.stopPropagation()} style={{ width: 420 }}>
             <h2 style={{ marginTop: 0 }}>Delete "{deleteTarget}"?</h2>
             <p className="card-sub">
               Custom blocks in this category are removed. Built-in blocks are hidden and can be restored later from the

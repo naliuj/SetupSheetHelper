@@ -3,6 +3,7 @@ import type { Folder, Setup } from '@shared/types/setup'
 import { useEscapeToClose } from '@renderer/hooks/useEscapeToClose'
 import { buildFolderTree, flattenFolderTreeForPicker } from '@renderer/state/folderTree'
 import FolderTreeNode from '@renderer/components/FolderTreeNode'
+import { useModalDialog } from '@renderer/hooks/useModalDialog'
 
 interface Props {
   /** Excluded from the list — you can't split-view a setup against itself. */
@@ -96,9 +97,11 @@ export default function OpenAlongsideModal({
     if (selectedSetup) onConfirm(selectedSetup)
   }
 
+  const dialog = useModalDialog(`Open alongside “${currentSetupName}”`)
+
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal manage-modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal manage-modal" {...dialog} onClick={(e) => e.stopPropagation()}>
         <h2 style={{ marginTop: 0 }}>Open alongside &ldquo;{currentSetupName}&rdquo;</h2>
 
         {!loaded ? (

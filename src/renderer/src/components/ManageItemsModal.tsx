@@ -19,6 +19,7 @@ import type { FolderDeleteImpact, StudioDeleteImpact } from '@shared/types/ipc'
 import { buildFolderTree, flattenFolderTreeForPicker } from '@renderer/state/folderTree'
 import { useEscapeToClose } from '@renderer/hooks/useEscapeToClose'
 import FolderTreeNode from './FolderTreeNode'
+import { useModalDialog } from '@renderer/hooks/useModalDialog'
 
 export interface ManagedItem {
   kind: string
@@ -438,9 +439,30 @@ export default function ManageItemsModal({
     setFolderDialog(null)
   }
 
+  // One per dialog, all unconditional (hooks cannot be called conditionally) with the condition
+  // passed as `active` — these nested dialogs come and go while this component stays mounted, so
+  // the focus effect has to key off the dialog appearing, not off this component mounting.
+  const dialog = useModalDialog(title)
+  const folderNameDialog = useModalDialog(
+    folderDialog?.kind === 'rename' ? 'Rename Folder' : 'New Folder',
+    !!folderDialog && (folderDialog.kind === 'create' || folderDialog.kind === 'rename')
+  )
+  const folderDeleteDialog = useModalDialog(
+    folderDialog?.kind === 'delete' ? `Delete "${folderDialog.name}"?` : 'Delete folder?',
+    folderDialog?.kind === 'delete'
+  )
+  const itemDeleteDialog = useModalDialog(
+    itemDialog ? `Delete "${itemDialog.item.label}"?` : 'Delete item?',
+    !!itemDialog
+  )
+  const bulkDeleteDialogProps = useModalDialog(
+    bulkDeleteDialog ? `Delete ${pluralize(bulkDeleteDialog.items.length, 'item')}?` : 'Delete items?',
+    !!bulkDeleteDialog
+  )
+
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal manage-modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal manage-modal" {...dialog} onClick={(e) => e.stopPropagation()}>
         <h2 style={{ marginTop: 0 }}>{title}</h2>
         <DndContext
           sensors={sensors}
@@ -570,7 +592,7 @@ export default function ManageItemsModal({
 
       {folderDialog && (folderDialog.kind === 'create' || folderDialog.kind === 'rename') && (
         <div className="modal-overlay" onClick={() => setFolderDialog(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 360 }}>
+          <div className="modal" {...folderNameDialog} onClick={(e) => e.stopPropagation()} style={{ width: 360 }}>
             <h2 style={{ marginTop: 0 }}>{folderDialog.kind === 'create' ? 'New Folder' : 'Rename Folder'}</h2>
             <div className="inline-form" style={{ marginTop: 0 }}>
               <input
@@ -594,7 +616,7 @@ export default function ManageItemsModal({
 
       {folderDialog && folderDialog.kind === 'delete' && (
         <div className="modal-overlay" onClick={() => setFolderDialog(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 420 }}>
+          <div className="modal" {...folderDeleteDialog} onClick={(e) => e.stopPropagation()} style={{ width: 420 }}>
             <h2 style={{ marginTop: 0 }}>Delete "{folderDialog.name}"?</h2>
             <p className="card-sub">{describeFolderImpact(folderDialog.impact)}</p>
             <div className="modal-actions" style={{ justifyContent: 'flex-start', flexWrap: 'wrap' }}>
@@ -614,7 +636,7 @@ export default function ManageItemsModal({
 
       {itemDialog && (
         <div className="modal-overlay" onClick={() => setItemDialog(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 420 }}>
+          <div className="modal" {...itemDeleteDialog} onClick={(e) => e.stopPropagation()} style={{ width: 420 }}>
             <h2 style={{ marginTop: 0 }}>Delete "{itemDialog.item.label}"?</h2>
             <p className="card-sub">
               {itemDialog.studioImpact && describeStudioImpact(itemDialog.studioImpact)
@@ -635,7 +657,7 @@ export default function ManageItemsModal({
 
       {bulkDeleteDialog && (
         <div className="modal-overlay" onClick={() => setBulkDeleteDialog(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 420 }}>
+          <div className="modal" {...bulkDeleteDialogProps} onClick={(e) => e.stopPropagation()} style={{ width: 420 }}>
             <h2 style={{ marginTop: 0 }}>Delete {pluralize(bulkDeleteDialog.items.length, 'item')}?</h2>
             <p className="card-sub">
               {describeStudioImpact(bulkDeleteDialog.studioImpact)

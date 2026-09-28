@@ -3,6 +3,7 @@ import { useEscapeToClose } from '@renderer/hooks/useEscapeToClose'
 import { DEFAULT_SWATCH, labelShadowFor, resolveLabelColor } from '@shared/constants/swatches'
 import SwatchPicker from '@renderer/components/SwatchPicker'
 import TextColorPicker from '@renderer/components/TextColorPicker'
+import { useModalDialog } from '@renderer/hooks/useModalDialog'
 
 interface Props {
   initialTitle?: string
@@ -48,9 +49,11 @@ export default function CustomBlockModal({
     onClose()
   }
 
+  const dialog = useModalDialog(heading)
+
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 320 }}>
+      <div className="modal" {...dialog} onClick={(e) => e.stopPropagation()} style={{ width: 320 }}>
         <h2 style={{ marginTop: 0 }}>{heading}</h2>
         {description && (
           <p className="card-sub" style={{ marginTop: 0 }}>

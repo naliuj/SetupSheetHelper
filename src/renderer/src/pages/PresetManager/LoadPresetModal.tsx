@@ -7,6 +7,7 @@ import { resolveChannelPresetItems } from '@renderer/state/channelPresetResoluti
 import { useEscapeToClose } from '@renderer/hooks/useEscapeToClose'
 import { buildFolderTree, flattenFolderTreeForPicker } from '@renderer/state/folderTree'
 import FolderTreeNode from '@renderer/components/FolderTreeNode'
+import { useModalDialog } from '@renderer/hooks/useModalDialog'
 
 /** A single flat folder row for search results — read-only, so no CRUD actions. Mirrors
  *  OpenAlongsideModal's row of the same name. */
@@ -84,9 +85,11 @@ export default function LoadPresetModal({ onClose }: { onClose: () => void }): J
     onClose()
   }
 
+  const dialog = useModalDialog('Load channel preset')
+
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal manage-modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal manage-modal" {...dialog} onClick={(e) => e.stopPropagation()}>
         <h2 style={{ marginTop: 0 }}>Load channel preset</h2>
 
         {!loaded ? (

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useFolderPicker } from '@renderer/state/useFolderPicker'
 import FolderPicker from '@renderer/components/FolderPicker'
 import { useEscapeToClose } from '@renderer/hooks/useEscapeToClose'
+import { useModalDialog } from '@renderer/hooks/useModalDialog'
 
 interface Props {
   onClose: () => void
@@ -27,9 +28,11 @@ export default function SaveAsTemplateModal({ onClose, onSave }: Props): JSX.Ele
     }
   }
 
+  const dialog = useModalDialog('Save as Studio')
+
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 380 }}>
+      <div className="modal" {...dialog} onClick={(e) => e.stopPropagation()} style={{ width: 380 }}>
         <h2>Save as Studio</h2>
         <p className="card-sub">
           Saves this setup's gear list (no positions) as a reusable Custom Studio for this room.
