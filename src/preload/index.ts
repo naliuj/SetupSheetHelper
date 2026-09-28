@@ -197,6 +197,7 @@ const api: RendererApi = {
     // <html> before React renders, or increased contrast flashes in a frame late on every launch.
     getSync: () => ipcRenderer.sendSync(ACCESSIBILITY_SYNC_CHANNEL) as AccessibilityStateMessage,
     setContrast: (preference) => ipcRenderer.invoke(IPC.accessibility.setContrast, preference),
+    setUiScale: (factor) => ipcRenderer.invoke(IPC.accessibility.setUiScale, factor),
     onChanged: (callback) => {
       const listener = (_event: unknown, state: AccessibilityStateMessage): void => callback(state)
       ipcRenderer.on(ACCESSIBILITY_CHANGED_CHANNEL, listener)

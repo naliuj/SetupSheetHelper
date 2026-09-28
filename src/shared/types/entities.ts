@@ -160,5 +160,8 @@ export const APP_SETTINGS_KEYS = {
   /** ContrastPreference: 'system' | 'more' | 'standard' — how strongly UI boundaries are drawn.
    *  Absent/garbage → 'system'. See parseContrastPreference; no backfill needed, since there is no
    *  older default to preserve. */
-  contrastPreference: 'contrast_preference'
+  contrastPreference: 'contrast_preference',
+  /** Number string — a Chromium zoom factor, one of UI_SCALES' steps (0.8 … 2).
+   *  Absent/unparsable → '1'; anything off-step snaps to the nearest. See parseUiScale. */
+  uiScale: 'ui_scale'
 } as const

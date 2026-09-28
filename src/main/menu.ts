@@ -1,6 +1,7 @@
 import { BrowserWindow, Menu, type MenuItemConstructorOptions } from 'electron'
 import { MENU_CHANNEL, type MenuAction } from '@shared/types/ipc'
 import { checkForUpdatesManually } from './autoUpdater'
+import { stepUiScale } from './accessibility'
 
 /** Builds the native application menu, wiring File-menu items through to the renderer via IPC.
  *  Deliberately carries no `accelerator` on almost any app-defined item (Settings/Save/Export/
@@ -85,9 +86,13 @@ export function installAppMenu(updateDialogParent: BrowserWindow): void {
         { label: 'Duplicate', click: () => send('duplicate-selection') },
         { label: 'Number Selected Rows…', click: () => send('sequential-numbering') },
         { type: 'separator' },
-        { label: 'Zoom In', click: () => send('zoom-in') },
-        { label: 'Zoom Out', click: () => send('zoom-out') },
-        { label: 'Reset View', click: () => send('reset-view') },
+        // "Layout" in the label because the View menu now has its own Zoom In/Out for the UI
+        // scale, and two identically named items in one menu bar is a coin toss. These three are
+        // the Konva stage's zoom (Cmd+Shift+=/-/0 by default, rebindable); the View menu's are the
+        // whole interface (Cmd+=/-/0, fixed).
+        { label: 'Zoom In (Layout)', click: () => send('zoom-in') },
+        { label: 'Zoom Out (Layout)', click: () => send('zoom-out') },
+        { label: 'Reset Layout View', click: () => send('reset-view') },
         { type: 'separator' },
         { label: 'Setup Settings…', click: () => send('open-setup-settings') },
         // On mac, app-wide Settings lives in the app menu; on Windows/Linux there's no app menu,
@@ -95,7 +100,29 @@ export function installAppMenu(updateDialogParent: BrowserWindow): void {
         ...(isMac ? [] : [{ label: 'Settings…', click: () => send('open-settings') } as const])
       ]
     },
-    { role: 'viewMenu' },
+    {
+      // Hand-built rather than `role: 'viewMenu'`. The stock menu's zoomIn/zoomOut/resetZoom roles
+      // change the live zoom factor and tell nobody: Settings → Accessibility would immediately
+      // disagree with what is on screen, the pop-out Layout window would keep its own separate
+      // zoom, and nothing survived a restart. Routing all three through stepUiScale gives one
+      // stored source of truth for every window. The non-zoom roles are kept verbatim so the menu
+      // is otherwise the one Electron would have built.
+      label: 'View',
+      submenu: [
+        { role: 'reload' },
+        { role: 'forceReload' },
+        { role: 'toggleDevTools' },
+        { type: 'separator' },
+        // Cmd+=/-/0 here; the Layout stage keeps Cmd+Shift+=/-/0. That split is what the app
+        // already did by accident — the canvas zoom took the Shift variants precisely to stay off
+        // the stock View menu's toes — so this only makes the UI half persist.
+        { label: 'Actual Size', accelerator: 'CmdOrCtrl+0', click: () => stepUiScale('reset') },
+        { label: 'Zoom In', accelerator: 'CmdOrCtrl+=', click: () => stepUiScale('in') },
+        { label: 'Zoom Out', accelerator: 'CmdOrCtrl+-', click: () => stepUiScale('out') },
+        { type: 'separator' },
+        { role: 'togglefullscreen' }
+      ]
+    },
     { role: 'windowMenu' }
   ]
 

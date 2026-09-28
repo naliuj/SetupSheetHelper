@@ -1,5 +1,6 @@
 import { useA11yPrefsStore } from '@renderer/state/a11yPrefsStore'
-import { CONTRAST_PREFERENCES, type ContrastPreference } from '@shared/constants/accessibility'
+import { CONTRAST_PREFERENCES, UI_SCALES, type ContrastPreference } from '@shared/constants/accessibility'
+import { formatCombo } from '@shared/constants/keybindActions'
 
 /** Settings → Accessibility.
  *
@@ -10,9 +11,36 @@ import { CONTRAST_PREFERENCES, type ContrastPreference } from '@shared/constants
 export default function AccessibilityEditor(): JSX.Element {
   const contrast = useA11yPrefsStore((s) => s.contrast)
   const setContrast = useA11yPrefsStore((s) => s.setContrast)
+  const uiScale = useA11yPrefsStore((s) => s.uiScale)
+  const setUiScale = useA11yPrefsStore((s) => s.setUiScale)
 
   return (
     <div>
+      <div style={{ marginBottom: 20 }}>
+        <label htmlFor="ui-scale" style={{ display: 'block', marginBottom: 4 }}>
+          Interface size
+        </label>
+        <select
+          id="ui-scale"
+          value={String(uiScale)}
+          onChange={(e) => setUiScale(Number(e.target.value))}
+          style={{ width: 260 }}
+        >
+          {UI_SCALES.map((s) => (
+            <option key={s.factor} value={String(s.factor)}>
+              {s.label}
+            </option>
+          ))}
+        </select>
+        <p className="card-sub" style={{ marginTop: 4 }}>
+          Scales everything — text, controls, the setup sheet and the room layout — in this window
+          and the pop-out Layout window. Also on View → Zoom In / Zoom Out, or{' '}
+          {formatCombo('CmdOrCtrl+=')} and {formatCombo('CmdOrCtrl+-')}. Layout Mode&apos;s own zoom
+          is a separate control, on {formatCombo('CmdOrCtrl+Shift+=')} and{' '}
+          {formatCombo('CmdOrCtrl+Shift+-')}.
+        </p>
+      </div>
+
       <div style={{ marginBottom: 20 }}>
         <div id="contrast-label" style={{ marginBottom: 6 }}>
           Border contrast

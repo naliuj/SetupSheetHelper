@@ -164,7 +164,10 @@ export const IPC = {
   accessibility: {
     /** Not settings.set, for the same reason as theme.set: every window has to agree, and only
      *  main can reach them all. */
-    setContrast: 'accessibility:setContrast'
+    setContrast: 'accessibility:setContrast',
+    /** Also main's job for a second reason: the zoom factor is per-webContents, so only main can
+     *  apply it to the pop-out Layout window as well as this one. */
+    setUiScale: 'accessibility:setUiScale'
   },
   app: {
     getVersion: 'app:getVersion'
@@ -700,6 +703,9 @@ export interface AccessibilityStateMessage {
    *  That keeps the OS side reactive with no listener and no Electron API whose macOS support
    *  varies. `data-contrast` is set to this string verbatim. */
   contrast: ContrastPreference
+  /** The Chromium zoom factor main has applied to every window. Carried here only so the Settings
+   *  picker can show it — the renderer never applies it itself. */
+  uiScale: number
 }
 
 export interface LayoutWindowExportRequest {
@@ -893,6 +899,7 @@ export interface RendererApi {
     /** SYNCHRONOUS, like theme.getSync and for the same pre-paint reason. */
     getSync(): AccessibilityStateMessage
     setContrast(preference: ContrastPreference): Promise<void>
+    setUiScale(factor: number): Promise<void>
     /** Fires when the user changes a preference in ANY window. Returns an unsubscribe. */
     onChanged(callback: (state: AccessibilityStateMessage) => void): () => void
   }

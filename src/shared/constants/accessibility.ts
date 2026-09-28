@@ -36,3 +36,51 @@ export function parseContrastPreference(value: string | null | undefined): Contr
     ? (value as ContrastPreference)
     : 'system'
 }
+
+/** UI scale, as a Chromium zoom factor applied to every window's webContents.
+ *
+ *  Zoom rather than a font-size token because the stylesheet has no `rem` anywhere and no base
+ *  font-size — 266 hardcoded px values, with type down to 11px. setZoomFactor scales px too, so
+ *  this reaches all of it without a px-to-rem conversion first.
+ *
+ *  Steps rather than a free slider so the menu's Zoom In/Out have something to walk, and so the
+ *  stored value is always one the Settings picker can show. Includes two steps below 100% because
+ *  Electron's stock View menu (which this replaces) could zoom out, and dropping that would be a
+ *  regression. */
+export const UI_SCALES: { factor: number; label: string }[] = [
+  { factor: 0.8, label: '80%' },
+  { factor: 0.9, label: '90%' },
+  { factor: 1, label: '100%' },
+  { factor: 1.1, label: '110%' },
+  { factor: 1.25, label: '125%' },
+  { factor: 1.5, label: '150%' },
+  { factor: 1.75, label: '175%' },
+  { factor: 2, label: '200%' }
+]
+
+export const DEFAULT_UI_SCALE = 1
+
+/** Coerce a stored/unknown value to one of the steps above.
+ *
+ *  Snaps to the nearest step rather than rejecting near-misses, so a value written by an older or
+ *  newer build (or a hand-edited database) lands somewhere sensible instead of silently jumping
+ *  back to 100%. Unparseable or absent → 100%. */
+export function parseUiScale(value: string | null | undefined): number {
+  const parsed = Number(value)
+  if (!Number.isFinite(parsed) || parsed <= 0) return DEFAULT_UI_SCALE
+  return UI_SCALES.reduce((best, s) =>
+    Math.abs(s.factor - parsed) < Math.abs(best.factor - parsed) ? s : best
+  ).factor
+}
+
+export function serializeUiScale(factor: number): string {
+  return String(factor)
+}
+
+/** The next step up or down from `factor`, clamped at the ends — what the View menu's Zoom In and
+ *  Zoom Out walk. Returns the same value at the ends so the caller can skip a redundant write. */
+export function steppedUiScale(factor: number, direction: 'in' | 'out'): number {
+  const index = UI_SCALES.findIndex((s) => s.factor === parseUiScale(String(factor)))
+  const next = direction === 'in' ? index + 1 : index - 1
+  return UI_SCALES[Math.max(0, Math.min(UI_SCALES.length - 1, next))].factor
+}

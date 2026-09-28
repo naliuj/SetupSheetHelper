@@ -1,9 +1,13 @@
 import { create } from 'zustand'
-import type { ContrastPreference } from '@shared/constants/accessibility'
+import { DEFAULT_UI_SCALE, type ContrastPreference } from '@shared/constants/accessibility'
 
 interface A11yPrefsState {
   contrast: ContrastPreference
+  /** Main applies this to every window's webContents; this copy exists so the Settings picker can
+   *  show it. Nothing in the renderer acts on it. */
+  uiScale: number
   setContrast(preference: ContrastPreference): void
+  setUiScale(factor: number): void
 }
 
 /** Accessibility preferences, mirroring themeStore: main owns the value, this is the window's copy.
@@ -12,10 +16,15 @@ interface A11yPrefsState {
  *  createRoot, from the preload bootstrap. They exist only so the type is satisfied. */
 export const useA11yPrefsStore = create<A11yPrefsState>((set) => ({
   contrast: 'system',
+  uiScale: DEFAULT_UI_SCALE,
   setContrast: (contrast) => {
     // Optimistic, so Settings responds instantly; main's broadcast arrives a tick later and
     // reconciles this window and every other one.
     set({ contrast })
     void window.api.accessibility.setContrast(contrast)
+  },
+  setUiScale: (uiScale) => {
+    set({ uiScale })
+    void window.api.accessibility.setUiScale(uiScale)
   }
 }))

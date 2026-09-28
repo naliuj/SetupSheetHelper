@@ -19,6 +19,7 @@ useThemeStore.setState(bootstrapTheme)
 // Same bootstrap, same reason: an increased-contrast user would otherwise get one frame of faint
 // borders. `data-contrast` carries the PREFERENCE verbatim — global.css resolves 'system' itself
 // through @media (prefers-contrast: more), so there is nothing for main to resolve first.
+// uiScale rides along only to seed the Settings picker: main applies it to the webContents itself.
 const bootstrapA11y = window.api.accessibility.getSync()
 document.documentElement.dataset.contrast = bootstrapA11y.contrast
 useA11yPrefsStore.setState(bootstrapA11y)
