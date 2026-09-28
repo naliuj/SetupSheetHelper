@@ -5,6 +5,7 @@ import ToggleSwitch from '@renderer/components/ToggleSwitch'
 import ExportColumnChips, { useExportColumnChips } from '@renderer/components/ExportColumnChips'
 import { useNavigationStore } from '@renderer/state/navigationStore'
 import type { SetupColumnKey } from '@shared/constants/setupColumns'
+import { useModalDialog } from '@renderer/hooks/useModalDialog'
 
 export interface ExportOptions {
   include: PdfExportInclude
@@ -68,9 +69,11 @@ export default function ExportOptionsModal({
     }
   }
 
+  const dialog = useModalDialog('Export to PDF')
+
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 400 }}>
+      <div className="modal" {...dialog} onClick={(e) => e.stopPropagation()} style={{ width: 400 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
           <h2 style={{ margin: 0 }}>Export to PDF</h2>
           <span

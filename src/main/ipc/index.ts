@@ -14,6 +14,7 @@ import { registerAppHandlers } from './appHandlers'
 import { registerFeedbackHandlers } from './feedbackHandlers'
 import { registerLayoutWindowHandlers } from '../layoutWindow'
 import { registerThemeHandlers } from '../theme'
+import { registerAccessibilityHandlers } from '../accessibility'
 
 export function registerAllIpcHandlers(): void {
   registerStudioHandlers()
@@ -32,4 +33,5 @@ export function registerAllIpcHandlers(): void {
   registerFeedbackHandlers()
   registerLayoutWindowHandlers()
   registerThemeHandlers()
+  registerAccessibilityHandlers()
 }

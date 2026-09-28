@@ -20,8 +20,9 @@ export default function PdfLayoutEditor(): JSX.Element {
   return (
     <div>
       <div style={{ marginBottom: 20 }}>
-        <label style={{ display: 'block', marginBottom: 4 }}>Table grid lines</label>
+        <label htmlFor="pdf-grid-style" style={{ display: 'block', marginBottom: 4 }}>Table grid lines</label>
         <select
+          id="pdf-grid-style"
           value={gridStyle}
           onChange={(e) => setGridStyle(e.target.value as PdfGridStyle)}
           style={{ width: 260 }}
@@ -53,7 +54,9 @@ export default function PdfLayoutEditor(): JSX.Element {
       </div>
 
       <div style={{ marginBottom: 20 }}>
-        <label style={{ display: 'block', marginBottom: 4 }}>Accent color</label>
+        {/* Not a <label>: SwatchPicker renders a button, and a label pointing at nothing labels
+            nothing. The picker already carries its own accessible name via `title`. */}
+        <div style={{ marginBottom: 4 }}>Accent color</div>
         <SwatchPicker value={accentColor} onChange={setAccentColor} allowNone title="PDF accent color" />
         <p className="card-sub" style={{ marginTop: 4 }}>
           Tints the header shading, grid lines, and title text. "No color" keeps everything neutral gray/black.
@@ -61,8 +64,9 @@ export default function PdfLayoutEditor(): JSX.Element {
       </div>
 
       <div>
-        <label style={{ display: 'block', marginBottom: 4 }}>Session date format</label>
+        <label htmlFor="pdf-date-format" style={{ display: 'block', marginBottom: 4 }}>Session date format</label>
         <select
+          id="pdf-date-format"
           value={dateFormat}
           onChange={(e) => setDateFormat(e.target.value as PdfDateFormat)}
           style={{ width: 260 }}

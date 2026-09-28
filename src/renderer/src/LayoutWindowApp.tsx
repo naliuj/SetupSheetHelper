@@ -6,6 +6,7 @@ import { useLayoutStore } from './state/layoutStore'
 import { registerFlusher, useQuitFlush } from '@renderer/state/flushRegistry'
 import { usePaletteStore } from './state/paletteStore'
 import { useThemeSync } from './hooks/useThemeSync'
+import { useA11ySync } from './hooks/useA11ySync'
 import { useKeybindPrefsStore } from './state/keybindPrefsStore'
 import InstrumentPalette from './pages/SetupEditor/palette/InstrumentPalette'
 import { exportStageToDataUrl } from './pages/SetupEditor/canvas/konvaExport'
@@ -95,6 +96,7 @@ export default function LayoutWindowApp(): JSX.Element {
   // own startup and never hear about changes, so toggling the theme in the main window left this
   // one on the old one until it was closed and reopened.
   useThemeSync()
+  useA11ySync()
   const [params] = useState(readLaunchParams)
   const blocks = useLayoutStore((s) => s.blocks)
   const isDirty = useLayoutStore((s) => s.isDirty)

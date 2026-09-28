@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { closeDb, openDatabaseAtStartup } from './db'
 import { initTheme, themeBackgroundColor } from './theme'
+import { initAccessibility } from './accessibility'
 import { attachRendererLogging, initLogging } from './log'
 import { installQuitFlush } from './quitFlush'
 import { registerAllIpcHandlers } from './ipc'
@@ -129,6 +130,9 @@ app.whenReady().then(() => {
   // After the database is open (it reads the stored preference) and before any window is created
   // (createWindow needs themeBackgroundColor, and the sync bootstrap channel must already answer).
   initTheme()
+  // Before any window exists: this hooks browser-window-created, so it has to be listening
+  // before createWindow runs or the first window never gets the stored zoom factor.
+  initAccessibility()
   installQuitFlush()
   const mainWindow = createWindow()
   installAppMenu(mainWindow)

@@ -11,7 +11,7 @@ import { getOutboardByIds } from '../db/repositories/outboardRepo'
 import { getPreampsByIds } from '../db/repositories/preampRepo'
 import { resolveMicText, resolveOutboardSlotText, resolvePreampText } from '../db/resolveGearLabels'
 import { COLUMN_LABELS, orderedVisibleColumns } from '@shared/constants/setupColumns'
-import { isHexColor } from '@shared/constants/swatches'
+import { isHexColor, readableTextColor } from '@shared/constants/swatches'
 import { layoutPixelsToPoints } from '@shared/constants/roomLayout'
 import { pngSize } from './pngSize'
 
@@ -154,8 +154,16 @@ export async function exportSetupSpreadsheet(input: ExportSetupSpreadsheetInput)
     // LibreOffice, a repair prompt in Excel.
     if (isHexColor(item.color)) {
       const argb = hexToArgb(item.color)
+      // The fill is full-strength, so the text has to move instead. Excel's default font is black
+      // and nothing here used to set one, which made every `dark` and `darkest` swatch a row of
+      // black-on-near-black: Slate darkest (#0f172a) came out at about 1.2:1. The PDF never had
+      // this problem because it mixes the fill 78% toward white first (hexToPaleRgb) so black text
+      // always reads; the spreadsheet keeps full saturation deliberately — that is what makes a
+      // row match the swatch the user picked — so it picks the text color to suit the fill.
+      const fontArgb = `FF${readableTextColor(item.color).replace('#', '').toUpperCase()}`
       row.eachCell({ includeEmpty: true }, (cell) => {
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb } }
+        cell.font = { color: { argb: fontArgb } }
       })
     }
   }

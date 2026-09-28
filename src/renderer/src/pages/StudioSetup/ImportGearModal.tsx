@@ -11,6 +11,7 @@ import type { Folder as FolderType, FolderTreeNode as FolderTreeNodeType } from 
 import { buildFolderTree } from '@renderer/state/folderTree'
 import { useEscapeToClose } from '@renderer/hooks/useEscapeToClose'
 import { formatGearLabel } from '@shared/utils/manufacturerPrefix'
+import { useModalDialog } from '@renderer/hooks/useModalDialog'
 
 interface Props {
   allMics: MicWithStudio[]
@@ -258,10 +259,12 @@ export default function ImportGearModal({
 
   const noStudiosAvailable = buildingGroups.length === 0 && customStudios.length === 0
 
+  const dialog = useModalDialog('Import gear from another studio')
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div
-        className="modal"
+        className="modal" {...dialog}
         onClick={(e) => e.stopPropagation()}
         style={{ width: 480, maxHeight: '80vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
       >

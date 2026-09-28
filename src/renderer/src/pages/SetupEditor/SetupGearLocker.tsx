@@ -99,11 +99,11 @@ function SessionMicsSection({
       <table className="data-table">
         <thead>
           <tr>
-            <th>Manufacturer</th>
-            <th>Name</th>
-            <th>Category</th>
-            <th>Qty</th>
-            <th></th>
+            <th scope="col">Manufacturer</th>
+            <th scope="col">Name</th>
+            <th scope="col">Category</th>
+            <th scope="col">Qty</th>
+            <th scope="col"></th>
           </tr>
         </thead>
         <tbody>
@@ -251,11 +251,11 @@ function SessionOutboardSection({
       <table className="data-table">
         <thead>
           <tr>
-            <th>Manufacturer</th>
-            <th>Name</th>
-            <th>Category</th>
-            <th>Qty</th>
-            <th></th>
+            <th scope="col">Manufacturer</th>
+            <th scope="col">Name</th>
+            <th scope="col">Category</th>
+            <th scope="col">Qty</th>
+            <th scope="col"></th>
           </tr>
         </thead>
         <tbody>
@@ -403,11 +403,11 @@ function SessionPreampsSection({
       <table className="data-table">
         <thead>
           <tr>
-            <th>Manufacturer</th>
-            <th>Name</th>
-            <th>Category</th>
-            <th>Channels</th>
-            <th></th>
+            <th scope="col">Manufacturer</th>
+            <th scope="col">Name</th>
+            <th scope="col">Category</th>
+            <th scope="col">Channels</th>
+            <th scope="col"></th>
           </tr>
         </thead>
         <tbody>

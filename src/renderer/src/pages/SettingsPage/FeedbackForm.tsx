@@ -38,8 +38,9 @@ export default function FeedbackForm(): JSX.Element {
   return (
     <div>
       <div style={{ marginBottom: 16 }}>
-        <label style={{ display: 'block', marginBottom: 4 }}>Type</label>
+        <label htmlFor="feedback-type" style={{ display: 'block', marginBottom: 4 }}>Type</label>
         <select
+          id="feedback-type"
           value={category}
           onChange={(e) => setCategory(e.target.value as FeedbackCategory)}
           style={{ width: 240 }}
@@ -53,13 +54,14 @@ export default function FeedbackForm(): JSX.Element {
       </div>
 
       <div style={{ marginBottom: 16 }}>
-        <label style={{ display: 'block', marginBottom: 4 }}>Name</label>
-        <input value={name} onChange={(e) => setName(e.target.value)} style={{ width: 320 }} placeholder="Your name" />
+        <label htmlFor="feedback-name" style={{ display: 'block', marginBottom: 4 }}>Name</label>
+        <input id="feedback-name" value={name} onChange={(e) => setName(e.target.value)} style={{ width: 320 }} placeholder="Your name" />
       </div>
 
       <div style={{ marginBottom: 16 }}>
-        <label style={{ display: 'block', marginBottom: 4 }}>Email</label>
+        <label htmlFor="feedback-email" style={{ display: 'block', marginBottom: 4 }}>Email</label>
         <input
+          id="feedback-email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           type="email"
@@ -72,8 +74,9 @@ export default function FeedbackForm(): JSX.Element {
       </div>
 
       <div style={{ marginBottom: 16 }}>
-        <label style={{ display: 'block', marginBottom: 4 }}>Message</label>
+        <label htmlFor="feedback-message" style={{ display: 'block', marginBottom: 4 }}>Message</label>
         <textarea
+          id="feedback-message"
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           rows={8}

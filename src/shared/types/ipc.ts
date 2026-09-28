@@ -18,6 +18,7 @@ import type { ChannelPreset, ChannelPresetItemInput, ChannelPresetWithItems } fr
 import type { PaletteItem } from './palette'
 import type { ExportColumnOverrides, SetupColumnKey } from '../constants/setupColumns'
 import type { ResolvedTheme, ThemePreference } from '../constants/theme'
+import type { ContrastPreference } from '../constants/accessibility'
 import type {
   EditorMode,
   Folder,
@@ -159,6 +160,14 @@ export const IPC = {
      *  generic setter gives it no hook to do that from. That omission is why the pop-out Layout
      *  window used to keep the old theme until it was reopened. */
     set: 'theme:set'
+  },
+  accessibility: {
+    /** Not settings.set, for the same reason as theme.set: every window has to agree, and only
+     *  main can reach them all. */
+    setContrast: 'accessibility:setContrast',
+    /** Also main's job for a second reason: the zoom factor is per-webContents, so only main can
+     *  apply it to the pop-out Layout window as well as this one. */
+    setUiScale: 'accessibility:setUiScale'
   },
   app: {
     getVersion: 'app:getVersion'
@@ -678,6 +687,27 @@ export interface ThemeStateMessage {
   resolved: ResolvedTheme
 }
 
+/** Accessibility preference changes, pushed to every window — same reasoning as
+ *  THEME_CHANGED_CHANNEL: a pop-out Layout window that read the setting once at its own startup
+ *  would sit on the old value until it was reopened. */
+export const ACCESSIBILITY_CHANGED_CHANNEL = 'accessibility:changed'
+
+/** Synchronous, like THEME_SYNC_CHANNEL and for the same reason: `data-contrast` has to be on
+ *  <html> before the first paint, or a user who asked for increased contrast gets one frame of
+ *  faint borders on every launch. See that channel's comment for why no async read will do. */
+export const ACCESSIBILITY_SYNC_CHANNEL = 'accessibility:getSync'
+
+export interface AccessibilityStateMessage {
+  /** The PREFERENCE, not a resolved value: unlike theme, 'system' is resolved by CSS
+   *  (`@media (prefers-contrast: more)`) rather than by main, so there is nothing to resolve here.
+   *  That keeps the OS side reactive with no listener and no Electron API whose macOS support
+   *  varies. `data-contrast` is set to this string verbatim. */
+  contrast: ContrastPreference
+  /** The Chromium zoom factor main has applied to every window. Carried here only so the Settings
+   *  picker can show it — the renderer never applies it itself. */
+  uiScale: number
+}
+
 export interface LayoutWindowExportRequest {
   requestId: string
   pixelRatio: number
@@ -864,6 +894,14 @@ export interface RendererApi {
     /** Fires when the user changes the preference in ANY window, and when the OS appearance
      *  changes under a 'system' preference. Returns an unsubscribe. */
     onChanged(callback: (state: ThemeStateMessage) => void): () => void
+  }
+  accessibility: {
+    /** SYNCHRONOUS, like theme.getSync and for the same pre-paint reason. */
+    getSync(): AccessibilityStateMessage
+    setContrast(preference: ContrastPreference): Promise<void>
+    setUiScale(factor: number): Promise<void>
+    /** Fires when the user changes a preference in ANY window. Returns an unsubscribe. */
+    onChanged(callback: (state: AccessibilityStateMessage) => void): () => void
   }
   app: {
     getVersion(): Promise<string>

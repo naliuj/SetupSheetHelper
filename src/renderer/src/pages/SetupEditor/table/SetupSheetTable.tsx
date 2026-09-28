@@ -1,7 +1,8 @@
 import { Fragment, useCallback, useMemo } from 'react'
 import { STEREO_LANE_WIDTH } from '@shared/constants/stereoBrace'
-import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
+import { DndContext, type DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
+import { useSortableSensors } from '@renderer/hooks/useSortableSensors'
 import type { SetupItemDraft, SetupItemOutboardSlot } from '@shared/types/setup'
 import { COLUMN_LABELS, orderedVisibleColumns } from '@shared/constants/setupColumns'
 import { useSetupStoreApi, useSetupStoreState } from '@renderer/state/setupStoreContext'
@@ -58,7 +59,7 @@ export default function SetupSheetTable(): JSX.Element {
   const unresolvedGearHints = useSetupStoreState((s) => s.unresolvedGearHints)
   const clearUnresolvedGearHint = useSetupStoreState((s) => s.clearUnresolvedGearHint)
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }))
+  const sensors = useSortableSensors()
   // Derived once here, not per row: every memoized SetupSheetRow gets these same two references,
   // so a re-render caused by anything else still bails out of re-rendering the rows. `stereoLink`
   // is split out because it's pinned leftmost rather than part of the reorderable run.
@@ -113,6 +114,29 @@ export default function SetupSheetTable(): JSX.Element {
     },
     [selectRangeTo, toggleItem, selectItem]
   )
+
+  // Arrow-key navigation for the gutter select buttons. Reads the freshest store state via
+  // getState() rather than closing over `items`, for the same reason handleTogglePairLink does:
+  // a stable identity (empty deps) is what keeps every memoized row from re-rendering on each
+  // keystroke.
+  //
+  // Plain arrows walk focus without changing the selection; Shift+arrow extends to the neighbor,
+  // matching shift-click. selectRangeTo already falls back to a plain select when there is no
+  // anchor yet, so an unselected sheet needs no special case here.
+  const handleGutterKeyDown = useCallback((e: React.KeyboardEvent, itemId: number | string): void => {
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
+    const state = setupStoreApi.getState()
+    const idx = state.items.findIndex((i) => i.id === itemId)
+    if (idx === -1) return
+    const neighbor = state.items[e.key === 'ArrowDown' ? idx + 1 : idx - 1]
+    if (!neighbor) return
+    // Only now — an arrow at either end should stay an ordinary arrow, not a swallowed one.
+    e.preventDefault()
+    if (e.shiftKey) state.selectRangeTo(neighbor.id)
+    const row = (e.currentTarget as HTMLElement).closest('tr')
+    const nextRow = e.key === 'ArrowDown' ? row?.nextElementSibling : row?.previousElementSibling
+    nextRow?.querySelector<HTMLButtonElement>('.gutter-select')?.focus()
+  }, [])
 
   // Toggles a mic-group link on the seam *below* `itemId` — i.e. links `itemId`'s row with the one
   // directly beneath it, whatever position they're at (no odd/even bucket). Reads the freshest
@@ -348,21 +372,24 @@ export default function SetupSheetTable(): JSX.Element {
           <table className="data-table">
             <thead>
               <tr>
-                {showStereoLink && <th aria-label="Stereo pair link" style={{ width: STEREO_LANE_WIDTH }}></th>}
-                <th></th>
-                <th>Source name</th>
+                {showStereoLink && <th scope="col" aria-label="Stereo pair link" style={{ width: STEREO_LANE_WIDTH }}></th>}
+                {/* Named rather than left empty, following the stereo lane above: a blank header
+                    leaves its whole column unannounced, and this one holds the row-select button
+                    and drag handle. */}
+                <th scope="col" aria-label="Select and reorder"></th>
+                <th scope="col">Source name</th>
                 {orderedColumns.map((key) =>
                   key === 'outboard' ? (
                     <Fragment key={key}>
                       {Array.from({ length: outboardColumnCount }, (_, i) => (
-                        <th key={i}>{i === 0 ? 'Outboard' : `Outboard ${i + 1}`}</th>
+                        <th scope="col" key={i}>{i === 0 ? 'Outboard' : `Outboard ${i + 1}`}</th>
                       ))}
                     </Fragment>
                   ) : (
-                    <th key={key}>{COLUMN_LABELS[key]}</th>
+                    <th scope="col" key={key}>{COLUMN_LABELS[key]}</th>
                   )
                 )}
-                <th></th>
+                <th scope="col" aria-label="Delete"></th>
               </tr>
             </thead>
             <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
@@ -396,6 +423,8 @@ export default function SetupSheetTable(): JSX.Element {
                     micUsageCounts={micUsageCounts}
                     gearUsage={gearUsage}
                     onGutterClick={handleGutterClick}
+                    onGutterKeyDown={handleGutterKeyDown}
+                    rowNumber={i + 1}
                     onChange={updateItemFields}
                     onOutboardSlotChange={updateItemOutboardSlot}
                     onDelete={removeItem}

@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useNavigationStore } from './state/navigationStore'
 import { useThemeSync } from './hooks/useThemeSync'
+import { useA11ySync } from './hooks/useA11ySync'
 import { usePaletteStore } from './state/paletteStore'
 import { useBerkleeFeaturesStore } from './state/berkleeFeaturesStore'
 import { useWhatsNewStore } from './state/whatsNewStore'
@@ -24,6 +25,7 @@ export default function App(): JSX.Element {
   useQuitFlush()
   // Follows theme changes from any window, and from the OS under a 'system' preference.
   useThemeSync()
+  useA11ySync()
 
   const view = useNavigationStore((s) => s.view)
   const goToHome = useNavigationStore((s) => s.goToHome)

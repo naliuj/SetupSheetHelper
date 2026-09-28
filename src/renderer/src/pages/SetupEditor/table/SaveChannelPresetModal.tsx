@@ -6,6 +6,7 @@ import { useSetupStoreState } from '@renderer/state/setupStoreContext'
 import { useCatalogStoreState } from '@renderer/state/catalogStoreContext'
 import { useEscapeToClose } from '@renderer/hooks/useEscapeToClose'
 import FolderPicker from '@renderer/components/FolderPicker'
+import { useModalDialog } from '@renderer/hooks/useModalDialog'
 
 type IncludeField = 'mic' | 'outboard' | 'preamp' | 'channel' | 'tieLine' | 'cueBox' | 'polarity' | 'notes' | 'color'
 
@@ -113,9 +114,11 @@ export default function SaveChannelPresetModal({ onClose }: { onClose: () => voi
     }
   }
 
+  const dialog = useModalDialog('Save channel preset')
+
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 380 }}>
+      <div className="modal" {...dialog} onClick={(e) => e.stopPropagation()} style={{ width: 380 }}>
         <h2 style={{ marginTop: 0 }}>Save channel preset</h2>
         <p className="card-sub" style={{ marginTop: 0 }}>
           {selectedItemIds.size > 0

@@ -3,6 +3,7 @@ import type { ChannelPreset } from '@shared/types/channelPreset'
 import type { Folder } from '@shared/types/setup'
 import ManageItemsModal, { type ManagedItem } from '@renderer/components/ManageItemsModal'
 import { useEscapeToClose } from '@renderer/hooks/useEscapeToClose'
+import { useModalDialog } from '@renderer/hooks/useModalDialog'
 
 /** The preset manager dialog — reuses the generic ManageItemsModal (folder tree, drag-to-folder,
  *  drag-reorder, folder CRUD) against the SEPARATE preset-folder namespace, and adds a
@@ -57,6 +58,8 @@ export default function ManagePresetsModal({ onClose }: { onClose: () => void })
 
   useEscapeToClose(() => setEditing(null), editing !== null)
 
+  const editDialog = useModalDialog('Edit preset', !!editing)
+
   return (
     <>
       <ManageItemsModal
@@ -103,7 +106,7 @@ export default function ManagePresetsModal({ onClose }: { onClose: () => void })
 
       {editing && (
         <div className="modal-overlay" onClick={() => setEditing(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 360 }}>
+          <div className="modal" {...editDialog} onClick={(e) => e.stopPropagation()} style={{ width: 360 }}>
             <h2 style={{ marginTop: 0 }}>Edit preset</h2>
             <input
               value={editName}

@@ -4,6 +4,7 @@ import { useBerkleeFeaturesStore } from '@renderer/state/berkleeFeaturesStore'
 import FolderPicker from '@renderer/components/FolderPicker'
 import ToggleSwitch from '@renderer/components/ToggleSwitch'
 import { useEscapeToClose } from '@renderer/hooks/useEscapeToClose'
+import { useModalDialog } from '@renderer/hooks/useModalDialog'
 
 export interface NewSetupDetails {
   name: string
@@ -74,9 +75,11 @@ export default function NewSetupModal({
     }
   }
 
+  const dialog = useModalDialog(heading)
+
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 380 }}>
+      <div className="modal" {...dialog} onClick={(e) => e.stopPropagation()} style={{ width: 380 }}>
         <h2>{heading}</h2>
         <div className="inline-form" style={{ marginTop: 0 }}>
           <input

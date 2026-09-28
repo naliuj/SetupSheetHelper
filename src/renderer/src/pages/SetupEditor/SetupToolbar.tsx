@@ -441,6 +441,23 @@ export default function SetupToolbar({
   // isn't here — it's handled in App.tsx since it must work from any screen, not just inside an
   // open setup. Recreated each render (cheap) so both effects' closures see current state without
   // needing every dependency spelled out per-key.
+  /** Moves the Layout Mode selection to the next/previous block in creation order, wrapping.
+   *  Reads the store at call time rather than closing over blocks, so this needs no deps. */
+  function cycleBlockSelection(delta: 1 | -1): void {
+    const state = layoutStoreApi.getState()
+    const { blocks, selectedBlockIds } = state
+    if (blocks.length === 0) return
+    const current = blocks.findIndex((b) => selectedBlockIds.has(b.id))
+    // Nothing selected yet: enter at the first block going forward, the last going backward.
+    const next =
+      current === -1
+        ? delta === 1
+          ? 0
+          : blocks.length - 1
+        : (current + delta + blocks.length) % blocks.length
+    state.selectBlock(blocks[next].id)
+  }
+
   const handlers: Record<string, () => void> = {
     'save-setup': handleSave,
     'save-as-studio': () => setTemplateModalOpen(true),
@@ -459,6 +476,12 @@ export default function SetupToolbar({
     },
     'sequential-numbering': () => {
       if (mode === 'table') focusNumbering()
+    },
+    'select-next-block': () => {
+      if (mode === 'layout') cycleBlockSelection(1)
+    },
+    'select-previous-block': () => {
+      if (mode === 'layout') cycleBlockSelection(-1)
     },
     'zoom-in': () => {
       if (mode === 'layout') layoutStoreApi.getState().zoomIn()

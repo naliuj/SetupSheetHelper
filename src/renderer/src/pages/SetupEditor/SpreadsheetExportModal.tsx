@@ -3,6 +3,7 @@ import { useEscapeToClose } from '@renderer/hooks/useEscapeToClose'
 import ToggleSwitch from '@renderer/components/ToggleSwitch'
 import ExportColumnChips, { useExportColumnChips } from '@renderer/components/ExportColumnChips'
 import type { SetupColumnKey } from '@shared/constants/setupColumns'
+import { useModalDialog } from '@renderer/hooks/useModalDialog'
 
 interface Props {
   /** Whether this setup resolves to a room layout at all — the toggle is only worth offering when
@@ -38,9 +39,11 @@ export default function SpreadsheetExportModal({
     }
   }
 
+  const dialog = useModalDialog('Export to Spreadsheet')
+
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 400 }}>
+      <div className="modal" {...dialog} onClick={(e) => e.stopPropagation()} style={{ width: 400 }}>
         <h2 style={{ marginTop: 0 }}>Export to Spreadsheet</h2>
         {hasLayout && (
           <div style={{ marginBottom: 10 }}>

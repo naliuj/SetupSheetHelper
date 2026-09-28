@@ -3,6 +3,7 @@ import { useEscapeToClose } from '@renderer/hooks/useEscapeToClose'
 import { DEFAULT_SWATCH, labelShadowFor, resolveLabelColor } from '@shared/constants/swatches'
 import SwatchPicker from '@renderer/components/SwatchPicker'
 import TextColorPicker from '@renderer/components/TextColorPicker'
+import { useModalDialog } from '@renderer/hooks/useModalDialog'
 
 interface Props {
   initialTitle?: string
@@ -48,9 +49,11 @@ export default function CustomBlockModal({
     onClose()
   }
 
+  const dialog = useModalDialog(heading)
+
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 320 }}>
+      <div className="modal" {...dialog} onClick={(e) => e.stopPropagation()} style={{ width: 320 }}>
         <h2 style={{ marginTop: 0 }}>{heading}</h2>
         {description && (
           <p className="card-sub" style={{ marginTop: 0 }}>
@@ -70,7 +73,7 @@ export default function CustomBlockModal({
           Color
           <SwatchPicker value={color} onChange={(c) => setColor(c ?? DEFAULT_COLOR)} />
           <span style={{ marginLeft: 8 }}>Text color</span>
-          <TextColorPicker value={labelColor} onChange={setLabelColor} />
+          <TextColorPicker value={labelColor} onChange={setLabelColor} fill={color} />
           {/* The block as it will look, since the text color only makes sense against the fill. */}
           <span
             aria-hidden="true"
@@ -92,10 +95,11 @@ export default function CustomBlockModal({
             {title.trim() || 'Preview'}
           </span>
         </div>
-        <label className="card-sub" style={{ display: 'block', marginBottom: 4 }}>
+        <label htmlFor="custom-block-person" className="card-sub" style={{ display: 'block', marginBottom: 4 }}>
           Musician name (optional)
         </label>
         <input
+          id="custom-block-person"
           value={personName}
           onChange={(e) => setPersonName(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleConfirm()}

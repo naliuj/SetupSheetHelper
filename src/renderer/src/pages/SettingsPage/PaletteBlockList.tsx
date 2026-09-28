@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { DndContext, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
+import { DndContext, closestCenter, type DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, arrayMove, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import { useSortableSensors } from '@renderer/hooks/useSortableSensors'
 import { GripVertical } from 'lucide-react'
 import type { PaletteItem } from '@shared/types/palette'
 import { DEFAULT_SWATCH } from '@shared/constants/swatches'
@@ -130,6 +131,7 @@ function BlockRow({
         value={item.labelColor}
         onChange={(labelColor) => onUpdate(item.id, { labelColor })}
         title="Default text color"
+        fill={item.color}
       />
       <select
         className="palette-select"
@@ -167,7 +169,7 @@ export default function PaletteBlockList({
   onRename,
   onDelete
 }: Props): JSX.Element {
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }))
+  const sensors = useSortableSensors()
 
   const [renaming, setRenaming] = useState(false)
   const [renameValue, setRenameValue] = useState(category)
@@ -308,7 +310,12 @@ export default function PaletteBlockList({
           <option value="circle">Circle</option>
         </select>
         <SwatchPicker className="palette-color" value={addColor} onChange={(color) => setAddColor(color ?? DEFAULT_SWATCH)} />
-        <TextColorPicker value={addLabelColor} onChange={setAddLabelColor} title="Default text color" />
+        <TextColorPicker
+          value={addLabelColor}
+          onChange={setAddLabelColor}
+          title="Default text color"
+          fill={addColor}
+        />
         <button className="btn small primary" onClick={commitAdd} disabled={!addLabel.trim()}>
           + Add block
         </button>

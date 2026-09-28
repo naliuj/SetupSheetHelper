@@ -2,16 +2,16 @@ import { useState } from 'react'
 import {
   DndContext,
   DragOverlay,
-  PointerSensor,
   useDroppable,
-  useSensor,
-  useSensors,
+  closestCenter,
   pointerWithin,
+  type CollisionDetection,
   type DragEndEvent,
   type DragStartEvent
 } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import { useSortableSensors } from '@renderer/hooks/useSortableSensors'
 import { Folder, GripVertical, Pencil, Plus, Trash2 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { Folder as FolderType } from '@shared/types/setup'
@@ -19,6 +19,7 @@ import type { FolderDeleteImpact, StudioDeleteImpact } from '@shared/types/ipc'
 import { buildFolderTree, flattenFolderTreeForPicker } from '@renderer/state/folderTree'
 import { useEscapeToClose } from '@renderer/hooks/useEscapeToClose'
 import FolderTreeNode from './FolderTreeNode'
+import { useModalDialog } from '@renderer/hooks/useModalDialog'
 
 export interface ManagedItem {
   kind: string
@@ -219,6 +220,21 @@ function SortableItemRow({
   )
 }
 
+/** pointerWithin for the mouse, closestCenter for the keyboard.
+ *
+ *  pointerWithin is the right detector here — this modal has a folder tree as well as a sortable
+ *  list, and "is the cursor inside this folder row" is exactly the question a drag-to-folder asks.
+ *  But it is pointer-only by construction: a keyboard drag has no cursor, so it returns nothing and
+ *  the drop silently does nothing. Falling back when there are no pointer collisions keeps the
+ *  mouse behavior byte-for-byte and gives the keyboard a detector that works off rectangles.
+ *
+ *  Only reachable once a KeyboardSensor exists (see useSortableSensors) — before that this modal
+ *  could not be dragged from the keyboard at all. */
+const pointerOrKeyboardCollisions: CollisionDetection = (args) => {
+  const pointerCollisions = pointerWithin(args)
+  return pointerCollisions.length > 0 ? pointerCollisions : closestCenter(args)
+}
+
 export default function ManageItemsModal({
   title,
   items,
@@ -270,7 +286,7 @@ export default function ManageItemsModal({
     setSelectedIds(new Set())
   }
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }))
+  const sensors = useSortableSensors()
   const tree = buildFolderTree(folders)
   const showFolderSearch = folders.length > 5
   const folderQ = folderQuery.trim().toLowerCase()
@@ -423,13 +439,34 @@ export default function ManageItemsModal({
     setFolderDialog(null)
   }
 
+  // One per dialog, all unconditional (hooks cannot be called conditionally) with the condition
+  // passed as `active` — these nested dialogs come and go while this component stays mounted, so
+  // the focus effect has to key off the dialog appearing, not off this component mounting.
+  const dialog = useModalDialog(title)
+  const folderNameDialog = useModalDialog(
+    folderDialog?.kind === 'rename' ? 'Rename Folder' : 'New Folder',
+    !!folderDialog && (folderDialog.kind === 'create' || folderDialog.kind === 'rename')
+  )
+  const folderDeleteDialog = useModalDialog(
+    folderDialog?.kind === 'delete' ? `Delete "${folderDialog.name}"?` : 'Delete folder?',
+    folderDialog?.kind === 'delete'
+  )
+  const itemDeleteDialog = useModalDialog(
+    itemDialog ? `Delete "${itemDialog.item.label}"?` : 'Delete item?',
+    !!itemDialog
+  )
+  const bulkDeleteDialogProps = useModalDialog(
+    bulkDeleteDialog ? `Delete ${pluralize(bulkDeleteDialog.items.length, 'item')}?` : 'Delete items?',
+    !!bulkDeleteDialog
+  )
+
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal manage-modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal manage-modal" {...dialog} onClick={(e) => e.stopPropagation()}>
         <h2 style={{ marginTop: 0 }}>{title}</h2>
         <DndContext
           sensors={sensors}
-          collisionDetection={pointerWithin}
+          collisionDetection={pointerOrKeyboardCollisions}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         >
@@ -555,7 +592,7 @@ export default function ManageItemsModal({
 
       {folderDialog && (folderDialog.kind === 'create' || folderDialog.kind === 'rename') && (
         <div className="modal-overlay" onClick={() => setFolderDialog(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 360 }}>
+          <div className="modal" {...folderNameDialog} onClick={(e) => e.stopPropagation()} style={{ width: 360 }}>
             <h2 style={{ marginTop: 0 }}>{folderDialog.kind === 'create' ? 'New Folder' : 'Rename Folder'}</h2>
             <div className="inline-form" style={{ marginTop: 0 }}>
               <input
@@ -579,7 +616,7 @@ export default function ManageItemsModal({
 
       {folderDialog && folderDialog.kind === 'delete' && (
         <div className="modal-overlay" onClick={() => setFolderDialog(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 420 }}>
+          <div className="modal" {...folderDeleteDialog} onClick={(e) => e.stopPropagation()} style={{ width: 420 }}>
             <h2 style={{ marginTop: 0 }}>Delete "{folderDialog.name}"?</h2>
             <p className="card-sub">{describeFolderImpact(folderDialog.impact)}</p>
             <div className="modal-actions" style={{ justifyContent: 'flex-start', flexWrap: 'wrap' }}>
@@ -599,7 +636,7 @@ export default function ManageItemsModal({
 
       {itemDialog && (
         <div className="modal-overlay" onClick={() => setItemDialog(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 420 }}>
+          <div className="modal" {...itemDeleteDialog} onClick={(e) => e.stopPropagation()} style={{ width: 420 }}>
             <h2 style={{ marginTop: 0 }}>Delete "{itemDialog.item.label}"?</h2>
             <p className="card-sub">
               {itemDialog.studioImpact && describeStudioImpact(itemDialog.studioImpact)
@@ -620,7 +657,7 @@ export default function ManageItemsModal({
 
       {bulkDeleteDialog && (
         <div className="modal-overlay" onClick={() => setBulkDeleteDialog(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 420 }}>
+          <div className="modal" {...bulkDeleteDialogProps} onClick={(e) => e.stopPropagation()} style={{ width: 420 }}>
             <h2 style={{ marginTop: 0 }}>Delete {pluralize(bulkDeleteDialog.items.length, 'item')}?</h2>
             <p className="card-sub">
               {describeStudioImpact(bulkDeleteDialog.studioImpact)

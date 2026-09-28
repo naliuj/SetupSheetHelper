@@ -1,5 +1,6 @@
 import { useWhatsNewStore } from '@renderer/state/whatsNewStore'
 import { useEscapeToClose } from '@renderer/hooks/useEscapeToClose'
+import { useModalDialog } from '@renderer/hooks/useModalDialog'
 
 /** Shown automatically after a real version upgrade (see whatsNewStore.load()), and reachable
  *  anytime via the "What's New…" app-menu item (or the hidden Cmd+Shift+Option+W debug keybind).
@@ -12,6 +13,8 @@ export default function WhatsNewModal(): JSX.Element {
 
   const newestFirst = [...entries].reverse()
 
+  const dialog = useModalDialog('What’s new')
+
   return (
     <div className="modal-overlay" onClick={close}>
       {/* Fixed shell, scrolling middle. The whole box used to scroll, so a long changelog pushed
@@ -20,6 +23,7 @@ export default function WhatsNewModal(): JSX.Element {
           the changelog is, and only the entries move. */}
       <div
         className="modal"
+        {...dialog}
         onClick={(e) => e.stopPropagation()}
         style={{ width: 480, maxHeight: '80vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
       >

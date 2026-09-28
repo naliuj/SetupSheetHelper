@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useFolderPicker } from '@renderer/state/useFolderPicker'
 import FolderPicker from '@renderer/components/FolderPicker'
 import { useEscapeToClose } from '@renderer/hooks/useEscapeToClose'
+import { useModalDialog } from '@renderer/hooks/useModalDialog'
 
 interface Props {
   onClose: () => void
@@ -27,15 +28,21 @@ export default function SaveAsTemplateModal({ onClose, onSave }: Props): JSX.Ele
     }
   }
 
+  const dialog = useModalDialog('Save as Studio')
+
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 380 }}>
+      <div className="modal" {...dialog} onClick={(e) => e.stopPropagation()} style={{ width: 380 }}>
         <h2>Save as Studio</h2>
         <p className="card-sub">
           Saves this setup's gear list (no positions) as a reusable Custom Studio for this room.
         </p>
         <div className="inline-form" style={{ marginTop: 0 }}>
+          <label htmlFor="template-studio-name" className="visually-hidden">
+            Studio name
+          </label>
           <input
+            id="template-studio-name"
             placeholder="Studio name"
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -43,13 +50,23 @@ export default function SaveAsTemplateModal({ onClose, onSave }: Props): JSX.Ele
             autoFocus
           />
         </div>
-        <div className="folder-picker-field-label">Folder</div>
-        <FolderPicker
-          folders={folders}
-          selectedFolderId={selectedFolderId}
-          onSelect={setSelectedFolderId}
-          onCreateFolder={createFolder}
-        />
+        {/* Stays a div rather than becoming a <label>: FolderPicker is a list of controls, not a
+            single form element, so there is nothing for a label to point at. The caption names the
+            group instead — and the group wrapper is what carries that, since passing
+            aria-labelledby to the component would be silently dropped (it neither declares nor
+            spreads it, and TypeScript does not excess-property-check hyphenated JSX attributes,
+            so nothing would have complained). */}
+        <div className="folder-picker-field-label" id="template-folder-label">
+          Folder
+        </div>
+        <div role="group" aria-labelledby="template-folder-label">
+          <FolderPicker
+            folders={folders}
+            selectedFolderId={selectedFolderId}
+            onSelect={setSelectedFolderId}
+            onCreateFolder={createFolder}
+          />
+        </div>
         <div className="modal-actions">
           <button className="btn" onClick={onClose}>
             Cancel

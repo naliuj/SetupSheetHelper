@@ -293,7 +293,14 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
       // currently interacting with, even if both panes are in Layout Mode at once (see paneActive's
       // doc comment on Props above).
       if (!paneActive) return
+      // Gated on `active` for the same reason the arrow-nudge below is: the stage stays
+      // mounted-but-hidden in Table Mode, and this branch calls preventDefault() unconditionally.
+      // Preventing default on a Space keydown suppresses the activation click of whatever button
+      // has focus, so a hidden Layout stage was silently swallowing Space for the whole app. That
+      // went unnoticed while every Table Mode control was an <input> (exempted by isTextField
+      // above); the setup sheet's row-select button is the first one that is not.
       if (e.code === 'Space') {
+        if (!active) return
         e.preventDefault()
         setSpaceHeld(true)
         return
@@ -304,6 +311,10 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
       // visit.
       const isArrow = e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight'
       if (!isArrow || !active) return
+      // Bare and Shift-arrows only. Cmd/Ctrl- and Alt-arrows belong to the rebindable actions
+      // (Select Next/Previous Block defaults to CmdOrCtrl+Arrow), and nudging as well would both
+      // move the block and change the selection on one keypress.
+      if (e.metaKey || e.ctrlKey || e.altKey) return
       e.preventDefault()
       const step = e.shiftKey ? 10 : 1
       const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0

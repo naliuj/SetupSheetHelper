@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useSetupStoreApi } from '@renderer/state/setupStoreContext'
 import { useEscapeToClose } from '@renderer/hooks/useEscapeToClose'
+import { useModalDialog } from '@renderer/hooks/useModalDialog'
 
 interface Props {
   studioId: number
@@ -99,9 +100,11 @@ export default function RequireLayoutFileModal({ studioId, setupId, onResolved, 
     }
   }
 
+  const dialog = useModalDialog('Room layout needed')
+
   return (
     <div className="modal-overlay" onClick={onCancel}>
-      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 380 }}>
+      <div className="modal" {...dialog} onClick={(e) => e.stopPropagation()} style={{ width: 380 }}>
         {step === 'choose' && (
           <>
             <h2 style={{ marginTop: 0 }}>Room layout needed</h2>

@@ -106,6 +106,25 @@ export const KEYBIND_ACTIONS: KeybindActionDef[] = [
   { id: 'zoom-in', label: 'Zoom In', category: 'Layout', scope: 'layout', defaultCombo: 'CmdOrCtrl+Shift+=' },
   { id: 'zoom-out', label: 'Zoom Out', category: 'Layout', scope: 'layout', defaultCombo: 'CmdOrCtrl+Shift+-' },
   { id: 'reset-view', label: 'Reset View', category: 'Layout', scope: 'layout', defaultCombo: 'CmdOrCtrl+Shift+0' },
+  // Selecting a block was mouse-only, which also made arrow-nudge — the one keyboard interaction
+  // the canvas already had — unreachable without a mouse first. Registry actions rather than
+  // another fixed convention baked into LayoutStage, so they show up in Settings → Keybinds and
+  // can be rebound; the nudge and Space-to-pan stay fixed because those are the canvas gestures
+  // people arrive already knowing.
+  {
+    id: 'select-next-block',
+    label: 'Select Next Block',
+    category: 'Layout',
+    scope: 'layout',
+    defaultCombo: 'CmdOrCtrl+ArrowRight'
+  },
+  {
+    id: 'select-previous-block',
+    label: 'Select Previous Block',
+    category: 'Layout',
+    scope: 'layout',
+    defaultCombo: 'CmdOrCtrl+ArrowLeft'
+  },
   {
     id: 'delete-selection-layout',
     label: 'Delete Selected Blocks',

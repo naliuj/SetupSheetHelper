@@ -1,7 +1,7 @@
 import { Fragment, memo, useMemo, useState, type CSSProperties } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { readableTextColor } from '@shared/constants/swatches'
+import { readableTextColor, swatchName } from '@shared/constants/swatches'
 import {
   STEREO_BRACE_BOTTOM,
   STEREO_BRACE_LANE_INSET,
@@ -17,7 +17,7 @@ import { AlertTriangle, GripVertical, Link2, X } from 'lucide-react'
 import { computeUsedByOthers, type GearUsage } from '@renderer/state/usageCounts'
 import { buildGearSearchGroups } from '@renderer/state/gearSearchGroups'
 import type { SetupItemDraft, SetupItemOutboardSlot } from '@shared/types/setup'
-import type { SetupColumnKey } from '@shared/constants/setupColumns'
+import { COLUMN_LABELS, type SetupColumnKey } from '@shared/constants/setupColumns'
 import type { Mic, OutboardGear, Preamp } from '@shared/types/entities'
 import type { UnresolvedGearHint } from '@renderer/state/setupStore'
 import ManufacturerPickerDropdown from '@renderer/components/ManufacturerPickerDropdown'
@@ -193,6 +193,12 @@ interface Props {
   micUsageCounts: Map<number, number>
   gearUsage: GearUsage
   onGutterClick: (e: React.MouseEvent, id: number | string) => void
+  /** Arrow-key selection from the gutter's select button — walks focus row to row, extending the
+   *  selection when Shift is held. Resolved by the table, which is the thing that knows the order. */
+  onGutterKeyDown: (e: React.KeyboardEvent, id: number | string) => void
+  /** 1-based position, for the gutter select button's accessible name. Index-derived like
+   *  seamZIndex, so it costs this memoized row nothing extra. */
+  rowNumber: number
   onChange: (id: number | string, patch: Partial<SetupItemDraft>) => void
   onOutboardSlotChange: (
     id: number | string,
@@ -241,6 +247,8 @@ function SetupSheetRow({
   micUsageCounts,
   gearUsage,
   onGutterClick: onGutterClickById,
+  onGutterKeyDown: onGutterKeyDownById,
+  rowNumber,
   onChange: onChangeById,
   onOutboardSlotChange: onOutboardSlotChangeById,
   onSyncPairMic,
@@ -428,6 +436,19 @@ function SetupSheetRow({
   const cueBox = useBufferedField(item.cueBox ?? '', (v) => onChange({ cueBox: v.trim() || null }))
   const notes = useBufferedField(item.notes ?? '', (v) => onChange({ notes: v }))
 
+  /** Accessible name for a cell control. The cells carry no label of their own: four of them
+   *  (channel, tie line, cue box, notes) have no placeholder either, so a screen reader announced
+   *  nothing at all for them. Column name plus the row's identity, because tabbing through the
+   *  sheet is not table-navigation mode — the header association from scope="col" only helps a
+   *  reader that is walking the grid, not one moving control to control. */
+  const cellLabel = (key: SetupColumnKey): string =>
+    `${COLUMN_LABELS[key]}, ${sourceName.value || `row ${rowNumber}`}`
+
+  /** A row's tint is the one signal in the app carried by color alone — no label, icon or shape
+   *  goes with it, in the editor or in either export. Naming it here puts it somewhere a screen
+   *  reader can reach and a mouse can hover, without changing how the sheet looks. */
+  const colorName = swatchName(item.color)
+
   // One cell per column key, dispatched so the row can render in whatever order the user chose.
   // Deliberately a plain function called from a .map (not a component) — it closes over the
   // useBufferedField results above, which MUST stay unconditional at the top level of the
@@ -486,6 +507,7 @@ function SetupSheetRow({
           <td key={key} style={{ textAlign: 'center' }}>
             <input
               type="checkbox"
+              aria-label={cellLabel('phantomPower')}
               checked={item.phantomPower}
               onChange={(e) => onChange({ phantomPower: e.target.checked })}
               onClick={(e) => e.stopPropagation()}
@@ -518,6 +540,7 @@ function SetupSheetRow({
             <input
               type="number"
               min={1}
+              aria-label={cellLabel('channel')}
               value={channel.value}
               onChange={(e) => handleChannelInputChange(e.target.value)}
               onBlur={channel.onBlur}
@@ -575,6 +598,7 @@ function SetupSheetRow({
             <input
               type="number"
               min={1}
+              aria-label={cellLabel('tieLine')}
               value={tieLine.value}
               onChange={(e) => handleTieLineInputChange(e.target.value)}
               onBlur={tieLine.onBlur}
@@ -593,6 +617,7 @@ function SetupSheetRow({
           <td key={key}>
             <input
               type="text"
+              aria-label={cellLabel('cueBox')}
               value={cueBox.value}
               onChange={(e) => cueBox.onChange(e.target.value)}
               onBlur={cueBox.onBlur}
@@ -605,6 +630,7 @@ function SetupSheetRow({
           <td key={key} style={{ textAlign: 'center' }}>
             <input
               type="checkbox"
+              aria-label={cellLabel('polarity')}
               checked={item.polarityFlip}
               onChange={(e) => onChange({ polarityFlip: e.target.checked })}
               onClick={(e) => e.stopPropagation()}
@@ -615,6 +641,7 @@ function SetupSheetRow({
         return (
           <td key={key}>
             <input
+              aria-label={cellLabel('notes')}
               value={notes.value}
               onChange={(e) => notes.onChange(e.target.value)}
               onBlur={notes.onBlur}
@@ -751,16 +778,38 @@ function SetupSheetRow({
       <td
         className="gutter-cell"
         onClick={(e) => onGutterClickById(e, item.id)}
-        title="Click to select · Shift-click for a range · Cmd/Ctrl-click to toggle"
+        title={`Click to select · Shift-click for a range · Cmd/Ctrl-click to toggle${
+          colorName ? ` · ${colorName}` : ''
+        }`}
         style={{ cursor: 'pointer', userSelect: 'none', position: 'relative' }}
       >
         {!showStereoLink && selectionBar}
+        {/* The gutter's three selection gestures (select / shift-range / cmd-toggle) were mouse-only:
+            this cell was a bare <td onClick>, so none of them had a keyboard path — and since
+            delete, duplicate and Number Selected Rows all act on a selection, those keybinds were
+            unreachable until a mouse had been used first.
+
+            A transparent button filling the cell rather than a visible control beside the handle:
+            the whole cell was already the click target, so this adds a focus stop and an announced
+            name without changing the look or the hit area. No stopPropagation — the click bubbles to
+            the same td handler the mouse uses, which is what keeps Space/Enter (plain select) and
+            Shift-click/Cmd-click behaving identically to before. */}
+        <button
+          type="button"
+          className="gutter-select"
+          aria-label={`Select row ${rowNumber}${sourceName.value ? `: ${sourceName.value}` : ''}${
+            colorName ? `, ${colorName}` : ''
+          }`}
+          aria-pressed={selected}
+          onKeyDown={(e) => onGutterKeyDownById(e, item.id)}
+        />
         <span className="drag-handle" {...attributes} {...listeners} style={{ cursor: 'grab' }}>
           <GripVertical size={16} aria-hidden="true" />
         </span>
       </td>
       <td>
         <input
+          aria-label={`Source name, row ${rowNumber}`}
           value={sourceName.value}
           placeholder="Source name"
           onChange={(e) => sourceName.onChange(e.target.value)}
