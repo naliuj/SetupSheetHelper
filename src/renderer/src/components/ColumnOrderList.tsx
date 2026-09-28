@@ -1,6 +1,7 @@
-import { DndContext, PointerSensor, useSensor, useSensors, closestCenter, type DragEndEvent } from '@dnd-kit/core'
+import { DndContext, closestCenter, type DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import { useSortableSensors } from '@renderer/hooks/useSortableSensors'
 import { GripVertical, Lock } from 'lucide-react'
 import {
   COLUMN_LABELS,
@@ -92,7 +93,7 @@ function ColumnRow({
  *  rather than dropping out, which is the whole reason order is stored for every key: toggle one
  *  off and back on and it returns to where you put it. */
 export default function ColumnOrderList({ order, visible, onReorder, onToggle }: Props): JSX.Element {
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }))
+  const sensors = useSortableSensors()
   const visibleSet = new Set(visible)
   const fullOrder = parseColumnOrder(JSON.stringify(order))
   const draggable = fullOrder.filter((k) => !PINNED_COLUMN_KEYS.includes(k))

@@ -1,7 +1,8 @@
 import { Fragment, useCallback, useMemo } from 'react'
 import { STEREO_LANE_WIDTH } from '@shared/constants/stereoBrace'
-import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
+import { DndContext, type DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
+import { useSortableSensors } from '@renderer/hooks/useSortableSensors'
 import type { SetupItemDraft, SetupItemOutboardSlot } from '@shared/types/setup'
 import { COLUMN_LABELS, orderedVisibleColumns } from '@shared/constants/setupColumns'
 import { useSetupStoreApi, useSetupStoreState } from '@renderer/state/setupStoreContext'
@@ -58,7 +59,7 @@ export default function SetupSheetTable(): JSX.Element {
   const unresolvedGearHints = useSetupStoreState((s) => s.unresolvedGearHints)
   const clearUnresolvedGearHint = useSetupStoreState((s) => s.clearUnresolvedGearHint)
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }))
+  const sensors = useSortableSensors()
   // Derived once here, not per row: every memoized SetupSheetRow gets these same two references,
   // so a re-render caused by anything else still bails out of re-rendering the rows. `stereoLink`
   // is split out because it's pinned leftmost rather than part of the reorderable run.

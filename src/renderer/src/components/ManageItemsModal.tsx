@@ -2,16 +2,16 @@ import { useState } from 'react'
 import {
   DndContext,
   DragOverlay,
-  PointerSensor,
   useDroppable,
-  useSensor,
-  useSensors,
+  closestCenter,
   pointerWithin,
+  type CollisionDetection,
   type DragEndEvent,
   type DragStartEvent
 } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import { useSortableSensors } from '@renderer/hooks/useSortableSensors'
 import { Folder, GripVertical, Pencil, Plus, Trash2 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { Folder as FolderType } from '@shared/types/setup'
@@ -219,6 +219,21 @@ function SortableItemRow({
   )
 }
 
+/** pointerWithin for the mouse, closestCenter for the keyboard.
+ *
+ *  pointerWithin is the right detector here — this modal has a folder tree as well as a sortable
+ *  list, and "is the cursor inside this folder row" is exactly the question a drag-to-folder asks.
+ *  But it is pointer-only by construction: a keyboard drag has no cursor, so it returns nothing and
+ *  the drop silently does nothing. Falling back when there are no pointer collisions keeps the
+ *  mouse behavior byte-for-byte and gives the keyboard a detector that works off rectangles.
+ *
+ *  Only reachable once a KeyboardSensor exists (see useSortableSensors) — before that this modal
+ *  could not be dragged from the keyboard at all. */
+const pointerOrKeyboardCollisions: CollisionDetection = (args) => {
+  const pointerCollisions = pointerWithin(args)
+  return pointerCollisions.length > 0 ? pointerCollisions : closestCenter(args)
+}
+
 export default function ManageItemsModal({
   title,
   items,
@@ -270,7 +285,7 @@ export default function ManageItemsModal({
     setSelectedIds(new Set())
   }
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }))
+  const sensors = useSortableSensors()
   const tree = buildFolderTree(folders)
   const showFolderSearch = folders.length > 5
   const folderQ = folderQuery.trim().toLowerCase()
@@ -429,7 +444,7 @@ export default function ManageItemsModal({
         <h2 style={{ marginTop: 0 }}>{title}</h2>
         <DndContext
           sensors={sensors}
-          collisionDetection={pointerWithin}
+          collisionDetection={pointerOrKeyboardCollisions}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         >

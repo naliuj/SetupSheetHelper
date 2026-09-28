@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { DndContext, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
+import { DndContext, closestCenter, type DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, arrayMove, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import { useSortableSensors } from '@renderer/hooks/useSortableSensors'
 import { GripVertical, EyeOff } from 'lucide-react'
 
 export interface RailCategory {
@@ -87,7 +88,7 @@ export default function PaletteCategoryRail({
   onReorderCategories,
   onCreateCategory
 }: Props): JSX.Element {
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }))
+  const sensors = useSortableSensors()
   const [creating, setCreating] = useState(false)
   const [newName, setNewName] = useState('')
 
