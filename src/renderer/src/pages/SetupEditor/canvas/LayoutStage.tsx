@@ -6,10 +6,19 @@ import { MIN_ZOOM, MAX_ZOOM } from '@renderer/state/layoutStore'
 import { useLayoutStoreState } from '@renderer/state/layoutStoreContext'
 import { useSetupStoreState } from '@renderer/state/setupStoreContext'
 import LayoutBackground from './LayoutBackground'
-import LayoutBlockIcon, { clampCenterToRoom } from './LayoutBlockIcon'
+import LayoutBlockIcon, { clampCenterToRoom, rotatedHalfExtents } from './LayoutBlockIcon'
 import ContextMenu from './ContextMenu'
 import CustomBlockModal from '../palette/CustomBlockModal'
 import Icon from '@renderer/components/Icon'
+
+/** The box shape Konva's Transformer hands to boundBoxFunc (rotation in radians). */
+interface TransformBox {
+  x: number
+  y: number
+  width: number
+  height: number
+  rotation: number
+}
 
 interface Props {
   studioId: number
@@ -80,6 +89,8 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
   // each block keeps its own independent resize/rotate handles around its own bounds, so a
   // multi-selection never shows one combined bounding box spanning the gap between blocks.
   const transformerRefs = useRef<Map<number | string, Konva.Transformer>>(new Map())
+  // The handle grabbed at the start of the current resize — see boundTransformBox.
+  const grabbedAnchorRef = useRef<string | null>(null)
   const [imageSize, setImageSize] = useState({ width: 900, height: 650 })
   const [containerSize, setContainerSize] = useState({ width: 900, height: 650 })
   const [blockMenu, setBlockMenu] = useState<{ blockId: number | string; x: number; y: number } | null>(null)
@@ -157,41 +168,97 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
     transformerRefs.current.forEach((t) => t.getLayer()?.batchDraw())
   }, [selectedBlockIds, blocks.length, selectedBlocksSizeKey])
 
-  // Live-clamps the block being resized (called on every "transform" tick, unlike boundBoxFunc
-  // which only sees the proposed box before Konva applies it): caps size so a block can never end
-  // up larger than the room, then clamps position so the (possibly size-capped) box stays within
-  // the room bounds. getClientRect gives the axis-aligned bounding box in the parent Layer's local
-  // (room-pixel) space directly, accounting for the node's current rotation — sidesteps
-  // hand-rolling rotated-box trig for this same "close enough" approximation the drag clamp
-  // already uses (see clampCenterToRoom's doc comment in LayoutBlockIcon.tsx).
+  // Every limit on the block being resized or rotated lives here, in the Transformer's
+  // boundBoxFunc: Konva asks it to approve each proposed box before applying it, so the node never
+  // has to be corrected afterward. (It used to be — handleTransform rescaled and moved the node on
+  // every tick, which fought the Transformer's own math: a block stretched to a wall got thinner
+  // on the other axis, and at extremes it jumped out of the room.)
   //
-  // If this block is part of a larger selection, every other selected block's scale/rotation is
-  // mirrored live too (direct Konva mutation, bypassing React/the store, same approach as
-  // handleBlockDragMove) so the whole selection visibly resizes/rotates together in real time
-  // instead of the rest jumping into place only once the gesture ends. Followers aren't clamped
-  // live here (matching the existing drag-follower simplification) — handleTransformEnd caps each
-  // one to the room bounds once the gesture finishes. Each follower scales/rotates around its own
-  // center automatically (LayoutBlockIcon's offsetX/offsetY makes a node's own x/y the pivot for
-  // both), so mirroring the same scale/rotation values onto a different-sized block elsewhere just
-  // works without extra math.
-  function handleTransform(id: number | string): void {
-    const node = nodeRefs.current.get(id)
-    const parent = node?.getParent()
-    if (!node || !parent) return
-
-    const rawRect = node.getClientRect({ relativeTo: parent })
-    if (rawRect.width > imageSize.width || rawRect.height > imageSize.height) {
-      const capScale = Math.min(imageSize.width / rawRect.width, imageSize.height / rawRect.height)
-      node.scaleX(node.scaleX() * capScale)
-      node.scaleY(node.scaleY() * capScale)
+  // Konva passes boxes in absolute stage pixels, rotated (radians) around their top-left corner.
+  // The corners are mapped into the Layer's room-pixel space, which covers zoom and pan.
+  function boundTransformBox(id: number | string, oldBox: TransformBox, newBox: TransformBox): TransformBox {
+    // Konva switches which handle is being dragged once it's pulled past the opposite edge
+    // (renaming the Transformer's internal _movingAnchorName before this function runs), so a
+    // corner dragged toward another corner jumped to that corner. Put the grabbed handle back and
+    // hold the box where it was. Relies on a Konva 9 internal; safe while `padding` stays at its
+    // default 0, which makes Konva's accompanying drag-offset adjustment zero.
+    const transformer = transformerRefs.current.get(id) as unknown as { _movingAnchorName: string | null } | undefined
+    const grabbed = grabbedAnchorRef.current
+    if (transformer && grabbed && transformer._movingAnchorName !== grabbed) {
+      transformer._movingAnchorName = grabbed
+      return oldBox
     }
 
-    const rect = node.getClientRect({ relativeTo: parent })
-    const center = { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 }
-    const clampedCenter = clampCenterToRoom(center, rect.width / 2, rect.height / 2, imageSize)
-    node.x(node.x() + (clampedCenter.x - center.x))
-    node.y(node.y() + (clampedCenter.y - center.y))
+    const layer = nodeRefs.current.get(id)?.getParent()
+    if (!layer) return newBox
+    const toRoom = layer.getAbsoluteTransform().copy().invert()
+    const layerScale = layer.getAbsoluteScale().x || 1
+    if (newBox.width / layerScale < 8 || newBox.height / layerScale < 8) return oldBox
 
+    // How far a box's corners reach past the room's edges, in room pixels (0 when inside).
+    function overflow(box: TransformBox): number {
+      const cos = Math.cos(box.rotation)
+      const sin = Math.sin(box.rotation)
+      const corners = [
+        [0, 0],
+        [box.width, 0],
+        [0, box.height],
+        [box.width, box.height]
+      ].map(([w, h]) => toRoom.point({ x: box.x + w * cos - h * sin, y: box.y + w * sin + h * cos }))
+      const xs = corners.map((c) => c.x)
+      const ys = corners.map((c) => c.y)
+      return Math.max(
+        0,
+        -Math.min(...xs),
+        Math.max(...xs) - imageSize.width,
+        -Math.min(...ys),
+        Math.max(...ys) - imageSize.height
+      )
+    }
+    const EPSILON = 0.5
+    if (overflow(newBox) <= EPSILON) return newBox
+    // Already outside (e.g. a block placed before this clamp existed): allow anything that doesn't
+    // make it worse, so it can still be shrunk or rotated back in.
+    const oldOverflow = overflow(oldBox)
+    if (oldOverflow > EPSILON) return overflow(newBox) <= oldOverflow ? newBox : oldBox
+
+    // Go as far from oldBox toward newBox as still fits. Only the axis being dragged differs
+    // between the two, so a resize stops at the wall without touching the other dimension, and
+    // a rotation stops where a corner would cross the edge.
+    // Take the short way round when a rotation crosses ±180°, which Konva reports as a ~2π jump.
+    const rotationDelta = Math.atan2(
+      Math.sin(newBox.rotation - oldBox.rotation),
+      Math.cos(newBox.rotation - oldBox.rotation)
+    )
+    const lerp = (t: number): TransformBox => ({
+      x: oldBox.x + (newBox.x - oldBox.x) * t,
+      y: oldBox.y + (newBox.y - oldBox.y) * t,
+      width: oldBox.width + (newBox.width - oldBox.width) * t,
+      height: oldBox.height + (newBox.height - oldBox.height) * t,
+      rotation: oldBox.rotation + rotationDelta * t
+    })
+    let lo = 0
+    let hi = 1
+    for (let i = 0; i < 12; i++) {
+      const mid = (lo + hi) / 2
+      if (overflow(lerp(mid)) <= EPSILON) lo = mid
+      else hi = mid
+    }
+    return lerp(lo)
+  }
+
+  // If the block being resized is part of a larger selection, every other selected block's
+  // scale/rotation is mirrored live (direct Konva mutation, bypassing React/the store, same
+  // approach as handleBlockDragMove) so the whole selection visibly resizes/rotates together in
+  // real time instead of the rest jumping into place only once the gesture ends. Followers aren't
+  // clamped live here (matching the existing drag-follower simplification) — handleTransformEnd
+  // caps each one to the room bounds once the gesture finishes. Each follower scales/rotates
+  // around its own center automatically (LayoutBlockIcon's offsetX/offsetY makes a node's own
+  // x/y the pivot for both), so mirroring the same scale/rotation values onto a different-sized
+  // block elsewhere just works without extra math.
+  function handleTransform(id: number | string): void {
+    const node = nodeRefs.current.get(id)
+    if (!node) return
     if (selectedBlockIds.size > 1 && selectedBlockIds.has(id)) {
       const block = blocks.find((b) => b.id === id)
       if (block) {
@@ -227,8 +294,10 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
     }
     // Konva accumulates resize as node scale — bake it into explicit width/height and reset
     // scale to 1 so the next transform doesn't compound on top of this one.
-    const width = Math.max(8, block.width * node.scaleX())
-    const height = Math.max(8, block.height * node.scaleY())
+    // abs(): a flip is prevented (see boundTransformBox), but a negative scale baked in here
+    // would collapse the block to the 8px minimum on both axes.
+    const width = Math.max(8, block.width * Math.abs(node.scaleX()))
+    const height = Math.max(8, block.height * Math.abs(node.scaleY()))
     const rotation = node.rotation()
     node.scaleX(1)
     node.scaleY(1)
@@ -250,12 +319,8 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
       const otherWidth = Math.max(8, Math.min(imageSize.width, other.width * scaleX))
       const otherHeight = Math.max(8, Math.min(imageSize.height, other.height * scaleY))
       const otherRotation = other.rotation + rotationDelta
-      const clampedCenter = clampCenterToRoom(
-        { x: other.x, y: other.y },
-        otherWidth / 2,
-        otherHeight / 2,
-        imageSize
-      )
+      const { halfWidth, halfHeight } = rotatedHalfExtents(otherWidth, otherHeight, otherRotation)
+      const clampedCenter = clampCenterToRoom({ x: other.x, y: other.y }, halfWidth, halfHeight, imageSize)
       updateBlockTransform(otherId, {
         ...clampedCenter,
         width: otherWidth,
@@ -323,12 +388,8 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
         const id = [...selectedBlockIds][0]
         const block = blocks.find((b) => b.id === id)
         if (block) {
-          const clamped = clampCenterToRoom(
-            { x: block.x + dx, y: block.y + dy },
-            block.width / 2,
-            block.height / 2,
-            imageSize
-          )
+          const { halfWidth, halfHeight } = rotatedHalfExtents(block.width, block.height, block.rotation)
+          const clamped = clampCenterToRoom({ x: block.x + dx, y: block.y + dy }, halfWidth, halfHeight, imageSize)
           updateBlockTransform(id, { x: clamped.x, y: clamped.y })
         }
       } else {
@@ -623,13 +684,18 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
               // Each block already draws its own outline (LayoutBlockIcon's blue stroke) — the
               // Transformer here only supplies the resize/rotate anchors, not a second border.
               borderEnabled={false}
-              boundBoxFunc={(oldBox, newBox) => (newBox.width < 8 || newBox.height < 8 ? oldBox : newBox)}
-              onTransformStart={beginGesture}
+              flipEnabled={false}
+              boundBoxFunc={(oldBox, newBox) => boundTransformBox(id, oldBox, newBox)}
+              onTransformStart={() => {
+                grabbedAnchorRef.current = transformerRefs.current.get(id)?.getActiveAnchor() ?? null
+                beginGesture()
+              }}
               onTransform={() => handleTransform(id)}
               onTransformEnd={() => {
                 try {
                   handleTransformEnd(id)
                 } finally {
+                  grabbedAnchorRef.current = null
                   endGesture()
                 }
               }}

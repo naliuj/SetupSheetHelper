@@ -1,5 +1,5 @@
 import { forwardRef } from 'react'
-import { Circle, Group, Rect, Text } from 'react-konva'
+import { Ellipse, Group, Rect, Text } from 'react-konva'
 import type Konva from 'konva'
 import type { RoomLayoutBlockDraft } from '@shared/types/setup'
 import { labelShadowFor, resolveLabelColor } from '@shared/constants/swatches'
@@ -18,19 +18,34 @@ interface Props {
   onContextMenu: (clientX: number, clientY: number) => void
 }
 
-/** Clamp a shape's center so its un-rotated bounding box stays within the room image — a
- *  close-enough approximation without full rotated-bbox math (a rotated block may visually poke
- *  out slightly at extreme angles). Shared by drag (below), the Transformer resize clamp, and
- *  arrow-key nudge (all in LayoutStage.tsx) so the three interactions agree on one boundary rule. */
+/** Half the width/height of the axis-aligned box a block occupies once rotated — what the room
+ *  clamps below measure against, so a rotated block can't poke past the floor plan's edge. */
+export function rotatedHalfExtents(
+  width: number,
+  height: number,
+  rotationDeg: number
+): { halfWidth: number; halfHeight: number } {
+  const rad = (rotationDeg * Math.PI) / 180
+  const cos = Math.abs(Math.cos(rad))
+  const sin = Math.abs(Math.sin(rad))
+  return { halfWidth: (width * cos + height * sin) / 2, halfHeight: (width * sin + height * cos) / 2 }
+}
+
+/** Clamp a shape's center so its (rotated) bounding box stays within the room image. Shared by
+ *  drag (below), arrow-key nudge and the multi-selection resize commit (both in LayoutStage.tsx)
+ *  so they agree on one boundary rule. A box larger than the room on an axis is centered on that
+ *  axis — otherwise the min/max bounds cross and the block jumps to one edge. */
 export function clampCenterToRoom(
   center: { x: number; y: number },
   halfWidth: number,
   halfHeight: number,
   imageSize: { width: number; height: number }
 ): { x: number; y: number } {
+  const clampAxis = (value: number, half: number, size: number): number =>
+    half * 2 >= size ? size / 2 : Math.max(half, Math.min(value, size - half))
   return {
-    x: Math.max(halfWidth, Math.min(center.x, imageSize.width - halfWidth)),
-    y: Math.max(halfHeight, Math.min(center.y, imageSize.height - halfHeight))
+    x: clampAxis(center.x, halfWidth, imageSize.width),
+    y: clampAxis(center.y, halfHeight, imageSize.height)
   }
 }
 
@@ -53,12 +68,12 @@ const LayoutBlockIcon = forwardRef<Konva.Group, Props>(function LayoutBlockIcon(
   // the text could only be one of two colors.
   const labelColor = resolveLabelColor(block.color, block.labelColor)
   const labelShadow = labelShadowFor(labelColor)
-  // Fit the label inside the shape's bounds — a circle's usable box is its inscribed square,
-  // a rect's is itself minus a small margin.
+  // Fit the label inside the shape's bounds — a circle (drawn as an ellipse, so it can be
+  // stretched into an oval) uses roughly its inscribed rectangle, a rect uses itself minus a
+  // small margin.
   const isCircle = block.shape === 'circle'
-  const boxSize = isCircle ? Math.min(block.width, block.height) * 0.7 : undefined
-  const textWidth = isCircle ? boxSize! : Math.max(block.width - 8, 4)
-  const textHeight = isCircle ? boxSize! : Math.max(block.height - 8, 4)
+  const textWidth = isCircle ? block.width * 0.7 : Math.max(block.width - 8, 4)
+  const textHeight = isCircle ? block.height * 0.7 : Math.max(block.height - 8, 4)
   // A cap on how large text is allowed to get, scaled off the block's own size. `fitFontSize`
   // then shrinks down from that cap based on the label/name's actual measured width, so long
   // text on a small block scales down to stay fully visible instead of being clipped by Konva's
@@ -89,9 +104,7 @@ const LayoutBlockIcon = forwardRef<Konva.Group, Props>(function LayoutBlockIcon(
   }
 
   // block.x/y is the shape's CENTER (the Group's offsetX/offsetY above make that the rotation/
-  // position pivot) — clamp the center so the un-rotated bounding box stays within the room
-  // image, a close-enough approximation without needing full rotated-bbox math for this UX (a
-  // rotated block may visually poke out slightly at extreme angles).
+  // position pivot) — clamp the center so the rotated bounding box stays within the room image.
   //
   // Konva calls dragBoundFunc with `pos` in ABSOLUTE (stage-pixel) coordinates, not the node's
   // local/parent space — but the Stage here is scaled by finalScale (fitScale * zoomScale, see
@@ -104,7 +117,8 @@ const LayoutBlockIcon = forwardRef<Konva.Group, Props>(function LayoutBlockIcon(
     const parent = this.getParent()!
     const toLocal = parent.getAbsoluteTransform().copy().invert()
     const local = toLocal.point(pos)
-    const clampedLocal = clampCenterToRoom(local, block.width / 2, block.height / 2, imageSize)
+    const { halfWidth, halfHeight } = rotatedHalfExtents(block.width, block.height, block.rotation)
+    const clampedLocal = clampCenterToRoom(local, halfWidth, halfHeight, imageSize)
     return parent.getAbsoluteTransform().point(clampedLocal)
   }
 
@@ -151,11 +165,12 @@ const LayoutBlockIcon = forwardRef<Konva.Group, Props>(function LayoutBlockIcon(
       onContextMenu={handleContextMenu}
     >
       {block.shape === 'circle' ? (
-        <Circle
+        <Ellipse
           name="block-shape"
           x={centerX}
           y={centerY}
-          radius={Math.min(block.width, block.height) / 2}
+          radiusX={block.width / 2}
+          radiusY={block.height / 2}
           fill={block.color}
           stroke={strokeColor}
           strokeWidth={strokeWidth}
