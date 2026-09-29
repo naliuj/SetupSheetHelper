@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { DndContext, closestCenter, type DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, arrayMove, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { useSortableSensors } from '@renderer/hooks/useSortableSensors'
+import { onDragOverTick, useSortableSensors } from '@renderer/hooks/useSortableSensors'
 import { GripVertical } from 'lucide-react'
 import type { PaletteItem } from '@shared/types/palette'
 import { DEFAULT_SWATCH } from '@shared/constants/swatches'
@@ -268,7 +268,7 @@ export default function PaletteBlockList({
           : 'Drag to reorder. Use “Move to…” to send a block to another category.'}
       </p>
 
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragOver={onDragOverTick} onDragEnd={handleDragEnd}>
         <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
           {items.map((item) => (
             <BlockRow

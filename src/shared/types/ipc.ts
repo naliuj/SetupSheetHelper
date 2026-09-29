@@ -19,6 +19,7 @@ import type { PaletteItem } from './palette'
 import type { ExportColumnOverrides, SetupColumnKey } from '../constants/setupColumns'
 import type { ResolvedTheme, ThemePreference } from '../constants/theme'
 import type { ContrastPreference } from '../constants/accessibility'
+import type { HapticPattern } from '../constants/haptics'
 import type {
   EditorMode,
   Folder,
@@ -168,6 +169,10 @@ export const IPC = {
     /** Also main's job for a second reason: the zoom factor is per-webContents, so only main can
      *  apply it to the pop-out Layout window as well as this one. */
     setUiScale: 'accessibility:setUiScale'
+  },
+  haptics: {
+    getEnabled: 'haptics:getEnabled',
+    setEnabled: 'haptics:setEnabled'
   },
   app: {
     getVersion: 'app:getVersion'
@@ -700,6 +705,10 @@ export const ACCESSIBILITY_CHANGED_CHANNEL = 'accessibility:changed'
  *  faint borders on every launch. See that channel's comment for why no async read will do. */
 export const ACCESSIBILITY_SYNC_CHANNEL = 'accessibility:getSync'
 
+/** Fire-and-forget (ipcRenderer.send), not invoke: a haptic belongs to the moment it is triggered
+ *  in, and nothing waits on it. Main throttles and gates it — see main/haptics.ts. */
+export const HAPTICS_PERFORM_CHANNEL = 'haptics:perform'
+
 export interface AccessibilityStateMessage {
   /** The PREFERENCE, not a resolved value: unlike theme, 'system' is resolved by CSS
    *  (`@media (prefers-contrast: more)`) rather than by main, so there is nothing to resolve here.
@@ -905,6 +914,13 @@ export interface RendererApi {
     setUiScale(factor: number): Promise<void>
     /** Fires when the user changes a preference in ANY window. Returns an unsubscribe. */
     onChanged(callback: (state: AccessibilityStateMessage) => void): () => void
+  }
+  haptics: {
+    /** True on macOS, the only platform with trackpad haptics — whether the Settings toggle shows. */
+    supported: boolean
+    perform(pattern: HapticPattern): void
+    getEnabled(): Promise<boolean>
+    setEnabled(on: boolean): Promise<void>
   }
   app: {
     getVersion(): Promise<string>

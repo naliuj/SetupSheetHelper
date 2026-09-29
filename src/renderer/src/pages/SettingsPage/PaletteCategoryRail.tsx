@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { DndContext, closestCenter, type DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, arrayMove, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { useSortableSensors } from '@renderer/hooks/useSortableSensors'
+import { onDragOverTick, useSortableSensors } from '@renderer/hooks/useSortableSensors'
 import { GripVertical, EyeOff } from 'lucide-react'
 
 export interface RailCategory {
@@ -125,7 +125,7 @@ export default function PaletteCategoryRail({
         Categories
       </div>
 
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragOver={onDragOverTick} onDragEnd={handleDragEnd}>
         <SortableContext items={realNames} strategy={verticalListSortingStrategy}>
           {categories.map((cat) =>
             cat.transient ? (

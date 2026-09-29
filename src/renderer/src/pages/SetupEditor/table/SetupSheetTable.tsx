@@ -2,7 +2,7 @@ import { Fragment, useCallback, useMemo } from 'react'
 import { STEREO_LANE_WIDTH } from '@shared/constants/stereoBrace'
 import { DndContext, type DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
-import { useSortableSensors } from '@renderer/hooks/useSortableSensors'
+import { onDragOverTick, useSortableSensors } from '@renderer/hooks/useSortableSensors'
 import type { SetupItemDraft, SetupItemOutboardSlot } from '@shared/types/setup'
 import { COLUMN_LABELS, orderedVisibleColumns } from '@shared/constants/setupColumns'
 import { useSetupStoreApi, useSetupStoreState } from '@renderer/state/setupStoreContext'
@@ -368,7 +368,7 @@ export default function SetupSheetTable(): JSX.Element {
           No sources yet — use Add source above, or switch to Layout Mode to drag instruments onto the room layout.
         </div>
       ) : (
-        <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+        <DndContext sensors={sensors} onDragOver={onDragOverTick} onDragEnd={handleDragEnd}>
           <table className="data-table">
             <thead>
               <tr>

@@ -17,3 +17,6 @@ out
 .claude/settings.local.json
 
 handoff.md
+
+# Native haptics addon build output (rebuilt by npm install / electron-builder)
+native/haptics/build

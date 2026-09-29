@@ -11,7 +11,7 @@ import {
 } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { useSortableSensors } from '@renderer/hooks/useSortableSensors'
+import { onDragOverTick, useSortableSensors } from '@renderer/hooks/useSortableSensors'
 import { Folder, GripVertical, Pencil, Plus, Trash2 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { Folder as FolderType } from '@shared/types/setup'
@@ -468,6 +468,7 @@ export default function ManageItemsModal({
           sensors={sensors}
           collisionDetection={pointerOrKeyboardCollisions}
           onDragStart={handleDragStart}
+          onDragOver={onDragOverTick}
           onDragEnd={handleDragEnd}
         >
           <div className="manage-layout">

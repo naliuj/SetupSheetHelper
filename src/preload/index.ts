@@ -13,6 +13,7 @@ import {
   THEME_SYNC_CHANNEL,
   ACCESSIBILITY_CHANGED_CHANNEL,
   ACCESSIBILITY_SYNC_CHANNEL,
+  HAPTICS_PERFORM_CHANNEL,
   type AccessibilityStateMessage,
   type ThemeStateMessage,
   type MenuAction,
@@ -203,6 +204,12 @@ const api: RendererApi = {
       ipcRenderer.on(ACCESSIBILITY_CHANGED_CHANNEL, listener)
       return () => ipcRenderer.removeListener(ACCESSIBILITY_CHANGED_CHANNEL, listener)
     }
+  },
+  haptics: {
+    supported: process.platform === 'darwin',
+    perform: (pattern) => ipcRenderer.send(HAPTICS_PERFORM_CHANNEL, pattern),
+    getEnabled: () => ipcRenderer.invoke(IPC.haptics.getEnabled),
+    setEnabled: (on) => ipcRenderer.invoke(IPC.haptics.setEnabled, on)
   },
   app: {
     getVersion: () => ipcRenderer.invoke(IPC.app.getVersion),

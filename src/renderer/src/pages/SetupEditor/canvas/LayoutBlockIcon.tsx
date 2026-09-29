@@ -16,6 +16,9 @@ interface Props {
   onDragMove: (x: number, y: number) => void
   onDragEnd: (x: number, y: number) => void
   onContextMenu: (clientX: number, clientY: number) => void
+  /** Moves a dragged center onto any snap guide it is near (LayoutStage's snapDrag). The result
+   *  is clamped to the room again, so a snap can never pull a block out of it. */
+  snap?: (center: { x: number; y: number }) => { x: number; y: number }
 }
 
 /** Half the width/height of the axis-aligned box a block occupies once rotated — what the room
@@ -54,7 +57,7 @@ export function clampCenterToRoom(
  *  uniform scale multiplier, so independent-axis resize (via the Transformer in
  *  LayoutStage.tsx) works naturally. */
 const LayoutBlockIcon = forwardRef<Konva.Group, Props>(function LayoutBlockIcon(
-  { block, selected, imageSize, onSelect, onDragStart, onDragMove, onDragEnd, onContextMenu },
+  { block, selected, imageSize, onSelect, onDragStart, onDragMove, onDragEnd, onContextMenu, snap },
   ref
 ) {
   // Matches Konva Transformer's own default anchor/border color (rgb(0, 161, 255)) so a
@@ -118,7 +121,8 @@ const LayoutBlockIcon = forwardRef<Konva.Group, Props>(function LayoutBlockIcon(
     const toLocal = parent.getAbsoluteTransform().copy().invert()
     const local = toLocal.point(pos)
     const { halfWidth, halfHeight } = rotatedHalfExtents(block.width, block.height, block.rotation)
-    const clampedLocal = clampCenterToRoom(local, halfWidth, halfHeight, imageSize)
+    let clampedLocal = clampCenterToRoom(local, halfWidth, halfHeight, imageSize)
+    if (snap) clampedLocal = clampCenterToRoom(snap(clampedLocal), halfWidth, halfHeight, imageSize)
     return parent.getAbsoluteTransform().point(clampedLocal)
   }
 

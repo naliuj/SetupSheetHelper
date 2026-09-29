@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useThemeColor } from '@renderer/hooks/useThemeColor'
-import { Stage, Layer, Rect, Transformer } from 'react-konva'
+import { Stage, Layer, Line, Rect, Transformer } from 'react-konva'
 import type Konva from 'konva'
 import { MIN_ZOOM, MAX_ZOOM } from '@renderer/state/layoutStore'
 import { useLayoutStoreState } from '@renderer/state/layoutStoreContext'
@@ -11,6 +11,8 @@ import LayoutNote from './LayoutNote'
 import NoteEditor, { noteScreenGeometry, type StageView } from './NoteEditor'
 import NoteFormatBar from './NoteFormatBar'
 import { fitNoteHeight } from './noteLayout'
+import { buildSnapTargets, computeSnap, type SnapGuide, type SnapTargets } from './snapGuides'
+import { haptic } from '@renderer/utils/haptics'
 import { NOTE_DEFAULT_HEIGHT, NOTE_DEFAULT_WIDTH, type NotePreset } from '@shared/constants/layoutNotes'
 import ContextMenu from './ContextMenu'
 import CustomBlockModal from '../palette/CustomBlockModal'
@@ -60,6 +62,18 @@ interface PaletteDragPayload {
 }
 
 const ZOOM_STEP = 1.05
+/** How close, in SCREEN pixels, a dragged edge or center has to come to a guide to snap onto it —
+ *  converted to room pixels at the current zoom, so snapping feels the same at every zoom level. */
+const SNAP_THRESHOLD_PX = 6
+/** Smart-guide color: magenta, the convention in design tools, and clear of the blue that already
+ *  means "selected" on this canvas. */
+const SNAP_GUIDE_COLOR = '#e0379c'
+/** Angles a rotation snaps to (within ROTATION_SNAP_TOLERANCE degrees), each with a trackpad tap. */
+const ROTATION_SNAPS = [0, 45, 90, 135, 180, 225, 270, 315]
+const ROTATION_SNAP_TOLERANCE = 5
+/** How long a pinch holds at 100% after crossing it, so the stop is felt as a notch rather than
+ *  flown past. */
+const ZOOM_DETENT_HOLD_MS = 200
 const MARQUEE_THRESHOLD = 5
 
 export default function LayoutStage({ studioId, stageRef, active, paneActive = true }: Props): JSX.Element {
@@ -99,6 +113,14 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
   const patchNoteEdit = useLayoutStoreState((s) => s.patchNoteEdit)
   const commitNoteEdit = useLayoutStoreState((s) => s.commitNoteEdit)
   const formatBarRef = useRef<HTMLDivElement | null>(null)
+  // Snap guides for the drag in progress: the lines computed once at drag start, the current snap
+  // on each axis (so a tap only fires when it changes), and whether ⌘ is held to move freely.
+  const snapTargetsRef = useRef<SnapTargets | null>(null)
+  const snapStateRef = useRef<{ x: number | null; y: number | null }>({ x: null, y: null })
+  const metaHeldRef = useRef(false)
+  const [snapGuides, setSnapGuides] = useState<SnapGuide[]>([])
+  const lastRotationSnapRef = useRef<number | null>(null)
+  const zoomDetentUntilRef = useRef(0)
 
   const containerRef = useRef<HTMLDivElement>(null)
   const nodeRefs = useRef<Map<number | string, Konva.Group>>(new Map())
@@ -155,6 +177,70 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
   const finalX = offsetX + panX
   const finalY = offsetY + panY
   const view: StageView = { scale: finalScale, x: finalX, y: finalY }
+
+  // ⌘ turns snapping off for as long as it is held, including mid-drag. Tracked here because Konva
+  // hands dragBoundFunc a position and no event.
+  useEffect(() => {
+    const update = (e: KeyboardEvent): void => {
+      metaHeldRef.current = e.metaKey
+    }
+    const release = (): void => {
+      metaHeldRef.current = false
+    }
+    window.addEventListener('keydown', update)
+    window.addEventListener('keyup', update)
+    window.addEventListener('blur', release)
+    return () => {
+      window.removeEventListener('keydown', update)
+      window.removeEventListener('keyup', update)
+      window.removeEventListener('blur', release)
+    }
+  }, [])
+
+  /** Collects what a drag of `id` can snap to — every block not moving with it — once, at the start
+   *  of the drag, rather than on every pointer move. */
+  function startSnap(id: number | string): void {
+    const moving = selectedBlockIds.has(id) ? selectedBlockIds : new Set([id])
+    const boxes = blocks
+      .filter((b) => !moving.has(b.id))
+      .map((b) => ({ center: { x: b.x, y: b.y }, ...rotatedHalfExtents(b.width, b.height, b.rotation) }))
+    snapTargetsRef.current = buildSnapTargets(boxes, imageSize)
+    snapStateRef.current = { x: null, y: null }
+  }
+
+  function endSnap(): void {
+    snapTargetsRef.current = null
+    snapStateRef.current = { x: null, y: null }
+    setSnapGuides([])
+  }
+
+  /** The dragBoundFunc hook: moves the dragged block's center onto a nearby guide, draws the
+   *  guides, and taps the trackpad each time a new line is caught. */
+  function snapDrag(id: number | string, center: { x: number; y: number }): { x: number; y: number } {
+    const targets = snapTargetsRef.current
+    const block = blocks.find((b) => b.id === id)
+    if (!targets || !block || metaHeldRef.current) {
+      if (snapStateRef.current.x != null || snapStateRef.current.y != null) {
+        snapStateRef.current = { x: null, y: null }
+        setSnapGuides([])
+      }
+      return center
+    }
+    const result = computeSnap(
+      { center, ...rotatedHalfExtents(block.width, block.height, block.rotation) },
+      targets,
+      SNAP_THRESHOLD_PX / finalScale
+    )
+    const prev = snapStateRef.current
+    const caughtNewLine =
+      (result.snappedX != null && result.snappedX !== prev.x) || (result.snappedY != null && result.snappedY !== prev.y)
+    if (caughtNewLine) haptic('alignment')
+    if (result.snappedX !== prev.x || result.snappedY !== prev.y) {
+      snapStateRef.current = { x: result.snappedX, y: result.snappedY }
+      setSnapGuides(result.guides)
+    }
+    return result.center
+  }
 
   /** Opens the editor on a new note centered at `center`, pulled inside the room. */
   function placeNote(preset: NotePreset, center: { x: number; y: number }): void {
@@ -307,6 +393,14 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
   function handleTransform(id: number | string): void {
     const node = nodeRefs.current.get(id)
     if (!node) return
+    // A tap each time a rotation lands on one of the snap angles — once per angle, not per tick
+    // spent sitting on it.
+    if (grabbedAnchorRef.current === 'rotater') {
+      const angle = ((node.rotation() % 360) + 360) % 360
+      const onSnap = ROTATION_SNAPS.find((a) => Math.abs(angle - a) < 0.01 || Math.abs(angle - 360 - a) < 0.01) ?? null
+      if (onSnap != null && onSnap !== lastRotationSnapRef.current) haptic('alignment')
+      lastRotationSnapRef.current = onSnap
+    }
     if (selectedBlockIds.size > 1 && selectedBlockIds.has(id)) {
       const block = blocks.find((b) => b.id === id)
       if (block) {
@@ -638,8 +732,31 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
     const oldFinalScale = fitScale * zoomScale
     const contentX = (cursorX - finalX) / oldFinalScale
     const contentY = (cursorY - finalY) / oldFinalScale
-    const factor = e.evt.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP
-    const newZoomScale = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoomScale * factor))
+    // A trackpad pinch arrives as a wheel event with ctrlKey set (Chromium's convention), carrying a
+    // small delta per frame — zoom in proportion to it, so the plan follows the fingers smoothly.
+    // An ordinary scroll keeps its fixed step per wheel tick.
+    const pinch = e.evt.ctrlKey
+    if (pinch && Date.now() < zoomDetentUntilRef.current) return
+    // Clamped because Ctrl+scroll on a mouse arrives down the same path with a far larger delta per
+    // tick, which unclamped would jump the zoom 60% at a time.
+    const pinchDelta = Math.max(-25, Math.min(25, e.evt.deltaY))
+    const factor = pinch ? Math.exp(-pinchDelta * 0.01) : e.evt.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP
+    let newZoomScale = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoomScale * factor))
+    if (pinch) {
+      // Detents: a pinch that crosses 100% stops on it for a moment, and one that reaches either
+      // limit taps once — each felt on the trackpad the fingers are already on.
+      const crossedFit = (zoomScale < 1 && newZoomScale >= 1) || (zoomScale > 1 && newZoomScale <= 1)
+      if (crossedFit) {
+        newZoomScale = 1
+        zoomDetentUntilRef.current = Date.now() + ZOOM_DETENT_HOLD_MS
+        haptic('levelChange')
+      } else if (
+        (newZoomScale === MIN_ZOOM && zoomScale > MIN_ZOOM) ||
+        (newZoomScale === MAX_ZOOM && zoomScale < MAX_ZOOM)
+      ) {
+        haptic('levelChange')
+      }
+    }
     const newFinalScale = fitScale * newZoomScale
     setZoomPan(newZoomScale, cursorX - contentX * newFinalScale - offsetX, cursorY - contentY * newFinalScale - offsetY)
   }
@@ -693,6 +810,8 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
       >
         {noteEdit
           ? 'Esc or click away to finish'
+          : gestureActive && snapTargetsRef.current
+            ? 'Hold ⌘ to move freely'
           : selectedBlockIds.size >= 2
             ? `${selectedBlockIds.size} selected — drag or resize together`
             : selectedNote
@@ -735,7 +854,10 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
               selected: selectedBlockIds.has(block.id),
               imageSize,
               onSelect: (additive: boolean) => (additive ? toggleBlock(block.id) : selectBlock(block.id)),
-              onDragStart: beginGesture,
+              onDragStart: () => {
+                beginGesture()
+                startSnap(block.id)
+              },
               onDragMove: (x: number, y: number) => handleBlockDragMove(block, x, y),
               onDragEnd: (x: number, y: number) => {
                 // finally: a throw in the handler must not leave the gate latched — see
@@ -743,9 +865,11 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
                 try {
                   handleBlockDragEnd(block, x, y)
                 } finally {
+                  endSnap()
                   endGesture()
                 }
               },
+              snap: (center: { x: number; y: number }) => snapDrag(block.id, center),
               onContextMenu: (clientX: number, clientY: number) =>
                 setBlockMenu({ blockId: block.id, x: clientX, y: clientY })
             }
@@ -777,6 +901,8 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
               // Transformer here only supplies the resize/rotate anchors, not a second border.
               borderEnabled={false}
               flipEnabled={false}
+              rotationSnaps={ROTATION_SNAPS}
+              rotationSnapTolerance={ROTATION_SNAP_TOLERANCE}
               // A note is only ever made wider or narrower — its height follows its text.
               enabledAnchors={
                 noteIds.has(id)
@@ -786,6 +912,7 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
               boundBoxFunc={(oldBox, newBox) => boundTransformBox(id, oldBox, newBox)}
               onTransformStart={() => {
                 grabbedAnchorRef.current = transformerRefs.current.get(id)?.getActiveAnchor() ?? null
+                lastRotationSnapRef.current = null
                 beginGesture()
               }}
               onTransform={() => handleTransform(id)}
@@ -797,6 +924,15 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
                   endGesture()
                 }
               }}
+            />
+          ))}
+          {snapGuides.map((g, i) => (
+            <Line
+              key={i}
+              points={g.axis === 'x' ? [g.pos, g.from, g.pos, g.to] : [g.from, g.pos, g.to, g.pos]}
+              stroke={SNAP_GUIDE_COLOR}
+              strokeWidth={1 / finalScale}
+              listening={false}
             />
           ))}
           {marquee && (

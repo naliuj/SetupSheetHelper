@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { useA11yPrefsStore } from '@renderer/state/a11yPrefsStore'
 import { CONTRAST_PREFERENCES, UI_SCALES, type ContrastPreference } from '@shared/constants/accessibility'
 import { formatCombo } from '@shared/constants/keybindActions'
@@ -13,6 +14,24 @@ export default function AccessibilityEditor(): JSX.Element {
   const setContrast = useA11yPrefsStore((s) => s.setContrast)
   const uiScale = useA11yPrefsStore((s) => s.uiScale)
   const setUiScale = useA11yPrefsStore((s) => s.setUiScale)
+  // null until main answers, so the checkbox doesn't flash the wrong state for a frame.
+  const [hapticsOn, setHapticsOn] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    if (!window.api.haptics.supported) return
+    let cancelled = false
+    window.api.haptics.getEnabled().then((on) => {
+      if (!cancelled) setHapticsOn(on)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  function toggleHaptics(on: boolean): void {
+    setHapticsOn(on)
+    void window.api.haptics.setEnabled(on)
+  }
 
   return (
     <div>
@@ -66,6 +85,21 @@ export default function AccessibilityEditor(): JSX.Element {
           cell grid is what tells the columns apart.
         </p>
       </div>
+
+      {window.api.haptics.supported && hapticsOn != null && (
+        <div style={{ marginBottom: 20 }}>
+          <label className="inline-icon-text" style={{ gap: 8 }}>
+            <input type="checkbox" checked={hapticsOn} onChange={(e) => toggleHaptics(e.target.checked)} />
+            Trackpad haptics
+          </label>
+          <p className="card-sub" style={{ marginTop: 4 }}>
+            Feel a tap on the trackpad when things snap into place — a block lining up with another
+            in Layout Mode, a rotation landing on 90°, a row passing a slot as you drag it, or the
+            zoom reaching 100%. Needs a Force Touch trackpad, and follows the Force Click and haptic
+            feedback setting in System Settings → Trackpad.
+          </p>
+        </div>
+      )}
     </div>
   )
 }
