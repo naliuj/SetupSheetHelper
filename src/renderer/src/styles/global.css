@@ -1607,3 +1607,67 @@ input[type='checkbox']:focus-visible {
     }
   }
 }
+
+/* Layout Mode text notes: the in-place editor laid over a note, and the format bar above it.
+   Positioned by LayoutStage in the stage container's own pixels. */
+.layout-note-editor {
+  position: absolute;
+  z-index: 15;
+  margin: 0;
+  display: block;
+  box-sizing: border-box;
+  border: none;
+  border-radius: 2px;
+  outline: 2px solid #00a1ff;
+  outline-offset: 0;
+  resize: none;
+  overflow: hidden;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  transform-origin: 0 0;
+}
+
+.layout-note-editor:focus-visible {
+  outline: 2px solid #00a1ff;
+}
+
+.layout-note-editor::placeholder {
+  color: currentColor;
+  opacity: 0.45;
+}
+
+.layout-note-format-bar {
+  position: absolute;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow: visible;
+  white-space: nowrap;
+}
+
+.layout-note-format-bar .btn[aria-pressed='true'] {
+  border-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 16%, var(--color-bg));
+}
+
+.layout-note-format-size {
+  min-width: 20px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--color-text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.layout-note-format-label {
+  font-size: 12px;
+  color: var(--color-text-dim);
+  margin-left: 2px;
+}
+
+.layout-note-format-divider {
+  width: 1px;
+  align-self: stretch;
+  margin: 2px 2px;
+  background: var(--color-border);
+}

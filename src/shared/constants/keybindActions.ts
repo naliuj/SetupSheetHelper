@@ -126,6 +126,13 @@ export const KEYBIND_ACTIONS: KeybindActionDef[] = [
     defaultCombo: 'CmdOrCtrl+ArrowLeft'
   },
   {
+    id: 'add-text-note',
+    label: 'Add Text Note',
+    category: 'Layout',
+    scope: 'layout',
+    defaultCombo: 'CmdOrCtrl+Shift+T'
+  },
+  {
     id: 'delete-selection-layout',
     label: 'Delete Selected Blocks',
     category: 'Layout',

@@ -362,6 +362,9 @@ export interface RoomLayoutBlockInput {
   zIndex: number
   personName: string | null
   labelColor: string | null
+  kind: 'block' | 'note'
+  fontSize: number | null
+  fontBold: boolean
 }
 
 export interface ExportedStudioGear {

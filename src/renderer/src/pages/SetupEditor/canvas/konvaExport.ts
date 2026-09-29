@@ -1,5 +1,6 @@
 import Konva from 'konva'
 import { COLOR_SWATCHES, labelShadowFor, readableTextColor } from '@shared/constants/swatches'
+import { hasNoteFill } from '@shared/constants/layoutNotes'
 import { LAYOUT_EXPORT_PIXEL_RATIO } from '@shared/constants/roomLayout'
 
 // Flat, uniform fill for every block in black-and-white export mode (not a per-block pastel of
@@ -11,6 +12,8 @@ import { LAYOUT_EXPORT_PIXEL_RATIO } from '@shared/constants/roomLayout'
 const MONOCHROME_BLOCK_FILL = COLOR_SWATCHES[0].lightest
 const MONOCHROME_BLOCK_BORDER = COLOR_SWATCHES[0].light
 const MONOCHROME_BORDER_WIDTH = 1.5
+const MONOCHROME_NOTE_FILL = '#ffffff'
+const MONOCHROME_NOTE_TEXT = '#1a1d23'
 
 /** The on-screen stage is scaled/positioned to fit whatever room the window currently has
  *  (see LayoutStage.tsx), so a plain toDataURL() would only capture that shrunk viewport.
@@ -44,6 +47,13 @@ export function exportStageToDataUrl(
     const labels = stage.find<Konva.Text>('.block-label')
     const prevShapeAttrs = shapes.map((s) => ({ fill: s.fill(), stroke: s.stroke(), strokeWidth: s.strokeWidth() }))
     const prevLabelAttrs = labels.map((l) => ({ fill: l.fill(), shadowColor: l.shadowColor() }))
+    // Text notes: a filled (sticky) note turns white with the same thin gray edge as the blocks, and
+    // every note's text turns the dark print color. A plain-text note keeps its invisible fill —
+    // its text sits on the grayscaled plan, which the dark text reads against.
+    const noteShapes = stage.find<Konva.Shape>('.note-shape')
+    const noteLabels = stage.find<Konva.Text>('.note-label')
+    const prevNoteShapeAttrs = noteShapes.map((s) => ({ fill: s.fill(), stroke: s.stroke(), strokeWidth: s.strokeWidth(), dash: s.dash() }))
+    const prevNoteLabelFills = noteLabels.map((l) => l.fill())
     // Every label is forced back to the readable automatic color here, INCLUDING ones the user
     // gave a custom text color. Black and white turns every fill into the same light gray, so a
     // label chosen to stand out against its own fill — white on a dark blue, say — would all but
@@ -65,6 +75,15 @@ export function exportStageToDataUrl(
         l.fill(monoLabelColor)
         l.shadowColor(monoLabelShadow)
       })
+      noteShapes.forEach((s) => {
+        if (hasNoteFill(String(s.fill()))) {
+          s.fill(MONOCHROME_NOTE_FILL)
+          s.stroke(MONOCHROME_BLOCK_BORDER)
+          s.strokeWidth(1)
+          s.dash([])
+        }
+      })
+      noteLabels.forEach((l) => l.fill(MONOCHROME_NOTE_TEXT))
       stage.batchDraw()
 
       dataUrl = stage.toDataURL({ pixelRatio })
@@ -78,6 +97,13 @@ export function exportStageToDataUrl(
         l.fill(prevLabelAttrs[i].fill)
         l.shadowColor(prevLabelAttrs[i].shadowColor)
       })
+      noteShapes.forEach((s, i) => {
+        s.fill(prevNoteShapeAttrs[i].fill)
+        s.stroke(prevNoteShapeAttrs[i].stroke)
+        s.strokeWidth(prevNoteShapeAttrs[i].strokeWidth)
+        s.dash(prevNoteShapeAttrs[i].dash)
+      })
+      noteLabels.forEach((l, i) => l.fill(prevNoteLabelFills[i]))
       bgImage?.clearCache()
       stage.batchDraw()
     }

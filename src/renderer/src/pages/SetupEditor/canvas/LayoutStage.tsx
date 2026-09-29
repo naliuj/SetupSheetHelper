@@ -7,6 +7,10 @@ import { useLayoutStoreState } from '@renderer/state/layoutStoreContext'
 import { useSetupStoreState } from '@renderer/state/setupStoreContext'
 import LayoutBackground from './LayoutBackground'
 import LayoutBlockIcon, { clampCenterToRoom, rotatedHalfExtents } from './LayoutBlockIcon'
+import LayoutNote from './LayoutNote'
+import NoteEditor, { noteScreenGeometry, type StageView } from './NoteEditor'
+import NoteFormatBar from './NoteFormatBar'
+import { NOTE_DEFAULT_WIDTH, type NotePreset } from '@shared/constants/layoutNotes'
 import ContextMenu from './ContextMenu'
 import CustomBlockModal from '../palette/CustomBlockModal'
 import Icon from '@renderer/components/Icon'
@@ -49,6 +53,9 @@ interface PaletteDragPayload {
   defaultHeight?: number | null
   /** The palette item's default label color, copied onto the new block. null/absent → Auto. */
   labelColor?: string | null
+  /** Set by the palette's Notes presets: drop a text note (opened for typing) instead of a block. */
+  kind?: 'note'
+  preset?: NotePreset
 }
 
 const ZOOM_STEP = 1.05
@@ -82,6 +89,15 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
   const resetView = useLayoutStoreState((s) => s.resetView)
   const beginGesture = useLayoutStoreState((s) => s.beginGesture)
   const endGesture = useLayoutStoreState((s) => s.endGesture)
+  const gestureActive = useLayoutStoreState((s) => s.gestureStartedAt != null)
+  const noteEdit = useLayoutStoreState((s) => s.noteEdit)
+  const noteRequest = useLayoutStoreState((s) => s.noteRequest)
+  const startNewNote = useLayoutStoreState((s) => s.startNewNote)
+  const startNoteEdit = useLayoutStoreState((s) => s.startNoteEdit)
+  const setNoteEditText = useLayoutStoreState((s) => s.setNoteEditText)
+  const patchNoteEdit = useLayoutStoreState((s) => s.patchNoteEdit)
+  const commitNoteEdit = useLayoutStoreState((s) => s.commitNoteEdit)
+  const formatBarRef = useRef<HTMLDivElement | null>(null)
 
   const containerRef = useRef<HTMLDivElement>(null)
   const nodeRefs = useRef<Map<number | string, Konva.Group>>(new Map())
@@ -137,6 +153,31 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
   const finalScale = fitScale * zoomScale
   const finalX = offsetX + panX
   const finalY = offsetY + panY
+  const view: StageView = { scale: finalScale, x: finalX, y: finalY }
+
+  /** Opens the editor on a new note centered at `center`, pulled inside the room. */
+  function placeNote(preset: NotePreset, center: { x: number; y: number }): void {
+    startNewNote(preset, clampCenterToRoom(center, NOTE_DEFAULT_WIDTH / 2, 20, imageSize))
+  }
+
+  // The palette's note buttons and the Add Text Note keybind can't know where the view is, so they
+  // leave a request in the store (see noteRequest) and the note is placed in the middle of what is
+  // on screen here. Remembering the request already seen at mount keeps a stage that remounts
+  // (mode switch, Split View) from replaying an old one.
+  const seenNoteRequestRef = useRef(noteRequest?.seq ?? 0)
+  useEffect(() => {
+    if (!noteRequest || noteRequest.seq === seenNoteRequestRef.current) return
+    seenNoteRequestRef.current = noteRequest.seq
+    placeNote(noteRequest.preset, {
+      x: (containerSize.width / 2 - finalX) / finalScale,
+      y: (containerSize.height / 2 - finalY) / finalScale
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [noteRequest])
+
+  // Whatever takes this stage away mid-edit (mode switch, switching setups, closing a Split View
+  // pane) keeps the text rather than dropping it.
+  useEffect(() => commitNoteEdit, [commitNoteEdit])
 
   // Attach each selected block's own Transformer to just that one block's node.
   const selectedBlocksSizeKey = [...selectedBlockIds]
@@ -297,7 +338,8 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
     // abs(): a flip is prevented (see boundTransformBox), but a negative scale baked in here
     // would collapse the block to the 8px minimum on both axes.
     const width = Math.max(8, block.width * Math.abs(node.scaleX()))
-    const height = Math.max(8, block.height * Math.abs(node.scaleY()))
+    // A note's height isn't dragged — it follows its text, and the store refits it to the width.
+    const height = block.kind === 'note' ? block.height : Math.max(8, block.height * Math.abs(node.scaleY()))
     const rotation = node.rotation()
     node.scaleX(1)
     node.scaleY(1)
@@ -371,6 +413,19 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
         return
       }
       if (selectedBlockIds.size === 0) return
+      // Enter types into the one selected note — the keyboard counterpart of double-clicking it.
+      // Only from the canvas itself (nothing focused, or focus inside the stage): Enter on a
+      // focused button elsewhere is that button's.
+      if (e.key === 'Enter' && !e.metaKey && !e.ctrlKey && !e.altKey && active && selectedBlockIds.size === 1) {
+        const target = e.target as Node | null
+        const fromCanvas = target === document.body || (!!target && !!containerRef.current?.contains(target))
+        const id = [...selectedBlockIds][0]
+        if (fromCanvas && blocks.find((b) => b.id === id)?.kind === 'note') {
+          e.preventDefault()
+          startNoteEdit(id)
+        }
+        return
+      }
       // Arrow-key nudge — gated on `active` (Layout Mode actually visible) since the stage stays
       // mounted-but-hidden in Table Mode and a block selection can be left over from a prior
       // visit.
@@ -407,9 +462,17 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
       window.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener('keyup', handleKeyUp)
     }
-  }, [selectedBlockIds, active, paneActive, blocks, imageSize, updateBlockTransform, moveBlocksBy])
+  }, [selectedBlockIds, active, paneActive, blocks, imageSize, updateBlockTransform, moveBlocksBy, startNoteEdit])
 
   const editingBlock = editingBlockId != null ? blocks.find((b) => b.id === editingBlockId) : null
+
+  const noteIds = new Set(blocks.filter((b) => b.kind === 'note').map((b) => b.id))
+  const selectedNote =
+    selectedBlockIds.size === 1 ? blocks.find((b) => b.id === [...selectedBlockIds][0] && b.kind === 'note') : undefined
+  // The format bar follows the note being typed, or else the one selected note. Hidden mid-drag or
+  // mid-resize: it would sit at the note's old position until the gesture ends.
+  const formatBarNote = noteEdit ? noteEdit.draft : !gestureActive && active ? selectedNote : undefined
+  const formatBarBox = formatBarNote ? noteScreenGeometry(formatBarNote, view).box : null
 
   // Screen (clientX/Y) -> canvas coordinates, accounting for the stage's current scale/offset
   // (fit-to-container combined with user zoom/pan). Shared by drag-drop placement, the
@@ -437,6 +500,10 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
 
       const pos = toCanvasCoords(e.clientX, e.clientY)
       if (!pos) return
+      if (payload.kind === 'note') {
+        placeNote(payload.preset ?? 'text', pos)
+        return
+      }
       addBlock({
         label: payload.label,
         shape: payload.shape,
@@ -449,7 +516,7 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
       })
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [addBlock, stageRef]
+    [addBlock, stageRef, imageSize, startNewNote]
   )
 
   function handleStageContextMenu(e: Konva.KonvaEventObject<PointerEvent>): void {
@@ -613,9 +680,13 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
           pointerEvents: 'none'
         }}
       >
-        {selectedBlockIds.size >= 2
-          ? `${selectedBlockIds.size} selected — drag or resize together`
-          : 'Scroll to zoom · Space-drag to pan · Drag to select'}
+        {noteEdit
+          ? 'Esc or click away to finish'
+          : selectedBlockIds.size >= 2
+            ? `${selectedBlockIds.size} selected — drag or resize together`
+            : selectedNote
+              ? 'Double-click or press Enter to edit text'
+              : 'Scroll to zoom · Space-drag to pan · Drag to select'}
       </div>
       <Stage
         ref={stageRef}
@@ -643,20 +714,19 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
           />
         </Layer>
         <Layer>
-          {blocks.map((block) => (
-            <LayoutBlockIcon
-              key={block.id}
-              ref={(node) => {
+          {blocks.map((block) => {
+            const shared = {
+              ref: (node: Konva.Group | null) => {
                 if (node) nodeRefs.current.set(block.id, node)
                 else nodeRefs.current.delete(block.id)
-              }}
-              block={block}
-              selected={selectedBlockIds.has(block.id)}
-              imageSize={imageSize}
-              onSelect={(additive) => (additive ? toggleBlock(block.id) : selectBlock(block.id))}
-              onDragStart={beginGesture}
-              onDragMove={(x, y) => handleBlockDragMove(block, x, y)}
-              onDragEnd={(x, y) => {
+              },
+              block,
+              selected: selectedBlockIds.has(block.id),
+              imageSize,
+              onSelect: (additive: boolean) => (additive ? toggleBlock(block.id) : selectBlock(block.id)),
+              onDragStart: beginGesture,
+              onDragMove: (x: number, y: number) => handleBlockDragMove(block, x, y),
+              onDragEnd: (x: number, y: number) => {
                 // finally: a throw in the handler must not leave the gate latched — see
                 // layoutStore's gestureStartedAt.
                 try {
@@ -664,11 +734,22 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
                 } finally {
                   endGesture()
                 }
-              }}
-              onContextMenu={(clientX, clientY) => setBlockMenu({ blockId: block.id, x: clientX, y: clientY })}
-            />
-          ))}
-          {[...selectedBlockIds].map((id) => (
+              },
+              onContextMenu: (clientX: number, clientY: number) =>
+                setBlockMenu({ blockId: block.id, x: clientX, y: clientY })
+            }
+            return block.kind === 'note' ? (
+              <LayoutNote
+                key={block.id}
+                {...shared}
+                editing={noteEdit?.id === block.id}
+                onEdit={() => startNoteEdit(block.id)}
+              />
+            ) : (
+              <LayoutBlockIcon key={block.id} {...shared} />
+            )
+          })}
+          {[...selectedBlockIds].filter((id) => id !== noteEdit?.id).map((id) => (
             <Transformer
               key={id}
               ref={(node) => {
@@ -685,6 +766,12 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
               // Transformer here only supplies the resize/rotate anchors, not a second border.
               borderEnabled={false}
               flipEnabled={false}
+              // A note is only ever made wider or narrower — its height follows its text.
+              enabledAnchors={
+                noteIds.has(id)
+                  ? ['middle-left', 'middle-right']
+                  : ['top-left', 'top-center', 'top-right', 'middle-right', 'middle-left', 'bottom-left', 'bottom-center', 'bottom-right']
+              }
               boundBoxFunc={(oldBox, newBox) => boundTransformBox(id, oldBox, newBox)}
               onTransformStart={() => {
                 grabbedAnchorRef.current = transformerRefs.current.get(id)?.getActiveAnchor() ?? null
@@ -717,12 +804,36 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
           )}
         </Layer>
       </Stage>
+      {noteEdit && (
+        <NoteEditor
+          key={String(noteEdit.draft.id)}
+          draft={noteEdit.draft}
+          view={view}
+          onChange={setNoteEditText}
+          onCommit={commitNoteEdit}
+          barRef={formatBarRef}
+        />
+      )}
+      {formatBarNote && (
+        <NoteFormatBar
+          ref={formatBarRef}
+          note={formatBarNote}
+          box={formatBarBox!}
+          containerWidth={containerSize.width}
+          editing={!!noteEdit}
+          onPatch={(patch) => (noteEdit ? patchNoteEdit(patch) : updateBlock(formatBarNote.id, patch))}
+          onEdit={() => startNoteEdit(formatBarNote.id)}
+          onDone={commitNoteEdit}
+        />
+      )}
       {blockMenu && (
         <ContextMenu
           x={blockMenu.x}
           y={blockMenu.y}
           items={[
-            { label: 'Edit', onClick: () => setEditingBlockId(blockMenu.blockId) },
+            blocks.find((b) => b.id === blockMenu.blockId)?.kind === 'note'
+              ? { label: 'Edit text', onClick: () => startNoteEdit(blockMenu.blockId) }
+              : { label: 'Edit', onClick: () => setEditingBlockId(blockMenu.blockId) },
             // Right-clicking a block always leaves it selected (see LayoutBlockIcon's
             // handleContextMenu), so selectedBlockIds already reflects the intended target —
             // mirrors the cmd+d "duplicate-selection" keybind exactly.
@@ -748,6 +859,13 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
             {
               label: 'Add Instrument',
               onClick: () => setAddInstrumentAt({ x: canvasMenu.canvasX, y: canvasMenu.canvasY })
+            },
+            {
+              label: 'Add text here',
+              // The note starts where you clicked, as text does in a drawing app — the click is its
+              // top-left corner, not its center.
+              onClick: () =>
+                placeNote('text', { x: canvasMenu.canvasX + NOTE_DEFAULT_WIDTH / 2, y: canvasMenu.canvasY + 16 })
             }
           ]}
           onClose={() => setCanvasMenu(null)}

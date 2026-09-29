@@ -3,6 +3,13 @@ import { temporal } from 'zundo'
 import type { RoomLayoutBlockDraft } from '@shared/types/setup'
 import { createSetupStore, useSetupStore, type SaveError } from './setupStore'
 import { useToastStore } from './toastStore'
+import { fitNoteHeight, measureNoteHeight } from '@renderer/pages/SetupEditor/canvas/noteLayout'
+import {
+  NOTE_DEFAULT_FONT_SIZE,
+  NOTE_DEFAULT_WIDTH,
+  NOTE_PRESETS,
+  type NotePreset
+} from '@shared/constants/layoutNotes'
 
 /** What createLayoutStore's save() needs from its paired setup store — just enough to read the
  *  current setupId at save time. Typed off createSetupStore's own return shape so it always
@@ -37,10 +44,25 @@ export interface NewBlock {
   height?: number
   personName?: string | null
   labelColor?: string | null
+  kind?: 'block' | 'note'
+  fontSize?: number | null
+  fontBold?: boolean
 }
 
-/** The fields the block Edit dialog can change. */
-export type BlockPatch = Partial<Pick<RoomLayoutBlockDraft, 'label' | 'color' | 'personName' | 'labelColor'>>
+/** The fields the block Edit dialog, or a note's format bar, can change. A note's height is never
+ *  patched directly: it follows from the text, width and font (see fitNoteHeight). */
+export type BlockPatch = Partial<
+  Pick<RoomLayoutBlockDraft, 'label' | 'color' | 'personName' | 'labelColor' | 'fontSize' | 'fontBold'>
+>
+
+/** A text note being typed on the canvas. `draft` is a working copy that lives outside `blocks`
+ *  until the edit is committed, so a whole typing session — text and any format changes made
+ *  while typing — lands as ONE undo step, and a brand-new note that is never given any text
+ *  leaves no trace in the history at all. `id` is null for a note that doesn't exist yet. */
+export interface NoteEdit {
+  id: number | string | null
+  draft: RoomLayoutBlockDraft
+}
 
 interface LayoutState {
   blocks: RoomLayoutBlockDraft[]
@@ -73,6 +95,12 @@ interface LayoutState {
    *  the studio/setup) — LayoutBackground depends on this to know to re-fetch, since resolving
    *  the gate doesn't change studioId/setupId (the effect's other deps) on its own. */
   layoutBackgroundVersion: number
+  /** The note being typed, or null. See NoteEdit. */
+  noteEdit: NoteEdit | null
+  /** Set when something outside the stage — the palette's note buttons, the Add Text Note keybind —
+   *  asks for a new note. Only LayoutStage knows where the middle of the view is, so it watches
+   *  this and places the note; `seq` makes two requests for the same preset distinct values. */
+  noteRequest: { preset: NotePreset; seq: number } | null
 
   loadForSetup(setupId: number | null): Promise<void>
   addBlock(block: NewBlock): string
@@ -96,6 +124,17 @@ interface LayoutState {
   resetView(): void
   save(): Promise<void>
   bumpLayoutBackgroundVersion(): void
+  requestNewNote(preset: NotePreset): void
+  /** Opens the editor on a new, empty note centered at `at` (room pixels). */
+  startNewNote(preset: NotePreset, at: { x: number; y: number }): void
+  /** Opens the editor on an existing note. */
+  startNoteEdit(id: number | string): void
+  setNoteEditText(text: string): void
+  patchNoteEdit(patch: BlockPatch): void
+  /** Ends the edit and writes it to `blocks` as one undo step. A note left blank is removed (or,
+   *  if it was new, never created). Safe to call when nothing is being edited — exports and
+   *  flushes call it unconditionally so a half-typed note is never left out. */
+  commitNoteEdit(): void
 }
 
 /** Builds one independent layout-store instance, paired to a specific setup-store instance.
@@ -127,18 +166,20 @@ export function createLayoutStore(setupStoreApi: SetupStoreApi) {
       beginGesture: () => set({ gestureStartedAt: Date.now() }),
       endGesture: () => set({ gestureStartedAt: null }),
       layoutBackgroundVersion: 0,
+      noteEdit: null,
+      noteRequest: null,
 
       loadForSetup: async (setupId) => {
         store.temporal.getState().clear()
         if (!setupId) {
-          set({ blocks: [], selectedBlockIds: new Set(), zoomScale: 1, panX: 0, panY: 0, isDirty: false })
+          set({ blocks: [], selectedBlockIds: new Set(), zoomScale: 1, panX: 0, panY: 0, isDirty: false, noteEdit: null })
           return
         }
         const blocks = await window.api.roomLayoutBlocks.listBySetup(setupId)
-        set({ blocks, selectedBlockIds: new Set(), zoomScale: 1, panX: 0, panY: 0, isDirty: false })
+        set({ blocks, selectedBlockIds: new Set(), zoomScale: 1, panX: 0, panY: 0, isDirty: false, noteEdit: null })
       },
 
-      addBlock: ({ label, shape, color, x, y, width, height, personName, labelColor }) => {
+      addBlock: ({ label, shape, color, x, y, width, height, personName, labelColor, kind, fontSize, fontBold }) => {
         const id = newDraftId()
         const maxZ = get().blocks.reduce((max, b) => Math.max(max, b.zIndex), 0)
         const draft: RoomLayoutBlockDraft = {
@@ -153,21 +194,25 @@ export function createLayoutStore(setupStoreApi: SetupStoreApi) {
           rotation: 0,
           zIndex: maxZ + 1,
           personName: personName ?? null,
-          labelColor: labelColor ?? null
+          labelColor: labelColor ?? null,
+          kind: kind ?? 'block',
+          fontSize: fontSize ?? null,
+          fontBold: fontBold ?? false
         }
-        set({ blocks: [...get().blocks, draft], isDirty: true, selectedBlockIds: new Set([id]) })
+        set({ blocks: [...get().blocks, fitNoteHeight(draft)], isDirty: true, selectedBlockIds: new Set([id]) })
         return id
       },
 
+      // Both refit a note's height: a new width rewraps its text, and a new font resizes it.
       updateBlockTransform: (id, patch) =>
         set((state) => ({
-          blocks: state.blocks.map((b) => (b.id === id ? { ...b, ...patch } : b)),
+          blocks: state.blocks.map((b) => (b.id === id ? fitNoteHeight({ ...b, ...patch }) : b)),
           isDirty: true
         })),
 
       updateBlock: (id, patch) =>
         set((state) => ({
-          blocks: state.blocks.map((b) => (b.id === id ? { ...b, ...patch } : b)),
+          blocks: state.blocks.map((b) => (b.id === id ? fitNoteHeight({ ...b, ...patch }) : b)),
           isDirty: true
         })),
 
@@ -191,6 +236,9 @@ export function createLayoutStore(setupStoreApi: SetupStoreApi) {
         }),
 
       removeBlocks: (ids) => {
+        const idSet = new Set(ids)
+        const removed = get().blocks.filter((b) => idSet.has(b.id))
+        const noun = removed.every((b) => b.kind === 'note') ? 'note' : removed.some((b) => b.kind === 'note') ? 'item' : 'block'
         set((state) => {
           const idSet = new Set(ids)
           const selectedBlockIds = new Set([...state.selectedBlockIds].filter((id) => !idSet.has(id)))
@@ -203,7 +251,7 @@ export function createLayoutStore(setupStoreApi: SetupStoreApi) {
         if (ids.length > 0) {
           useToastStore
             .getState()
-            .show(`Deleted ${ids.length} block${ids.length === 1 ? '' : 's'}`, () => {
+            .show(`Deleted ${ids.length} ${noun}${ids.length === 1 ? '' : 's'}`, () => {
               store.temporal.getState().undo()
               // Autosave (1s) beats the toast (5s), so by the time Undo is clicked the delete is
               // already committed. zundo does not restore isDirty, so without this the blocks
@@ -344,7 +392,80 @@ export function createLayoutStore(setupStoreApi: SetupStoreApi) {
         }
       },
 
-      bumpLayoutBackgroundVersion: () => set((state) => ({ layoutBackgroundVersion: state.layoutBackgroundVersion + 1 }))
+      bumpLayoutBackgroundVersion: () => set((state) => ({ layoutBackgroundVersion: state.layoutBackgroundVersion + 1 })),
+
+      requestNewNote: (preset) => set((state) => ({ noteRequest: { preset, seq: (state.noteRequest?.seq ?? 0) + 1 } })),
+
+      startNewNote: (preset, at) => {
+        get().commitNoteEdit()
+        const fontSize = NOTE_DEFAULT_FONT_SIZE
+        const draft: RoomLayoutBlockDraft = {
+          id: newDraftId(),
+          label: '',
+          shape: 'rect',
+          color: NOTE_PRESETS[preset].color,
+          x: at.x,
+          y: at.y,
+          width: NOTE_DEFAULT_WIDTH,
+          height: measureNoteHeight('', NOTE_DEFAULT_WIDTH, fontSize, false),
+          rotation: 0,
+          zIndex: 0,
+          personName: null,
+          labelColor: null,
+          kind: 'note',
+          fontSize,
+          fontBold: false
+        }
+        set({ noteEdit: { id: null, draft }, selectedBlockIds: new Set() })
+      },
+
+      startNoteEdit: (id) => {
+        if (get().noteEdit?.id === id) return
+        get().commitNoteEdit()
+        const block = get().blocks.find((b) => b.id === id)
+        if (!block || block.kind !== 'note') return
+        set({ noteEdit: { id, draft: { ...block } }, selectedBlockIds: new Set([id]) })
+      },
+
+      setNoteEditText: (text) =>
+        set((state) => (state.noteEdit ? { noteEdit: { ...state.noteEdit, draft: { ...state.noteEdit.draft, label: text } } } : {})),
+
+      patchNoteEdit: (patch) =>
+        set((state) => (state.noteEdit ? { noteEdit: { ...state.noteEdit, draft: { ...state.noteEdit.draft, ...patch } } } : {})),
+
+      commitNoteEdit: () => {
+        const edit = get().noteEdit
+        if (!edit) return
+        // Cleared on its own first. noteEdit is outside the undo history, so this records no
+        // step, and the one write to `blocks` below is the whole edit's single step.
+        set({ noteEdit: null })
+        // Trailing blank lines and spaces are almost always a stray Enter, and would pad the note.
+        const label = edit.draft.label.replace(/\s+$/, '')
+        const { color, labelColor, fontSize, fontBold } = edit.draft
+
+        if (edit.id == null) {
+          if (!label.trim()) return
+          const maxZ = get().blocks.reduce((max, b) => Math.max(max, b.zIndex), 0)
+          const note = fitNoteHeight({ ...edit.draft, label, zIndex: maxZ + 1 })
+          set({ blocks: [...get().blocks, note], selectedBlockIds: new Set([note.id]), isDirty: true })
+          return
+        }
+
+        const current = get().blocks.find((b) => b.id === edit.id)
+        if (!current) return
+        if (!label.trim()) {
+          get().removeBlocks([current.id])
+          return
+        }
+        const unchanged =
+          current.label === label &&
+          current.color === color &&
+          current.labelColor === labelColor &&
+          current.fontSize === fontSize &&
+          current.fontBold === fontBold
+        if (unchanged) return
+        get().updateBlock(current.id, { label, color, labelColor, fontSize, fontBold })
+      }
     }),
     {
       partialize: (state) => ({ blocks: state.blocks }),
