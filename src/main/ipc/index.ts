@@ -15,6 +15,7 @@ import { registerFeedbackHandlers } from './feedbackHandlers'
 import { registerLayoutWindowHandlers } from '../layoutWindow'
 import { registerThemeHandlers } from '../theme'
 import { registerAccessibilityHandlers } from '../accessibility'
+import { registerHapticsHandlers } from '../haptics'
 
 export function registerAllIpcHandlers(): void {
   registerStudioHandlers()
@@ -34,4 +35,5 @@ export function registerAllIpcHandlers(): void {
   registerLayoutWindowHandlers()
   registerThemeHandlers()
   registerAccessibilityHandlers()
+  registerHapticsHandlers()
 }

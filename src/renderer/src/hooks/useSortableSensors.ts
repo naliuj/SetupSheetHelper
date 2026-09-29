@@ -1,5 +1,6 @@
-import { KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
+import { KeyboardSensor, PointerSensor, useSensor, useSensors, type DragOverEvent } from '@dnd-kit/core'
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable'
+import { haptic } from '@renderer/utils/haptics'
 
 /** The sensor set every sortable list in the app uses.
  *
@@ -23,4 +24,12 @@ export function useSortableSensors(): ReturnType<typeof useSensors> {
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   )
+}
+
+/** `onDragOver` for every sortable list: a light trackpad tap each time the dragged item moves over
+ *  a new slot, so a reorder can be felt a row at a time. dnd-kit only fires this when the item under
+ *  the pointer CHANGES, so it is one tap per slot, never a buzz while hovering. Harmless for a
+ *  keyboard drag — with no finger on the trackpad nothing is felt. */
+export function onDragOverTick(event: DragOverEvent): void {
+  if (event.over && event.over.id !== event.active.id) haptic('generic')
 }

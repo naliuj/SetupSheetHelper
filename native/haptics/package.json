@@ -1,0 +1,10 @@
+{
+  "name": "setup-sheet-haptics",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Mac trackpad haptic feedback (NSHapticFeedbackManager) for Setup Sheet Helper",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "gypfile": true,
+  "license": "UNLICENSED"
+}

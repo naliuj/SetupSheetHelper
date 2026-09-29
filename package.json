@@ -8,7 +8,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "postinstall": "patch-package && electron-rebuild -f -w better-sqlite3",
+    "postinstall": "patch-package && electron-rebuild -f -w better-sqlite3,setup-sheet-haptics",
     "backfill:manufacturers": "node scripts/backfill_manufacturers.cjs",
     "seed:export": "node scripts/export_berklee_seed_data.cjs",
     "dev": "electron-vite dev",
@@ -40,6 +40,7 @@
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-konva": "^19.2.5",
+    "setup-sheet-haptics": "file:native/haptics",
     "zod": "^3.23.8",
     "zundo": "^2.3.0",
     "zustand": "^5.0.14"

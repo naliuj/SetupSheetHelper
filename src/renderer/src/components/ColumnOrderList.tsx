@@ -1,7 +1,7 @@
 import { DndContext, closestCenter, type DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { useSortableSensors } from '@renderer/hooks/useSortableSensors'
+import { onDragOverTick, useSortableSensors } from '@renderer/hooks/useSortableSensors'
 import { GripVertical, Lock } from 'lucide-react'
 import {
   COLUMN_LABELS,
@@ -118,7 +118,7 @@ export default function ColumnOrderList({ order, visible, onReorder, onToggle }:
           toggle={{ checked: visibleSet.has(key), onChange: (on) => onToggle(key, on) }}
         />
       ))}
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragOver={onDragOverTick} onDragEnd={handleDragEnd}>
         <SortableContext items={draggable} strategy={verticalListSortingStrategy}>
           {draggable.map((key) => (
             <ColumnRow

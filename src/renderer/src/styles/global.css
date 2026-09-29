@@ -1671,3 +1671,18 @@ input[type='checkbox']:focus-visible {
   margin: 2px 2px;
   background: var(--color-border);
 }
+
+/* Layout Mode's Snap checkbox, in the zoom cluster over the canvas — sized to sit with the small
+   buttons beside it, on a surface so it stays legible over the floor plan. */
+.layout-snap-toggle {
+  gap: 4px;
+  margin-left: 4px;
+  padding: 3px 8px;
+  font-size: 12px;
+  color: var(--color-text);
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  user-select: none;
+}

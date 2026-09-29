@@ -25,6 +25,8 @@ interface Props {
   onDragMove: (x: number, y: number) => void
   onDragEnd: (x: number, y: number) => void
   onContextMenu: (clientX: number, clientY: number) => void
+  /** See LayoutBlockIcon's `snap`. */
+  snap?: (center: { x: number; y: number }) => { x: number; y: number }
 }
 
 /** A free-typed text note on the floor plan — the counterpart of LayoutBlockIcon for blocks with
@@ -34,7 +36,7 @@ interface Props {
  *  and the note's HEIGHT follows the text instead (fitNoteHeight, applied by the layout store on
  *  every change). Only its width is dragged. */
 const LayoutNote = forwardRef<Konva.Group, Props>(function LayoutNote(
-  { block, selected, editing, imageSize, onSelect, onEdit, onDragStart, onDragMove, onDragEnd, onContextMenu },
+  { block, selected, editing, imageSize, onSelect, onEdit, onDragStart, onDragMove, onDragEnd, onContextMenu, snap },
   ref
 ) {
   const filled = hasNoteFill(block.color)
@@ -46,7 +48,9 @@ const LayoutNote = forwardRef<Konva.Group, Props>(function LayoutNote(
     const parent = this.getParent()!
     const local = parent.getAbsoluteTransform().copy().invert().point(pos)
     const { halfWidth, halfHeight } = rotatedHalfExtents(block.width, block.height, block.rotation)
-    return parent.getAbsoluteTransform().point(clampCenterToRoom(local, halfWidth, halfHeight, imageSize))
+    let center = clampCenterToRoom(local, halfWidth, halfHeight, imageSize)
+    if (snap) center = clampCenterToRoom(snap(center), halfWidth, halfHeight, imageSize)
+    return parent.getAbsoluteTransform().point(center)
   }
 
   function handleContextMenu(e: Konva.KonvaEventObject<PointerEvent>): void {

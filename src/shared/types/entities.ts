@@ -163,5 +163,9 @@ export const APP_SETTINGS_KEYS = {
   contrastPreference: 'contrast_preference',
   /** Number string — a Chromium zoom factor, one of UI_SCALES' steps (0.8 … 2).
    *  Absent/unparsable → '1'; anything off-step snaps to the nearest. See parseUiScale. */
-  uiScale: 'ui_scale'
+  uiScale: 'ui_scale',
+  /** '1' | '0' — trackpad haptic feedback on snaps and detents (see main/haptics.ts). Absent → on. */
+  trackpadHaptics: 'trackpad_haptics',
+  /** '1' | '0' — Layout Mode's Snap checkbox: whether drags snap to other blocks. Absent → on. */
+  layoutSnapping: 'layout_snapping'
 } as const
