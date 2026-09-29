@@ -10,6 +10,7 @@ import LayoutBlockIcon, { clampCenterToRoom, rotatedHalfExtents } from './Layout
 import LayoutNote from './LayoutNote'
 import NoteEditor, { noteScreenGeometry, type StageView } from './NoteEditor'
 import NoteFormatBar from './NoteFormatBar'
+import { fitNoteHeight } from './noteLayout'
 import { NOTE_DEFAULT_WIDTH, type NotePreset } from '@shared/constants/layoutNotes'
 import ContextMenu from './ContextMenu'
 import CustomBlockModal from '../palette/CustomBlockModal'
@@ -168,10 +169,16 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
   useEffect(() => {
     if (!noteRequest || noteRequest.seq === seenNoteRequestRef.current) return
     seenNoteRequestRef.current = noteRequest.seq
-    placeNote(noteRequest.preset, {
-      x: (containerSize.width / 2 - finalX) / finalScale,
-      y: (containerSize.height / 2 - finalY) / finalScale
-    })
+    // Step down and to the right past any note already sitting in the middle, so adding a few in a
+    // row doesn't stack them exactly on top of each other.
+    const center = { x: (containerSize.width / 2 - finalX) / finalScale, y: (containerSize.height / 2 - finalY) / finalScale }
+    const occupied = (c: { x: number; y: number }): boolean =>
+      blocks.some((b) => b.kind === 'note' && Math.abs(b.x - c.x) < 12 && Math.abs(b.y - c.y) < 12)
+    for (let i = 0; i < 20 && occupied(center); i++) {
+      center.x += 24
+      center.y += 24
+    }
+    placeNote(noteRequest.preset, center)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [noteRequest])
 
@@ -472,7 +479,11 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
   // The format bar follows the note being typed, or else the one selected note. Hidden mid-drag or
   // mid-resize: it would sit at the note's old position until the gesture ends.
   const formatBarNote = noteEdit ? noteEdit.draft : !gestureActive && active ? selectedNote : undefined
-  const formatBarBox = formatBarNote ? noteScreenGeometry(formatBarNote, view).box : null
+  // While typing, the note is re-fitted to its text every render (top edge fixed, as the editor
+  // grows) so the bar keeps clear of the editor as lines are added.
+  const formatBarBox = formatBarNote
+    ? noteScreenGeometry(noteEdit ? fitNoteHeight(formatBarNote) : formatBarNote, view).box
+    : null
 
   // Screen (clientX/Y) -> canvas coordinates, accounting for the stage's current scale/offset
   // (fit-to-container combined with user zoom/pan). Shared by drag-drop placement, the
@@ -820,6 +831,7 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
           note={formatBarNote}
           box={formatBarBox!}
           containerWidth={containerSize.width}
+          containerHeight={containerSize.height}
           editing={!!noteEdit}
           onPatch={(patch) => (noteEdit ? patchNoteEdit(patch) : updateBlock(formatBarNote.id, patch))}
           onEdit={() => startNoteEdit(formatBarNote.id)}

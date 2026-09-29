@@ -17,6 +17,7 @@ interface Props {
   /** The note's bounding box in container pixels (see noteScreenGeometry). */
   box: { left: number; top: number; right: number; bottom: number }
   containerWidth: number
+  containerHeight: number
   editing: boolean
   onPatch: (patch: BlockPatch) => void
   onEdit: () => void
@@ -34,7 +35,7 @@ const EDGE = 4
  *  folded into that typing session's single undo step; changes to a selected note that isn't being
  *  typed are one step each (the caller routes them — see LayoutStage). */
 const NoteFormatBar = forwardRef<HTMLDivElement, Props>(function NoteFormatBar(
-  { note, box, containerWidth, editing, onPatch, onEdit, onDone },
+  { note, box, containerWidth, containerHeight, editing, onPatch, onEdit, onDone },
   ref
 ) {
   const localRef = useRef<HTMLDivElement | null>(null)
@@ -48,9 +49,10 @@ const NoteFormatBar = forwardRef<HTMLDivElement, Props>(function NoteFormatBar(
   })
 
   const fontSize = note.fontSize ?? NOTE_DEFAULT_FONT_SIZE
-  // Above the note when there's room, otherwise below it; never past the canvas's left/right edge.
-  const above = box.top - size.height - GAP
-  const top = above >= EDGE ? above : box.bottom + GAP
+  // Below the note, where nothing else is: the Transformer's rotate handle sits just above a
+  // selected note, and the bar used to cover it. Flipped above when there's no room below.
+  const below = box.bottom + GAP
+  const top = below + size.height <= containerHeight - EDGE ? below : Math.max(EDGE, box.top - size.height - GAP)
   const left = Math.max(EDGE, Math.min(box.left, containerWidth - size.width - EDGE))
   const keepFocus = (e: React.MouseEvent): void => e.preventDefault()
 

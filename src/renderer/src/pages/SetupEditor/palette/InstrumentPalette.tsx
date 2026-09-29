@@ -62,7 +62,7 @@ export default function InstrumentPalette(): JSX.Element {
       {/* Real buttons, unlike the instrument cards below: dragging one places a note where it's
           dropped, and clicking (or Enter/Space) places it in the middle of the view — so a note can
           be added without a mouse. */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 4 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 4 }}>
         {(['text', 'sticky'] as NotePreset[]).map((preset) => {
           const { label, color } = NOTE_PRESETS[preset]
           const filled = hasNoteFill(color)
@@ -78,7 +78,7 @@ export default function InstrumentPalette(): JSX.Element {
               className="btn small inline-icon-text"
               title={`Add ${preset === 'text' ? 'a text note' : 'a sticky note'} — or drag it onto the layout`}
               style={{
-                flex: 1,
+                width: '100%',
                 justifyContent: 'center',
                 cursor: 'grab',
                 ...(filled
