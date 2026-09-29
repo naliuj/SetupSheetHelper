@@ -2,6 +2,7 @@ import { dialog } from 'electron'
 import { copyFileSync, existsSync, readFileSync, unlinkSync } from 'node:fs'
 import { basename, extname, join } from 'node:path'
 import type { RoomLayoutFile, SetupLayoutOverride } from '@shared/types/entities'
+import { LAYOUT_FILE_EXTENSIONS } from '@shared/constants/roomLayout'
 import { getLayoutsDir } from '../userDataPaths'
 import { getLayoutFileForStudio, upsertLayoutFile } from '../db/repositories/roomLayoutFileRepo'
 import { getSetupLayoutOverride, upsertFileLayoutOverride } from '../db/repositories/setupLayoutOverrideRepo'
@@ -53,7 +54,7 @@ export async function pickLayoutFile(): Promise<PickedLayoutFile | null> {
   const result = await dialog.showOpenDialog({
     title: 'Select Room Layout File',
     properties: ['openFile'],
-    filters: [{ name: 'Layout File', extensions: ['pdf', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'] }]
+    filters: [{ name: 'Layout File', extensions: [...LAYOUT_FILE_EXTENSIONS] }]
   })
   if (result.canceled || result.filePaths.length === 0) return null
 

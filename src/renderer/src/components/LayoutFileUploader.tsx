@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { RoomLayoutFile } from '@shared/types/entities'
+import { LAYOUT_FILE_FORMATS_HINT } from '@shared/constants/roomLayout'
 
 interface Props {
   /** Null while a brand-new studio has not been written to the database yet. */
@@ -71,6 +72,9 @@ export default function LayoutFileUploader({
           {importing ? 'Importing…' : layout ? 'Replace Layout File' : 'Upload Layout File'}
         </button>
       </div>
+      <p className="card-sub" style={{ marginTop: 6 }}>
+        {LAYOUT_FILE_FORMATS_HINT}
+      </p>
     </div>
   )
 }

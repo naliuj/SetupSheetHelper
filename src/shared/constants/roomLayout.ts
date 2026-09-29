@@ -3,6 +3,15 @@
 // RENDER_SCALE = 2 applied to a PDF's native 72 pt/inch), so a blank sheet sits at the same
 // effective resolution as an uploaded PDF floor plan rather than introducing a second convention.
 export const LAYOUT_PIXELS_PER_INCH = 144
+
+/** The file types a room layout can be uploaded as — the open dialog's filter, and the source of
+ *  the formats line shown beside every upload button, so the two can never disagree. */
+export const LAYOUT_FILE_EXTENSIONS = ['pdf', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'] as const
+
+/** Shown next to the layout upload buttons. Layout Mode draws only a PDF's first page (see
+ *  LayoutBackground), which is worth saying before someone uploads a whole drawing set. */
+export const LAYOUT_FILE_FORMATS_HINT =
+  'Accepts a PDF, PNG, JPEG, GIF, WebP, BMP or SVG file. For a PDF with more than one page, only the first page is used.'
 // Landscape (US Letter on its side) — a room floor plan is usually wider than it is tall.
 export const BLANK_SHEET_WIDTH_IN = 11
 export const BLANK_SHEET_HEIGHT_IN = 8.5

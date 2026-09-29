@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useSetupStoreApi } from '@renderer/state/setupStoreContext'
 import { useEscapeToClose } from '@renderer/hooks/useEscapeToClose'
 import { useModalDialog } from '@renderer/hooks/useModalDialog'
+import { LAYOUT_FILE_FORMATS_HINT } from '@shared/constants/roomLayout'
 
 interface Props {
   studioId: number
@@ -111,6 +112,7 @@ export default function RequireLayoutFileModal({ studioId, setupId, onResolved, 
             <p className="card-sub" style={{ marginTop: 0 }}>
               This studio doesn't have a room layout yet — upload one, or continue with a blank sheet.
             </p>
+            <p className="card-sub">{LAYOUT_FILE_FORMATS_HINT}</p>
             {error && (
               <p className="card-sub" style={{ color: 'var(--color-danger)' }}>
                 {error}
