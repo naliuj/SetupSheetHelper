@@ -16,6 +16,9 @@ interface RoomLayoutBlockRow {
   z_index: number
   person_name: string | null
   label_color: string | null
+  kind: 'block' | 'note'
+  font_size: number | null
+  font_bold: number
 }
 
 function mapRow(row: RoomLayoutBlockRow): RoomLayoutBlock {
@@ -32,7 +35,10 @@ function mapRow(row: RoomLayoutBlockRow): RoomLayoutBlock {
     rotation: row.rotation,
     zIndex: row.z_index,
     personName: row.person_name,
-    labelColor: row.label_color
+    labelColor: row.label_color,
+    kind: row.kind,
+    fontSize: row.font_size,
+    fontBold: row.font_bold === 1
   }
 }
 
@@ -50,8 +56,8 @@ export function copyBlocksToSetup(sourceSetupId: number, targetSetupId: number):
   const db = getDb()
   const blocks = listBlocksBySetup(sourceSetupId)
   const insert = db.prepare(
-    `INSERT INTO room_layout_blocks (setup_id, label, shape, color, x, y, width, height, rotation, z_index, person_name, label_color)
-     VALUES (@setupId, @label, @shape, @color, @x, @y, @width, @height, @rotation, @zIndex, @personName, @labelColor)`
+    `INSERT INTO room_layout_blocks (setup_id, label, shape, color, x, y, width, height, rotation, z_index, person_name, label_color, kind, font_size, font_bold)
+     VALUES (@setupId, @label, @shape, @color, @x, @y, @width, @height, @rotation, @zIndex, @personName, @labelColor, @kind, @fontSize, @fontBold)`
   )
   const copy = db.transaction(() => {
     for (const block of blocks) {
@@ -67,7 +73,10 @@ export function copyBlocksToSetup(sourceSetupId: number, targetSetupId: number):
         rotation: block.rotation,
         zIndex: block.zIndex,
         personName: block.personName,
-        labelColor: block.labelColor
+        labelColor: block.labelColor,
+        kind: block.kind,
+        fontSize: block.fontSize,
+        fontBold: block.fontBold ? 1 : 0
       })
     }
   })
@@ -86,14 +95,15 @@ export function replaceBlocksForSetup(setupId: number, blocks: RoomLayoutBlockIn
   // save.
   const idMap: Record<string, number> = {}
   const insert = db.prepare(
-    `INSERT INTO room_layout_blocks (setup_id, label, shape, color, x, y, width, height, rotation, z_index, person_name, label_color)
-     VALUES (@setupId, @label, @shape, @color, @x, @y, @width, @height, @rotation, @zIndex, @personName, @labelColor)`
+    `INSERT INTO room_layout_blocks (setup_id, label, shape, color, x, y, width, height, rotation, z_index, person_name, label_color, kind, font_size, font_bold)
+     VALUES (@setupId, @label, @shape, @color, @x, @y, @width, @height, @rotation, @zIndex, @personName, @labelColor, @kind, @fontSize, @fontBold)`
   )
   const update = db.prepare(
     `UPDATE room_layout_blocks SET
       label = @label, shape = @shape, color = @color, x = @x, y = @y, width = @width,
       height = @height, rotation = @rotation, z_index = @zIndex, person_name = @personName,
-      label_color = @labelColor, updated_at = datetime('now')
+      label_color = @labelColor, kind = @kind, font_size = @fontSize, font_bold = @fontBold,
+      updated_at = datetime('now')
      WHERE id = @id AND setup_id = @setupId`
   )
   const deleteStmt = db.prepare('DELETE FROM room_layout_blocks WHERE id = ?')
@@ -121,7 +131,10 @@ export function replaceBlocksForSetup(setupId: number, blocks: RoomLayoutBlockIn
         // ?? null because better-sqlite3 rejects a missing named parameter outright rather than
         // binding NULL — one block without the key would fail the whole save transaction.
         personName: block.personName,
-        labelColor: block.labelColor ?? null
+        labelColor: block.labelColor ?? null,
+        kind: block.kind ?? 'block',
+        fontSize: block.fontSize ?? null,
+        fontBold: block.fontBold ? 1 : 0
       }
       if (typeof block.id === 'number' && existingIds.has(block.id)) {
         update.run({ ...params, id: block.id })

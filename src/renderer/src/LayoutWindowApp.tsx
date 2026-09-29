@@ -64,7 +64,8 @@ const handlers: Record<string, () => void> = {
   'clear-selection': () => useLayoutStore.getState().selectBlock(null),
   'zoom-in': () => useLayoutStore.getState().zoomIn(),
   'zoom-out': () => useLayoutStore.getState().zoomOut(),
-  'reset-view': () => useLayoutStore.getState().resetView()
+  'reset-view': () => useLayoutStore.getState().resetView(),
+  'add-text-note': () => useLayoutStore.getState().requestNewNote('text')
 }
 
 function isTextField(target: EventTarget | null): boolean {
@@ -141,6 +142,8 @@ export default function LayoutWindowApp(): JSX.Element {
   useQuitFlush()
   useEffect(() => {
     return registerFlusher(async () => {
+      // A note still being typed counts as an edit — write it into the blocks before saving them.
+      useLayoutStore.getState().commitNoteEdit()
       const state = useLayoutStore.getState()
       if (state.isDirty) await state.save()
     })
@@ -152,6 +155,7 @@ export default function LayoutWindowApp(): JSX.Element {
   useEffect(() => {
     return window.api.layoutWindow.onFlushRequested(async (request) => {
       try {
+        useLayoutStore.getState().commitNoteEdit()
         const state = useLayoutStore.getState()
         if (state.isDirty) await state.save()
       } catch {
@@ -169,8 +173,14 @@ export default function LayoutWindowApp(): JSX.Element {
   // render its own live stage and hand back the PNG. Null if the stage isn't up yet (e.g. mid
   // navigation) — the caller treats that the same as "couldn't reach the window."
   useEffect(() => {
-    return window.api.layoutWindow.onExportImageRequested((request) => {
+    return window.api.layoutWindow.onExportImageRequested(async (request) => {
       let dataUrl: string | null = null
+      // A note still being typed is hidden on the canvas (its editor draws it instead), so write it
+      // first and let the stage re-render before flattening — as captureLayoutImage does locally.
+      if (useLayoutStore.getState().noteEdit) {
+        useLayoutStore.getState().commitNoteEdit()
+        await new Promise((resolve) => setTimeout(resolve, 30))
+      }
       if (stageRef.current) {
         try {
           dataUrl = exportStageToDataUrl(stageRef.current, request.pixelRatio, request.monochrome)

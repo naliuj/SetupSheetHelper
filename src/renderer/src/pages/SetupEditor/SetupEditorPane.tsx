@@ -235,6 +235,8 @@ export default function SetupEditorPane({
     return registerFlusher(async () => {
       const setupState = setupStoreApi.getState()
       if (setupState.isDirty) await setupState.save()
+      // A note still being typed counts as an edit — write it into the blocks before saving them.
+      layoutStoreApi.getState().commitNoteEdit()
       const layoutState = layoutStoreApi.getState()
       if (layoutState.isDirty) await layoutState.save()
     })
@@ -250,6 +252,7 @@ export default function SetupEditorPane({
     return () => {
       const setupState = setupStoreApi.getState()
       if (setupState.isDirty) setupState.save()
+      layoutStoreApi.getState().commitNoteEdit()
       const layoutState = layoutStoreApi.getState()
       if (layoutState.isDirty) layoutState.save()
     }

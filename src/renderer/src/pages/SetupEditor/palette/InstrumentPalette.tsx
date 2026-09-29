@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
-import { ChevronDown, ChevronRight } from 'lucide-react'
+import { ChevronDown, ChevronRight, StickyNote, Type } from 'lucide-react'
 import { staggeredPosition } from '@shared/utils/staggeredGrid'
 import { resolveLabelColor } from '@shared/constants/swatches'
+import { hasNoteFill, NOTE_PRESETS, resolveNoteTextColor, type NotePreset } from '@shared/constants/layoutNotes'
 import { useLayoutStoreState } from '@renderer/state/layoutStoreContext'
 import { usePaletteStore } from '@renderer/state/paletteStore'
 import { groupByCategory } from '@renderer/state/paletteGrouping'
@@ -11,6 +12,7 @@ import CustomBlockModal from './CustomBlockModal'
 export default function InstrumentPalette(): JSX.Element {
   const blocks = useLayoutStoreState((s) => s.blocks)
   const addBlock = useLayoutStoreState((s) => s.addBlock)
+  const requestNewNote = useLayoutStoreState((s) => s.requestNewNote)
   const paletteItems = usePaletteStore((s) => s.items)
   const goToSettings = useNavigationStore((s) => s.goToSettings)
   const [search, setSearch] = useState('')
@@ -55,8 +57,46 @@ export default function InstrumentPalette(): JSX.Element {
       }}
     >
       <div className="section-title" style={{ marginTop: 0 }}>
-        Instruments
+        Notes
       </div>
+      {/* Real buttons, unlike the instrument cards below: dragging one places a note where it's
+          dropped, and clicking (or Enter/Space) places it in the middle of the view — so a note can
+          be added without a mouse. */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 4 }}>
+        {(['text', 'sticky'] as NotePreset[]).map((preset) => {
+          const { label, color } = NOTE_PRESETS[preset]
+          const filled = hasNoteFill(color)
+          return (
+            <button
+              key={preset}
+              type="button"
+              draggable
+              onDragStart={(e) =>
+                e.dataTransfer.setData('application/json', JSON.stringify({ kind: 'note', preset }))
+              }
+              onClick={() => requestNewNote(preset)}
+              className="btn small inline-icon-text"
+              title={`Add ${preset === 'text' ? 'a text note' : 'a sticky note'} — or drag it onto the layout`}
+              style={{
+                width: '100%',
+                justifyContent: 'center',
+                cursor: 'grab',
+                ...(filled
+                  ? { background: color, borderColor: color, color: resolveNoteTextColor(color, null) }
+                  : { borderStyle: 'dashed' })
+              }}
+            >
+              {filled ? <StickyNote size={13} aria-hidden="true" /> : <Type size={13} aria-hidden="true" />}
+              {label}
+            </button>
+          )
+        })}
+      </div>
+      <p className="card-sub" style={{ marginBottom: 0 }}>
+        Type anywhere on the plan
+      </p>
+
+      <div className="section-title">Instruments</div>
       <p className="card-sub">Drag onto the layout — optional, purely visual</p>
 
       <button className="btn small" style={{ width: '100%', marginBottom: 6 }} onClick={() => setModalOpen(true)}>

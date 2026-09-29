@@ -180,7 +180,11 @@ export default function SetupToolbar({
           studioId,
           stage: stageRef.current,
           monochrome: !coloredRows,
-          deselect: () => layoutStoreApi.getState().selectBlock(null)
+          deselect: () => {
+            // A note still being typed is written first, so the export has it.
+            layoutStoreApi.getState().commitNoteEdit()
+            layoutStoreApi.getState().selectBlock(null)
+          }
         })
         if (capture.status === 'ok') dataUrl = capture.dataUrl
         layoutUnreachable = capture.status === 'unreachable'
@@ -260,7 +264,11 @@ export default function SetupToolbar({
           studioId,
           stage: stageRef.current,
           monochrome: false,
-          deselect: () => layoutStoreApi.getState().selectBlock(null)
+          deselect: () => {
+            // A note still being typed is written first, so the export has it.
+            layoutStoreApi.getState().commitNoteEdit()
+            layoutStoreApi.getState().selectBlock(null)
+          }
         })
       }
 
@@ -491,6 +499,9 @@ export default function SetupToolbar({
     },
     'reset-view': () => {
       if (mode === 'layout') layoutStoreApi.getState().resetView()
+    },
+    'add-text-note': () => {
+      if (mode === 'layout') layoutStoreApi.getState().requestNewNote('text')
     },
     'open-setup-settings': onOpenSettings,
     undo: () => handleUndoRedo('undo'),

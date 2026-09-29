@@ -81,8 +81,16 @@ export interface RoomLayoutBlock {
    *  ordinary gear blocks — purely additive, doesn't change rendering unless set. */
   personName: string | null
   /** The label's text color. null = Auto: black or white, chosen from the fill. See
-   *  resolveLabelColor in swatches.ts. */
+   *  resolveLabelColor in swatches.ts. On a note, the note's text color (resolveNoteTextColor). */
   labelColor: string | null
+  /** 'note' = a free-typed text note: `label` is its text, `color` its fill (NOTE_NO_FILL for
+   *  plain text on the plan), and it always has shape 'rect'. Rendered by LayoutNote, not
+   *  LayoutBlockIcon. */
+  kind: 'block' | 'note'
+  /** A note's font size in room pixels. null on blocks, whose labels shrink to fit instead. */
+  fontSize: number | null
+  /** Whether a note's text is bold. Always false on blocks, whose labels are always bold. */
+  fontBold: boolean
 }
 
 export interface Setup {
