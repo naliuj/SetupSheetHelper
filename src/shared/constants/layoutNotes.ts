@@ -10,7 +10,7 @@ export const NOTE_NO_FILL = 'transparent'
 
 /** The sizes A− / A+ step through, in room pixels. */
 export const NOTE_FONT_SIZES = [10, 12, 14, 18, 24, 32] as const
-export const NOTE_DEFAULT_FONT_SIZE = 14
+export const NOTE_DEFAULT_FONT_SIZE = 24
 export const NOTE_DEFAULT_WIDTH = 180
 /** Space between the note's edge and its text, in room pixels, on every side. */
 export const NOTE_PADDING = 8
@@ -18,6 +18,9 @@ export const NOTE_LINE_HEIGHT = 1.25
 /** The canvas font. Konva's default, and what block labels use, so notes and labels match — and
  *  what the in-place editor uses too, so text wraps at the same place while typing as after. */
 export const NOTE_FONT_FAMILY = 'Arial'
+
+/** How tall a new, one-line note is, in room pixels — for placing one before it has been measured. */
+export const NOTE_DEFAULT_HEIGHT = Math.ceil(NOTE_DEFAULT_FONT_SIZE * NOTE_LINE_HEIGHT + 2 * NOTE_PADDING)
 
 /** Text on a note with no fill sits on the floor plan itself, which is white paper or a light
  *  drawing, so Auto is the app's dark text color. */

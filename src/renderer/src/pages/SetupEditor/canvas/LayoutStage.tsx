@@ -11,7 +11,7 @@ import LayoutNote from './LayoutNote'
 import NoteEditor, { noteScreenGeometry, type StageView } from './NoteEditor'
 import NoteFormatBar from './NoteFormatBar'
 import { fitNoteHeight } from './noteLayout'
-import { NOTE_DEFAULT_WIDTH, type NotePreset } from '@shared/constants/layoutNotes'
+import { NOTE_DEFAULT_HEIGHT, NOTE_DEFAULT_WIDTH, type NotePreset } from '@shared/constants/layoutNotes'
 import ContextMenu from './ContextMenu'
 import CustomBlockModal from '../palette/CustomBlockModal'
 import Icon from '@renderer/components/Icon'
@@ -158,7 +158,7 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
 
   /** Opens the editor on a new note centered at `center`, pulled inside the room. */
   function placeNote(preset: NotePreset, center: { x: number; y: number }): void {
-    startNewNote(preset, clampCenterToRoom(center, NOTE_DEFAULT_WIDTH / 2, 20, imageSize))
+    startNewNote(preset, clampCenterToRoom(center, NOTE_DEFAULT_WIDTH / 2, NOTE_DEFAULT_HEIGHT / 2, imageSize))
   }
 
   // The palette's note buttons and the Add Text Note keybind can't know where the view is, so they
@@ -877,7 +877,7 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
               // The note starts where you clicked, as text does in a drawing app — the click is its
               // top-left corner, not its center.
               onClick: () =>
-                placeNote('text', { x: canvasMenu.canvasX + NOTE_DEFAULT_WIDTH / 2, y: canvasMenu.canvasY + 16 })
+                placeNote('text', { x: canvasMenu.canvasX + NOTE_DEFAULT_WIDTH / 2, y: canvasMenu.canvasY + NOTE_DEFAULT_HEIGHT / 2 })
             }
           ]}
           onClose={() => setCanvasMenu(null)}
