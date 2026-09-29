@@ -13,6 +13,7 @@ import NoteFormatBar from './NoteFormatBar'
 import { fitNoteHeight } from './noteLayout'
 import { buildSnapTargets, computeSnap, type SnapGuide, type SnapTargets } from './snapGuides'
 import { haptic } from '@renderer/utils/haptics'
+import { useSnapPrefsStore } from '@renderer/state/snapPrefsStore'
 import { NOTE_DEFAULT_HEIGHT, NOTE_DEFAULT_WIDTH, type NotePreset } from '@shared/constants/layoutNotes'
 import ContextMenu from './ContextMenu'
 import CustomBlockModal from '../palette/CustomBlockModal'
@@ -74,6 +75,16 @@ const ROTATION_SNAP_TOLERANCE = 5
 /** How long a pinch holds at 100% after crossing it, so the stop is felt as a notch rather than
  *  flown past. */
 const ZOOM_DETENT_HOLD_MS = 200
+/** The shortest gap between two snap taps. A drag sweeping across a crowded plan catches lines in
+ *  quick succession, and a tap for every one blurred into a buzz; the snapping itself still
+ *  happens every time, only the taps are spaced. */
+const SNAP_TAP_MIN_INTERVAL_MS = 100
+
+/** The snap angle a rotation (in degrees, any range) sits exactly on, or null. */
+function rotationSnapAt(rotation: number): number | null {
+  const angle = ((rotation % 360) + 360) % 360
+  return ROTATION_SNAPS.find((a) => Math.abs(angle - a) < 0.01 || Math.abs(angle - 360 - a) < 0.01) ?? null
+}
 const MARQUEE_THRESHOLD = 5
 
 export default function LayoutStage({ studioId, stageRef, active, paneActive = true }: Props): JSX.Element {
@@ -121,6 +132,12 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
   const [snapGuides, setSnapGuides] = useState<SnapGuide[]>([])
   const lastRotationSnapRef = useRef<number | null>(null)
   const zoomDetentUntilRef = useRef(0)
+  const lastSnapTapRef = useRef(0)
+  const snapEnabled = useSnapPrefsStore((s) => s.enabled)
+  const setSnapEnabled = useSnapPrefsStore((s) => s.setEnabled)
+  useEffect(() => {
+    void useSnapPrefsStore.getState().load()
+  }, [])
 
   const containerRef = useRef<HTMLDivElement>(null)
   const nodeRefs = useRef<Map<number | string, Konva.Group>>(new Map())
@@ -200,6 +217,10 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
   /** Collects what a drag of `id` can snap to — every block not moving with it — once, at the start
    *  of the drag, rather than on every pointer move. */
   function startSnap(id: number | string): void {
+    if (!snapEnabled) {
+      snapTargetsRef.current = null
+      return
+    }
     const moving = selectedBlockIds.has(id) ? selectedBlockIds : new Set([id])
     const boxes = blocks
       .filter((b) => !moving.has(b.id))
@@ -234,7 +255,10 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
     const prev = snapStateRef.current
     const caughtNewLine =
       (result.snappedX != null && result.snappedX !== prev.x) || (result.snappedY != null && result.snappedY !== prev.y)
-    if (caughtNewLine) haptic('alignment')
+    if (caughtNewLine && performance.now() - lastSnapTapRef.current >= SNAP_TAP_MIN_INTERVAL_MS) {
+      lastSnapTapRef.current = performance.now()
+      haptic('alignment')
+    }
     if (result.snappedX !== prev.x || result.snappedY !== prev.y) {
       snapStateRef.current = { x: result.snappedX, y: result.snappedY }
       setSnapGuides(result.guides)
@@ -396,8 +420,7 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
     // A tap each time a rotation lands on one of the snap angles — once per angle, not per tick
     // spent sitting on it.
     if (grabbedAnchorRef.current === 'rotater') {
-      const angle = ((node.rotation() % 360) + 360) % 360
-      const onSnap = ROTATION_SNAPS.find((a) => Math.abs(angle - a) < 0.01 || Math.abs(angle - 360 - a) < 0.01) ?? null
+      const onSnap = rotationSnapAt(node.rotation())
       if (onSnap != null && onSnap !== lastRotationSnapRef.current) haptic('alignment')
       lastRotationSnapRef.current = onSnap
     }
@@ -795,6 +818,13 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
         <button className="btn small" onClick={resetView} style={{ marginLeft: 4 }}>
           Reset view
         </button>
+        <label
+          className="inline-icon-text layout-snap-toggle"
+          title="Line blocks up with each other as you drag them. Hold ⌘ while dragging to skip it once."
+        >
+          <input type="checkbox" checked={snapEnabled} onChange={(e) => void setSnapEnabled(e.target.checked)} />
+          Snap
+        </label>
       </div>
       <div
         style={{
@@ -912,7 +942,9 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
               boundBoxFunc={(oldBox, newBox) => boundTransformBox(id, oldBox, newBox)}
               onTransformStart={() => {
                 grabbedAnchorRef.current = transformerRefs.current.get(id)?.getActiveAnchor() ?? null
-                lastRotationSnapRef.current = null
+                // Starting from a snap angle (every new block sits at 0°) is not a snap in itself —
+                // without this, the first tick of every rotation tapped.
+                lastRotationSnapRef.current = rotationSnapAt(nodeRefs.current.get(id)?.rotation() ?? 0)
                 beginGesture()
               }}
               onTransform={() => handleTransform(id)}

@@ -19,6 +19,10 @@ interface SnapLine {
   pos: number
   from: number
   to: number
+  /** Edges only catch edges and centers only catch centers — the design-tool convention. Letting
+   *  any line catch any other tripled the lines a drag passes, and on a busy plan the snaps (and
+   *  their taps) came every few pixels. */
+  kind: 'edge' | 'center'
 }
 
 export interface SnapTargets {
@@ -47,15 +51,17 @@ export interface SnapResult {
 /** The lines the moving block can snap to: each other box's three vertical and three horizontal
  *  lines, plus the room's own center lines. */
 export function buildSnapTargets(boxes: SnapBox[], room: { width: number; height: number }): SnapTargets {
-  const xs: SnapLine[] = [{ pos: room.width / 2, from: 0, to: room.height }]
-  const ys: SnapLine[] = [{ pos: room.height / 2, from: 0, to: room.width }]
+  const xs: SnapLine[] = [{ pos: room.width / 2, from: 0, to: room.height, kind: 'center' }]
+  const ys: SnapLine[] = [{ pos: room.height / 2, from: 0, to: room.width, kind: 'center' }]
   for (const b of boxes) {
     const top = b.center.y - b.halfHeight
     const bottom = b.center.y + b.halfHeight
     const left = b.center.x - b.halfWidth
     const right = b.center.x + b.halfWidth
-    for (const pos of [left, b.center.x, right]) xs.push({ pos, from: top, to: bottom })
-    for (const pos of [top, b.center.y, bottom]) ys.push({ pos, from: left, to: right })
+    xs.push({ pos: left, from: top, to: bottom, kind: 'edge' }, { pos: right, from: top, to: bottom, kind: 'edge' })
+    xs.push({ pos: b.center.x, from: top, to: bottom, kind: 'center' })
+    ys.push({ pos: top, from: left, to: right, kind: 'edge' }, { pos: bottom, from: left, to: right, kind: 'edge' })
+    ys.push({ pos: b.center.y, from: left, to: right, kind: 'center' })
   }
   return { xs, ys }
 }
@@ -70,7 +76,7 @@ function nearest(
 ): { shift: number; pos: number } | null {
   let best: { shift: number; pos: number } | null = null
   for (const line of lines) {
-    for (const offset of [-half, 0, half]) {
+    for (const offset of line.kind === 'center' ? [0] : [-half, half]) {
       const shift = line.pos - (center + offset)
       if (Math.abs(shift) <= threshold && (!best || Math.abs(shift) < Math.abs(best.shift))) best = { shift, pos: line.pos }
     }
