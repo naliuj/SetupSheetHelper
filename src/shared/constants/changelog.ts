@@ -395,5 +395,17 @@ export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
       'Berklee mic names are now spelled the same way in every room, so one mic no longer shows up twice in lists that span studios \u2014 "VMA Tube" beside "VMA Tube Microphone", say, or "AT-4050" beside "AT4041". Channel presets and setup files saved with the old names still find the right mic.',
       'Studio 2 now lists four Schoeps CMC6 Mk4s, up from two.'
     ]
+  },
+  {
+    version: '1.19.0',
+    date: '2026-09-29',
+    highlights: [
+      'Type notes straight onto the Layout Mode floor plan. Drag "Text" or "Sticky note" from the new Notes section of the palette, right-click and choose "Add text here", or press Cmd+Shift+T, then just type. Double-click a note to edit it, and use the bar under it for size, bold, fill and text color. Notes print in the PDF and spreadsheet exports.',
+      'Blocks and notes snap into line as you drag them: to the edges and centers of other blocks and to the middle of the room, with a guide showing what they lined up with. Rotating snaps to every 45\u00b0. Hold \u2318 while dragging to move freely, or turn snapping off with the new Snap checkbox. Pinching the trackpad now zooms smoothly and pauses at 100%.',
+      'On a Mac with a Force Touch trackpad, you feel a light tap when something snaps into place, when a dragged row passes each slot, and when a pinch reaches 100% or the zoom limit. Turn it off in Settings \u2192 Accessibility.',
+      'New Settings \u2192 Accessibility section, with an interface size setting and stronger borders. Every list you can drag to reorder now also works from the keyboard, rows and Layout Mode blocks can be selected from the keyboard, every control shows a focus ring, and dialogs keep focus inside them until closed. Block text picks black or white more readably on 13 more swatches, and a chosen text color that is hard to read on its block now shows a warning.',
+      'Fixed stretching a Layout Mode block to the edge of the floor plan thinning it out, circles sliding sideways instead of widening, a corner handle switching to another corner, and extreme rotates or stretches pushing a block outside the plan.',
+      'Fixed the Faculty Reserve factory reset blanking the mic on every sheet that used a faculty reserve mic, and the spreadsheet export putting black text on dark row colors, where it could barely be read.'
+    ]
   }
 ]
