@@ -407,5 +407,15 @@ export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
       'Fixed stretching a Layout Mode block to the edge of the floor plan thinning it out, circles sliding sideways instead of widening, a corner handle switching to another corner, and extreme rotates or stretches pushing a block outside the plan.',
       'Fixed the Faculty Reserve factory reset blanking the mic on every sheet that used a faculty reserve mic, and the spreadsheet export putting black text on dark row colors, where it could barely be read.'
     ]
+  },
+  {
+    version: '1.20.0',
+    date: '2026-09-29',
+    highlights: [
+      'Draw on the Layout Mode floor plan with a drawing tablet, mouse or trackpad. Click Markup or press Cmd+Shift+M for a pen that responds to pressure, a highlighter, lines, arrows, circles and boxes, in five colors and three sizes. The eraser rubs out only what it passes over \u2014 pick it from the toolbar, flip your pen over, or hold down the right mouse button. The eye button hides all markup, and markup prints in exports while it\u2019s shown.',
+      'Import a studio\u2019s gear from a spreadsheet. In the studio editor, choose "Import from a spreadsheet\u2026" and pick or drag in a CSV file, or paste cells straight from Excel, Numbers or Google Sheets. Match each column to what it holds, then review what\u2019s new, what adds to gear already listed and what gets skipped before anything is added. There\u2019s a template to download if you\u2019re starting from scratch.',
+      'Room layouts uploaded as images are now sized to a Letter page. A small image used to print as a tiny floor plan with oversized blocks, and a phone photo came out poster-sized. Blocks on existing setups are moved and resized to match. The upload card also now lists which file types it accepts.',
+      'A room layout\u2019s "Imported" time now shows in your own time zone instead of UTC, and in Settings \u2192 Browse studios a click anywhere on a studio\u2019s row selects it, not just its checkbox.'
+    ]
   }
 ]
