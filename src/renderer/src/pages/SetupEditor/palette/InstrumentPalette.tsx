@@ -7,7 +7,7 @@ import { useLayoutStoreState } from '@renderer/state/layoutStoreContext'
 import { usePaletteStore } from '@renderer/state/paletteStore'
 import { groupByCategory } from '@renderer/state/paletteGrouping'
 import { useNavigationStore } from '@renderer/state/navigationStore'
-import { endPaletteDrag, startPaletteDrag, usePaletteDragStore } from '@renderer/state/paletteDragStore'
+import { endPaletteDrag, startPaletteDrag } from '@renderer/state/paletteDragStore'
 import CustomBlockModal from './CustomBlockModal'
 
 export default function InstrumentPalette(): JSX.Element {
@@ -19,10 +19,6 @@ export default function InstrumentPalette(): JSX.Element {
   const [search, setSearch] = useState('')
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
   const [modalOpen, setModalOpen] = useState(false)
-  // Which card is being dragged, so it can look lifted while the canvas previews the block.
-  const [draggingKey, setDraggingKey] = useState<string | null>(null)
-  const dragActive = usePaletteDragStore((s) => s.payload != null)
-  const lifted = (key: string): boolean => dragActive && draggingKey === key
 
   // Categories follow the palette's custom order (first appearance in sortOrder), matching the
   // Settings palette editor — not alphabetical. groupByCategory preserves that encounter order.
@@ -76,10 +72,7 @@ export default function InstrumentPalette(): JSX.Element {
               key={preset}
               type="button"
               draggable
-              onDragStart={(e) => {
-                setDraggingKey(`note:${preset}`)
-                startPaletteDrag(e, { kind: 'note', preset, label, shape: 'rect', color })
-              }}
+              onDragStart={(e) => startPaletteDrag(e, { kind: 'note', preset, label, shape: 'rect', color })}
               onDragEnd={endPaletteDrag}
               onClick={() => requestNewNote(preset)}
               className="btn small inline-icon-text"
@@ -88,7 +81,6 @@ export default function InstrumentPalette(): JSX.Element {
                 width: '100%',
                 justifyContent: 'center',
                 cursor: 'grab',
-                opacity: lifted(`note:${preset}`) ? 0.4 : undefined,
                 ...(filled
                   ? { background: color, borderColor: color, color: resolveNoteTextColor(color, null) }
                   : { borderStyle: 'dashed' })
@@ -136,8 +128,7 @@ export default function InstrumentPalette(): JSX.Element {
                 <div
                   key={item.id}
                   draggable
-                  onDragStart={(e) => {
-                    setDraggingKey(`item:${item.id}`)
+                  onDragStart={(e) =>
                     startPaletteDrag(e, {
                       label: item.label,
                       shape: item.shape,
@@ -146,13 +137,12 @@ export default function InstrumentPalette(): JSX.Element {
                       defaultHeight: item.defaultHeight,
                       labelColor: item.labelColor
                     })
-                  }}
+                  }
                   onDragEnd={endPaletteDrag}
                   className="card"
                   style={{
                     marginBottom: 4,
                     cursor: 'grab',
-                    opacity: lifted(`item:${item.id}`) ? 0.4 : undefined,
                     background: item.color,
                     color: resolveLabelColor(item.color, item.labelColor),
                     padding: '5px 8px',

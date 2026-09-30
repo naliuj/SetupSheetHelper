@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useThemeColor } from '@renderer/hooks/useThemeColor'
 import { Stage, Layer, Group, Line, Rect, Shape, Text, Transformer } from 'react-konva'
 import type Konva from 'konva'
@@ -96,6 +97,84 @@ function paletteGhostBlock(p: PaletteDragPayload, x: number, y: number): RoomLay
 }
 
 const noop = (): void => {}
+
+/** The palette preview while the cursor is off the canvas (over the palette, say): the same block
+ *  drawn on a small stage of its own that follows the cursor, at the canvas's zoom, so the block
+ *  shows from the moment the drag starts. Portaled to <body> and ignored by hit-testing, so it
+ *  never gets in the way of where the drop lands. */
+function PaletteDragFloat({
+  payload,
+  scale,
+  accent,
+  hidden
+}: {
+  payload: PaletteDragPayload
+  scale: number
+  accent: string
+  /** While a canvas draws the preview itself. Kept mounted meanwhile, still following the cursor,
+   *  so it reappears in the right place on leaving the canvas. */
+  hidden: boolean
+}): JSX.Element | null {
+  // The cursor, tracked here rather than in LayoutStage so following it doesn't re-render the
+  // whole canvas many times a second.
+  const [point, setPoint] = useState(() => usePaletteDragStore.getState().startPoint)
+  useEffect(() => {
+    const onOver = (e: DragEvent): void =>
+      setPoint((p) => (p && p.x === e.clientX && p.y === e.clientY ? p : { x: e.clientX, y: e.clientY }))
+    // Off the edge of the window: hide until it comes back.
+    const onLeave = (e: DragEvent): void => {
+      if (!e.relatedTarget) setPoint(null)
+    }
+    document.addEventListener('dragover', onOver, true)
+    document.addEventListener('dragleave', onLeave, true)
+    return () => {
+      document.removeEventListener('dragover', onOver, true)
+      document.removeEventListener('dragleave', onLeave, true)
+    }
+  }, [])
+  const { halfWidth, halfHeight } = paletteHalfExtents(payload)
+  if (!point || hidden) return null
+  // Room for the note ghost's dashed outline, which straddles its edge.
+  const margin = 4
+  const width = halfWidth * 2 * scale + 2 * margin
+  const height = halfHeight * 2 * scale + 2 * margin
+  const cx = halfWidth + margin / scale
+  const cy = halfHeight + margin / scale
+  return createPortal(
+    <div
+      style={{
+        position: 'fixed',
+        left: point.x - width / 2,
+        top: point.y - height / 2,
+        width,
+        height,
+        pointerEvents: 'none',
+        zIndex: 10000,
+        opacity: 0.85
+      }}
+    >
+      <Stage width={width} height={height} scaleX={scale} scaleY={scale} listening={false}>
+        <Layer listening={false}>
+          {payload.kind === 'note' ? (
+            <PaletteNoteGhost preset={payload.preset ?? 'text'} x={cx} y={cy} accent={accent} />
+          ) : (
+            <LayoutBlockIcon
+              block={paletteGhostBlock(payload, cx, cy)}
+              selected={false}
+              imageSize={{ width: halfWidth * 4, height: halfHeight * 4 }}
+              onSelect={noop}
+              onDragStart={noop}
+              onDragMove={noop}
+              onDragEnd={noop}
+              onContextMenu={noop}
+            />
+          )}
+        </Layer>
+      </Stage>
+    </div>,
+    document.body
+  )
+}
 
 /** How far the markup toolbar keeps from the canvas's edges, and from the zoom controls. */
 const TOOLBAR_INSET = 8
@@ -771,12 +850,15 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
   const paletteGhostRef = useRef(paletteGhost)
   paletteGhostRef.current = paletteGhost
   const paletteDragging = usePaletteDragStore((s) => s.payload != null)
+  const palettePayload = usePaletteDragStore((s) => s.payload)
+  const paletteOverCanvas = usePaletteDragStore((s) => s.overCanvas)
 
   function clearPaletteGhost(): void {
     if (!paletteGhostRef.current) return
     paletteGhostRef.current = null
     setPaletteGhost(null)
     endSnap()
+    usePaletteDragStore.setState({ overCanvas: false })
   }
 
   // The drag ended — dropped anywhere, or cancelled with Esc — so nothing is on its way any more.
@@ -800,6 +882,7 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
     // dragover repeats every few frames even while the pointer is still.
     if (prev && prev.payload === payload && prev.x === c.x && prev.y === c.y) return
     const next = { payload, x: c.x, y: c.y }
+    if (!prev) usePaletteDragStore.setState({ overCanvas: true })
     paletteGhostRef.current = next
     setPaletteGhost(next)
   }
@@ -1048,6 +1131,11 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
         touchAction: drawing ? 'none' : undefined
       }}
     >
+      {/* Off the canvas the drag gets a floating copy instead; only from the pane in use, so Split
+          View doesn't draw two. */}
+      {palettePayload && active && paneActive && (
+        <PaletteDragFloat payload={palettePayload} scale={finalScale} accent={accent} hidden={paletteOverCanvas} />
+      )}
       {markupOn && active && (
         <MarkupToolbar
           ref={toolbarRef}
