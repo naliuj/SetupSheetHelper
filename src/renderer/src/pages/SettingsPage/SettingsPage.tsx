@@ -74,11 +74,17 @@ export default function SettingsPage(): JSX.Element {
   const setDefaultOrder = useColumnPrefsStore((s) => s.setDefaultOrder)
   const homeLayout = useHomeLayoutStore((s) => s.layout)
   const setHomeLayout = useHomeLayoutStore((s) => s.setLayout)
-  const consumeSettingsInitialTab = useNavigationStore((s) => s.consumeSettingsInitialTab)
+  // Read, not consumed, while rendering: clearing it is a store write, and a write during render
+  // updates App (which reads the same store) mid-render — React's "Cannot update a component while
+  // rendering a different component". It's cleared in the effect below instead. Reading also
+  // survives StrictMode running this initializer twice, which consuming here did not.
   const [activeTab, setActiveTab] = useState<Tab>(() => {
-    const requested = consumeSettingsInitialTab()
+    const requested = useNavigationStore.getState().settingsInitialTab
     return TAB_IDS.includes(requested as Tab) ? (requested as Tab) : 'general'
   })
+  useEffect(() => {
+    useNavigationStore.getState().consumeSettingsInitialTab()
+  }, [])
   const [defaultEngineerName, setDefaultEngineerName] = useState('')
   const [loaded, setLoaded] = useState(false)
   const [subview, setSubview] = useState<Subview>({ kind: 'main' })
