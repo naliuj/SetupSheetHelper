@@ -1686,3 +1686,191 @@ input[type='checkbox']:focus-visible {
   cursor: pointer;
   user-select: none;
 }
+
+/* Studio setup → Import from a spreadsheet (ImportSpreadsheetModal). */
+.modal.spreadsheet-import {
+  width: 640px;
+  /* The card itself doesn't scroll — its body does — so the drop veil, positioned against the
+     card, covers all of it however far the columns list has been scrolled. */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.spreadsheet-import-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.spreadsheet-import-title {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+
+.spreadsheet-import-paste {
+  width: 100%;
+  min-height: 110px;
+  resize: vertical;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  box-sizing: border-box;
+}
+
+.spreadsheet-import-kinds {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0 10px;
+}
+
+.spreadsheet-import-kinds .card-sub {
+  margin-right: 4px;
+}
+
+.spreadsheet-import-columns {
+  border-top: 1px solid var(--color-border);
+}
+
+.spreadsheet-import-colrow {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr) 210px;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 7px 4px;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 13px;
+}
+
+.spreadsheet-import-colrow select {
+  width: 100%;
+}
+
+.spreadsheet-import-colhead {
+  font-size: 12px;
+  color: var(--color-text-dim);
+}
+
+.spreadsheet-import-guessed {
+  border-color: var(--color-warning);
+}
+
+.spreadsheet-import-guess-note {
+  display: block;
+  margin-top: 3px;
+}
+
+.spreadsheet-import-footer {
+  align-items: center;
+}
+
+.spreadsheet-import-footer > .card-sub {
+  margin-right: auto;
+}
+
+.spreadsheet-import-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.spreadsheet-import-chip {
+  font-size: 12px;
+  padding: 5px 10px;
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.spreadsheet-import-chip.warning {
+  color: var(--color-warning);
+  border-color: var(--color-warning);
+}
+
+.spreadsheet-import-review {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  max-height: 340px;
+  overflow: auto;
+}
+
+.spreadsheet-import-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) 56px minmax(0, 1.6fr);
+  align-items: center;
+  gap: 2px 10px;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 13px;
+}
+
+.spreadsheet-import-item:last-child {
+  border-bottom: none;
+}
+
+.spreadsheet-import-item.skipped {
+  color: var(--color-text-dim);
+}
+
+.spreadsheet-import-item-note {
+  grid-column: 1 / -1;
+  padding-left: 22px;
+}
+
+.spreadsheet-import-item-pick {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.spreadsheet-import-adds {
+  color: var(--color-accent);
+  font-size: 12px;
+}
+
+.modal.spreadsheet-import {
+  position: relative;
+}
+
+.spreadsheet-import-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  padding: 22px 16px;
+  border: 1.5px dashed var(--color-border-strong);
+  border-radius: var(--radius);
+  background: var(--color-surface-alt);
+  font-size: 13px;
+  text-align: center;
+}
+
+.spreadsheet-import-dropicon {
+  color: var(--color-text-dim);
+}
+
+/* Covers the whole dialog while a file is dragged over it, so it's clear the drop lands anywhere
+   and not only on the dashed box. Ignores the pointer, so it can't swallow the drop itself. */
+.spreadsheet-import-dropveil {
+  position: absolute;
+  inset: 6px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 2px dashed var(--color-accent);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--color-surface) 88%, var(--color-accent));
+  color: var(--color-accent);
+  font-size: 15px;
+  font-weight: 600;
+  pointer-events: none;
+}

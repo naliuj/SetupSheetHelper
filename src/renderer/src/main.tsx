@@ -24,6 +24,24 @@ const bootstrapA11y = window.api.accessibility.getSync()
 document.documentElement.dataset.contrast = bootstrapA11y.contrast
 useA11yPrefsStore.setState(bootstrapA11y)
 
+// A file dragged from Finder onto anything that doesn't handle drops would otherwise be NAVIGATED
+// to — Chromium's default swaps the whole UI for the dropped PDF or image. Main blocks that
+// navigation in will-navigate (windowGuards.ts); this is the renderer's half, so the page never
+// offers a drop it won't handle in the first place. Both events matter: a drop only fires where
+// dragover was prevented, and an unprevented drop is what triggers the navigation.
+//
+// Only file drags, and only ones nothing else claimed: the Layout palette drags carry
+// application/json and stay untouched, and a real drop target (the Layout canvas, the
+// spreadsheet-import backdrop) has already called preventDefault by the time the event reaches
+// document — React listens on the root container, below this — so its own dropEffect stands.
+for (const type of ['dragover', 'drop'] as const) {
+  document.addEventListener(type, (e) => {
+    if (e.defaultPrevented) return
+    if (!e.dataTransfer?.types.includes('Files')) return
+    e.preventDefault()
+  })
+}
+
 // Both windows load the same bundle and index.html — main/layoutWindow.ts distinguishes the
 // standalone Layout Mode window with a `?window=layout` query param at loadFile/loadURL time (see
 // its doc comment for why: no other cross-window state exists at boot to key off instead).

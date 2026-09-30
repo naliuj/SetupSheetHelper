@@ -110,6 +110,10 @@ const api: RendererApi = {
     getEffectiveForSetup: (setupId, studioId) =>
       ipcRenderer.invoke(IPC.layoutFile.getEffectiveForSetup, setupId, studioId)
   },
+  spreadsheetImport: {
+    pick: () => ipcRenderer.invoke(IPC.spreadsheetImport.pick),
+    saveTemplate: () => ipcRenderer.invoke(IPC.spreadsheetImport.saveTemplate)
+  },
   presets: {
     list: () => ipcRenderer.invoke(IPC.presets.list),
     getWithItems: (id) => ipcRenderer.invoke(IPC.presets.getWithItems, id),
