@@ -16,6 +16,8 @@ import { useModelSuggestions } from '@renderer/state/useModelSuggestions'
 import FolderPicker from '@renderer/components/FolderPicker'
 import ManufacturerPickerDropdown from '@renderer/components/ManufacturerPickerDropdown'
 import ImportGearModal from './ImportGearModal'
+import ImportSpreadsheetModal from './ImportSpreadsheetModal'
+import type { ExistingGear, PlannedItem } from '@shared/utils/spreadsheetGear'
 import LayoutFileUploader from '@renderer/components/LayoutFileUploader'
 import SuggestInput from '@renderer/components/SuggestInput'
 
@@ -202,6 +204,7 @@ export default function StudioSetupPage(): JSX.Element {
    *  the click handler did not await, so it became an unhandled rejection. */
   const [saveError, setSaveError] = useState<string | null>(null)
   const [importModalOpen, setImportModalOpen] = useState(false)
+  const [spreadsheetModalOpen, setSpreadsheetModalOpen] = useState(false)
   // Set the first time a brand-new studio gets a row created early — purely so the Room layout
   // button has a studioId to attach the upload to before the user has clicked "Save Studio".
   // Never set when editing an existing studio (studioSetupId already covers that case).
@@ -215,6 +218,20 @@ export default function StudioSetupPage(): JSX.Element {
     outboard: pendingOutboard.length,
     preamps: pendingPreamps.length
   }
+
+  // What the spreadsheet import merges into: everything on the page now, saved or not yet.
+  const existingGearForImport: ExistingGear[] = [
+    ...pendingMics.map((m) => ({ key: m.key, kind: 'mic' as const, name: m.name, manufacturer: m.manufacturer, count: m.quantity })),
+    ...pendingOutboard.map((o) => ({ key: o.key, kind: 'outboard' as const, name: o.name, manufacturer: o.manufacturer, count: o.quantity })),
+    ...pendingPreamps.map((p) => ({ key: p.key, kind: 'preamp' as const, name: p.name, manufacturer: p.manufacturer, count: p.channels }))
+  ]
+  const knownManufacturers = useMemo(
+    () =>
+      [...micCatalogueSource, ...outboardCatalogueSource, ...preampCatalogueSource]
+        .map((g) => g.manufacturer ?? '')
+        .filter(Boolean),
+    [micCatalogueSource, outboardCatalogueSource, preampCatalogueSource]
+  )
 
   const catalogueMics = dedupeByNameAndManufacturer(micCatalogueSource)
   const catalogueOutboard = dedupeByNameAndManufacturer(outboardCatalogueSource)
@@ -353,6 +370,66 @@ export default function StudioSetupPage(): JSX.Element {
     for (const mic of chosen(allMics, micIds)) addMic(mic.id, mic.quantity)
     for (const gear of chosen(allOutboard, outboardIds)) addOutboard(gear.id, gear.quantity)
     for (const preamp of chosen(allPreamps, preampIds)) addPreamp(preamp.id, preamp.channels)
+  }
+
+  /** Adds the spreadsheet import's plan to the pending lists: a model already listed gets its count
+   *  (channels, for a preamp) raised, anything else becomes a new row. Then shows the lot — the tab
+   *  that got the most, with the first changed row flashed. Like every edit here, it is pending
+   *  until Save. */
+  function handleImportSpreadsheet(items: PlannedItem[]): void {
+    const firstKey: Partial<Record<GearTab, string>> = {}
+    const perTab: Record<GearTab, number> = { mics: 0, outboard: 0, preamps: 0 }
+    const tabOf = { mic: 'mics', outboard: 'outboard', preamp: 'preamps' } as const
+
+    const merge = <T extends { key: string }>(
+      rows: T[],
+      kind: PlannedItem['kind'],
+      make: (item: PlannedItem) => T,
+      raise: (row: T, by: number) => T
+    ): T[] => {
+      let next = rows
+      for (const item of items.filter((i) => i.kind === kind)) {
+        const tab = tabOf[kind]
+        perTab[tab] += 1
+        if (item.target) {
+          next = next.map((r) => (r.key === item.target!.key ? raise(r, item.count) : r))
+          firstKey[tab] ??= item.target.key
+        } else {
+          const row = make(item)
+          next = [...next, row]
+          firstKey[tab] ??= row.key
+        }
+      }
+      return next
+    }
+
+    // Computed from the current lists rather than inside state updaters: the new rows' keys are
+    // needed right away to flash one, and an updater can run twice (React's dev double-invoke),
+    // minting keys for rows that are then thrown away.
+    const newRow = (i: PlannedItem): PendingItem => ({
+      key: tempKey(),
+      name: i.name,
+      manufacturer: i.manufacturer,
+      category: i.category,
+      quantity: i.count
+    })
+    const raiseQuantity = (r: PendingItem, by: number): PendingItem => ({ ...r, quantity: r.quantity + by })
+    setPendingMics(merge(pendingMics, 'mic', newRow, raiseQuantity))
+    setPendingOutboard(merge(pendingOutboard, 'outboard', newRow, raiseQuantity))
+    setPendingPreamps(
+      merge(
+        pendingPreamps,
+        'preamp',
+        (i) => ({ key: tempKey(), name: i.name, manufacturer: i.manufacturer, category: i.category, channels: i.count }),
+        (r, by) => ({ ...r, channels: r.channels + by })
+      )
+    )
+
+    const tab = (Object.keys(perTab) as GearTab[]).sort((a, b) => perTab[b] - perTab[a])[0]
+    if (perTab[tab] === 0) return
+    setGearTab(tab)
+    const key = firstKey[tab]
+    if (key) revealRow(key)
   }
 
   /** Scrolls a pending row into view and flashes it. Clearing first and setting on the next frame
@@ -570,6 +647,12 @@ export default function StudioSetupPage(): JSX.Element {
           </button>
           <p className="card-sub" style={{ marginTop: 8 }}>
             Copies the mic locker, outboard rack and preamps from a room you already have.
+          </p>
+          <button className="btn" onClick={() => setSpreadsheetModalOpen(true)} style={{ marginTop: 4 }}>
+            Import from a spreadsheet…
+          </button>
+          <p className="card-sub" style={{ marginTop: 8 }}>
+            Reads a gear list from a CSV file or cells pasted from Excel, Numbers or Google Sheets.
           </p>
         </div>
 
@@ -814,6 +897,14 @@ export default function StudioSetupPage(): JSX.Element {
           currentStudioId={studioSetupId}
           onImport={handleImportGear}
           onClose={() => setImportModalOpen(false)}
+        />
+      )}
+      {spreadsheetModalOpen && (
+        <ImportSpreadsheetModal
+          existing={existingGearForImport}
+          knownManufacturers={knownManufacturers}
+          onImport={handleImportSpreadsheet}
+          onClose={() => setSpreadsheetModalOpen(false)}
         />
       )}
     </div>

@@ -16,6 +16,7 @@ import { registerLayoutWindowHandlers } from '../layoutWindow'
 import { registerThemeHandlers } from '../theme'
 import { registerAccessibilityHandlers } from '../accessibility'
 import { registerHapticsHandlers } from '../haptics'
+import { registerSpreadsheetImportHandlers } from '../spreadsheetImport'
 
 export function registerAllIpcHandlers(): void {
   registerStudioHandlers()
@@ -36,4 +37,5 @@ export function registerAllIpcHandlers(): void {
   registerThemeHandlers()
   registerAccessibilityHandlers()
   registerHapticsHandlers()
+  registerSpreadsheetImportHandlers()
 }

@@ -1,0 +1,5 @@
+Manufacturer	Model	Quantity
+Neumann	U 67	1
+Telefunken	ELA M 251E	1
+Shure	SM7B	2
+Royer	R-10	2

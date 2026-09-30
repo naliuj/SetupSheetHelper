@@ -109,6 +109,10 @@ export const IPC = {
     setBlankForSetup: 'layoutFile:setBlankForSetup',
     getEffectiveForSetup: 'layoutFile:getEffectiveForSetup'
   },
+  spreadsheetImport: {
+    pick: 'spreadsheetImport:pick',
+    saveTemplate: 'spreadsheetImport:saveTemplate'
+  },
   presets: {
     list: 'presets:list',
     getWithItems: 'presets:getWithItems',
@@ -626,6 +630,14 @@ export interface PickedLayoutFile {
   fileName: string
 }
 
+/** A spreadsheet chosen for gear import, already decoded to text (see main/spreadsheetImport.ts).
+ *  `error` is set, with empty text, when the file was refused. */
+export interface PickedSpreadsheet {
+  fileName: string
+  text: string
+  error: string | null
+}
+
 export const MENU_CHANNEL = 'menu:action'
 
 export type MenuAction =
@@ -833,6 +845,11 @@ export interface RendererApi {
     commitPickedToSetup(setupId: number, sourcePath: string): Promise<SetupLayoutOverride>
     setBlankForSetup(setupId: number): Promise<SetupLayoutOverride>
     getEffectiveForSetup(setupId: number | null, studioId: number): Promise<EffectiveLayout>
+  }
+  spreadsheetImport: {
+    pick(): Promise<PickedSpreadsheet | null>
+    /** False when the save dialog was canceled. */
+    saveTemplate(): Promise<boolean>
   }
   presets: {
     list(): Promise<ChannelPreset[]>
