@@ -54,6 +54,18 @@ function padding(data: Pick<MarkData, 'tool' | 'size'>): number {
   return data.tool === 'arrow' ? half + data.size * 4 : half
 }
 
+/** The part of the room a mark's points may use: inset by how far its drawing reaches past them,
+ *  so the whole mark — stroke width and arrowhead included — stays on the layout. Ellipses and
+ *  boxes are drawn on their box, so they take the room edge to edge. */
+export function markBounds(
+  tool: MarkTool,
+  size: number,
+  room: { width: number; height: number }
+): { minX: number; minY: number; maxX: number; maxY: number } {
+  const pad = tool === 'ellipse' || tool === 'rect' ? 0 : Math.min(padding({ tool, size }), room.width / 2, room.height / 2)
+  return { minX: pad, minY: pad, maxX: room.width - pad, maxY: room.height - pad }
+}
+
 /** A stored mark from absolute room points: the bounding box, and the points moved to be relative
  *  to its top-left corner. `points` is the MarkData layout for the tool (see MarkData) but in room
  *  coordinates; for ellipse and rect it is the two drag corners [x1, y1, x2, y2]. */

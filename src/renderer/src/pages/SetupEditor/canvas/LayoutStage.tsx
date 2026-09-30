@@ -226,6 +226,7 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
     markupOn: active && markupOn,
     blocks,
     finalScale,
+    roomSize: imageSize,
     toCanvasCoords: (clientX, clientY) => toCanvasCoords(clientX, clientY),
     nodeRefs,
     previewRef,

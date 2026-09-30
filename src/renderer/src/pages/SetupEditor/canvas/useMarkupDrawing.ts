@@ -8,6 +8,7 @@ import {
   HIGHLIGHTER_OPACITY,
   inkOutline,
   makeMark,
+  markBounds,
   markFromRun,
   strokeWidth,
   traceOutline,
@@ -48,6 +49,8 @@ interface Options {
   markupOn: boolean
   blocks: RoomLayoutBlockDraft[]
   finalScale: number
+  /** The layout's size in room pixels: marks are kept inside it. */
+  roomSize: { width: number; height: number }
   toCanvasCoords: (clientX: number, clientY: number) => { x: number; y: number } | null
   nodeRefs: React.MutableRefObject<Map<number | string, Konva.Group>>
   previewRef: React.MutableRefObject<Konva.Shape | null>
@@ -122,13 +125,39 @@ export function useMarkupDrawing(o: Options): {
     return [x1 + Math.sign(dx || 1) * side, y1 + Math.sign(dy || 1) * side]
   }
 
+  function isInside(x: number, y: number): boolean {
+    const { width, height } = opts.current.roomSize
+    return x >= 0 && y >= 0 && x <= width && y <= height
+  }
+
+  /** A point held to the part of the layout the tool's marks may reach. */
+  function clampPoint(tool: MarkTool, x: number, y: number): [number, number] {
+    const b = markBounds(tool, opts.current.size, opts.current.roomSize)
+    return [Math.min(b.maxX, Math.max(b.minX, x)), Math.min(b.maxY, Math.max(b.minY, y))]
+  }
+
+  /** Shortens a line or a shape's diagonal from (x1, y1) until its far end is on the layout. Doing it
+   *  along the drag keeps a Shift-held 45° line at 45° and a square square at the edge. */
+  function fitInside(tool: MarkTool, x1: number, y1: number, x2: number, y2: number): [number, number] {
+    const b = markBounds(tool, opts.current.size, opts.current.roomSize)
+    const dx = x2 - x1
+    const dy = y2 - y1
+    let t = 1
+    if (x2 > b.maxX && dx > 0) t = Math.min(t, (b.maxX - x1) / dx)
+    if (x2 < b.minX && dx < 0) t = Math.min(t, (b.minX - x1) / dx)
+    if (y2 > b.maxY && dy > 0) t = Math.min(t, (b.maxY - y1) / dy)
+    if (y2 < b.minY && dy < 0) t = Math.min(t, (b.minY - y1) / dy)
+    return [x1 + dx * Math.max(0, t), y1 + dy * Math.max(0, t)]
+  }
+
   /** The stroke in progress as a finished mark would store it, or null while it's too small to
    *  keep (a line of a pixel or two, a box with no area). */
   function strokeToMark(stroke: Stroke): NewMark | null {
     const { color, size } = opts.current
     if (stroke.tool === 'pen' || stroke.tool === 'highlighter') return makeMark(stroke.tool, color, size, stroke.points)
     const [x1, y1, rx2, ry2] = stroke.points
-    const [x2, y2] = constrain(stroke.tool, x1, y1, rx2, ry2)
+    const [cx2, cy2] = constrain(stroke.tool, x1, y1, rx2, ry2)
+    const [x2, y2] = fitInside(stroke.tool, x1, y1, cx2, cy2)
     const tooSmall = stroke.tool === 'line' || stroke.tool === 'arrow' ? Math.hypot(x2 - x1, y2 - y1) < 3 : Math.abs(x2 - x1) < 4 || Math.abs(y2 - y1) < 4
     return tooSmall ? null : makeMark(stroke.tool, color, size, [x1, y1, x2, y2])
   }
@@ -209,6 +238,9 @@ export function useMarkupDrawing(o: Options): {
     if (!(e.target instanceof HTMLCanvasElement)) return
     const pos = toCanvasCoords(e.clientX, e.clientY)
     if (!pos) return
+    const erasing = tool === 'eraser' || secondary || isEraserEnd(e)
+    // Marks stay on the layout, so a stroke can't start off it; the eraser can, to sweep in.
+    if (!erasing && !isInside(pos.x, pos.y)) return
     // preventDefault also holds back the mousedown the browser would send after this.
     e.preventDefault()
     e.stopPropagation()
@@ -220,17 +252,18 @@ export function useMarkupDrawing(o: Options): {
     e.currentTarget.setPointerCapture(e.pointerId)
     shiftRef.current = e.shiftKey
     beginGesture()
-    if (tool === 'eraser' || secondary || isEraserEnd(e)) {
+    if (erasing) {
       eraseRef.current = { pointerId: e.pointerId, pieces: new Map(), last: null, cursor: null }
       eraseTo(pos.x, pos.y)
       return
     }
     const markTool = tool as MarkTool
     const ink = markTool === 'pen' || markTool === 'highlighter'
+    const [x, y] = clampPoint(markTool, pos.x, pos.y)
     strokeRef.current = {
       pointerId: e.pointerId,
       tool: markTool,
-      points: ink ? [pos.x, pos.y, pressureOf(e.nativeEvent)] : [pos.x, pos.y, pos.x, pos.y]
+      points: ink ? [x, y, pressureOf(e.nativeEvent)] : [x, y, x, y]
     }
     redraw()
   }
@@ -281,13 +314,16 @@ export function useMarkupDrawing(o: Options): {
     if (stroke.tool === 'pen' || stroke.tool === 'highlighter') {
       for (const ev of samples(e)) {
         const pos = toCanvasCoords(ev.clientX, ev.clientY)
-        if (pos) stroke.points.push(pos.x, pos.y, pressureOf(ev))
+        if (!pos) continue
+        const [x, y] = clampPoint(stroke.tool, pos.x, pos.y)
+        stroke.points.push(x, y, pressureOf(ev))
       }
     } else {
       const pos = toCanvasCoords(e.clientX, e.clientY)
       if (pos) {
-        stroke.points[2] = pos.x
-        stroke.points[3] = pos.y
+        const [x, y] = clampPoint(stroke.tool, pos.x, pos.y)
+        stroke.points[2] = x
+        stroke.points[3] = y
       }
     }
     redraw()
