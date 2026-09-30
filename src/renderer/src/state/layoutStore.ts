@@ -25,7 +25,7 @@ function newDraftId(): string {
  *  Comfortably longer than any real mouse gesture between two autosave ticks. */
 const GESTURE_MAX_MS = 10_000
 
-const DEFAULT_SIZE = 44
+export const DEFAULT_BLOCK_SIZE = 44
 export const MIN_ZOOM = 0.25
 export const MAX_ZOOM = 4
 // A bigger, discrete jump than the per-wheel-tick step in LayoutStage's handleWheel — keyboard/
@@ -33,7 +33,7 @@ export const MAX_ZOOM = 4
 const KEYBOARD_ZOOM_STEP = 1.2
 
 /** What it takes to place a block. Only the identity and position are required; size falls back
- *  to DEFAULT_SIZE, and the person name and label color to none/Auto. */
+ *  to DEFAULT_BLOCK_SIZE, and the person name and label color to none/Auto. */
 export interface NewBlock {
   label: string
   shape: 'rect' | 'circle'
@@ -219,8 +219,8 @@ export function createLayoutStore(setupStoreApi: SetupStoreApi) {
           color,
           x,
           y,
-          width: width ?? DEFAULT_SIZE,
-          height: height ?? DEFAULT_SIZE,
+          width: width ?? DEFAULT_BLOCK_SIZE,
+          height: height ?? DEFAULT_BLOCK_SIZE,
           rotation: 0,
           zIndex: maxZ + 1,
           personName: personName ?? null,

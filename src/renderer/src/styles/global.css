@@ -1875,26 +1875,13 @@ input[type='checkbox']:focus-visible {
   pointer-events: none;
 }
 
-/* Layout Mode's top row: the zoom controls on the right and, in markup mode, the markup toolbar on
-   the left. Laid out right to left with the zoom controls first, so they always hold the top-right
-   corner: top-aligned rather than centered against the taller toolbar (which nudged them down), and
-   the toolbar is the one that wraps under them on a narrow canvas. */
+/* Layout Mode's zoom controls, pinned top-right. The markup toolbar is positioned by LayoutStage:
+   docked beside (or under) these, or wherever it was dragged. */
 .layout-canvas-topbar {
   position: absolute;
   top: 8px;
-  left: 8px;
   right: 8px;
   z-index: 10;
-  display: flex;
-  flex-direction: row-reverse;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: 8px;
-  pointer-events: none;
-}
-
-.layout-canvas-topbar > * {
-  pointer-events: auto;
 }
 
 .layout-canvas-zoom {
@@ -1904,11 +1891,10 @@ input[type='checkbox']:focus-visible {
 }
 
 .markup-toolbar {
-  margin-right: auto;
+  position: absolute;
   z-index: 20;
   display: flex;
   flex-wrap: wrap;
-  max-width: 100%;
   align-items: center;
   gap: 2px;
   white-space: nowrap;
@@ -1964,6 +1950,51 @@ input[type='checkbox']:focus-visible {
   align-self: stretch;
   margin: 2px 5px;
   background: var(--color-border);
+}
+
+.markup-toolbar-grip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--color-text-dim);
+  cursor: grab;
+  touch-action: none;
+}
+
+.markup-toolbar-grip:active {
+  cursor: grabbing;
+}
+
+/* Vertical: one column down the canvas, scrolling rather than clipping on a short one. */
+.markup-toolbar.vertical {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  overflow-y: auto;
+}
+
+.markup-toolbar.vertical > * {
+  flex-shrink: 0;
+}
+
+.markup-toolbar.vertical .markup-toolbar-grip {
+  width: 30px;
+  height: 18px;
+}
+
+.markup-toolbar.vertical .markup-toolbar-divider {
+  width: auto;
+  height: 1px;
+  margin: 5px 2px;
+}
+
+.markup-toolbar.vertical .markup-toolbar-swatch {
+  margin: 3px 0;
 }
 
 /* Settings → Browse studios: each row selects its studio wherever it's clicked. */

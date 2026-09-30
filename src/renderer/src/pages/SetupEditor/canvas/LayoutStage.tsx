@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useThemeColor } from '@renderer/hooks/useThemeColor'
-import { Stage, Layer, Line, Rect, Shape, Transformer } from 'react-konva'
+import { Stage, Layer, Group, Line, Rect, Shape, Text, Transformer } from 'react-konva'
 import type Konva from 'konva'
-import { MIN_ZOOM, MAX_ZOOM } from '@renderer/state/layoutStore'
+import { DEFAULT_BLOCK_SIZE, MIN_ZOOM, MAX_ZOOM } from '@renderer/state/layoutStore'
 import { useLayoutStoreState } from '@renderer/state/layoutStoreContext'
 import { useSetupStoreState } from '@renderer/state/setupStoreContext'
 import LayoutBackground from './LayoutBackground'
@@ -20,7 +20,19 @@ import { fitNoteHeight } from './noteLayout'
 import { buildSnapTargets, computeSnap, type SnapGuide, type SnapTargets } from './snapGuides'
 import { haptic } from '@renderer/utils/haptics'
 import { useSnapPrefsStore } from '@renderer/state/snapPrefsStore'
-import { NOTE_DEFAULT_HEIGHT, NOTE_DEFAULT_WIDTH, type NotePreset } from '@shared/constants/layoutNotes'
+import { usePaletteDragStore, type PaletteDragPayload } from '@renderer/state/paletteDragStore'
+import {
+  hasNoteFill,
+  NOTE_DEFAULT_FONT_SIZE,
+  NOTE_DEFAULT_HEIGHT,
+  NOTE_DEFAULT_WIDTH,
+  NOTE_FONT_FAMILY,
+  NOTE_PADDING,
+  NOTE_PRESETS,
+  resolveNoteTextColor,
+  type NotePreset
+} from '@shared/constants/layoutNotes'
+import type { RoomLayoutBlockDraft } from '@shared/types/setup'
 import ContextMenu from './ContextMenu'
 import CustomBlockModal from '../palette/CustomBlockModal'
 import Icon from '@renderer/components/Icon'
@@ -54,18 +66,86 @@ interface Props {
   paneActive?: boolean
 }
 
-interface PaletteDragPayload {
-  label: string
-  shape: 'rect' | 'circle'
-  color: string
-  /** Optional default placed size from the palette item (null/absent → addBlock's square default). */
-  defaultWidth?: number | null
-  defaultHeight?: number | null
-  /** The palette item's default label color, copied onto the new block. null/absent → Auto. */
-  labelColor?: string | null
-  /** Set by the palette's Notes presets: drop a text note (opened for typing) instead of a block. */
-  kind?: 'note'
-  preset?: NotePreset
+/** Half the size a palette item will be placed at: its block's default size, or a new note's. */
+function paletteHalfExtents(p: PaletteDragPayload): { halfWidth: number; halfHeight: number } {
+  if (p.kind === 'note') return { halfWidth: NOTE_DEFAULT_WIDTH / 2, halfHeight: NOTE_DEFAULT_HEIGHT / 2 }
+  return { halfWidth: (p.defaultWidth ?? DEFAULT_BLOCK_SIZE) / 2, halfHeight: (p.defaultHeight ?? DEFAULT_BLOCK_SIZE) / 2 }
+}
+
+/** The block a palette item will become, centered at (x, y) — drawn under the cursor while it's
+ *  dragged, so what's previewed is exactly what lands. */
+function paletteGhostBlock(p: PaletteDragPayload, x: number, y: number): RoomLayoutBlockDraft {
+  return {
+    id: 'palette-ghost',
+    kind: 'block',
+    label: p.label,
+    shape: p.shape,
+    color: p.color,
+    labelColor: p.labelColor ?? null,
+    x,
+    y,
+    width: p.defaultWidth ?? DEFAULT_BLOCK_SIZE,
+    height: p.defaultHeight ?? DEFAULT_BLOCK_SIZE,
+    rotation: 0,
+    zIndex: 0,
+    personName: null,
+    fontSize: null,
+    fontBold: false,
+    markData: null
+  }
+}
+
+const noop = (): void => {}
+
+/** How far the markup toolbar keeps from the canvas's edges, and from the zoom controls. */
+const TOOLBAR_INSET = 8
+
+/** An element's rendered size, kept current by a ResizeObserver: [callback ref, size]. */
+function useElementSize<T extends HTMLElement>(): [(el: T | null) => void, { width: number; height: number }] {
+  const [size, setSize] = useState({ width: 0, height: 0 })
+  const observer = useRef<ResizeObserver | null>(null)
+  const ref = useCallback((el: T | null) => {
+    observer.current?.disconnect()
+    observer.current = null
+    if (!el) return
+    const measure = (): void =>
+      setSize((prev) =>
+        prev.width === el.offsetWidth && prev.height === el.offsetHeight ? prev : { width: el.offsetWidth, height: el.offsetHeight }
+      )
+    measure()
+    observer.current = new ResizeObserver(measure)
+    observer.current.observe(el)
+  }, [])
+  return [ref, size]
+}
+
+/** A new note as it will appear, for the palette drag preview: the sticky's fill, or plain text's
+ *  dashed outline, with the "Text" placeholder the editor opens on. */
+function PaletteNoteGhost({ preset, x, y, accent }: { preset: NotePreset; x: number; y: number; accent: string }): JSX.Element {
+  const { color } = NOTE_PRESETS[preset]
+  const filled = hasNoteFill(color)
+  return (
+    <Group x={x} y={y} offsetX={NOTE_DEFAULT_WIDTH / 2} offsetY={NOTE_DEFAULT_HEIGHT / 2}>
+      <Rect
+        width={NOTE_DEFAULT_WIDTH}
+        height={NOTE_DEFAULT_HEIGHT}
+        fill={filled ? color : undefined}
+        stroke={filled ? undefined : accent}
+        strokeWidth={1.5}
+        dash={filled ? undefined : [6, 4]}
+        cornerRadius={filled ? 2 : 0}
+      />
+      <Text
+        text="Text"
+        width={NOTE_DEFAULT_WIDTH}
+        padding={NOTE_PADDING}
+        fontSize={NOTE_DEFAULT_FONT_SIZE}
+        fontFamily={NOTE_FONT_FAMILY}
+        fill={resolveNoteTextColor(color, null)}
+        opacity={0.5}
+      />
+    </Group>
+  )
 }
 
 const ZOOM_STEP = 1.05
@@ -139,6 +219,13 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
   const markupTool = useMarkupPrefsStore((s) => s.tool)
   const markupColor = useMarkupPrefsStore((s) => s.color)
   const markupSize = useMarkupPrefsStore((s) => s.size)
+  const toolbarOrientation = useMarkupPrefsStore((s) => s.toolbarOrientation)
+  const toolbarPosition = useMarkupPrefsStore((s) => s.toolbarPosition)
+  const [toolbarRef, toolbarSize] = useElementSize<HTMLDivElement>()
+  const [zoomControlsRef, zoomControlsSize] = useElementSize<HTMLDivElement>()
+  // Where the toolbar is while its grip is being dragged; saved to the prefs on release.
+  const [toolbarDrag, setToolbarDrag] = useState<{ x: number; y: number } | null>(null)
+  const toolbarDragStartRef = useRef<{ x: number; y: number } | null>(null)
   const setMarkupPrefs = useMarkupPrefsStore((s) => s.set)
   useEffect(() => {
     void useMarkupPrefsStore.getState().load()
@@ -258,12 +345,13 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
 
   /** Collects what a drag of `id` can snap to — every block not moving with it — once, at the start
    *  of the drag, rather than on every pointer move. */
-  function startSnap(id: number | string): void {
+  function startSnap(id: number | string | null): void {
     if (!snapEnabled) {
       snapTargetsRef.current = null
       return
     }
-    const moving = selectedBlockIds.has(id) ? selectedBlockIds : new Set([id])
+    // null: something arriving from the palette, which every block already here is a target for.
+    const moving = id == null ? new Set<number | string>() : selectedBlockIds.has(id) ? selectedBlockIds : new Set([id])
     const boxes = blocks
       .filter((b) => !moving.has(b.id))
       .map((b) => ({ center: { x: b.x, y: b.y }, ...rotatedHalfExtents(b.width, b.height, b.rotation) }))
@@ -280,20 +368,27 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
   /** The dragBoundFunc hook: moves the dragged block's center onto a nearby guide, draws the
    *  guides, and taps the trackpad each time a new line is caught. */
   function snapDrag(id: number | string, center: { x: number; y: number }): { x: number; y: number } {
-    const targets = snapTargetsRef.current
     const block = blocks.find((b) => b.id === id)
-    if (!targets || !block || metaHeldRef.current) {
+    if (!block) return center
+    return snapCenter(center, rotatedHalfExtents(block.width, block.height, block.rotation), metaHeldRef.current)
+  }
+
+  /** The core of snapDrag, for anything with a center and a size — a block being dragged, or a
+   *  palette item on its way in. `free` (⌘ held) skips snapping for this move. */
+  function snapCenter(
+    center: { x: number; y: number },
+    half: { halfWidth: number; halfHeight: number },
+    free: boolean
+  ): { x: number; y: number } {
+    const targets = snapTargetsRef.current
+    if (!targets || free) {
       if (snapStateRef.current.x != null || snapStateRef.current.y != null) {
         snapStateRef.current = { x: null, y: null }
         setSnapGuides([])
       }
       return center
     }
-    const result = computeSnap(
-      { center, ...rotatedHalfExtents(block.width, block.height, block.rotation) },
-      targets,
-      SNAP_THRESHOLD_PX / finalScale
-    )
+    const result = computeSnap({ center, ...half }, targets, SNAP_THRESHOLD_PX / finalScale)
     const prev = snapStateRef.current
     const caughtNewLine =
       (result.snappedX != null && result.snappedX !== prev.x) || (result.snappedY != null && result.snappedY !== prev.y)
@@ -668,9 +763,58 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
     return { x: (clientX - rect.left - stage.x()) / scale, y: (clientY - rect.top - stage.y()) / scale }
   }
 
+  // --- Palette drag preview -----------------------------------------------------------------------
+  // The palette hides the browser's drag ghost (see paletteDragStore); instead the block itself is
+  // drawn here under the cursor at the current zoom, held inside the room and snapped into line
+  // like a dragged block, and the drop lands exactly where it's shown.
+  const [paletteGhost, setPaletteGhost] = useState<{ payload: PaletteDragPayload; x: number; y: number } | null>(null)
+  const paletteGhostRef = useRef(paletteGhost)
+  paletteGhostRef.current = paletteGhost
+  const paletteDragging = usePaletteDragStore((s) => s.payload != null)
+
+  function clearPaletteGhost(): void {
+    if (!paletteGhostRef.current) return
+    paletteGhostRef.current = null
+    setPaletteGhost(null)
+    endSnap()
+  }
+
+  // The drag ended — dropped anywhere, or cancelled with Esc — so nothing is on its way any more.
+  useEffect(() => {
+    if (!paletteDragging) clearPaletteGhost()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paletteDragging])
+
+  function handleDragOver(e: React.DragEvent<HTMLDivElement>): void {
+    e.preventDefault()
+    const payload = usePaletteDragStore.getState().payload
+    if (!payload || !active) return
+    e.dataTransfer.dropEffect = 'copy'
+    const pos = toCanvasCoords(e.clientX, e.clientY)
+    if (!pos) return
+    if (!paletteGhostRef.current) startSnap(null)
+    const half = paletteHalfExtents(payload)
+    const clamped = clampCenterToRoom(pos, half.halfWidth, half.halfHeight, imageSize)
+    const c = clampCenterToRoom(snapCenter(clamped, half, e.metaKey), half.halfWidth, half.halfHeight, imageSize)
+    const prev = paletteGhostRef.current
+    // dragover repeats every few frames even while the pointer is still.
+    if (prev && prev.payload === payload && prev.x === c.x && prev.y === c.y) return
+    const next = { payload, x: c.x, y: c.y }
+    paletteGhostRef.current = next
+    setPaletteGhost(next)
+  }
+
+  function handleDragLeave(e: React.DragEvent<HTMLDivElement>): void {
+    // dragleave also fires moving between the canvas's own children; only leaving it counts.
+    if (e.relatedTarget instanceof Node && containerRef.current?.contains(e.relatedTarget)) return
+    clearPaletteGhost()
+  }
+
   const handleDrop = useCallback(
     (e: React.DragEvent<HTMLDivElement>) => {
       e.preventDefault()
+      const ghost = paletteGhostRef.current
+      clearPaletteGhost()
       const raw = e.dataTransfer.getData('application/json')
       if (!raw) return
 
@@ -681,7 +825,8 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
         return
       }
 
-      const pos = toCanvasCoords(e.clientX, e.clientY)
+      // Where the preview showed it (held in the room, snapped), or failing that the drop point.
+      const pos = ghost ? { x: ghost.x, y: ghost.y } : toCanvasCoords(e.clientX, e.clientY)
       if (!pos) return
       if (payload.kind === 'note') {
         placeNote(payload.preset ?? 'text', pos)
@@ -840,11 +985,48 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
     setZoomPan(newZoomScale, cursorX - contentX * newFinalScale - offsetX, cursorY - contentY * newFinalScale - offsetY)
   }
 
+  // --- Markup toolbar placement ------------------------------------------------------------------
+  // Always rendered in the same spot in the tree (so dragging it by its grip never remounts it and
+  // loses the pointer); only its coordinates change. Docked, it sits top-left beside the zoom
+  // controls, or under them when the canvas is too narrow for both. Moved, it floats where it was
+  // left — held inside the canvas, so a smaller window or the pop-out never loses it off an edge.
+  function clampToolbar(p: { x: number; y: number }): { x: number; y: number } {
+    const maxX = Math.max(TOOLBAR_INSET, containerSize.width - toolbarSize.width - TOOLBAR_INSET)
+    const maxY = Math.max(TOOLBAR_INSET, containerSize.height - toolbarSize.height - TOOLBAR_INSET)
+    return { x: Math.min(maxX, Math.max(TOOLBAR_INSET, p.x)), y: Math.min(maxY, Math.max(TOOLBAR_INSET, p.y)) }
+  }
+  function dockedToolbarPos(): { x: number; y: number } {
+    const besideZoom =
+      TOOLBAR_INSET + toolbarSize.width + TOOLBAR_INSET + zoomControlsSize.width + TOOLBAR_INSET <= containerSize.width
+    return { x: TOOLBAR_INSET, y: besideZoom ? TOOLBAR_INSET : TOOLBAR_INSET + zoomControlsSize.height + TOOLBAR_INSET }
+  }
+  const toolbarPos = toolbarDrag ?? (toolbarPosition ? clampToolbar(toolbarPosition) : dockedToolbarPos())
+
+  function handleToolbarGrip(phase: 'start' | 'move' | 'end', dx: number, dy: number): void {
+    if (phase === 'start') {
+      toolbarDragStartRef.current = toolbarPos
+      return
+    }
+    const start = toolbarDragStartRef.current
+    if (!start) return
+    // A press that never moved (half of a double-click) leaves a docked toolbar docked.
+    const moved = dx !== 0 || dy !== 0
+    const next = clampToolbar({ x: start.x + dx, y: start.y + dy })
+    if (phase === 'move') {
+      if (moved) setToolbarDrag(next)
+      return
+    }
+    toolbarDragStartRef.current = null
+    setToolbarDrag(null)
+    if (moved) setMarkupPrefs({ toolbarPosition: next })
+  }
+
   return (
     <div
       ref={containerRef}
       onDrop={handleDrop}
-      onDragOver={(e) => e.preventDefault()}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
       {...markup.handlers}
       // In markup mode the right button erases, so it mustn't also open a menu. Mid-erase the
       // pointer is captured, so the event arrives on this container rather than the canvas; a menu
@@ -866,11 +1048,31 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
         touchAction: drawing ? 'none' : undefined
       }}
     >
-      {/* The zoom controls and the markup toolbar share one row across the top. The zoom controls come
-          first because the row runs right to left (see .layout-canvas-topbar): they keep the corner,
-          and the toolbar drops below them when the canvas is too narrow for both. */}
+      {markupOn && active && (
+        <MarkupToolbar
+          ref={toolbarRef}
+          tool={markupTool}
+          color={markupColor}
+          size={markupSize}
+          onTool={(tool) => setMarkupPrefs({ tool })}
+          onColor={(color) => setMarkupPrefs({ color })}
+          onSize={(size) => setMarkupPrefs({ size })}
+          onDone={() => setMarkupOn(false)}
+          orientation={toolbarOrientation}
+          onOrientation={(orientation) => setMarkupPrefs({ toolbarOrientation: orientation })}
+          onGripDrag={handleToolbarGrip}
+          onGripNudge={(dx, dy) => setMarkupPrefs({ toolbarPosition: clampToolbar({ x: toolbarPos.x + dx, y: toolbarPos.y + dy }) })}
+          onDock={() => setMarkupPrefs({ toolbarPosition: null })}
+          style={{
+            left: toolbarPos.x,
+            top: toolbarPos.y,
+            maxWidth: containerSize.width - 2 * TOOLBAR_INSET,
+            maxHeight: containerSize.height - toolbarPos.y - TOOLBAR_INSET
+          }}
+        />
+      )}
       <div className="layout-canvas-topbar">
-        <div className="layout-canvas-zoom">
+        <div ref={zoomControlsRef} className="layout-canvas-zoom">
           <button
             className="btn small"
             onClick={zoomOut}
@@ -924,17 +1126,6 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
             Snap
           </label>
         </div>
-        {markupOn && active && (
-          <MarkupToolbar
-            tool={markupTool}
-            color={markupColor}
-            size={markupSize}
-            onTool={(tool) => setMarkupPrefs({ tool })}
-            onColor={(color) => setMarkupPrefs({ color })}
-            onSize={(size) => setMarkupPrefs({ size })}
-            onDone={() => setMarkupOn(false)}
-          />
-        )}
       </div>
       <div
         style={{
@@ -1104,6 +1295,24 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
           )}
         </Layer>
         {/* The stroke being drawn and the eraser's live results — see useMarkupDrawing. */}
+        {paletteGhost && (
+          <Layer listening={false} opacity={0.85}>
+            {paletteGhost.payload.kind === 'note' ? (
+              <PaletteNoteGhost preset={paletteGhost.payload.preset ?? 'text'} x={paletteGhost.x} y={paletteGhost.y} accent={accent} />
+            ) : (
+              <LayoutBlockIcon
+                block={paletteGhostBlock(paletteGhost.payload, paletteGhost.x, paletteGhost.y)}
+                selected={false}
+                imageSize={imageSize}
+                onSelect={noop}
+                onDragStart={noop}
+                onDragMove={noop}
+                onDragEnd={noop}
+                onContextMenu={noop}
+              />
+            )}
+          </Layer>
+        )}
         <Layer listening={false}>
           <Shape ref={previewRef} sceneFunc={(ctx) => markup.drawPreview(ctx)} />
         </Layer>

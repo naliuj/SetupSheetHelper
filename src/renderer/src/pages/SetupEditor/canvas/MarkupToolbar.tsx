@@ -1,5 +1,19 @@
-import { Circle, Eraser, Highlighter, Minus, MousePointer2, MoveUpRight, PenLine, Square } from 'lucide-react'
-import type { MarkupTool } from '@renderer/state/markupPrefsStore'
+import { forwardRef, useRef } from 'react'
+import {
+  Circle,
+  Eraser,
+  GripHorizontal,
+  GripVertical,
+  Highlighter,
+  Minus,
+  MousePointer2,
+  MoveUpRight,
+  PanelLeft,
+  PanelTop,
+  PenLine,
+  Square
+} from 'lucide-react'
+import type { MarkupTool, MarkupToolbarOrientation } from '@renderer/state/markupPrefsStore'
 import { useKeybindPrefsStore } from '@renderer/state/keybindPrefsStore'
 import { formatCombo, markupToolActionId } from '@shared/constants/keybindActions'
 import { MARK_COLORS, MARK_SIZES } from './markGeometry'
@@ -12,6 +26,16 @@ interface Props {
   onColor: (color: string) => void
   onSize: (size: number) => void
   onDone: () => void
+  orientation: MarkupToolbarOrientation
+  onOrientation: (orientation: MarkupToolbarOrientation) => void
+  /** The grip being dragged: the pointer's travel since it was pressed, in CSS pixels. */
+  onGripDrag: (phase: 'start' | 'move' | 'end', dx: number, dy: number) => void
+  /** Arrow keys on the grip: move by this much. */
+  onGripNudge: (dx: number, dy: number) => void
+  /** Double-click (or Enter) on the grip: back to the top row. */
+  onDock: () => void
+  /** Set while the toolbar floats somewhere the user moved it. */
+  style?: React.CSSProperties
 }
 
 /** The tool buttons. Each tool's key is a keybind (Settings → Keybinds → Markup), shown in its
@@ -29,20 +53,80 @@ const MARKUP_TOOLS: { tool: MarkupTool; label: string; Icon: typeof PenLine }[] 
 
 const SIZE_NAMES = ['Thin', 'Medium', 'Thick']
 
-/** The floating markup toolbar over the Layout Mode canvas: tools, colors, sizes and Done. Every
- *  control is a real button with a name, and mousedown is swallowed so clicking one never starts
- *  a stroke on the canvas underneath. */
-export default function MarkupToolbar({ tool, color, size, onTool, onColor, onSize, onDone }: Props): JSX.Element {
+/** The floating markup toolbar over the Layout Mode canvas: a grip to move it, tools, colors,
+ *  sizes, a horizontal/vertical switch and Done. Every control is a real button with a name, and
+ *  mousedown is swallowed so clicking one never starts a stroke on the canvas underneath. Where it
+ *  sits is LayoutStage's business; this only reports the grip's movement. */
+const MarkupToolbar = forwardRef<HTMLDivElement, Props>(function MarkupToolbar(
+  { tool, color, size, onTool, onColor, onSize, onDone, orientation, onOrientation, onGripDrag, onGripNudge, onDock, style },
+  ref
+) {
   // Subscribed so a rebinding shows in the tooltips straight away.
   useKeybindPrefsStore((s) => s.overrides)
   const resolve = useKeybindPrefsStore((s) => s.resolve)
+  const gripStart = useRef<{ pointerId: number; x: number; y: number } | null>(null)
+  const vertical = orientation === 'vertical'
+  const Grip = vertical ? GripHorizontal : GripVertical
+
+  function handleGripKeyDown(e: React.KeyboardEvent): void {
+    const step = e.shiftKey ? 50 : 10
+    const moves: Record<string, [number, number]> = {
+      ArrowLeft: [-step, 0],
+      ArrowRight: [step, 0],
+      ArrowUp: [0, -step],
+      ArrowDown: [0, step]
+    }
+    if (moves[e.key]) {
+      e.preventDefault()
+      onGripNudge(...moves[e.key])
+    } else if (e.key === 'Enter') {
+      e.preventDefault()
+      onDock()
+    }
+  }
+
   return (
     <div
+      ref={ref}
       role="toolbar"
       aria-label="Markup"
-      className="picker-menu markup-toolbar"
+      aria-orientation={orientation}
+      className={vertical ? 'picker-menu markup-toolbar vertical' : 'picker-menu markup-toolbar'}
+      style={style}
       onPointerDown={(e) => e.stopPropagation()}
     >
+      <button
+        type="button"
+        className="markup-toolbar-grip"
+        aria-label="Move toolbar"
+        title="Drag to move · double-click to put back"
+        onPointerDown={(e) => {
+          if (e.button !== 0) return
+          e.currentTarget.setPointerCapture(e.pointerId)
+          gripStart.current = { pointerId: e.pointerId, x: e.clientX, y: e.clientY }
+          onGripDrag('start', 0, 0)
+        }}
+        onPointerMove={(e) => {
+          const start = gripStart.current
+          if (start?.pointerId === e.pointerId) onGripDrag('move', e.clientX - start.x, e.clientY - start.y)
+        }}
+        onPointerUp={(e) => {
+          const start = gripStart.current
+          if (start?.pointerId !== e.pointerId) return
+          gripStart.current = null
+          onGripDrag('end', e.clientX - start.x, e.clientY - start.y)
+        }}
+        onPointerCancel={(e) => {
+          const start = gripStart.current
+          if (start?.pointerId !== e.pointerId) return
+          gripStart.current = null
+          onGripDrag('end', 0, 0)
+        }}
+        onDoubleClick={onDock}
+        onKeyDown={handleGripKeyDown}
+      >
+        <Grip size={14} aria-hidden="true" />
+      </button>
       {MARKUP_TOOLS.map(({ tool: t, label, Icon }) => {
         const combo = resolve(markupToolActionId(t))
         return (
@@ -87,9 +171,20 @@ export default function MarkupToolbar({ tool, color, size, onTool, onColor, onSi
         </button>
       ))}
       <span className="markup-toolbar-divider" aria-hidden="true" />
+      <button
+        type="button"
+        className="markup-toolbar-button"
+        aria-label={vertical ? 'Horizontal toolbar' : 'Vertical toolbar'}
+        title={vertical ? 'Horizontal toolbar' : 'Vertical toolbar'}
+        onClick={() => onOrientation(vertical ? 'horizontal' : 'vertical')}
+      >
+        {vertical ? <PanelTop size={16} aria-hidden="true" /> : <PanelLeft size={16} aria-hidden="true" />}
+      </button>
       <button type="button" className="btn small primary" onClick={onDone}>
         Done
       </button>
     </div>
   )
-}
+})
+
+export default MarkupToolbar
