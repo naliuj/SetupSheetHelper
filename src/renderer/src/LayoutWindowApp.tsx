@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import type Konva from 'konva'
-import { KEYBIND_ACTIONS, normalizeKeyEvent } from '@shared/constants/keybindActions'
+import { KEYBIND_ACTIONS, MARKUP_TOOL_KEYBINDS, markupToolActionId, normalizeKeyEvent } from '@shared/constants/keybindActions'
 import { useSetupStore } from './state/setupStore'
 import { useLayoutStore } from './state/layoutStore'
 import { registerFlusher, useQuitFlush } from '@renderer/state/flushRegistry'
@@ -8,6 +8,8 @@ import { usePaletteStore } from './state/paletteStore'
 import { useThemeSync } from './hooks/useThemeSync'
 import { useA11ySync } from './hooks/useA11ySync'
 import { useKeybindPrefsStore } from './state/keybindPrefsStore'
+import { useMarkupPrefsStore } from './state/markupPrefsStore'
+import { useSnapPrefsStore } from './state/snapPrefsStore'
 import InstrumentPalette from './pages/SetupEditor/palette/InstrumentPalette'
 import { exportStageToDataUrl } from './pages/SetupEditor/canvas/konvaExport'
 import Toast from './components/Toast'
@@ -66,7 +68,12 @@ const handlers: Record<string, () => void> = {
   'zoom-out': () => useLayoutStore.getState().zoomOut(),
   'reset-view': () => useLayoutStore.getState().resetView(),
   'add-text-note': () => useLayoutStore.getState().requestNewNote('text'),
-  'toggle-markup': () => useLayoutStore.getState().setMarkupOn(!useLayoutStore.getState().markupOn)
+  'toggle-markup': () => useLayoutStore.getState().setMarkupOn(!useLayoutStore.getState().markupOn),
+  'toggle-markup-visibility': () => useLayoutStore.getState().setMarkupHidden(!useLayoutStore.getState().markupHidden),
+  'toggle-snapping': () => void useSnapPrefsStore.getState().setEnabled(!useSnapPrefsStore.getState().enabled),
+  ...Object.fromEntries(
+    MARKUP_TOOL_KEYBINDS.map(({ tool }) => [markupToolActionId(tool), () => useMarkupPrefsStore.getState().set({ tool })])
+  )
 }
 
 function isTextField(target: EventTarget | null): boolean {
@@ -207,6 +214,7 @@ export default function LayoutWindowApp(): JSX.Element {
       const { resolve } = useKeybindPrefsStore.getState()
       for (const action of KEYBIND_ACTIONS) {
         if (action.id === 'open-settings' || action.scope === 'table') continue
+        if (action.scope === 'markup' && !useLayoutStore.getState().markupOn) continue
         if (resolve(action.id) !== combo) continue
         const handler = handlers[action.id]
         if (handler) {

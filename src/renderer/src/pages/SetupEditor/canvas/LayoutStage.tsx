@@ -9,7 +9,7 @@ import LayoutBackground from './LayoutBackground'
 import LayoutBlockIcon, { clampCenterToRoom, rotatedHalfExtents } from './LayoutBlockIcon'
 import LayoutNote from './LayoutNote'
 import LayoutMark from './LayoutMark'
-import MarkupToolbar, { MARKUP_TOOLS } from './MarkupToolbar'
+import MarkupToolbar from './MarkupToolbar'
 import { useMarkupDrawing } from './useMarkupDrawing'
 import { scaleMarkData } from './markGeometry'
 import { useMarkupPrefsStore } from '@renderer/state/markupPrefsStore'
@@ -586,18 +586,10 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
         setSpaceHeld(true)
         return
       }
-      // Markup: a single letter picks a tool (as in drawing apps), and Escape puts the pen down.
-      if (markupOn && active && !e.metaKey && !e.ctrlKey && !e.altKey) {
-        if (e.key === 'Escape') {
-          setMarkupOn(false)
-          return
-        }
-        const pick = MARKUP_TOOLS.find((t) => t.key.toLowerCase() === e.key.toLowerCase())
-        if (pick) {
-          e.preventDefault()
-          setMarkupPrefs({ tool: pick.tool })
-          return
-        }
+      // Escape puts the pen down. (The tool letters are rebindable keybinds, in the 'markup' scope.)
+      if (markupOn && active && e.key === 'Escape' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        setMarkupOn(false)
+        return
       }
       if (selectedBlockIds.size === 0) return
       // Enter types into the one selected note — the keyboard counterpart of double-clicking it.

@@ -3,10 +3,18 @@ import type Konva from 'konva'
 import { Check, ExternalLink, FileText, Keyboard } from 'lucide-react'
 import { APP_SETTINGS_KEYS } from '@shared/types/entities'
 import type { MenuAction, PdfExportInclude } from '@shared/types/ipc'
-import { KEYBIND_ACTIONS, formatCombo, normalizeKeyEvent } from '@shared/constants/keybindActions'
+import {
+  KEYBIND_ACTIONS,
+  MARKUP_TOOL_KEYBINDS,
+  formatCombo,
+  markupToolActionId,
+  normalizeKeyEvent
+} from '@shared/constants/keybindActions'
 import { useSetupStoreApi, useSetupStoreState } from '@renderer/state/setupStoreContext'
 import { useLayoutStoreApi, useLayoutStoreState } from '@renderer/state/layoutStoreContext'
 import { useKeybindPrefsStore } from '@renderer/state/keybindPrefsStore'
+import { useMarkupPrefsStore } from '@renderer/state/markupPrefsStore'
+import { useSnapPrefsStore } from '@renderer/state/snapPrefsStore'
 import { useNavigationStore, type EditorMode } from '@renderer/state/navigationStore'
 import { useLayoutWindowStore } from '@renderer/state/layoutWindowStore'
 import Icon from '@renderer/components/Icon'
@@ -509,6 +517,19 @@ export default function SetupToolbar({
     'add-text-note': () => {
       if (mode === 'layout') layoutStoreApi.getState().requestNewNote('text')
     },
+    'toggle-snapping': () => {
+      if (mode === 'layout') void useSnapPrefsStore.getState().setEnabled(!useSnapPrefsStore.getState().enabled)
+    },
+    'toggle-markup-visibility': () => {
+      if (mode === 'layout') {
+        const state = layoutStoreApi.getState()
+        state.setMarkupHidden(!state.markupHidden)
+      }
+    },
+    // Tool picks only reach here while markup is on (the 'markup' scope check below).
+    ...Object.fromEntries(
+      MARKUP_TOOL_KEYBINDS.map(({ tool }) => [markupToolActionId(tool), () => useMarkupPrefsStore.getState().set({ tool })])
+    ),
     'open-setup-settings': onOpenSettings,
     undo: () => handleUndoRedo('undo'),
     redo: () => handleUndoRedo('redo'),
@@ -560,6 +581,7 @@ export default function SetupToolbar({
         if (action.id === 'open-settings') continue
         if (action.scope === 'table' && mode !== 'table') continue
         if (action.scope === 'layout' && mode !== 'layout') continue
+        if (action.scope === 'markup' && (mode !== 'layout' || !layoutStoreApi.getState().markupOn)) continue
         if (resolve(action.id) !== combo) continue
         const handler = handlers[action.id]
         if (handler) {

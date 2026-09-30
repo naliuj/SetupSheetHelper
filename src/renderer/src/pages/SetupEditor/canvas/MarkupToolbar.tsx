@@ -1,5 +1,7 @@
 import { Circle, Eraser, Highlighter, Minus, MousePointer2, MoveUpRight, PenLine, Square } from 'lucide-react'
 import type { MarkupTool } from '@renderer/state/markupPrefsStore'
+import { useKeybindPrefsStore } from '@renderer/state/keybindPrefsStore'
+import { formatCombo, markupToolActionId } from '@shared/constants/keybindActions'
 import { MARK_COLORS, MARK_SIZES } from './markGeometry'
 
 interface Props {
@@ -12,16 +14,17 @@ interface Props {
   onDone: () => void
 }
 
-/** The tool buttons, each with the single key that picks it while markup is on (see LayoutStage). */
-export const MARKUP_TOOLS: { tool: MarkupTool; label: string; key: string; Icon: typeof PenLine }[] = [
-  { tool: 'select', label: 'Select and move', key: 'V', Icon: MousePointer2 },
-  { tool: 'pen', label: 'Pen', key: 'P', Icon: PenLine },
-  { tool: 'highlighter', label: 'Highlighter', key: 'H', Icon: Highlighter },
-  { tool: 'line', label: 'Line', key: 'L', Icon: Minus },
-  { tool: 'arrow', label: 'Arrow', key: 'A', Icon: MoveUpRight },
-  { tool: 'ellipse', label: 'Ellipse', key: 'O', Icon: Circle },
-  { tool: 'rect', label: 'Box', key: 'R', Icon: Square },
-  { tool: 'eraser', label: 'Eraser', key: 'E', Icon: Eraser }
+/** The tool buttons. Each tool's key is a keybind (Settings → Keybinds → Markup), shown in its
+ *  tooltip. */
+const MARKUP_TOOLS: { tool: MarkupTool; label: string; Icon: typeof PenLine }[] = [
+  { tool: 'select', label: 'Select and move', Icon: MousePointer2 },
+  { tool: 'pen', label: 'Pen', Icon: PenLine },
+  { tool: 'highlighter', label: 'Highlighter', Icon: Highlighter },
+  { tool: 'line', label: 'Line', Icon: Minus },
+  { tool: 'arrow', label: 'Arrow', Icon: MoveUpRight },
+  { tool: 'ellipse', label: 'Ellipse', Icon: Circle },
+  { tool: 'rect', label: 'Box', Icon: Square },
+  { tool: 'eraser', label: 'Eraser', Icon: Eraser }
 ]
 
 const SIZE_NAMES = ['Thin', 'Medium', 'Thick']
@@ -30,6 +33,9 @@ const SIZE_NAMES = ['Thin', 'Medium', 'Thick']
  *  control is a real button with a name, and mousedown is swallowed so clicking one never starts
  *  a stroke on the canvas underneath. */
 export default function MarkupToolbar({ tool, color, size, onTool, onColor, onSize, onDone }: Props): JSX.Element {
+  // Subscribed so a rebinding shows in the tooltips straight away.
+  useKeybindPrefsStore((s) => s.overrides)
+  const resolve = useKeybindPrefsStore((s) => s.resolve)
   return (
     <div
       role="toolbar"
@@ -37,19 +43,22 @@ export default function MarkupToolbar({ tool, color, size, onTool, onColor, onSi
       className="picker-menu markup-toolbar"
       onPointerDown={(e) => e.stopPropagation()}
     >
-      {MARKUP_TOOLS.map(({ tool: t, label, key, Icon }) => (
-        <button
-          key={t}
-          type="button"
-          className="markup-toolbar-button"
-          aria-label={label}
-          aria-pressed={tool === t}
-          title={`${label} (${key})`}
-          onClick={() => onTool(t)}
-        >
-          <Icon size={16} aria-hidden="true" />
-        </button>
-      ))}
+      {MARKUP_TOOLS.map(({ tool: t, label, Icon }) => {
+        const combo = resolve(markupToolActionId(t))
+        return (
+          <button
+            key={t}
+            type="button"
+            className="markup-toolbar-button"
+            aria-label={label}
+            aria-pressed={tool === t}
+            title={combo ? `${label} (${formatCombo(combo)})` : label}
+            onClick={() => onTool(t)}
+          >
+            <Icon size={16} aria-hidden="true" />
+          </button>
+        )
+      })}
       <span className="markup-toolbar-divider" aria-hidden="true" />
       {MARK_COLORS.map((c) => (
         <button

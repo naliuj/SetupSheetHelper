@@ -9,7 +9,7 @@ import {
   type KeybindActionDef
 } from '@shared/constants/keybindActions'
 
-const CATEGORY_ORDER = ['App', 'File', 'Edit', 'Table', 'Layout']
+const CATEGORY_ORDER = ['App', 'File', 'Edit', 'Table', 'Layout', 'Markup']
 
 function groupByCategory(actions: KeybindActionDef[]): [string, KeybindActionDef[]][] {
   const groups = new Map<string, KeybindActionDef[]>()
@@ -21,8 +21,9 @@ function groupByCategory(actions: KeybindActionDef[]): [string, KeybindActionDef
   return CATEGORY_ORDER.filter((c) => groups.has(c)).map((c) => [c, groups.get(c)!])
 }
 
-/** Every rebindable app shortcut, grouped by category, with inline conflict warnings. Arrow-key
- *  nudge and Space-to-pan in Layout Mode are deliberately NOT here — fixed creative-tool
+/** Every rebindable app shortcut, grouped by category, with inline conflict warnings. Markup's
+ *  tool letters are here (they only act while markup mode is on); arrow-key nudge and
+ *  Space-to-pan in Layout Mode are deliberately left out: fixed creative-tool
  *  conventions, not part of the rebindable set (see keybindActions.ts). */
 export default function KeybindsEditor(): JSX.Element {
   const overrides = useKeybindPrefsStore((s) => s.overrides)

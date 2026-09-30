@@ -68,6 +68,8 @@ export const useKeybindPrefsStore = create<KeybindPrefsState>((set, get) => ({
     const action = KEYBIND_ACTIONS_BY_ID[actionId]
     if (!action) return []
     const combo = get().resolve(actionId)
+    // Two unassigned actions don't share a key.
+    if (!combo) return []
     return KEYBIND_ACTIONS.filter(
       (other) =>
         other.id !== actionId && get().resolve(other.id) === combo && scopesOverlap(action.scope, other.scope)

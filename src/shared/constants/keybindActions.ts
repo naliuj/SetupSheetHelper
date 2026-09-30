@@ -2,16 +2,20 @@
 // (combo normalization/formatting, conflict detection) shared between the renderer's keydown
 // dispatcher (SetupToolbar.tsx) and the Settings > Keybinds editor.
 
-export type KeybindScope = 'global' | 'table' | 'layout'
+/** `markup` is a slice of `layout`: its actions only fire while Layout Mode is showing AND markup
+ *  mode is on, which is what lets them be bare letters without taking those keys from anything
+ *  else in Layout Mode. */
+export type KeybindScope = 'global' | 'table' | 'layout' | 'markup'
 
 export interface KeybindActionDef {
   id: string
   label: string
   category: string
   scope: KeybindScope
+  /** '' = no shortcut until the user records one. */
   defaultCombo: string
   /** True only for actions whose natural key is a bare, unmodified key (Escape/Delete/
-   *  Backspace) — these are safe because their dispatcher already checks isTextField before
+   *  Backspace, and the markup tool letters) — these are safe because their dispatcher already checks isTextField before
    *  acting. Every other action requires at least one modifier in a custom binding, so a user
    *  recording a shortcut can't accidentally turn a plain letter into a global hotkey that
    *  swallows normal typing. */
@@ -26,6 +30,26 @@ export interface KeybindActionDef {
 // binding, mode-branching internally). The two bare-Delete listeners are genuinely separate code
 // today, so they become two separate entries with disjoint scopes — the concrete case the
 // conflict checker must correctly NOT warn about, since only one mode is ever visible at once.
+/** The markup toolbar's tools and their single-letter keys, as in drawing apps. Rebindable so a
+ *  letter can be moved off one that a tablet driver's buttons send. */
+export const MARKUP_TOOL_KEYBINDS = [
+  { tool: 'select', label: 'Select and Move', key: 'V' },
+  { tool: 'pen', label: 'Pen', key: 'P' },
+  { tool: 'highlighter', label: 'Highlighter', key: 'H' },
+  { tool: 'line', label: 'Line', key: 'L' },
+  { tool: 'arrow', label: 'Arrow', key: 'A' },
+  { tool: 'ellipse', label: 'Ellipse', key: 'O' },
+  { tool: 'rect', label: 'Box', key: 'R' },
+  { tool: 'eraser', label: 'Eraser', key: 'E' }
+] as const
+
+export type MarkupToolKeybind = (typeof MARKUP_TOOL_KEYBINDS)[number]['tool']
+
+/** The keybind action id that picks a markup tool. */
+export function markupToolActionId(tool: MarkupToolKeybind): string {
+  return `markup-tool-${tool}`
+}
+
 export const KEYBIND_ACTIONS: KeybindActionDef[] = [
   { id: 'open-settings', label: 'App Settings…', category: 'App', scope: 'global', defaultCombo: 'CmdOrCtrl+,' },
   { id: 'save-setup', label: 'Save Setup', category: 'File', scope: 'global', defaultCombo: 'CmdOrCtrl+S' },
@@ -146,7 +170,27 @@ export const KEYBIND_ACTIONS: KeybindActionDef[] = [
     scope: 'layout',
     defaultCombo: 'Delete',
     allowBareKey: true
-  }
+  },
+  // No default key for these two: the checkbox and the eye button are a click away, and they're
+  // here for anyone who flips them often enough to want one.
+  { id: 'toggle-snapping', label: 'Toggle Snapping', category: 'Layout', scope: 'layout', defaultCombo: '' },
+  {
+    id: 'toggle-markup-visibility',
+    label: 'Show/Hide Markup',
+    category: 'Layout',
+    scope: 'layout',
+    defaultCombo: ''
+  },
+  ...MARKUP_TOOL_KEYBINDS.map(
+    ({ tool, label, key }): KeybindActionDef => ({
+      id: markupToolActionId(tool),
+      label,
+      category: 'Markup',
+      scope: 'markup',
+      defaultCombo: key,
+      allowBareKey: true
+    })
+  )
 ]
 
 export const KEYBIND_ACTIONS_BY_ID: Record<string, KeybindActionDef> = Object.fromEntries(
@@ -196,8 +240,9 @@ export function comboHasModifier(combo: string): boolean {
 }
 
 /** Human-readable form for display in the Keybinds settings UI — platform-appropriate symbols on
- *  mac, spelled-out modifier names elsewhere. */
+ *  mac, spelled-out modifier names elsewhere. An unassigned action ('') reads "Not set". */
 export function formatCombo(combo: string): string {
+  if (!combo) return 'Not set'
   return combo
     .split('+')
     .map((part) => {
@@ -211,8 +256,11 @@ export function formatCombo(combo: string): string {
 
 /** Two scopes overlap (and so must be conflict-checked against each other) unless they're the
  *  two mutually-exclusive editor modes — table and layout are never visible at the same time, so
- *  the same physical key in each is never actually ambiguous to the user. */
+ *  the same physical key in each is never actually ambiguous to the user. Markup lives inside
+ *  Layout Mode, so it overlaps layout and not table. */
 export function scopesOverlap(a: KeybindScope, b: KeybindScope): boolean {
   if (a === 'global' || b === 'global') return true
+  const inLayout = (s: KeybindScope): boolean => s === 'layout' || s === 'markup'
+  if (inLayout(a) && inLayout(b)) return true
   return a === b
 }
