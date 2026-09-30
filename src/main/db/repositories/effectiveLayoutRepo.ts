@@ -16,7 +16,8 @@ export function getEffectiveLayoutForSetup(setupId: number | null, studioId: num
             filePath: override.filePath as string,
             originalName: override.originalName,
             pageWidthPt: override.pageWidthPt,
-            pageHeightPt: override.pageHeightPt
+            pageHeightPt: override.pageHeightPt,
+            legacyPixelUnits: override.legacyPixelUnits
           }
     }
   }
@@ -28,7 +29,8 @@ export function getEffectiveLayoutForSetup(setupId: number | null, studioId: num
         filePath: studioLayout.filePath,
         originalName: studioLayout.originalName,
         pageWidthPt: studioLayout.pageWidthPt,
-        pageHeightPt: studioLayout.pageHeightPt
+        pageHeightPt: studioLayout.pageHeightPt,
+        legacyPixelUnits: studioLayout.legacyPixelUnits
       }
     : null
 }

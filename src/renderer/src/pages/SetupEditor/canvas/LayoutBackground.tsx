@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Image as KonvaImage, Rect } from 'react-konva'
 import * as pdfjsLib from 'pdfjs-dist'
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.mjs?url'
-import { BLANK_SHEET_WIDTH_PX, BLANK_SHEET_HEIGHT_PX } from '@shared/constants/roomLayout'
+import { BLANK_SHEET_WIDTH_PX, BLANK_SHEET_HEIGHT_PX, normalizedLayoutSize } from '@shared/constants/roomLayout'
 import { useLayoutStoreState } from '@renderer/state/layoutStoreContext'
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl
@@ -52,7 +52,11 @@ function loadImage(url: string): Promise<{ image: HTMLImageElement; width: numbe
 }
 
 export default function LayoutBackground({ studioId, setupId, onSize }: Props): JSX.Element | null {
-  const [image, setImage] = useState<HTMLCanvasElement | HTMLImageElement | null>(null)
+  // The drawn size, in room pixels. For a PDF or a legacy image it is the bitmap's own size; for
+  // any other image it is the image fitted to a Letter page (normalizedLayoutSize).
+  const [image, setImage] = useState<{ source: HTMLCanvasElement | HTMLImageElement; width: number; height: number } | null>(
+    null
+  )
   const [blank, setBlank] = useState(false)
   const layoutBackgroundVersion = useLayoutStoreState((s) => s.layoutBackgroundVersion)
 
@@ -81,8 +85,16 @@ export default function LayoutBackground({ studioId, setupId, onSize }: Props): 
       const result = isPdf ? await renderPdf(url) : await loadImage(url)
       if (cancelled) return
 
-      setImage(result.image)
-      onSize(result.width, result.height)
+      let { width, height } = result
+      if (!isPdf && !effective.legacyPixelUnits) {
+        // An SVG with no size of its own reports 0 × 0; give it the landscape page outright.
+        ;({ width, height } =
+          width > 0 && height > 0
+            ? normalizedLayoutSize(width, height)
+            : { width: BLANK_SHEET_WIDTH_PX, height: BLANK_SHEET_HEIGHT_PX })
+      }
+      setImage({ source: result.image, width, height })
+      onSize(width, height)
     }
 
     render().catch((err) => console.error('Failed to render layout background', err))
@@ -106,5 +118,16 @@ export default function LayoutBackground({ studioId, setupId, onSize }: Props): 
     )
   }
   if (!image) return null
-  return <KonvaImage image={image} x={0} y={0} listening={false} name="layout-bg-image" {...PAPER_SHADOW} />
+  return (
+    <KonvaImage
+      image={image.source}
+      x={0}
+      y={0}
+      width={image.width}
+      height={image.height}
+      listening={false}
+      name="layout-bg-image"
+      {...PAPER_SHADOW}
+    />
+  )
 }

@@ -10,6 +10,7 @@ interface SetupLayoutOverrideRow {
   page_width_pt: number | null
   page_height_pt: number | null
   imported_at: string
+  legacy_pixel_units: number
 }
 
 function mapRow(row: SetupLayoutOverrideRow): SetupLayoutOverride {
@@ -21,7 +22,8 @@ function mapRow(row: SetupLayoutOverrideRow): SetupLayoutOverride {
     originalName: row.original_name,
     pageWidthPt: row.page_width_pt,
     pageHeightPt: row.page_height_pt,
-    importedAt: row.imported_at
+    importedAt: row.imported_at,
+    legacyPixelUnits: row.legacy_pixel_units === 1
   }
 }
 
@@ -43,7 +45,8 @@ export function upsertBlankLayoutOverride(setupId: number): SetupLayoutOverride 
          original_name = NULL,
          page_width_pt = NULL,
          page_height_pt = NULL,
-         imported_at = datetime('now')`
+         imported_at = datetime('now'),
+         legacy_pixel_units = 0`
     )
     .run({ setupId })
   return getSetupLayoutOverride(setupId) as SetupLayoutOverride
@@ -66,7 +69,8 @@ export function upsertFileLayoutOverride(input: {
          original_name = excluded.original_name,
          page_width_pt = excluded.page_width_pt,
          page_height_pt = excluded.page_height_pt,
-         imported_at = datetime('now')`
+         imported_at = datetime('now'),
+         legacy_pixel_units = 0`
     )
     .run(input)
   return getSetupLayoutOverride(input.setupId) as SetupLayoutOverride

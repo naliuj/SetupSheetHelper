@@ -48,6 +48,7 @@ import { run as studio3Cmc6Mk4Name } from './041_studio3_cmc6_mk4_name'
 import { run as blockLabelColor } from './042_block_label_color'
 import { run as standardizeBerkleeMicNames } from './043_standardize_berklee_mic_names'
 import { run as layoutTextNotes } from './044_layout_text_notes'
+import { run as normalizeImageLayoutUnits } from './045_normalize_image_layout_units'
 
 import type { MigrationContext } from '../migrate'
 
@@ -107,5 +108,6 @@ export const MIGRATIONS: Migration[] = [
   { version: 41, run: studio3Cmc6Mk4Name },
   { version: 42, run: blockLabelColor },
   { version: 43, run: standardizeBerkleeMicNames },
-  { version: 44, run: layoutTextNotes }
+  { version: 44, run: layoutTextNotes },
+  { version: 45, run: normalizeImageLayoutUnits }
 ]
