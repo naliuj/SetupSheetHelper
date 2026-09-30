@@ -18,6 +18,27 @@ export const BLANK_SHEET_HEIGHT_IN = 8.5
 export const BLANK_SHEET_WIDTH_PX = BLANK_SHEET_WIDTH_IN * LAYOUT_PIXELS_PER_INCH
 export const BLANK_SHEET_HEIGHT_PX = BLANK_SHEET_HEIGHT_IN * LAYOUT_PIXELS_PER_INCH
 
+/** The room size an uploaded image layout is given: the image fitted onto a US Letter page —
+ *  11 × 8.5 in for a wide (or square) image, 8.5 × 11 for a tall one — in the same 144 px/in units
+ *  a PDF floor plan and a blank sheet use.
+ *
+ *  Without it an image's room was simply its pixel size, so everything measured in room pixels
+ *  depended on the file's resolution: a 600 × 400 image printed at 4.2 × 2.8 in and made every new
+ *  block and note look enormous, and a phone photo printed at 28 × 21 in with them looking tiny.
+ *  A uniform scale keeps the drawing's proportions. Shared by LayoutBackground (which draws the
+ *  image at this size) and migration 045 (which moved existing blocks onto it), so the two can
+ *  never compute different numbers. */
+export function normalizedLayoutSize(
+  naturalWidth: number,
+  naturalHeight: number
+): { width: number; height: number; scale: number } {
+  const wide = naturalWidth >= naturalHeight
+  const maxWidth = wide ? BLANK_SHEET_WIDTH_PX : BLANK_SHEET_HEIGHT_PX
+  const maxHeight = wide ? BLANK_SHEET_HEIGHT_PX : BLANK_SHEET_WIDTH_PX
+  const scale = Math.min(maxWidth / naturalWidth, maxHeight / naturalHeight)
+  return { width: naturalWidth * scale, height: naturalHeight * scale, scale }
+}
+
 // The pixelRatio every layout capture uses (konvaExport's exportStageToDataUrl, and the pop-out
 // window's requestExportImage relay). Shared because the PDF has to undo it: it receives only the
 // PNG, so the page size it gives that image is derived from the pixel dimensions, and a capture

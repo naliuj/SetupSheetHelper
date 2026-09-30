@@ -9,6 +9,7 @@ interface RoomLayoutFileRow {
   page_width_pt: number | null
   page_height_pt: number | null
   imported_at: string
+  legacy_pixel_units: number
 }
 
 function mapRow(row: RoomLayoutFileRow): RoomLayoutFile {
@@ -19,7 +20,8 @@ function mapRow(row: RoomLayoutFileRow): RoomLayoutFile {
     originalName: row.original_name,
     pageWidthPt: row.page_width_pt,
     pageHeightPt: row.page_height_pt,
-    importedAt: row.imported_at
+    importedAt: row.imported_at,
+    legacyPixelUnits: row.legacy_pixel_units === 1
   }
 }
 
@@ -46,7 +48,8 @@ export function upsertLayoutFile(input: {
        original_name = excluded.original_name,
        page_width_pt = excluded.page_width_pt,
        page_height_pt = excluded.page_height_pt,
-       imported_at = datetime('now')`
+       imported_at = datetime('now'),
+       legacy_pixel_units = 0`
   ).run(input)
   return getLayoutFileForStudio(input.studioId) as RoomLayoutFile
 }

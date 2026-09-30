@@ -24,6 +24,11 @@ export interface RoomLayoutFile {
   pageWidthPt: number | null
   pageHeightPt: number | null
   importedAt: string
+  /** True only for an image layout migration 045 could not measure (missing file, or an SVG with
+   *  no absolute size): its room stays in the image's own pixels, as every image layout used to,
+   *  because the blocks on it were never rescaled. Everything else — every upload since — gets a
+   *  Letter-page room (normalizedLayoutSize). */
+  legacyPixelUnits: boolean
 }
 
 /** A single setup's own layout override — either a blank sheet or its own imported file, taking
@@ -37,13 +42,25 @@ export interface SetupLayoutOverride {
   pageWidthPt: number | null
   pageHeightPt: number | null
   importedAt: string
+  /** True only for an image layout migration 045 could not measure (missing file, or an SVG with
+   *  no absolute size): its room stays in the image's own pixels, as every image layout used to,
+   *  because the blocks on it were never rescaled. Everything else — every upload since — gets a
+   *  Letter-page room (normalizedLayoutSize). */
+  legacyPixelUnits: boolean
 }
 
 /** What Layout Mode should actually render for a setup, after resolving the per-setup override
  *  (if any) against the studio's shared layout file. Null means neither exists — gate the user. */
 export type EffectiveLayout =
   | { kind: 'blank' }
-  | { kind: 'file'; filePath: string; originalName: string | null; pageWidthPt: number | null; pageHeightPt: number | null }
+  | {
+      kind: 'file'
+      filePath: string
+      originalName: string | null
+      pageWidthPt: number | null
+      pageHeightPt: number | null
+      legacyPixelUnits: boolean
+    }
   | null
 
 export type MicPoolType = 'studio' | 'building' | 'faculty_reserve' | 'personal' | 'setup'
