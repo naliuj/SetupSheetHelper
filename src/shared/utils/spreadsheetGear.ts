@@ -20,6 +20,26 @@ export type Delimiter = ',' | ';' | '\t'
 
 export const MAX_IMPORT_ROWS = 2000
 
+/** Far past any real gear list, and small enough that a wrongly chosen file (a video, a disk image
+ *  renamed .csv) is refused rather than read into memory. */
+export const MAX_IMPORT_BYTES = 5 * 1024 * 1024
+
+/** The file types the importer reads, for the open dialog's filter and for checking a dropped file. */
+export const SPREADSHEET_EXTENSIONS = ['csv', 'tsv', 'txt'] as const
+
+/** Text from a spreadsheet export, whatever it was saved as. UTF-8 first — Mac Excel, Numbers and
+ *  Google Sheets all write it — and only if the bytes aren't valid UTF-8, Windows-1252, which is
+ *  what Excel on Windows still writes for plain "CSV (Comma delimited)". Reading that as UTF-8 is
+ *  how "Brüel & Kjær" becomes "Br�el & Kj�r". Shared by the file picker (main) and drag-and-drop
+ *  (renderer), so a file reads the same whichever way it arrives. */
+export function decodeSpreadsheet(bytes: Uint8Array): string {
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes)
+  } catch {
+    return new TextDecoder('windows-1252').decode(bytes)
+  }
+}
+
 export interface ParsedSheet {
   rows: string[][]
   delimiter: Delimiter

@@ -1699,13 +1699,6 @@ input[type='checkbox']:focus-visible {
   gap: 4px 12px;
 }
 
-.spreadsheet-import-source {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 12px;
-}
-
 .spreadsheet-import-paste {
   width: 100%;
   min-height: 110px;
@@ -1818,4 +1811,46 @@ input[type='checkbox']:focus-visible {
 .spreadsheet-import-adds {
   color: var(--color-accent);
   font-size: 12px;
+}
+
+.modal.spreadsheet-import {
+  position: relative;
+}
+
+.spreadsheet-import-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  padding: 22px 16px;
+  border: 1.5px dashed var(--color-border-strong);
+  border-radius: var(--radius);
+  background: var(--color-surface-alt);
+  font-size: 13px;
+  text-align: center;
+}
+
+.spreadsheet-import-dropicon {
+  color: var(--color-text-dim);
+}
+
+/* Covers the whole dialog while a file is dragged over it, so it's clear the drop lands anywhere
+   and not only on the dashed box. Ignores the pointer, so it can't swallow the drop itself. */
+.spreadsheet-import-dropveil {
+  position: absolute;
+  inset: 6px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 2px dashed var(--color-accent);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--color-surface) 88%, var(--color-accent));
+  color: var(--color-accent);
+  font-size: 15px;
+  font-weight: 600;
+  pointer-events: none;
 }

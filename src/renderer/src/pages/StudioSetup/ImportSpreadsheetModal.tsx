@@ -1,14 +1,17 @@
 import { useMemo, useState } from 'react'
-import { AlertTriangle, FileSpreadsheet } from 'lucide-react'
+import { AlertTriangle, FileSpreadsheet, Upload } from 'lucide-react'
 import { useEscapeToClose } from '@renderer/hooks/useEscapeToClose'
 import { useModalDialog } from '@renderer/hooks/useModalDialog'
 import { formatGearLabel } from '@shared/utils/manufacturerPrefix'
 import {
   buildImportRows,
+  decodeSpreadsheet,
   guessHasHeader,
   guessMapping,
+  MAX_IMPORT_BYTES,
   MAX_IMPORT_ROWS,
   parseDelimited,
+  SPREADSHEET_EXTENSIONS,
   planImport,
   type ColumnField,
   type ExistingGear,
@@ -77,6 +80,9 @@ export default function ImportSpreadsheetModal({ existing, knownManufacturers, o
   const [kindMode, setKindMode] = useState<KindMode>('mic')
   // Planned items the user unticked on the review step, by index into the plan.
   const [excluded, setExcluded] = useState<Set<number>>(new Set())
+  // A file is being dragged over the dialog. A counter rather than a flag: dragenter/dragleave fire
+  // for every child element crossed, so a flag flickers off whenever the pointer passes over text.
+  const [dragDepth, setDragDepth] = useState(0)
 
   const header = sheet && hasHeader ? sheet.rows[0] : null
   const dataRows = useMemo(() => (sheet ? (hasHeader ? sheet.rows.slice(1) : sheet.rows) : []), [sheet, hasHeader])
@@ -121,6 +127,50 @@ export default function ImportSpreadsheetModal({ existing, knownManufacturers, o
     }
   }
 
+  const isFileDrag = (e: React.DragEvent): boolean => e.dataTransfer.types.includes('Files')
+
+  /** A file dropped anywhere on the dialog or its backdrop — every drop is caught here, since one
+   *  that lands on the window itself would make Electron navigate away to show the file. Works from
+   *  any step: dropping a different file starts over with it. */
+  async function handleDrop(e: React.DragEvent): Promise<void> {
+    e.preventDefault()
+    setDragDepth(0)
+    const file = e.dataTransfer.files[0]
+    if (!file) return
+    const extension = file.name.split('.').pop()?.toLowerCase() ?? ''
+    if (!(SPREADSHEET_EXTENSIONS as readonly string[]).includes(extension)) {
+      setStep('source')
+      setLoadError(`“${file.name}” isn't a CSV. In Excel or Numbers, use File → Export (or Save As) → CSV first.`)
+      return
+    }
+    if (file.size > MAX_IMPORT_BYTES) {
+      setStep('source')
+      setLoadError('That file is too big to be a gear list (over 5 MB).')
+      return
+    }
+    load(decodeSpreadsheet(new Uint8Array(await file.arrayBuffer())), file.name)
+  }
+
+  const dropHandlers = {
+    onDragEnter: (e: React.DragEvent) => {
+      if (!isFileDrag(e)) return
+      e.preventDefault()
+      setDragDepth((d) => d + 1)
+    },
+    onDragOver: (e: React.DragEvent) => {
+      if (!isFileDrag(e)) return
+      e.preventDefault()
+      e.dataTransfer.dropEffect = 'copy'
+    },
+    onDragLeave: (e: React.DragEvent) => {
+      if (!isFileDrag(e)) return
+      setDragDepth((d) => Math.max(0, d - 1))
+    },
+    onDrop: (e: React.DragEvent) => {
+      if (isFileDrag(e)) void handleDrop(e)
+    }
+  }
+
   function toggleHeader(on: boolean): void {
     if (!sheet) return
     setHasHeader(on)
@@ -159,8 +209,14 @@ export default function ImportSpreadsheetModal({ existing, knownManufacturers, o
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay" onClick={onClose} {...dropHandlers}>
       <div className="modal spreadsheet-import" {...dialog} onClick={(e) => e.stopPropagation()}>
+        {dragDepth > 0 && (
+          <div className="spreadsheet-import-dropveil" aria-hidden="true">
+            <Upload size={22} />
+            {step === 'source' ? 'Drop to import' : 'Drop to start over with this file'}
+          </div>
+        )}
         <div className="spreadsheet-import-title">
           <h2 style={{ margin: 0 }}>Import gear from a spreadsheet</h2>
           <span className="card-sub">
@@ -175,15 +231,21 @@ export default function ImportSpreadsheetModal({ existing, knownManufacturers, o
               Any gear list works — the columns can be in any order and called anything. You&apos;ll
               match them up next, and see exactly what will be added before anything changes.
             </p>
-            <div className="spreadsheet-import-source">
-              <button className="btn primary inline-icon-text" onClick={chooseFile} disabled={busy}>
-                <FileSpreadsheet size={15} aria-hidden="true" />
-                {busy ? 'Opening…' : 'Choose a CSV file…'}
-              </button>
-              <button className="btn small" onClick={() => void window.api.spreadsheetImport.saveTemplate()}>
-                Download template
+            <div className="spreadsheet-import-dropzone">
+              <FileSpreadsheet size={26} aria-hidden="true" className="spreadsheet-import-dropicon" />
+              <div>Drag a CSV file here</div>
+              <div className="card-sub">or</div>
+              <button className="btn primary" onClick={chooseFile} disabled={busy}>
+                {busy ? 'Opening…' : 'Choose a file…'}
               </button>
             </div>
+            <button
+              className="btn small"
+              onClick={() => void window.api.spreadsheetImport.saveTemplate()}
+              style={{ marginTop: 8 }}
+            >
+              Download template
+            </button>
             <label htmlFor="spreadsheet-paste" className="card-sub" style={{ display: 'block', margin: '16px 0 4px' }}>
               Or paste cells copied from Excel, Numbers or Google Sheets
             </label>
