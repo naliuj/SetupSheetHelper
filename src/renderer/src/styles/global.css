@@ -1875,9 +1875,10 @@ input[type='checkbox']:focus-visible {
   pointer-events: none;
 }
 
-/* Layout Mode markup toolbar (MarkupToolbar), floating top-center over the canvas. */
-/* Layout Mode's top row: the markup toolbar on the left, the zoom controls on the right. It wraps in
-   reverse, so on a narrow canvas the zoom controls keep the top line and the toolbar goes under them. */
+/* Layout Mode's top row: the zoom controls on the right and, in markup mode, the markup toolbar on
+   the left. Laid out right to left with the zoom controls first, so they always hold the top-right
+   corner: top-aligned rather than centered against the taller toolbar (which nudged them down), and
+   the toolbar is the one that wraps under them on a narrow canvas. */
 .layout-canvas-topbar {
   position: absolute;
   top: 8px;
@@ -1885,8 +1886,9 @@ input[type='checkbox']:focus-visible {
   right: 8px;
   z-index: 10;
   display: flex;
-  flex-wrap: wrap-reverse;
-  align-items: center;
+  flex-direction: row-reverse;
+  flex-wrap: wrap;
+  align-items: flex-start;
   gap: 8px;
   pointer-events: none;
 }
@@ -1899,10 +1901,10 @@ input[type='checkbox']:focus-visible {
   display: flex;
   align-items: center;
   gap: 4px;
-  margin-left: auto;
 }
 
 .markup-toolbar {
+  margin-right: auto;
   z-index: 20;
   display: flex;
   flex-wrap: wrap;

@@ -866,20 +866,10 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
         touchAction: drawing ? 'none' : undefined
       }}
     >
-      {/* The markup toolbar and the zoom controls share one row across the top, and the toolbar drops
-          below the controls when the canvas is too narrow for both, rather than sliding under them. */}
+      {/* The zoom controls and the markup toolbar share one row across the top. The zoom controls come
+          first because the row runs right to left (see .layout-canvas-topbar): they keep the corner,
+          and the toolbar drops below them when the canvas is too narrow for both. */}
       <div className="layout-canvas-topbar">
-        {markupOn && active && (
-          <MarkupToolbar
-            tool={markupTool}
-            color={markupColor}
-            size={markupSize}
-            onTool={(tool) => setMarkupPrefs({ tool })}
-            onColor={(color) => setMarkupPrefs({ color })}
-            onSize={(size) => setMarkupPrefs({ size })}
-            onDone={() => setMarkupOn(false)}
-          />
-        )}
         <div className="layout-canvas-zoom">
           <button
             className="btn small"
@@ -934,6 +924,17 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
             Snap
           </label>
         </div>
+        {markupOn && active && (
+          <MarkupToolbar
+            tool={markupTool}
+            color={markupColor}
+            size={markupSize}
+            onTool={(tool) => setMarkupPrefs({ tool })}
+            onColor={(color) => setMarkupPrefs({ color })}
+            onSize={(size) => setMarkupPrefs({ size })}
+            onDone={() => setMarkupOn(false)}
+          />
+        )}
       </div>
       <div
         style={{
