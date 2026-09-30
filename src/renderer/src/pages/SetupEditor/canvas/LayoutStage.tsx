@@ -223,6 +223,7 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
     color: markupColor,
     size: markupSize,
     drawing,
+    markupOn: active && markupOn,
     blocks,
     finalScale,
     toCanvasCoords: (clientX, clientY) => toCanvasCoords(clientX, clientY),
@@ -852,6 +853,12 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
       onDrop={handleDrop}
       onDragOver={(e) => e.preventDefault()}
       {...markup.handlers}
+      // In markup mode the right button erases, so it mustn't also open the canvas menu.
+      onContextMenuCapture={(e) => {
+        if (!(active && markupOn) || !(e.target instanceof HTMLCanvasElement)) return
+        e.preventDefault()
+        e.stopPropagation()
+      }}
       style={{
         width: '100%',
         height: '100%',
@@ -863,72 +870,74 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
         touchAction: drawing ? 'none' : undefined
       }}
     >
-      {markupOn && active && (
-        <MarkupToolbar
-          tool={markupTool}
-          color={markupColor}
-          size={markupSize}
-          onTool={(tool) => setMarkupPrefs({ tool })}
-          onColor={(color) => setMarkupPrefs({ color })}
-          onSize={(size) => setMarkupPrefs({ size })}
-          onDone={() => setMarkupOn(false)}
-        />
-      )}
-      <div
-        style={{ position: 'absolute', top: 8, right: 8, zIndex: 10, display: 'flex', alignItems: 'center', gap: 4 }}
-      >
-        <button
-          className="btn small"
-          onClick={zoomOut}
-          disabled={zoomScale <= MIN_ZOOM}
-          aria-label="Zoom out"
-        >
-          <Icon name="minus" size={14} />
-        </button>
-        <span
-          style={{ minWidth: 44, textAlign: 'center', fontSize: 12, color: 'var(--color-text-dim)', userSelect: 'none' }}
-        >
-          {Math.round(zoomScale * 100)}%
-        </span>
-        <button
-          className="btn small"
-          onClick={zoomIn}
-          disabled={zoomScale >= MAX_ZOOM}
-          aria-label="Zoom in"
-        >
-          <Icon name="plus" size={14} />
-        </button>
-        <button
-          className={markupOn ? 'btn small primary inline-icon-text' : 'btn small inline-icon-text'}
-          aria-pressed={markupOn}
-          onClick={() => setMarkupOn(!markupOn)}
-          title="Draw on the layout with a pen, mouse or trackpad"
-          style={{ marginLeft: 4, gap: 4 }}
-        >
-          <PenLine size={13} aria-hidden="true" />
-          Markup
-        </button>
-        {(hasMarks || markupOn) && (
+      {/* The markup toolbar and the zoom controls share one row across the top, and the toolbar drops
+          below the controls when the canvas is too narrow for both, rather than sliding under them. */}
+      <div className="layout-canvas-topbar">
+        {markupOn && active && (
+          <MarkupToolbar
+            tool={markupTool}
+            color={markupColor}
+            size={markupSize}
+            onTool={(tool) => setMarkupPrefs({ tool })}
+            onColor={(color) => setMarkupPrefs({ color })}
+            onSize={(size) => setMarkupPrefs({ size })}
+            onDone={() => setMarkupOn(false)}
+          />
+        )}
+        <div className="layout-canvas-zoom">
           <button
             className="btn small"
-            aria-label={markupHidden ? 'Show markup' : 'Hide markup'}
-            aria-pressed={!markupHidden}
-            title={markupHidden ? 'Show markup (it prints only while shown)' : 'Hide markup — hidden marks are left off exports too'}
-            onClick={() => setMarkupHidden(!markupHidden)}
+            onClick={zoomOut}
+            disabled={zoomScale <= MIN_ZOOM}
+            aria-label="Zoom out"
           >
-            {markupHidden ? <EyeOff size={13} aria-hidden="true" /> : <Eye size={13} aria-hidden="true" />}
+            <Icon name="minus" size={14} />
           </button>
-        )}
-        <button className="btn small" onClick={resetView} style={{ marginLeft: 4 }}>
-          Reset view
-        </button>
-        <label
-          className="inline-icon-text layout-snap-toggle"
-          title="Line blocks up with each other as you drag them. Hold ⌘ while dragging to skip it once."
-        >
-          <input type="checkbox" checked={snapEnabled} onChange={(e) => void setSnapEnabled(e.target.checked)} />
-          Snap
-        </label>
+          <span
+            style={{ minWidth: 44, textAlign: 'center', fontSize: 12, color: 'var(--color-text-dim)', userSelect: 'none' }}
+          >
+            {Math.round(zoomScale * 100)}%
+          </span>
+          <button
+            className="btn small"
+            onClick={zoomIn}
+            disabled={zoomScale >= MAX_ZOOM}
+            aria-label="Zoom in"
+          >
+            <Icon name="plus" size={14} />
+          </button>
+          <button
+            className={markupOn ? 'btn small primary inline-icon-text' : 'btn small inline-icon-text'}
+            aria-pressed={markupOn}
+            onClick={() => setMarkupOn(!markupOn)}
+            title="Draw on the layout with a pen, mouse or trackpad"
+            style={{ marginLeft: 4, gap: 4 }}
+          >
+            <PenLine size={13} aria-hidden="true" />
+            Markup
+          </button>
+          {(hasMarks || markupOn) && (
+            <button
+              className="btn small"
+              aria-label={markupHidden ? 'Show markup' : 'Hide markup'}
+              aria-pressed={!markupHidden}
+              title={markupHidden ? 'Show markup (it prints only while shown)' : 'Hide markup — hidden marks are left off exports too'}
+              onClick={() => setMarkupHidden(!markupHidden)}
+            >
+              {markupHidden ? <EyeOff size={13} aria-hidden="true" /> : <Eye size={13} aria-hidden="true" />}
+            </button>
+          )}
+          <button className="btn small" onClick={resetView} style={{ marginLeft: 4 }}>
+            Reset view
+          </button>
+          <label
+            className="inline-icon-text layout-snap-toggle"
+            title="Line blocks up with each other as you drag them. Hold ⌘ while dragging to skip it once."
+          >
+            <input type="checkbox" checked={snapEnabled} onChange={(e) => void setSnapEnabled(e.target.checked)} />
+            Snap
+          </label>
+        </div>
       </div>
       <div
         style={{
@@ -944,10 +953,10 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
       >
         {markupOn && active
           ? markupTool === 'select'
-            ? 'Select marks to move, resize or delete them · Esc when done'
+            ? 'Select marks to move, resize or delete them · Right-drag to erase · Esc when done'
             : markupTool === 'eraser'
               ? 'Drag over marks to rub them out · ⌘Z undoes a pass · Esc when done'
-              : 'Drawing · flip the pen to erase · Shift for straight lines · ⌘Z undoes a stroke · Esc when done'
+              : 'Drawing · Right-drag or flip the pen to erase · Shift for straight lines · ⌘Z undoes a stroke · Esc when done'
           : noteEdit
           ? 'Esc or click away to finish'
           : gestureActive && snapTargetsRef.current

@@ -44,6 +44,8 @@ interface Options {
   size: number
   /** Whether a drawing tool is active at all (markup on, and not the select tool). */
   drawing: boolean
+  /** Whether markup mode is on, whatever the tool: a right-button drag erases in any of them. */
+  markupOn: boolean
   blocks: RoomLayoutBlockDraft[]
   finalScale: number
   toCanvasCoords: (clientX: number, clientY: number) => { x: number; y: number } | null
@@ -63,10 +65,14 @@ interface Options {
  *  screen draws; without them a quick stroke comes out as a polygon). The stroke in progress lives
  *  in a ref and is drawn by one preview Shape redrawn with batchDraw — a React render per pointer
  *  sample would lag behind a pen. Each finished stroke, and each whole eraser pass, is one store
- *  change, so one undo step. */
+ *  change, so one undo step.
+ *
+ *  The press is taken in the capture phase and kept from Konva, so a stroke — or a right-button
+ *  erase with the select tool in hand — never also clicks, drags or marquee-selects what it starts
+ *  on. Pointer capture then sends the rest of the gesture to the container, past Konva too. */
 export function useMarkupDrawing(o: Options): {
   handlers: {
-    onPointerDown: (e: React.PointerEvent<HTMLDivElement>) => void
+    onPointerDownCapture: (e: React.PointerEvent<HTMLDivElement>) => void
     onPointerMove: (e: React.PointerEvent<HTMLDivElement>) => void
     onPointerUp: (e: React.PointerEvent<HTMLDivElement>) => void
     onPointerCancel: (e: React.PointerEvent<HTMLDivElement>) => void
@@ -192,17 +198,24 @@ export function useMarkupDrawing(o: Options): {
 
   // --- Pointer handlers ----------------------------------------------------------------------------
 
-  function onPointerDown(e: React.PointerEvent<HTMLDivElement>): void {
-    const { drawing, tool, toCanvasCoords, beginGesture } = opts.current
+  function onPointerDownCapture(e: React.PointerEvent<HTMLDivElement>): void {
+    const { drawing, markupOn, tool, toCanvasCoords, beginGesture } = opts.current
+    // The right button (or a pen button mapped to it) erases for as long as it's held, whichever
+    // tool is picked.
+    const secondary = e.button === 2
+    if (!(drawing || (markupOn && secondary))) return
     // Only a press on the canvas itself — not the toolbar, zoom buttons or an editor over it.
-    if (!drawing || !(e.target instanceof HTMLCanvasElement) || e.button === 2) return
+    if (!(e.target instanceof HTMLCanvasElement)) return
+    if (strokeRef.current || eraseRef.current) return
     const pos = toCanvasCoords(e.clientX, e.clientY)
     if (!pos) return
+    // preventDefault also holds back the mousedown the browser would send after this.
     e.preventDefault()
+    e.stopPropagation()
     e.currentTarget.setPointerCapture(e.pointerId)
     shiftRef.current = e.shiftKey
     beginGesture()
-    if (tool === 'eraser' || isEraserEnd(e)) {
+    if (tool === 'eraser' || secondary || isEraserEnd(e)) {
       eraseRef.current = { pointerId: e.pointerId, pieces: new Map(), last: null, cursor: null }
       eraseTo(pos.x, pos.y)
       return
@@ -341,5 +354,5 @@ export function useMarkupDrawing(o: Options): {
     }
   }
 
-  return { handlers: { onPointerDown, onPointerMove, onPointerUp, onPointerCancel }, drawPreview }
+  return { handlers: { onPointerDownCapture, onPointerMove, onPointerUp, onPointerCancel }, drawPreview }
 }
