@@ -24,6 +24,7 @@ import type {
   EditorMode,
   Folder,
   FolderScope,
+  MarkData,
   RoomLayoutBlock,
   Setup,
   SetupItem,
@@ -371,9 +372,10 @@ export interface RoomLayoutBlockInput {
   zIndex: number
   personName: string | null
   labelColor: string | null
-  kind: 'block' | 'note'
+  kind: 'block' | 'note' | 'mark'
   fontSize: number | null
   fontBold: boolean
+  markData: MarkData | null
 }
 
 export interface ExportedStudioGear {

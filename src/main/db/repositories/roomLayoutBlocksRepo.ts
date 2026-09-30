@@ -1,4 +1,4 @@
-import type { RoomLayoutBlock } from '@shared/types/setup'
+import type { MarkData, RoomLayoutBlock } from '@shared/types/setup'
 import type { RoomLayoutBlockInput, SaveLayoutBlocksResult } from '@shared/types/ipc'
 import { getDb } from '../index'
 
@@ -19,6 +19,19 @@ interface RoomLayoutBlockRow {
   kind: 'block' | 'note'
   font_size: number | null
   font_bold: number
+  mark_data: string | null
+}
+
+/** A stored mark, or null for anything that isn't one — including a row whose JSON didn't parse,
+ *  which renders as nothing rather than taking the whole layout down with it. */
+function parseMarkData(raw: string | null): MarkData | null {
+  if (!raw) return null
+  try {
+    const data = JSON.parse(raw) as MarkData
+    return data && typeof data.tool === 'string' && Array.isArray(data.points) ? data : null
+  } catch {
+    return null
+  }
 }
 
 function mapRow(row: RoomLayoutBlockRow): RoomLayoutBlock {
@@ -38,7 +51,8 @@ function mapRow(row: RoomLayoutBlockRow): RoomLayoutBlock {
     labelColor: row.label_color,
     kind: row.kind,
     fontSize: row.font_size,
-    fontBold: row.font_bold === 1
+    fontBold: row.font_bold === 1,
+    markData: parseMarkData(row.mark_data)
   }
 }
 
@@ -56,8 +70,8 @@ export function copyBlocksToSetup(sourceSetupId: number, targetSetupId: number):
   const db = getDb()
   const blocks = listBlocksBySetup(sourceSetupId)
   const insert = db.prepare(
-    `INSERT INTO room_layout_blocks (setup_id, label, shape, color, x, y, width, height, rotation, z_index, person_name, label_color, kind, font_size, font_bold)
-     VALUES (@setupId, @label, @shape, @color, @x, @y, @width, @height, @rotation, @zIndex, @personName, @labelColor, @kind, @fontSize, @fontBold)`
+    `INSERT INTO room_layout_blocks (setup_id, label, shape, color, x, y, width, height, rotation, z_index, person_name, label_color, kind, font_size, font_bold, mark_data)
+     VALUES (@setupId, @label, @shape, @color, @x, @y, @width, @height, @rotation, @zIndex, @personName, @labelColor, @kind, @fontSize, @fontBold, @markData)`
   )
   const copy = db.transaction(() => {
     for (const block of blocks) {
@@ -76,7 +90,8 @@ export function copyBlocksToSetup(sourceSetupId: number, targetSetupId: number):
         labelColor: block.labelColor,
         kind: block.kind,
         fontSize: block.fontSize,
-        fontBold: block.fontBold ? 1 : 0
+        fontBold: block.fontBold ? 1 : 0,
+        markData: block.markData ? JSON.stringify(block.markData) : null
       })
     }
   })
@@ -95,14 +110,14 @@ export function replaceBlocksForSetup(setupId: number, blocks: RoomLayoutBlockIn
   // save.
   const idMap: Record<string, number> = {}
   const insert = db.prepare(
-    `INSERT INTO room_layout_blocks (setup_id, label, shape, color, x, y, width, height, rotation, z_index, person_name, label_color, kind, font_size, font_bold)
-     VALUES (@setupId, @label, @shape, @color, @x, @y, @width, @height, @rotation, @zIndex, @personName, @labelColor, @kind, @fontSize, @fontBold)`
+    `INSERT INTO room_layout_blocks (setup_id, label, shape, color, x, y, width, height, rotation, z_index, person_name, label_color, kind, font_size, font_bold, mark_data)
+     VALUES (@setupId, @label, @shape, @color, @x, @y, @width, @height, @rotation, @zIndex, @personName, @labelColor, @kind, @fontSize, @fontBold, @markData)`
   )
   const update = db.prepare(
     `UPDATE room_layout_blocks SET
       label = @label, shape = @shape, color = @color, x = @x, y = @y, width = @width,
       height = @height, rotation = @rotation, z_index = @zIndex, person_name = @personName,
-      label_color = @labelColor, kind = @kind, font_size = @fontSize, font_bold = @fontBold,
+      label_color = @labelColor, kind = @kind, font_size = @fontSize, font_bold = @fontBold, mark_data = @markData,
       updated_at = datetime('now')
      WHERE id = @id AND setup_id = @setupId`
   )
@@ -134,7 +149,8 @@ export function replaceBlocksForSetup(setupId: number, blocks: RoomLayoutBlockIn
         labelColor: block.labelColor ?? null,
         kind: block.kind ?? 'block',
         fontSize: block.fontSize ?? null,
-        fontBold: block.fontBold ? 1 : 0
+        fontBold: block.fontBold ? 1 : 0,
+        markData: block.markData ? JSON.stringify(block.markData) : null
       }
       if (typeof block.id === 'number' && existingIds.has(block.id)) {
         update.run({ ...params, id: block.id })

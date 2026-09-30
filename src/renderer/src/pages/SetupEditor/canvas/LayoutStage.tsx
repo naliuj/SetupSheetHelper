@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useThemeColor } from '@renderer/hooks/useThemeColor'
-import { Stage, Layer, Line, Rect, Transformer } from 'react-konva'
+import { Stage, Layer, Line, Rect, Shape, Transformer } from 'react-konva'
 import type Konva from 'konva'
 import { MIN_ZOOM, MAX_ZOOM } from '@renderer/state/layoutStore'
 import { useLayoutStoreState } from '@renderer/state/layoutStoreContext'
@@ -8,6 +8,12 @@ import { useSetupStoreState } from '@renderer/state/setupStoreContext'
 import LayoutBackground from './LayoutBackground'
 import LayoutBlockIcon, { clampCenterToRoom, rotatedHalfExtents } from './LayoutBlockIcon'
 import LayoutNote from './LayoutNote'
+import LayoutMark from './LayoutMark'
+import MarkupToolbar, { MARKUP_TOOLS } from './MarkupToolbar'
+import { useMarkupDrawing } from './useMarkupDrawing'
+import { scaleMarkData } from './markGeometry'
+import { useMarkupPrefsStore } from '@renderer/state/markupPrefsStore'
+import { Eye, EyeOff, PenLine } from 'lucide-react'
 import NoteEditor, { noteScreenGeometry, type StageView } from './NoteEditor'
 import NoteFormatBar from './NoteFormatBar'
 import { fitNoteHeight } from './noteLayout'
@@ -124,6 +130,20 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
   const patchNoteEdit = useLayoutStoreState((s) => s.patchNoteEdit)
   const commitNoteEdit = useLayoutStoreState((s) => s.commitNoteEdit)
   const formatBarRef = useRef<HTMLDivElement | null>(null)
+  const markupOn = useLayoutStoreState((s) => s.markupOn)
+  const markupHidden = useLayoutStoreState((s) => s.markupHidden)
+  const setMarkupOn = useLayoutStoreState((s) => s.setMarkupOn)
+  const setMarkupHidden = useLayoutStoreState((s) => s.setMarkupHidden)
+  const addMark = useLayoutStoreState((s) => s.addMark)
+  const applyErase = useLayoutStoreState((s) => s.applyErase)
+  const markupTool = useMarkupPrefsStore((s) => s.tool)
+  const markupColor = useMarkupPrefsStore((s) => s.color)
+  const markupSize = useMarkupPrefsStore((s) => s.size)
+  const setMarkupPrefs = useMarkupPrefsStore((s) => s.set)
+  useEffect(() => {
+    void useMarkupPrefsStore.getState().load()
+  }, [])
+  const previewRef = useRef<Konva.Shape | null>(null)
   // Snap guides for the drag in progress: the lines computed once at drag start, the current snap
   // on each axis (so a tap only fires when it changes), and whether ⌘ is held to move freely.
   const snapTargetsRef = useRef<SnapTargets | null>(null)
@@ -194,6 +214,28 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
   const finalX = offsetX + panX
   const finalY = offsetY + panY
   const view: StageView = { scale: finalScale, x: finalX, y: finalY }
+
+  // A drawing tool is in hand: the canvas takes strokes, and blocks, notes and marks stop answering
+  // clicks so a stroke can start on top of one without grabbing it.
+  const drawing = active && markupOn && markupTool !== 'select'
+  const markup = useMarkupDrawing({
+    tool: markupTool,
+    color: markupColor,
+    size: markupSize,
+    drawing,
+    markupOn: active && markupOn,
+    blocks,
+    finalScale,
+    roomSize: imageSize,
+    toCanvasCoords: (clientX, clientY) => toCanvasCoords(clientX, clientY),
+    nodeRefs,
+    previewRef,
+    addMark,
+    applyErase,
+    beginGesture,
+    endGesture
+  })
+  const hasMarks = blocks.some((b) => b.kind === 'mark')
 
   // ⌘ turns snapping off for as long as it is held, including mid-drag. Tracked here because Konva
   // hands dragBoundFunc a position and no event.
@@ -467,10 +509,15 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
     const rotation = node.rotation()
     node.scaleX(1)
     node.scaleY(1)
+    // A mark's drawing is stored in its own box's coordinates, so a resize stretches the points
+    // along with the box — otherwise the box would grow around a drawing that stayed put.
+    const markData = block.kind === 'mark' && block.markData
+      ? scaleMarkData(block.markData, width / block.width, height / block.height)
+      : undefined
     // Resizing from a non-bottom-right handle moves the node's position live (to keep the
     // opposite anchor fixed) — previously this was never persisted, so the store's x/y silently
     // went stale and the block could snap back to its old position on the next re-render.
-    updateBlockTransform(id, { x: node.x(), y: node.y(), width, height, rotation })
+    updateBlockTransform(id, { x: node.x(), y: node.y(), width, height, rotation, ...(markData ? { markData } : {}) })
 
     if (selectedBlockIds.size <= 1 || !selectedBlockIds.has(id)) return
     const scaleX = width / block.width
@@ -491,7 +538,10 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
         ...clampedCenter,
         width: otherWidth,
         height: otherHeight,
-        rotation: otherRotation
+        rotation: otherRotation,
+        ...(other.kind === 'mark' && other.markData
+          ? { markData: scaleMarkData(other.markData, otherWidth / other.width, otherHeight / other.height) }
+          : {})
       })
       // handleTransform left this node's scale/rotation set imperatively mid-mirror — reset scale
       // now that the resize is baked into width/height in the store (matching the active node's
@@ -535,6 +585,19 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
         e.preventDefault()
         setSpaceHeld(true)
         return
+      }
+      // Markup: a single letter picks a tool (as in drawing apps), and Escape puts the pen down.
+      if (markupOn && active && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        if (e.key === 'Escape') {
+          setMarkupOn(false)
+          return
+        }
+        const pick = MARKUP_TOOLS.find((t) => t.key.toLowerCase() === e.key.toLowerCase())
+        if (pick) {
+          e.preventDefault()
+          setMarkupPrefs({ tool: pick.tool })
+          return
+        }
       }
       if (selectedBlockIds.size === 0) return
       // Enter types into the one selected note — the keyboard counterpart of double-clicking it.
@@ -586,7 +649,7 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
       window.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener('keyup', handleKeyUp)
     }
-  }, [selectedBlockIds, active, paneActive, blocks, imageSize, updateBlockTransform, moveBlocksBy, startNoteEdit])
+  }, [selectedBlockIds, active, paneActive, blocks, imageSize, updateBlockTransform, moveBlocksBy, startNoteEdit, markupOn, setMarkupOn, setMarkupPrefs])
 
   const editingBlock = editingBlockId != null ? blocks.find((b) => b.id === editingBlockId) : null
 
@@ -687,6 +750,7 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
 
   // Empty-canvas mousedown starts either a pan-drag (Space held) or a marquee-select drag.
   function handleStageMouseDown(e: Konva.KonvaEventObject<MouseEvent>): void {
+    if (drawing) return
     if (e.target !== e.target.getStage()) return
     if (spaceHeld) {
       setPanDragStart({ startClientX: e.evt.clientX, startClientY: e.evt.clientY, startPanX: panX, startPanY: panY })
@@ -789,42 +853,95 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
       ref={containerRef}
       onDrop={handleDrop}
       onDragOver={(e) => e.preventDefault()}
-      style={{ width: '100%', height: '100%', overflow: 'hidden', background: 'var(--color-bg)', position: 'relative' }}
+      {...markup.handlers}
+      // In markup mode the right button erases, so it mustn't also open a menu. Mid-erase the
+      // pointer is captured, so the event arrives on this container rather than the canvas; a menu
+      // left to open there would swallow the release and leave the eraser stuck down.
+      onContextMenuCapture={(e) => {
+        if (!(active && markupOn)) return
+        if (!(e.target instanceof HTMLCanvasElement) && e.target !== e.currentTarget) return
+        e.preventDefault()
+        e.stopPropagation()
+      }}
+      style={{
+        width: '100%',
+        height: '100%',
+        overflow: 'hidden',
+        background: 'var(--color-bg)',
+        position: 'relative',
+        cursor: drawing ? 'crosshair' : undefined,
+        // A pen or finger drag draws; without this the browser may treat it as a scroll.
+        touchAction: drawing ? 'none' : undefined
+      }}
     >
-      <div
-        style={{ position: 'absolute', top: 8, right: 8, zIndex: 10, display: 'flex', alignItems: 'center', gap: 4 }}
-      >
-        <button
-          className="btn small"
-          onClick={zoomOut}
-          disabled={zoomScale <= MIN_ZOOM}
-          aria-label="Zoom out"
-        >
-          <Icon name="minus" size={14} />
-        </button>
-        <span
-          style={{ minWidth: 44, textAlign: 'center', fontSize: 12, color: 'var(--color-text-dim)', userSelect: 'none' }}
-        >
-          {Math.round(zoomScale * 100)}%
-        </span>
-        <button
-          className="btn small"
-          onClick={zoomIn}
-          disabled={zoomScale >= MAX_ZOOM}
-          aria-label="Zoom in"
-        >
-          <Icon name="plus" size={14} />
-        </button>
-        <button className="btn small" onClick={resetView} style={{ marginLeft: 4 }}>
-          Reset view
-        </button>
-        <label
-          className="inline-icon-text layout-snap-toggle"
-          title="Line blocks up with each other as you drag them. Hold ⌘ while dragging to skip it once."
-        >
-          <input type="checkbox" checked={snapEnabled} onChange={(e) => void setSnapEnabled(e.target.checked)} />
-          Snap
-        </label>
+      {/* The markup toolbar and the zoom controls share one row across the top, and the toolbar drops
+          below the controls when the canvas is too narrow for both, rather than sliding under them. */}
+      <div className="layout-canvas-topbar">
+        {markupOn && active && (
+          <MarkupToolbar
+            tool={markupTool}
+            color={markupColor}
+            size={markupSize}
+            onTool={(tool) => setMarkupPrefs({ tool })}
+            onColor={(color) => setMarkupPrefs({ color })}
+            onSize={(size) => setMarkupPrefs({ size })}
+            onDone={() => setMarkupOn(false)}
+          />
+        )}
+        <div className="layout-canvas-zoom">
+          <button
+            className="btn small"
+            onClick={zoomOut}
+            disabled={zoomScale <= MIN_ZOOM}
+            aria-label="Zoom out"
+          >
+            <Icon name="minus" size={14} />
+          </button>
+          <span
+            style={{ minWidth: 44, textAlign: 'center', fontSize: 12, color: 'var(--color-text-dim)', userSelect: 'none' }}
+          >
+            {Math.round(zoomScale * 100)}%
+          </span>
+          <button
+            className="btn small"
+            onClick={zoomIn}
+            disabled={zoomScale >= MAX_ZOOM}
+            aria-label="Zoom in"
+          >
+            <Icon name="plus" size={14} />
+          </button>
+          <button
+            className={markupOn ? 'btn small primary inline-icon-text' : 'btn small inline-icon-text'}
+            aria-pressed={markupOn}
+            onClick={() => setMarkupOn(!markupOn)}
+            title="Draw on the layout with a pen, mouse or trackpad"
+            style={{ marginLeft: 4, gap: 4 }}
+          >
+            <PenLine size={13} aria-hidden="true" />
+            Markup
+          </button>
+          {(hasMarks || markupOn) && (
+            <button
+              className="btn small"
+              aria-label={markupHidden ? 'Show markup' : 'Hide markup'}
+              aria-pressed={!markupHidden}
+              title={markupHidden ? 'Show markup (it prints only while shown)' : 'Hide markup — hidden marks are left off exports too'}
+              onClick={() => setMarkupHidden(!markupHidden)}
+            >
+              {markupHidden ? <EyeOff size={13} aria-hidden="true" /> : <Eye size={13} aria-hidden="true" />}
+            </button>
+          )}
+          <button className="btn small" onClick={resetView} style={{ marginLeft: 4 }}>
+            Reset view
+          </button>
+          <label
+            className="inline-icon-text layout-snap-toggle"
+            title="Line blocks up with each other as you drag them. Hold ⌘ while dragging to skip it once."
+          >
+            <input type="checkbox" checked={snapEnabled} onChange={(e) => void setSnapEnabled(e.target.checked)} />
+            Snap
+          </label>
+        </div>
       </div>
       <div
         style={{
@@ -838,7 +955,13 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
           pointerEvents: 'none'
         }}
       >
-        {noteEdit
+        {markupOn && active
+          ? markupTool === 'select'
+            ? 'Select marks to move, resize or delete them · Right-drag to erase · Esc when done'
+            : markupTool === 'eraser'
+              ? 'Drag over marks to rub them out · ⌘Z undoes a pass · Esc when done'
+              : 'Drawing · Right-drag or flip the pen to erase · Shift for straight lines · ⌘Z undoes a stroke · Esc when done'
+          : noteEdit
           ? 'Esc or click away to finish'
           : gestureActive && snapTargetsRef.current
             ? 'Hold ⌘ to move freely'
@@ -873,7 +996,7 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
             onSize={(width, height) => setImageSize({ width, height })}
           />
         </Layer>
-        <Layer>
+        <Layer listening={!drawing}>
           {blocks.map((block) => {
             const shared = {
               ref: (node: Konva.Group | null) => {
@@ -903,6 +1026,9 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
               onContextMenu: (clientX: number, clientY: number) =>
                 setBlockMenu({ blockId: block.id, x: clientX, y: clientY })
             }
+            if (block.kind === 'mark') {
+              return markupHidden ? null : <LayoutMark key={block.id} {...shared} interactive={!drawing} />
+            }
             return block.kind === 'note' ? (
               <LayoutNote
                 key={block.id}
@@ -914,7 +1040,9 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
               <LayoutBlockIcon key={block.id} {...shared} />
             )
           })}
-          {[...selectedBlockIds].filter((id) => id !== noteEdit?.id).map((id) => (
+          {[...selectedBlockIds]
+            .filter((id) => id !== noteEdit?.id && !drawing && !(markupHidden && blocks.find((b) => b.id === id)?.kind === 'mark'))
+            .map((id) => (
             <Transformer
               key={id}
               ref={(node) => {
@@ -981,6 +1109,10 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
               listening={false}
             />
           )}
+        </Layer>
+        {/* The stroke being drawn and the eraser's live results — see useMarkupDrawing. */}
+        <Layer listening={false}>
+          <Shape ref={previewRef} sceneFunc={(ctx) => markup.drawPreview(ctx)} />
         </Layer>
       </Stage>
       {noteEdit && (
