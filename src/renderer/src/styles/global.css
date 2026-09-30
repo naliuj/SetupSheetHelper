@@ -1690,6 +1690,17 @@ input[type='checkbox']:focus-visible {
 /* Studio setup → Import from a spreadsheet (ImportSpreadsheetModal). */
 .modal.spreadsheet-import {
   width: 640px;
+  /* The card itself doesn't scroll — its body does — so the drop veil, positioned against the
+     card, covers all of it however far the columns list has been scrolled. */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.spreadsheet-import-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
 }
 
 .spreadsheet-import-title {
@@ -1744,11 +1755,12 @@ input[type='checkbox']:focus-visible {
 }
 
 .spreadsheet-import-guessed {
-  border-color: var(--color-warning) !important;
+  border-color: var(--color-warning);
 }
 
 .spreadsheet-import-guess-note {
-  grid-column: 2 / -1;
+  display: block;
+  margin-top: 3px;
 }
 
 .spreadsheet-import-footer {
@@ -1788,7 +1800,7 @@ input[type='checkbox']:focus-visible {
 
 .spreadsheet-import-item {
   display: grid;
-  grid-template-columns: 20px minmax(0, 1.4fr) 56px minmax(0, 1.6fr);
+  grid-template-columns: minmax(0, 1.4fr) 56px minmax(0, 1.6fr);
   align-items: center;
   gap: 2px 10px;
   padding: 7px 10px;
@@ -1805,7 +1817,15 @@ input[type='checkbox']:focus-visible {
 }
 
 .spreadsheet-import-item-note {
-  grid-column: 2 / -1;
+  grid-column: 1 / -1;
+  padding-left: 22px;
+}
+
+.spreadsheet-import-item-pick {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
 
 .spreadsheet-import-adds {

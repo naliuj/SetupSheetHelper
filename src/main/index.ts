@@ -87,6 +87,23 @@ function createWindow(): BrowserWindow {
   return mainWindow
 }
 
+/** Keeps every window on the app's own page.
+ *
+ *  A file dragged from Finder and dropped on any part of a window that doesn't handle drops makes
+ *  Chromium navigate to it — the setup sheet is replaced by the raw PDF, image or CSV, and every
+ *  unsaved edit goes with it. The spreadsheet import dialog catches its own drops; this covers the
+ *  rest. The app never navigates on purpose (it's one page), so anything but its own URL is
+ *  refused. Hooked once on the app, like initAccessibility, so the pop-out Layout window and any
+ *  window added later get it too. */
+function initNavigationGuard(): void {
+  const ownPage = process.env['ELECTRON_RENDERER_URL'] ?? pathToFileURL(join(__dirname, '../renderer/index.html')).href
+  app.on('browser-window-created', (_event, win) => {
+    win.webContents.on('will-navigate', (event, url) => {
+      if (!url.startsWith(ownPage)) event.preventDefault()
+    })
+  })
+}
+
 app.whenReady().then(() => {
   // First thing after ready: everything below can fail, and until this runs those failures go
   // nowhere a packaged build can show them.
@@ -133,6 +150,7 @@ app.whenReady().then(() => {
   // Before any window exists: this hooks browser-window-created, so it has to be listening
   // before createWindow runs or the first window never gets the stored zoom factor.
   initAccessibility()
+  initNavigationGuard()
   installQuitFlush()
   const mainWindow = createWindow()
   installAppMenu(mainWindow)

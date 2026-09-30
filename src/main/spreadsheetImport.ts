@@ -16,10 +16,16 @@ async function pickSpreadsheet(): Promise<PickedSpreadsheet | null> {
   })
   if (result.canceled || result.filePaths.length === 0) return null
   const path = result.filePaths[0]
-  if (statSync(path).size > MAX_IMPORT_BYTES) {
-    return { fileName: basename(path), text: '', error: 'That file is too big to be a gear list (over 5 MB).' }
+  try {
+    if (statSync(path).size > MAX_IMPORT_BYTES) {
+      return { fileName: basename(path), text: '', error: 'That file is too big to be a gear list (over 5 MB).' }
+    }
+    return { fileName: basename(path), text: decodeSpreadsheet(readFileSync(path)), error: null }
+  } catch {
+    // Gone since it was picked, on a volume that unmounted, or unreadable — none of which should
+    // surface as an unhandled rejection with nothing on screen.
+    return { fileName: basename(path), text: '', error: "Couldn't read that file. Check it isn't open in another app, then try again." }
   }
-  return { fileName: basename(path), text: decodeSpreadsheet(readFileSync(path)), error: null }
 }
 
 /** The template offered for starting from scratch: the columns the importer recognizes without
@@ -40,8 +46,12 @@ async function saveTemplate(): Promise<boolean> {
     filters: [{ name: 'CSV', extensions: ['csv'] }]
   })
   if (result.canceled || !result.filePath) return false
-  writeFileSync(result.filePath, TEMPLATE, 'utf8')
-  return true
+  try {
+    writeFileSync(result.filePath, TEMPLATE, 'utf8')
+    return true
+  } catch {
+    return false
+  }
 }
 
 export function registerSpreadsheetImportHandlers(): void {
