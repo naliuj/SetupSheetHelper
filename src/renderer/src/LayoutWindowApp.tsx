@@ -65,7 +65,8 @@ const handlers: Record<string, () => void> = {
   'zoom-in': () => useLayoutStore.getState().zoomIn(),
   'zoom-out': () => useLayoutStore.getState().zoomOut(),
   'reset-view': () => useLayoutStore.getState().resetView(),
-  'add-text-note': () => useLayoutStore.getState().requestNewNote('text')
+  'add-text-note': () => useLayoutStore.getState().requestNewNote('text'),
+  'toggle-markup': () => useLayoutStore.getState().setMarkupOn(!useLayoutStore.getState().markupOn)
 }
 
 function isTextField(target: EventTarget | null): boolean {

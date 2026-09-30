@@ -126,6 +126,13 @@ export const KEYBIND_ACTIONS: KeybindActionDef[] = [
     defaultCombo: 'CmdOrCtrl+ArrowLeft'
   },
   {
+    id: 'toggle-markup',
+    label: 'Toggle Markup (Draw on Layout)',
+    category: 'Layout',
+    scope: 'layout',
+    defaultCombo: 'CmdOrCtrl+Shift+M'
+  },
+  {
     id: 'add-text-note',
     label: 'Add Text Note',
     category: 'Layout',

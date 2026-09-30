@@ -54,6 +54,11 @@ export function exportStageToDataUrl(
     const noteLabels = stage.find<Konva.Text>('.note-label')
     const prevNoteShapeAttrs = noteShapes.map((s) => ({ fill: s.fill(), stroke: s.stroke(), strokeWidth: s.strokeWidth(), dash: s.dash() }))
     const prevNoteLabelFills = noteLabels.map((l) => l.fill())
+    // Markup: every stroke and shape prints in the dark print color (a highlighter keeps its
+    // translucency, so it comes out as a gray band rather than a black one). Red ink and a blue
+    // arrow are indistinguishable grays on a mono printer anyway; dark reads best on the gray plan.
+    const markShapes = stage.find<Konva.Shape>('.mark-shape')
+    const prevMarkAttrs = markShapes.map((s) => ({ fill: s.fill(), stroke: s.stroke() }))
     // Every label is forced back to the readable automatic color here, INCLUDING ones the user
     // gave a custom text color. Black and white turns every fill into the same light gray, so a
     // label chosen to stand out against its own fill — white on a dark blue, say — would all but
@@ -84,6 +89,10 @@ export function exportStageToDataUrl(
         }
       })
       noteLabels.forEach((l) => l.fill(MONOCHROME_NOTE_TEXT))
+      markShapes.forEach((s) => {
+        if (s.fill()) s.fill(MONOCHROME_NOTE_TEXT)
+        if (s.stroke()) s.stroke(MONOCHROME_NOTE_TEXT)
+      })
       stage.batchDraw()
 
       dataUrl = stage.toDataURL({ pixelRatio })
@@ -104,6 +113,10 @@ export function exportStageToDataUrl(
         s.dash(prevNoteShapeAttrs[i].dash)
       })
       noteLabels.forEach((l, i) => l.fill(prevNoteLabelFills[i]))
+      markShapes.forEach((s, i) => {
+        s.fill(prevMarkAttrs[i].fill)
+        s.stroke(prevMarkAttrs[i].stroke)
+      })
       bgImage?.clearCache()
       stage.batchDraw()
     }

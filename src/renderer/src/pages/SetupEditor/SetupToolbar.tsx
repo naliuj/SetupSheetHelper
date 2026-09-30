@@ -500,6 +500,12 @@ export default function SetupToolbar({
     'reset-view': () => {
       if (mode === 'layout') layoutStoreApi.getState().resetView()
     },
+    'toggle-markup': () => {
+      if (mode === 'layout') {
+        const state = layoutStoreApi.getState()
+        state.setMarkupOn(!state.markupOn)
+      }
+    },
     'add-text-note': () => {
       if (mode === 'layout') layoutStoreApi.getState().requestNewNote('text')
     },

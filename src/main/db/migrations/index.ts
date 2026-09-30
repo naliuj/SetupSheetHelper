@@ -49,6 +49,7 @@ import { run as blockLabelColor } from './042_block_label_color'
 import { run as standardizeBerkleeMicNames } from './043_standardize_berklee_mic_names'
 import { run as layoutTextNotes } from './044_layout_text_notes'
 import { run as normalizeImageLayoutUnits } from './045_normalize_image_layout_units'
+import { run as layoutMarks } from './046_layout_marks'
 
 import type { MigrationContext } from '../migrate'
 
@@ -109,5 +110,6 @@ export const MIGRATIONS: Migration[] = [
   { version: 42, run: blockLabelColor },
   { version: 43, run: standardizeBerkleeMicNames },
   { version: 44, run: layoutTextNotes },
-  { version: 45, run: normalizeImageLayoutUnits }
+  { version: 45, run: normalizeImageLayoutUnits },
+  { version: 46, run: layoutMarks }
 ]

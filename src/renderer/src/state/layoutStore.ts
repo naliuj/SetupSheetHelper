@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { temporal } from 'zundo'
-import type { RoomLayoutBlockDraft } from '@shared/types/setup'
+import type { MarkData, RoomLayoutBlockDraft } from '@shared/types/setup'
 import { createSetupStore, useSetupStore, type SaveError } from './setupStore'
 import { useToastStore } from './toastStore'
 import { fitNoteHeight, measureNoteHeight } from '@renderer/pages/SetupEditor/canvas/noteLayout'
@@ -44,15 +44,27 @@ export interface NewBlock {
   height?: number
   personName?: string | null
   labelColor?: string | null
-  kind?: 'block' | 'note'
+  kind?: 'block' | 'note' | 'mark'
   fontSize?: number | null
   fontBold?: boolean
+  markData?: MarkData | null
+  /** Select the new block (the default). Markup strokes pass false: selecting each one as it's
+   *  drawn would put resize handles on every stroke mid-drawing. */
+  select?: boolean
+}
+
+/** A mark to add: its bounding box (center, like every block), its drawing, and its rotation —
+ *  0 for a new stroke, the original's for a piece the eraser left of a rotated one. */
+export interface NewMarkInput {
+  box: { x: number; y: number; width: number; height: number }
+  markData: MarkData
+  rotation?: number
 }
 
 /** The fields the block Edit dialog, or a note's format bar, can change. A note's height is never
  *  patched directly: it follows from the text, width and font (see fitNoteHeight). */
 export type BlockPatch = Partial<
-  Pick<RoomLayoutBlockDraft, 'label' | 'color' | 'personName' | 'labelColor' | 'fontSize' | 'fontBold'>
+  Pick<RoomLayoutBlockDraft, 'label' | 'color' | 'personName' | 'labelColor' | 'fontSize' | 'fontBold' | 'markData'>
 >
 
 /** A text note being typed on the canvas. `draft` is a working copy that lives outside `blocks`
@@ -101,13 +113,25 @@ interface LayoutState {
    *  asks for a new note. Only LayoutStage knows where the middle of the view is, so it watches
    *  this and places the note; `seq` makes two requests for the same preset distinct values. */
   noteRequest: { preset: NotePreset; seq: number } | null
+  /** Markup mode (drawing on the plan) is on. View state — never saved, never in undo history.
+   *  In the store rather than LayoutStage so the Toggle Markup keybind can reach it. */
+  markupOn: boolean
+  /** Marks hidden from view — and so from exports, which capture what's on screen. */
+  markupHidden: boolean
+  setMarkupOn(on: boolean): void
+  setMarkupHidden(hidden: boolean): void
 
   loadForSetup(setupId: number | null): Promise<void>
   addBlock(block: NewBlock): string
   updateBlockTransform(
     id: number | string,
-    patch: Partial<Pick<RoomLayoutBlockDraft, 'x' | 'y' | 'width' | 'height' | 'rotation'>>
+    patch: Partial<Pick<RoomLayoutBlockDraft, 'x' | 'y' | 'width' | 'height' | 'rotation' | 'markData'>>
   ): void
+  /** Adds a finished markup stroke or shape — one undo step, not selected. */
+  addMark(mark: NewMarkInput): void
+  /** Applies one eraser pass: the marks it removed or split, and the pieces left over, in ONE
+   *  state change, so the whole pass is one undo step however many strokes it crossed. */
+  applyErase(removeIds: (number | string)[], add: NewMarkInput[]): void
   /** Applies every edit from the block's Edit dialog in ONE state change, so one Edit is one
    *  Undo step. The dialog used to call a rename and a recolor separately, which cost two. */
   updateBlock(id: number | string, patch: BlockPatch): void
@@ -168,6 +192,12 @@ export function createLayoutStore(setupStoreApi: SetupStoreApi) {
       layoutBackgroundVersion: 0,
       noteEdit: null,
       noteRequest: null,
+      markupOn: false,
+      markupHidden: false,
+      // Turning markup on shows the marks — drawing onto a hidden layer would look like nothing
+      // happened.
+      setMarkupOn: (on) => set(on ? { markupOn: true, markupHidden: false } : { markupOn: false }),
+      setMarkupHidden: (hidden) => set({ markupHidden: hidden }),
 
       loadForSetup: async (setupId) => {
         store.temporal.getState().clear()
@@ -179,7 +209,7 @@ export function createLayoutStore(setupStoreApi: SetupStoreApi) {
         set({ blocks, selectedBlockIds: new Set(), zoomScale: 1, panX: 0, panY: 0, isDirty: false, noteEdit: null })
       },
 
-      addBlock: ({ label, shape, color, x, y, width, height, personName, labelColor, kind, fontSize, fontBold }) => {
+      addBlock: ({ label, shape, color, x, y, width, height, personName, labelColor, kind, fontSize, fontBold, markData, select = true }) => {
         const id = newDraftId()
         const maxZ = get().blocks.reduce((max, b) => Math.max(max, b.zIndex), 0)
         const draft: RoomLayoutBlockDraft = {
@@ -197,9 +227,14 @@ export function createLayoutStore(setupStoreApi: SetupStoreApi) {
           labelColor: labelColor ?? null,
           kind: kind ?? 'block',
           fontSize: fontSize ?? null,
-          fontBold: fontBold ?? false
+          fontBold: fontBold ?? false,
+          markData: markData ?? null
         }
-        set({ blocks: [...get().blocks, fitNoteHeight(draft)], isDirty: true, selectedBlockIds: new Set([id]) })
+        set({
+          blocks: [...get().blocks, fitNoteHeight(draft)],
+          isDirty: true,
+          ...(select ? { selectedBlockIds: new Set([id]) } : {})
+        })
         return id
       },
 
@@ -238,7 +273,8 @@ export function createLayoutStore(setupStoreApi: SetupStoreApi) {
       removeBlocks: (ids) => {
         const idSet = new Set(ids)
         const removed = get().blocks.filter((b) => idSet.has(b.id))
-        const noun = removed.every((b) => b.kind === 'note') ? 'note' : removed.some((b) => b.kind === 'note') ? 'item' : 'block'
+        const kinds = new Set(removed.map((b) => b.kind))
+        const noun = kinds.size !== 1 ? 'item' : kinds.has('note') ? 'note' : kinds.has('mark') ? 'mark' : 'block'
         set((state) => {
           const idSet = new Set(ids)
           const selectedBlockIds = new Set([...state.selectedBlockIds].filter((id) => !idSet.has(id)))
@@ -394,6 +430,54 @@ export function createLayoutStore(setupStoreApi: SetupStoreApi) {
 
       bumpLayoutBackgroundVersion: () => set((state) => ({ layoutBackgroundVersion: state.layoutBackgroundVersion + 1 })),
 
+      addMark: ({ box, markData }) => {
+        get().addBlock({
+          kind: 'mark',
+          label: '',
+          shape: 'rect',
+          color: markData.color,
+          x: box.x,
+          y: box.y,
+          width: box.width,
+          height: box.height,
+          markData,
+          select: false
+        })
+      },
+
+      applyErase: (removeIds, add) => {
+        if (removeIds.length === 0 && add.length === 0) return
+        const gone = new Set(removeIds)
+        const kept = get().blocks.filter((b) => !gone.has(b.id))
+        let maxZ = kept.reduce((max, b) => Math.max(max, b.zIndex), 0)
+        const pieces: RoomLayoutBlockDraft[] = add.map((m) => {
+          maxZ += 1
+          return {
+            id: newDraftId(),
+            label: '',
+            shape: 'rect',
+            color: m.markData.color,
+            x: m.box.x,
+            y: m.box.y,
+            width: m.box.width,
+            height: m.box.height,
+            rotation: m.rotation ?? 0,
+            zIndex: maxZ,
+            personName: null,
+            labelColor: null,
+            kind: 'mark',
+            fontSize: null,
+            fontBold: false,
+            markData: m.markData
+          }
+        })
+        set((state) => ({
+          blocks: [...kept, ...pieces],
+          selectedBlockIds: new Set([...state.selectedBlockIds].filter((id) => !gone.has(id))),
+          isDirty: true
+        }))
+      },
+
       requestNewNote: (preset) => set((state) => ({ noteRequest: { preset, seq: (state.noteRequest?.seq ?? 0) + 1 } })),
 
       startNewNote: (preset, at) => {
@@ -414,7 +498,8 @@ export function createLayoutStore(setupStoreApi: SetupStoreApi) {
           labelColor: null,
           kind: 'note',
           fontSize,
-          fontBold: false
+          fontBold: false,
+          markData: null
         }
         set({ noteEdit: { id: null, draft }, selectedBlockIds: new Set() })
       },

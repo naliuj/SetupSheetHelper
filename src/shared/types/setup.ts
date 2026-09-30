@@ -85,12 +85,29 @@ export interface RoomLayoutBlock {
   labelColor: string | null
   /** 'note' = a free-typed text note: `label` is its text, `color` its fill (NOTE_NO_FILL for
    *  plain text on the plan), and it always has shape 'rect'. Rendered by LayoutNote, not
-   *  LayoutBlockIcon. */
-  kind: 'block' | 'note'
+   *  LayoutBlockIcon. 'mark' = drawing-tablet markup: everything about it is in `markData`, and
+   *  it's rendered by LayoutMark. */
+  kind: 'block' | 'note' | 'mark'
   /** A note's font size in room pixels. null on blocks, whose labels shrink to fit instead. */
   fontSize: number | null
   /** Whether a note's text is bold. Always false on blocks, whose labels are always bold. */
   fontBold: boolean
+  /** A mark's drawing. null on blocks and notes. */
+  markData: MarkData | null
+}
+
+export type MarkTool = 'pen' | 'highlighter' | 'line' | 'arrow' | 'ellipse' | 'rect'
+
+/** One piece of Layout Mode markup. Coordinates are room pixels relative to the mark block's
+ *  top-left corner, so moving the block moves the mark without touching them. */
+export interface MarkData {
+  tool: MarkTool
+  color: string
+  /** Pen and line width in room pixels (the highlighter's is fixed wider — see markGeometry). */
+  size: number
+  /** pen/highlighter: flat [x, y, pressure, x, y, pressure, …], pressure 0-1.
+   *  line/arrow: [x1, y1, x2, y2]. ellipse/rect: empty — they fill the block's own box. */
+  points: number[]
 }
 
 export interface Setup {
