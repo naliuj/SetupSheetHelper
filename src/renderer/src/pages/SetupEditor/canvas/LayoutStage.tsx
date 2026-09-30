@@ -853,9 +853,12 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
       onDrop={handleDrop}
       onDragOver={(e) => e.preventDefault()}
       {...markup.handlers}
-      // In markup mode the right button erases, so it mustn't also open the canvas menu.
+      // In markup mode the right button erases, so it mustn't also open a menu. Mid-erase the
+      // pointer is captured, so the event arrives on this container rather than the canvas; a menu
+      // left to open there would swallow the release and leave the eraser stuck down.
       onContextMenuCapture={(e) => {
-        if (!(active && markupOn) || !(e.target instanceof HTMLCanvasElement)) return
+        if (!(active && markupOn)) return
+        if (!(e.target instanceof HTMLCanvasElement) && e.target !== e.currentTarget) return
         e.preventDefault()
         e.stopPropagation()
       }}

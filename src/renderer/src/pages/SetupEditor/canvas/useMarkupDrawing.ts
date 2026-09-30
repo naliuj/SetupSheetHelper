@@ -76,6 +76,7 @@ export function useMarkupDrawing(o: Options): {
     onPointerMove: (e: React.PointerEvent<HTMLDivElement>) => void
     onPointerUp: (e: React.PointerEvent<HTMLDivElement>) => void
     onPointerCancel: (e: React.PointerEvent<HTMLDivElement>) => void
+    onLostPointerCapture: (e: React.PointerEvent<HTMLDivElement>) => void
   }
   drawPreview: (ctx: Konva.Context) => void
 } {
@@ -206,12 +207,16 @@ export function useMarkupDrawing(o: Options): {
     if (!(drawing || (markupOn && secondary))) return
     // Only a press on the canvas itself — not the toolbar, zoom buttons or an editor over it.
     if (!(e.target instanceof HTMLCanvasElement)) return
-    if (strokeRef.current || eraseRef.current) return
     const pos = toCanvasCoords(e.clientX, e.clientY)
     if (!pos) return
     // preventDefault also holds back the mousedown the browser would send after this.
     e.preventDefault()
     e.stopPropagation()
+    // A gesture whose release never arrived is finished now, or it would block this one.
+    if (strokeRef.current || eraseRef.current) {
+      const staleId = eraseRef.current?.pointerId ?? strokeRef.current?.pointerId
+      finishGesture(e.currentTarget, null, true, staleId === e.pointerId)
+    }
     e.currentTarget.setPointerCapture(e.pointerId)
     shiftRef.current = e.shiftKey
     beginGesture()
@@ -230,10 +235,40 @@ export function useMarkupDrawing(o: Options): {
     redraw()
   }
 
+  /** Ends the gesture in progress — committing its stroke or erase pass, or dropping it — if it
+   *  belongs to `pointerId` (null: whichever pointer it is). `keepCapture` is for a press that
+   *  takes over the same pointer straight away. */
+  function finishGesture(el: HTMLDivElement, pointerId: number | null, commit: boolean, keepCapture = false): void {
+    const pass = eraseRef.current
+    const stroke = strokeRef.current
+    const id = pass?.pointerId ?? stroke?.pointerId
+    if (id === undefined || (pointerId !== null && id !== pointerId)) return
+    try {
+      if (pass) {
+        finishErase(commit)
+      } else if (stroke) {
+        strokeRef.current = null
+        const mark = commit ? strokeToMark(stroke) : null
+        if (mark) opts.current.addMark({ box: mark.box, markData: mark.markData })
+      }
+    } finally {
+      eraseRef.current = null
+      strokeRef.current = null
+      if (!keepCapture && el.hasPointerCapture(id)) el.releasePointerCapture(id)
+      opts.current.endGesture()
+      redraw()
+    }
+  }
+
   function onPointerMove(e: React.PointerEvent<HTMLDivElement>): void {
     shiftRef.current = e.shiftKey
     const { toCanvasCoords } = opts.current
     const pass = eraseRef.current
+    // A mouse whose buttons are all up has been released, whether or not its pointerup arrived.
+    if ((pass || strokeRef.current) && e.pointerType === 'mouse' && e.buttons === 0) {
+      finishGesture(e.currentTarget, e.pointerId, true)
+      return
+    }
     if (pass && pass.pointerId === e.pointerId) {
       for (const ev of samples(e)) {
         const pos = toCanvasCoords(ev.clientX, ev.clientY)
@@ -259,29 +294,17 @@ export function useMarkupDrawing(o: Options): {
   }
 
   function onPointerUp(e: React.PointerEvent<HTMLDivElement>): void {
-    const { addMark, endGesture } = opts.current
-    try {
-      if (eraseRef.current?.pointerId === e.pointerId) {
-        finishErase(true)
-        return
-      }
-      const stroke = strokeRef.current
-      if (!stroke || stroke.pointerId !== e.pointerId) return
-      strokeRef.current = null
-      const mark = strokeToMark(stroke)
-      if (mark) addMark({ box: mark.box, markData: mark.markData })
-      redraw()
-    } finally {
-      if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId)
-      endGesture()
-    }
+    finishGesture(e.currentTarget, e.pointerId, true)
   }
 
   function onPointerCancel(e: React.PointerEvent<HTMLDivElement>): void {
-    if (eraseRef.current?.pointerId === e.pointerId) finishErase(false)
-    if (strokeRef.current?.pointerId === e.pointerId) strokeRef.current = null
-    opts.current.endGesture()
-    redraw()
+    finishGesture(e.currentTarget, e.pointerId, false)
+  }
+
+  /** Capture lost without a pointerup (the window lost focus, a menu took the mouse): keep what
+   *  was drawn rather than leaving the gesture open. After a normal release this finds nothing. */
+  function onLostPointerCapture(e: React.PointerEvent<HTMLDivElement>): void {
+    finishGesture(e.currentTarget, e.pointerId, true)
   }
 
   // --- Preview ---------------------------------------------------------------------------------
@@ -354,5 +377,5 @@ export function useMarkupDrawing(o: Options): {
     }
   }
 
-  return { handlers: { onPointerDownCapture, onPointerMove, onPointerUp, onPointerCancel }, drawPreview }
+  return { handlers: { onPointerDownCapture, onPointerMove, onPointerUp, onPointerCancel, onLostPointerCapture }, drawPreview }
 }
