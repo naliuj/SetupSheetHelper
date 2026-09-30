@@ -2,6 +2,13 @@ import { useEffect, useRef, useState } from 'react'
 import type { RoomLayoutFile } from '@shared/types/entities'
 import { LAYOUT_FILE_FORMATS_HINT } from '@shared/constants/roomLayout'
 
+/** SQLite's datetime('now') is UTC written without a zone ("2026-09-29 18:04:11"), which a
+ *  browser reads as local time — so the label showed UTC. Mark it as UTC before parsing so it
+ *  displays in the user's own time zone. */
+function parseDbTimestamp(value: string): Date {
+  return new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(value) ? value : `${value.replace(' ', 'T')}Z`)
+}
+
 interface Props {
   /** Null while a brand-new studio has not been written to the database yet. */
   studioId: number | null
@@ -57,7 +64,7 @@ export default function LayoutFileUploader({
         <div className="card">
           <div className="card-title">{layout.originalName ?? 'Room layout file'}</div>
           <div className="card-sub">
-            Imported {new Date(layout.importedAt).toLocaleString()}
+            Imported {parseDbTimestamp(layout.importedAt).toLocaleString()}
             {layout.pageWidthPt && layout.pageHeightPt
               ? ` — ${Math.round(layout.pageWidthPt)}×${Math.round(layout.pageHeightPt)} pt`
               : ''}

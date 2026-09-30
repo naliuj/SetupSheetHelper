@@ -1963,3 +1963,13 @@ input[type='checkbox']:focus-visible {
   margin: 2px 5px;
   background: var(--color-border);
 }
+
+/* Settings → Browse studios: each row selects its studio wherever it's clicked. */
+.studio-library-row {
+  cursor: pointer;
+  border-radius: var(--radius);
+}
+
+.studio-library-row:hover {
+  background: var(--color-surface-alt);
+}

@@ -127,8 +127,10 @@ export default function StudioLibraryPage({ onBack, onDownloaded }: Props): JSX.
                   {list.map((studio) => {
                     const already = existingNames.has(studio.name.trim().toLowerCase())
                     return (
-                      <div
+                      // The whole row is the checkbox's label, so a click anywhere on it selects.
+                      <label
                         key={studio.id}
+                        className="studio-library-row"
                         style={{
                           display: 'flex',
                           alignItems: 'flex-start',
@@ -144,20 +146,20 @@ export default function StudioLibraryPage({ onBack, onDownloaded }: Props): JSX.
                           onChange={() => toggle(studio.id)}
                           aria-label={`Select ${studio.name}`}
                         />
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div
+                        <span style={{ display: 'block', flex: 1, minWidth: 0 }}>
+                          <span
                             style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontWeight: 600 }}
                           >
                             {studio.name}
                             {already && <span className="warning-badge">Already imported</span>}
-                          </div>
-                          <div className="card-sub" style={{ marginTop: 2 }}>
+                          </span>
+                          <span className="card-sub" style={{ display: 'block', marginTop: 2 }}>
                             {studio.counts.mics} mics · {studio.counts.outboard} outboard ·{' '}
                             {studio.counts.preamps} preamp{studio.counts.preamps === 1 ? '' : 's'} ·{' '}
                             {studio.roomLayout ? 'room layout' : 'no room layout'} · {formatSize(studio.bytes)}
-                          </div>
-                        </div>
-                      </div>
+                          </span>
+                        </span>
+                      </label>
                     )
                   })}
                 </div>
