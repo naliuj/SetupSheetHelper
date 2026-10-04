@@ -59,6 +59,10 @@ export default function LayoutBackground({ studioId, setupId, onSize }: Props): 
   )
   const [blank, setBlank] = useState(false)
   const layoutBackgroundVersion = useLayoutStoreState((s) => s.layoutBackgroundVersion)
+  // Bumped when any layout changes anywhere — Setup Settings, the studio editor, or another
+  // window — so this canvas redraws the new floor plan without being reopened.
+  const [changedCount, setChangedCount] = useState(0)
+  useEffect(() => window.api.layoutFile.onChanged(() => setChangedCount((n) => n + 1)), [])
 
   useEffect(() => {
     let cancelled = false
@@ -102,7 +106,7 @@ export default function LayoutBackground({ studioId, setupId, onSize }: Props): 
     return () => {
       cancelled = true
     }
-  }, [studioId, setupId, layoutBackgroundVersion])
+  }, [studioId, setupId, layoutBackgroundVersion, changedCount])
 
   if (blank) {
     return (

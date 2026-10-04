@@ -4,8 +4,9 @@ import { useBerkleeFeaturesStore } from '@renderer/state/berkleeFeaturesStore'
 import { useEscapeToClose } from '@renderer/hooks/useEscapeToClose'
 import ToggleSwitch from '@renderer/components/ToggleSwitch'
 import SetupGearLocker from './SetupGearLocker'
+import SetupLayoutSettings from './SetupLayoutSettings'
 
-type Tab = 'gear' | 'general'
+type Tab = 'gear' | 'general' | 'layout'
 
 interface Props {
   setupId: number
@@ -14,24 +15,27 @@ interface Props {
 
 const TABS: { key: Tab; label: string }[] = [
   { key: 'general', label: 'General' },
+  { key: 'layout', label: 'Room Layout' },
   { key: 'gear', label: 'Session Gear' }
 ]
 
 export default function SetupSettingsPage({ setupId, onBack }: Props): JSX.Element {
-  const [tab, setTab] = useState<Tab>('general')
+  const [tab, setTab] = useState<Tab | null>(null)
+  const studioId = useSetupStoreState((s) => s.studioId)
   const facultyReserveEnabled = useSetupStoreState((s) => s.facultyReserveEnabled)
   const setFacultyReserveEnabled = useSetupStoreState((s) => s.setFacultyReserveEnabled)
   const berkleeFeaturesEnabled = useBerkleeFeaturesStore((s) => s.enabled)
 
   useEscapeToClose(onBack)
 
-  // "General" only has content for Berklee users (the faculty reserve toggle) — when it's
-  // filtered out, Session Gear is the only tab left, so skip the tab strip entirely rather than
-  // showing a single, purposeless tab button. (Session notes moved to a toolbar popover — see
-  // SetupToolbar.tsx — so it's no longer what kept this tab non-empty for everyone.)
-  const visibleTabs = TABS.filter((t) => t.key !== 'general' || berkleeFeaturesEnabled)
+  // "General" only has content for Berklee users (the faculty reserve toggle), so it's left out
+  // for everyone else; Room Layout needs the setup's studio. The tab strip only shows when there's
+  // more than one tab, and the first visible tab is the default.
+  const visibleTabs = TABS.filter(
+    (t) => (t.key !== 'general' || berkleeFeaturesEnabled) && (t.key !== 'layout' || studioId != null)
+  )
   const showTabStrip = visibleTabs.length > 1
-  const activeTab = showTabStrip ? tab : 'gear'
+  const activeTab: Tab = tab && visibleTabs.some((t) => t.key === tab) ? tab : visibleTabs[0].key
 
   return (
     <div className="page">
@@ -49,7 +53,7 @@ export default function SetupSettingsPage({ setupId, onBack }: Props): JSX.Eleme
           {visibleTabs.map((t) => (
             <button
               key={t.key}
-              className={`btn ${tab === t.key ? 'primary' : ''}`}
+              className={`btn ${activeTab === t.key ? 'primary' : ''}`}
               onClick={() => setTab(t.key)}
             >
               {t.label}
@@ -60,6 +64,7 @@ export default function SetupSettingsPage({ setupId, onBack }: Props): JSX.Eleme
 
       <div className="panel" style={{ marginTop: showTabStrip ? 16 : 0 }}>
         {activeTab === 'gear' && <SetupGearLocker setupId={setupId} />}
+        {activeTab === 'layout' && studioId != null && <SetupLayoutSettings setupId={setupId} studioId={studioId} />}
         {activeTab === 'general' && berkleeFeaturesEnabled && (
           <ToggleSwitch
             checked={facultyReserveEnabled}

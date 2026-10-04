@@ -10,6 +10,7 @@ import {
   LAYOUT_WINDOW_FLUSH_REQUEST_CHANNEL,
   LAYOUT_WINDOW_FLUSH_ACK_CHANNEL,
   THEME_CHANGED_CHANNEL,
+  LAYOUT_FILE_CHANGED_CHANNEL,
   THEME_SYNC_CHANNEL,
   ACCESSIBILITY_CHANGED_CHANNEL,
   ACCESSIBILITY_SYNC_CHANNEL,
@@ -107,8 +108,15 @@ const api: RendererApi = {
     commitPickedToSetup: (setupId, sourcePath) =>
       ipcRenderer.invoke(IPC.layoutFile.commitPickedToSetup, setupId, sourcePath),
     setBlankForSetup: (setupId) => ipcRenderer.invoke(IPC.layoutFile.setBlankForSetup, setupId),
+    getOverrideForSetup: (setupId) => ipcRenderer.invoke(IPC.layoutFile.getOverrideForSetup, setupId),
+    clearOverrideForSetup: (setupId) => ipcRenderer.invoke(IPC.layoutFile.clearOverrideForSetup, setupId),
     getEffectiveForSetup: (setupId, studioId) =>
-      ipcRenderer.invoke(IPC.layoutFile.getEffectiveForSetup, setupId, studioId)
+      ipcRenderer.invoke(IPC.layoutFile.getEffectiveForSetup, setupId, studioId),
+    onChanged: (callback) => {
+      const listener = (): void => callback()
+      ipcRenderer.on(LAYOUT_FILE_CHANGED_CHANNEL, listener)
+      return () => ipcRenderer.removeListener(LAYOUT_FILE_CHANGED_CHANNEL, listener)
+    }
   },
   spreadsheetImport: {
     pick: () => ipcRenderer.invoke(IPC.spreadsheetImport.pick),

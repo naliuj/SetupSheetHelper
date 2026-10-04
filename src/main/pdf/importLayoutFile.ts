@@ -5,7 +5,24 @@ import type { RoomLayoutFile, SetupLayoutOverride } from '@shared/types/entities
 import { LAYOUT_FILE_EXTENSIONS } from '@shared/constants/roomLayout'
 import { getLayoutsDir } from '../userDataPaths'
 import { getLayoutFileForStudio, upsertLayoutFile } from '../db/repositories/roomLayoutFileRepo'
-import { getSetupLayoutOverride, upsertFileLayoutOverride } from '../db/repositories/setupLayoutOverrideRepo'
+import {
+  countLayoutFileReferences,
+  deleteSetupLayoutOverride,
+  getSetupLayoutOverride,
+  upsertBlankLayoutOverride,
+  upsertFileLayoutOverride
+} from '../db/repositories/setupLayoutOverrideRepo'
+
+/** Deletes a setup's old layout file once no layout row names it any more. Called after the
+ *  database change, so the count already excludes the row that just stopped using it. */
+function removeLayoutFileIfUnused(filePath: string | null | undefined): void {
+  if (!filePath || !existsSync(filePath) || countLayoutFileReferences(filePath) > 0) return
+  try {
+    unlinkSync(filePath)
+  } catch {
+    // non-critical: an orphaned file in the layouts folder
+  }
+}
 
 async function getPdfPageSize(filePath: string): Promise<{ width: number; height: number } | null> {
   try {
@@ -113,23 +130,35 @@ export async function commitPickedLayoutFileToSetup(
   const destPath = join(getLayoutsDir(), `setup_${setupId}${extension}`)
 
   const previous = getSetupLayoutOverride(setupId)
-  if (previous?.filePath && previous.filePath !== destPath && existsSync(previous.filePath)) {
-    try {
-      unlinkSync(previous.filePath)
-    } catch {
-      // non-critical
-    }
-  }
 
   copyFileSync(sourcePath, destPath)
 
   const size = extension === '.pdf' ? await getPdfPageSize(destPath) : null
 
-  return upsertFileLayoutOverride({
+  const override = upsertFileLayoutOverride({
     setupId,
     filePath: destPath,
     originalName: basename(sourcePath),
     pageWidthPt: size?.width ?? null,
     pageHeightPt: size?.height ?? null
   })
+  if (previous?.filePath !== destPath) removeLayoutFileIfUnused(previous?.filePath)
+  return override
+}
+
+/** Switches a setup to a blank sheet, tidying away the file it used to have of its own. */
+export function setBlankLayoutForSetup(setupId: number): SetupLayoutOverride {
+  assertRowId(setupId, 'setup id')
+  const previous = getSetupLayoutOverride(setupId)
+  const override = upsertBlankLayoutOverride(setupId)
+  removeLayoutFileIfUnused(previous?.filePath)
+  return override
+}
+
+/** Removes a setup's own layout (file or blank sheet), so it goes back to the studio's. */
+export function clearLayoutForSetup(setupId: number): void {
+  assertRowId(setupId, 'setup id')
+  const previous = getSetupLayoutOverride(setupId)
+  deleteSetupLayoutOverride(setupId)
+  removeLayoutFileIfUnused(previous?.filePath)
 }

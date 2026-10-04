@@ -108,6 +108,8 @@ export const IPC = {
     commitPickedToStudio: 'layoutFile:commitPickedToStudio',
     commitPickedToSetup: 'layoutFile:commitPickedToSetup',
     setBlankForSetup: 'layoutFile:setBlankForSetup',
+    getOverrideForSetup: 'layoutFile:getOverrideForSetup',
+    clearOverrideForSetup: 'layoutFile:clearOverrideForSetup',
     getEffectiveForSetup: 'layoutFile:getEffectiveForSetup'
   },
   spreadsheetImport: {
@@ -696,6 +698,10 @@ export const LAYOUT_WINDOW_FLUSH_ACK_CHANNEL = 'layoutWindow:flushAck'
  *  'system' preference. */
 export const THEME_CHANGED_CHANNEL = 'theme:changed'
 
+/** A studio's or setup's room layout changed, pushed to every window so any canvas showing it
+ *  redraws (see main/ipc/layoutFileHandlers.ts). */
+export const LAYOUT_FILE_CHANGED_CHANNEL = 'layoutFile:changed'
+
 /** The one SYNCHRONOUS channel in the app (ipcRenderer.sendSync). index.html's CSP is
  *  `script-src 'self'`, so the usual inline bootstrap script that sets data-theme before first
  *  paint is unavailable, and an async invoke cannot resolve in time — a light-mode user would get
@@ -846,7 +852,13 @@ export interface RendererApi {
     commitPickedToStudio(studioId: number, sourcePath: string): Promise<RoomLayoutFile>
     commitPickedToSetup(setupId: number, sourcePath: string): Promise<SetupLayoutOverride>
     setBlankForSetup(setupId: number): Promise<SetupLayoutOverride>
+    /** The setup's own layout (its file or blank sheet), or null when it uses the studio's. */
+    getOverrideForSetup(setupId: number): Promise<SetupLayoutOverride | null>
+    /** Drops the setup's own layout, so it goes back to the studio's. */
+    clearOverrideForSetup(setupId: number): Promise<void>
     getEffectiveForSetup(setupId: number | null, studioId: number): Promise<EffectiveLayout>
+    /** Fires whenever any studio's or setup's layout changes. Returns an unsubscribe function. */
+    onChanged(callback: () => void): () => void
   }
   spreadsheetImport: {
     pick(): Promise<PickedSpreadsheet | null>

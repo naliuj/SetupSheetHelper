@@ -75,3 +75,22 @@ export function upsertFileLayoutOverride(input: {
     .run(input)
   return getSetupLayoutOverride(input.setupId) as SetupLayoutOverride
 }
+
+/** Drops a setup's own layout, so it falls back to the studio's (or to none). */
+export function deleteSetupLayoutOverride(setupId: number): void {
+  getDb().prepare('DELETE FROM setup_layout_overrides WHERE setup_id = ?').run(setupId)
+}
+
+/** How many layout rows (any setup's override or any studio's file) still name this file. A
+ *  duplicated setup normally gets its own copy, but keeps the original's path when that copy
+ *  failed, so a file is only safe to delete once nothing points at it. */
+export function countLayoutFileReferences(filePath: string): number {
+  const db = getDb()
+  const setups = db.prepare('SELECT COUNT(*) AS n FROM setup_layout_overrides WHERE file_path = ?').get(filePath) as {
+    n: number
+  }
+  const studios = db.prepare('SELECT COUNT(*) AS n FROM room_layout_files WHERE file_path = ?').get(filePath) as {
+    n: number
+  }
+  return setups.n + studios.n
+}
