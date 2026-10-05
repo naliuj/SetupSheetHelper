@@ -1,7 +1,9 @@
-import { BrowserWindow, Menu, type MenuItemConstructorOptions } from 'electron'
+import { BrowserWindow, Menu, shell, type MenuItemConstructorOptions } from 'electron'
 import { MENU_CHANNEL, type MenuAction } from '@shared/types/ipc'
 import { checkForUpdatesManually } from './autoUpdater'
 import { stepUiScale } from './accessibility'
+
+const MANUAL_URL = 'https://setupsheethelper.julianro.se/manual.html'
 
 /** Builds the native application menu, wiring File-menu items through to the renderer via IPC.
  *  Deliberately carries no `accelerator` on almost any app-defined item (Settings/Save/Export/
@@ -123,7 +125,14 @@ export function installAppMenu(updateDialogParent: BrowserWindow): void {
         { role: 'togglefullscreen' }
       ]
     },
-    { role: 'windowMenu' }
+    { role: 'windowMenu' },
+    {
+      // `role: 'help'` is what makes macOS add its menu-search field to the top of this menu.
+      // The manual lives on the companion site rather than in the app bundle, so it opens in
+      // the default browser and stays current without a release.
+      role: 'help',
+      submenu: [{ label: 'Setup Sheet Helper Manual', click: () => void shell.openExternal(MANUAL_URL) }]
+    }
   ]
 
   Menu.setApplicationMenu(Menu.buildFromTemplate(template))
