@@ -92,8 +92,8 @@ export default function StudioLibraryPage({ onBack, onDownloaded }: Props): JSX.
 
       <h2 style={{ margin: '8px 0 4px' }}>Browse studios</h2>
       <p className="card-sub" style={{ marginBottom: 14, maxWidth: '80ch' }}>
-        Rooms other engineers have shared. Downloading one brings its mic locker, outboard rack,
-        preamps and floor plan straight in, the same as importing a file.
+        Ready-made studios you can download. Each one brings its mic locker, outboard rack, preamps
+        and floor plan straight in, the same as importing a file.
       </p>
 
       {error && (

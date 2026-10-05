@@ -116,7 +116,7 @@ export default function ImportExportTab({
           <a href={STUDIO_DOWNLOADS_URL} target="_blank" rel="noreferrer">
             Browse downloadable studios
           </a>{' '}
-          for rooms other engineers have shared.
+          for ready-made rooms.
         </p>
       </div>
 
