@@ -420,7 +420,7 @@ export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
     ]
   },
   {
-    version: '1.21.0',
+    version: '1.20.1',
     date: '2026-10-05',
     highlights: [
       'Change a setup\u2019s room layout at any time in Setup Settings \u203a Room Layout. You can upload a different file just for that setup, switch to a blank sheet, or go back to the studio\u2019s layout. Blocks, notes and markup stay where they are, and a pop-out window or Split View redraws straight away.',
