@@ -418,5 +418,14 @@ export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
       'Dragging an item from the Layout palette now shows the block itself under the cursor from the moment you pick it up, at the size it will land, snapping into line with the blocks around it before you let go.',
       'A room layout\u2019s "Imported" time now shows in your own time zone instead of UTC, and in Settings \u2192 Browse studios a click anywhere on a studio\u2019s row selects it, not just its checkbox.'
     ]
+  },
+  {
+    version: '1.21.0',
+    date: '2026-10-05',
+    highlights: [
+      'Change a setup\u2019s room layout at any time in Setup Settings \u203a Room Layout. You can upload a different file just for that setup, switch to a blank sheet, or go back to the studio\u2019s layout. Blocks, notes and markup stay where they are, and a pop-out window or Split View redraws straight away.',
+      'The new user manual is a step-by-step guide to everything the app does, with screenshots. Open it from Help \u203a Setup Sheet Helper Manual.',
+      '"Manage palette\u2026" in the Layout palette now opens Settings \u203a Layout Palette, instead of the first Settings tab.'
+    ]
   }
 ]
