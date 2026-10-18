@@ -420,12 +420,13 @@ export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
     ]
   },
   {
-    version: '1.20.1',
-    date: '2026-10-05',
+    version: '1.21.0',
+    date: '2026-10-18',
     highlights: [
       'Change a setup\u2019s room layout at any time in Setup Settings \u203a Room Layout. You can upload a different file just for that setup, switch to a blank sheet, or go back to the studio\u2019s layout. Blocks, notes and markup stay where they are, and a pop-out window or Split View redraws straight away.',
-      'The new user manual is a step-by-step guide to everything the app does, with screenshots. Open it from Help \u203a Setup Sheet Helper Manual.',
-      '"Manage palette\u2026" in the Layout palette now opens Settings \u203a Layout Palette, instead of the first Settings tab.'
+      'Tie lines can now be labeled as well as numbered, so a patch bay\u2019s "PB1" fits. Linked stereo pairs count up from the label\u2019s number ("PB1" and "PB2"), and the duplicate warning ignores capitals and spaces.',
+      'Source name can now be moved and hidden like any other column, in a setup\u2019s Columns menu and in Settings \u203a Columns. Exports follow its place, and it has its own chip in the export dialogs.',
+      'The new user manual is a step-by-step guide to everything the app does, with screenshots. Open it from Help \u203a Setup Sheet Helper Manual. "Manage palette\u2026" in the Layout palette now opens Settings \u203a Layout Palette.'
     ]
   }
 ]
