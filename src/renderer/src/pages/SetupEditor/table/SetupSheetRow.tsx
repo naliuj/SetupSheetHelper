@@ -414,9 +414,8 @@ function SetupSheetRow({
   const channel = useBufferedField(String(item.channel ?? ''), (v) =>
     onChange({ channel: v ? Math.max(1, Number(v)) : null })
   )
-  const tieLine = useBufferedField(String(item.tieLine ?? ''), (v) =>
-    onChange({ tieLine: v ? Math.max(1, Number(v)) : null })
-  )
+  // Free text, unlike channel: some patch bays label their tie lines ("PB1").
+  const tieLine = useBufferedField(item.tieLine ?? '', (v) => onChange({ tieLine: v.trim() || null }))
   // Channel and tie line push to the linked partner on every keystroke, not just on blur like the
   // rest of the buffered fields — seeing the paired channel/tie line update live (rather than only
   // once you tab away) is what makes the pairing visually obvious while you're actively numbering a
@@ -428,9 +427,9 @@ function SetupSheetRow({
   }
   function handleTieLineInputChange(raw: string): void {
     tieLine.onChange(raw)
-    if (isPairSyncSource) onSyncPairFields(item.id, { tieLine: raw ? Math.max(1, Number(raw)) : null })
+    if (isPairSyncSource) onSyncPairFields(item.id, { tieLine: raw.trim() || null })
   }
-  // Free text, unlike channel/tie line: a cue is often a stereo pair summed on the console
+  // Free text, unlike channel: a cue is often a stereo pair summed on the console
   // ("1-2"), which a number input can't hold — Chromium's badInput state made typed pairs
   // silently vanish on the next re-render.
   const cueBox = useBufferedField(item.cueBox ?? '', (v) => onChange({ cueBox: v.trim() || null }))
@@ -596,8 +595,7 @@ function SetupSheetRow({
         return (
           <td key={key}>
             <input
-              type="number"
-              min={1}
+              type="text"
               aria-label={cellLabel('tieLine')}
               value={tieLine.value}
               onChange={(e) => handleTieLineInputChange(e.target.value)}

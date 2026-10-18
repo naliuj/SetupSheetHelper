@@ -338,7 +338,7 @@ export interface SetupItemInput {
   micText: string | null
   phantomPower: boolean
   channel: number | null
-  tieLine: number | null
+  tieLine: string | null
   cueBox: string | null
   outboards: SetupItemOutboardSlot[]
   preampId: number | null
@@ -452,7 +452,9 @@ export interface ExportedSetupItem {
   micManufacturer: string | null
   phantomPower: boolean
   channel: number | null
-  tieLine: number | null
+  /** Free text since some tie lines are labeled ("PB1"). Export files written before this
+   *  change hold numbers here — importSetups coerces them to strings. */
+  tieLine: string | number | null
   /** Free text since cue assignments can be stereo pairs ("1-2"). Export files written before
    *  this change hold numbers here — importSetups coerces them to strings. */
   cueBox: string | number | null
