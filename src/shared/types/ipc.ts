@@ -531,8 +531,8 @@ export interface ExportSetupPdfInput {
   /** Text density for the setup-sheet table. Compact uses a smaller font + tighter spacing to
    *  fit more rows per page; normal keeps the larger, more legible size. */
   density: PdfExportDensity
-  /** The exact columns to print, resolved by the renderer's export chips (Source name included
-   *  wherever the user placed it; 'stereoLink' has no PDF column). When present it wins outright — the
+  /** The exact columns to print, resolved by the renderer's export chips (in the setup's
+   *  column order; 'stereoLink' has no PDF column). When present it wins outright — the
    *  auto-drop of blank columns is skipped, since the chips already showed the user what's empty
    *  and let them decide. Omitted by stale callers, which get the old visibility + auto-drop. */
   includeColumns?: SetupColumnKey[]
@@ -548,8 +548,8 @@ export interface ExportSetupSpreadsheetInput {
   /** Flattened room-layout PNG, from captureLayoutImage in the renderer — the same capture the PDF
    *  export uses. Null/absent writes the data sheet alone. */
   layoutImageDataUrl?: string | null
-  /** The exact columns to write, resolved by the renderer's export chips (Source name included
-   *  wherever the user placed it; 'outboard' expands to one column per slot). Omitted by stale callers,
+  /** The exact columns to write, resolved by the renderer's export chips (in the setup's
+   *  column order; 'outboard' expands to one column per slot). Omitted by stale callers,
    *  which fall back to the setup's own visible columns. */
   includeColumns?: SetupColumnKey[]
 }

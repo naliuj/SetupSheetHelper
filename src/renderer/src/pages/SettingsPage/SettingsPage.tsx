@@ -351,7 +351,7 @@ export default function SettingsPage(): JSX.Element {
             show/hide columns on an existing setup, use the Columns menu above its table instead.
           </p>
           <p className="card-sub" style={{ marginTop: 0, marginBottom: 16 }}>
-            Drag to set the left-to-right order. Source name is always shown.
+            Drag to set the left-to-right order.
           </p>
           <div style={{ maxWidth: 320 }}>
             <ColumnOrderList

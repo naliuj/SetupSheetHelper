@@ -1,7 +1,6 @@
 import type { SetupItemDraft } from '@shared/types/setup'
 import {
   COLUMN_LABELS,
-  isAlwaysShown,
   orderedVisibleColumns,
   type ExportColumnOverrides,
   type SetupColumnKey
@@ -27,8 +26,7 @@ export interface ExportColumnState {
 
 /** Does any row put data in this column? Drives the default-on decision, so an export stops
  *  carrying six blank columns without the user having to say so — and starts carrying one the
- *  moment they fill it in. `stereoLink` (no export representation) and `sourceName` (always
- *  exported, never a chip) never reach here. */
+ *  moment they fill it in. `stereoLink` never reaches here (it has no export representation). */
 function isColumnUsed(key: SetupColumnKey, items: SetupItemDraft[]): boolean {
   switch (key) {
     case 'mic':
@@ -53,7 +51,7 @@ function isColumnUsed(key: SetupColumnKey, items: SetupItemDraft[]): boolean {
     case 'stereoLink':
       return false
     case 'sourceName':
-      return true
+      return items.some((i) => !!i.sourceName?.trim())
   }
 }
 
@@ -75,7 +73,7 @@ export function computeExportColumnStates(
 ): ExportColumnState[] {
   const visible = new Set(orderedVisibleColumns(columnOrder, visibleColumns))
   return columnOrder
-    .filter((key) => key !== 'stereoLink' && !isAlwaysShown(key))
+    .filter((key) => key !== 'stereoLink')
     .map((key) => {
       const isVisible = visible.has(key)
       const used = isColumnUsed(key, items)
@@ -117,12 +115,7 @@ export function toggleExportColumn(
   return next
 }
 
-/** The resolved, ordered column list handed to the exporters: every chip that's on, plus Source
- *  name (never a chip, always exported) wherever the user moved it in `columnOrder`. */
-export function resolveIncludedColumns(
-  states: ExportColumnState[],
-  columnOrder: SetupColumnKey[]
-): SetupColumnKey[] {
-  const on = new Set(states.filter((s) => s.on).map((s) => s.key))
-  return columnOrder.filter((key) => on.has(key) || isAlwaysShown(key))
+/** The resolved column list handed to the exporters, in the setup's column order. */
+export function resolveIncludedColumns(states: ExportColumnState[]): SetupColumnKey[] {
+  return states.filter((s) => s.on).map((s) => s.key)
 }

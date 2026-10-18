@@ -3,7 +3,6 @@ import { temporal } from 'zundo'
 import type { SetupItemDraft, SetupItemOutboardSlot, SetupWithItems } from '@shared/types/setup'
 import {
   ALL_COLUMN_KEYS,
-  isAlwaysShown,
   parseColumnOrder,
   type ExportColumnOverrides,
   type SetupColumnKey
@@ -246,7 +245,6 @@ export function createSetupStore() {
   // Column visibility is per-setup. Persist immediately when the setup already exists (mirrors
   // setOutboardColumnCount); for a still-unsaved setup it rides along in save()'s create path.
   setColumnVisibility: (key, visible) => {
-    if (isAlwaysShown(key)) return
     const next = ALL_COLUMN_KEYS.filter((k) => (k === key ? visible : get().visibleColumns.includes(k)))
     set({ visibleColumns: next, isDirty: true })
     const { setupId } = get()

@@ -10,7 +10,7 @@ import { getMicsByIds } from '../db/repositories/micsRepo'
 import { getOutboardByIds } from '../db/repositories/outboardRepo'
 import { getPreampsByIds } from '../db/repositories/preampRepo'
 import { resolveMicText, resolveOutboardSlotText, resolvePreampText } from '../db/resolveGearLabels'
-import { COLUMN_LABELS, exportedColumnKeys, orderedVisibleColumns } from '@shared/constants/setupColumns'
+import { COLUMN_LABELS, orderedVisibleColumns } from '@shared/constants/setupColumns'
 import { isHexColor, readableTextColor } from '@shared/constants/swatches'
 import { layoutPixelsToPoints } from '@shared/constants/roomLayout'
 import { pngSize } from './pngSize'
@@ -95,11 +95,10 @@ export async function exportSetupSpreadsheet(input: ExportSetupSpreadsheetInput)
   // the setup's own visible columns covers callers that predate the chips. Note the deliberate
   // behavior change the chips bring: their defaults leave EMPTY columns off, where this export
   // previously wrote every visible column blank-or-not. 'stereoLink' is skipped either way —
-  // it's a row-pairing ornament, not data, with no spreadsheet equivalent. Source name is always
-  // written, wherever the user moved it.
-  const exportedKeys = exportedColumnKeys(
+  // it's a row-pairing ornament, not data, with no spreadsheet equivalent.
+  const exportedKeys = (
     input.includeColumns ?? orderedVisibleColumns(setup.columnOrder, setup.visibleColumns)
-  )
+  ).filter((key) => key !== 'stereoLink')
   // Still needed below when filling each row's values: exceljs maps values to columns BY KEY, so
   // that loop is order-independent and only cares whether a column is present at all.
   const shownColumns = new Set(exportedKeys)

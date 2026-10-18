@@ -6,7 +6,6 @@ import { GripVertical, Lock } from 'lucide-react'
 import {
   COLUMN_LABELS,
   PINNED_COLUMN_KEYS,
-  isAlwaysShown,
   parseColumnOrder,
   type SetupColumnKey
 } from '@shared/constants/setupColumns'
@@ -75,17 +74,7 @@ function ColumnRow({
       >
         <GripVertical size={15} aria-hidden="true" />
       </span>
-      {/* Source name moves like any column but can't be hidden, so it gets a note instead of a
-          switch. The indent is the switch's track plus its gap (.toggle-switch), so the label
-          lines up with the others. */}
-      {isAlwaysShown(columnKey) ? (
-        <>
-          <span style={{ flex: 1, fontSize: 13, paddingLeft: 44 }}>{COLUMN_LABELS[columnKey]}</span>
-          <span style={{ fontSize: 11, color: 'var(--color-text-dim)' }}>always</span>
-        </>
-      ) : (
-        <ToggleSwitch checked={checked} onChange={onToggle} label={COLUMN_LABELS[columnKey]} />
-      )}
+      <ToggleSwitch checked={checked} onChange={onToggle} label={COLUMN_LABELS[columnKey]} />
     </div>
   )
 }

@@ -141,7 +141,8 @@ export default function ExportOptionsModal({
           <button
             className="btn primary"
             onClick={handleExport}
-            disabled={exporting || (!includeSheet && !includeLayout)}
+            // A sheet with every column chip off would print an empty table.
+            disabled={exporting || (!includeSheet && !includeLayout) || (includeSheet && chips.included.length === 0)}
           >
             {exporting ? 'Exporting…' : 'Export'}
           </button>

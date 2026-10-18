@@ -58,7 +58,12 @@ export default function SpreadsheetExportModal({
           <button className="btn" onClick={onClose}>
             Cancel
           </button>
-          <button className="btn primary" onClick={handleExport} disabled={exporting} autoFocus>
+          <button
+            className="btn primary"
+            onClick={handleExport}
+            disabled={exporting || chips.included.length === 0}
+            autoFocus
+          >
             {exporting ? 'Exporting…' : 'Export'}
           </button>
         </div>
