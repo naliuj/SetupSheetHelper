@@ -16,7 +16,7 @@ const REASON_LABEL: Record<ExportColumnOffReason, string> = {
 
 export interface ExportColumnChipsController {
   states: ExportColumnState[]
-  /** The resolved list to hand the exporter (Source name implied, so not in here). */
+  /** The resolved, ordered list to hand the exporter, Source name included. */
   included: SetupColumnKey[]
   toggle: (key: SetupColumnKey) => void
 }
@@ -43,7 +43,7 @@ export function useExportColumnChips(): ExportColumnChipsController {
 
   return {
     states,
-    included: useMemo(() => resolveIncludedColumns(states), [states]),
+    included: useMemo(() => resolveIncludedColumns(states, columnOrder), [states, columnOrder]),
     toggle: (key) => setExportColumnOverrides(toggleExportColumn(key, states, overrides))
   }
 }

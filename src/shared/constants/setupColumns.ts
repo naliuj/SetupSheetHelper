@@ -1,9 +1,11 @@
-// The setup-sheet table columns the user can show/hide. "Source name" is always shown (a sheet
-// needs a source) and is deliberately not in this list. These keys are shared by the on-screen
-// table, the per-setup Columns popover, the global default in Settings, and the PDF export.
+// The setup-sheet table columns, in their default left-to-right order. Every one can be moved;
+// all but "Source name" can also be shown/hidden (a sheet needs a source, so that one is always
+// shown and always exported — see ALWAYS_SHOWN_COLUMN_KEYS). These keys are shared by the
+// on-screen table, the per-setup Columns popover, the global default in Settings, and the exports.
 
 export type SetupColumnKey =
   | 'stereoLink'
+  | 'sourceName'
   | 'mic'
   | 'phantomPower'
   | 'outboard'
@@ -18,6 +20,7 @@ export const TOGGLEABLE_COLUMNS: { key: SetupColumnKey; label: string }[] = [
   // The slim leftmost stereo-pair link column — a control column, but toggleable like the rest so
   // rock setups (no stereo pairs) can hide it. On for new/unconfigured setups (it's in ALL_COLUMN_KEYS).
   { key: 'stereoLink', label: 'Stereo Link' },
+  { key: 'sourceName', label: 'Source name' },
   { key: 'mic', label: 'Mic' },
   { key: 'phantomPower', label: '48V' },
   { key: 'outboard', label: 'Outboard' },
@@ -30,6 +33,19 @@ export const TOGGLEABLE_COLUMNS: { key: SetupColumnKey; label: string }[] = [
 ]
 
 export const ALL_COLUMN_KEYS: SetupColumnKey[] = TOGGLEABLE_COLUMNS.map((c) => c.key)
+
+/** Columns that can be moved but never hidden, on screen or in an export. Every visibility list
+ *  passes through `withAlwaysShown`, so a stored list from before Source name was a key (which
+ *  never names it) still shows it. */
+export const ALWAYS_SHOWN_COLUMN_KEYS: SetupColumnKey[] = ['sourceName']
+
+export function isAlwaysShown(key: SetupColumnKey): boolean {
+  return ALWAYS_SHOWN_COLUMN_KEYS.includes(key)
+}
+
+function withAlwaysShown(keys: SetupColumnKey[]): SetupColumnKey[] {
+  return ALL_COLUMN_KEYS.filter((k) => keys.includes(k) || isAlwaysShown(k))
+}
 
 /** key → on-screen label, derived from TOGGLEABLE_COLUMNS so the table header and the Columns
  *  menu can't drift apart. (The PDF export deliberately keeps its own longer labels — "Microphone",
@@ -46,7 +62,7 @@ export function parseVisibleColumns(raw: string | null | undefined): SetupColumn
   try {
     const arr = JSON.parse(raw) as unknown
     if (!Array.isArray(arr)) return [...ALL_COLUMN_KEYS]
-    return ALL_COLUMN_KEYS.filter((k) => arr.includes(k))
+    return withAlwaysShown(ALL_COLUMN_KEYS.filter((k) => arr.includes(k)))
   } catch {
     return [...ALL_COLUMN_KEYS]
   }
@@ -54,7 +70,7 @@ export function parseVisibleColumns(raw: string | null | undefined): SetupColumn
 
 /** Serialize a visible-columns list for storage (kept in canonical order). */
 export function serializeVisibleColumns(keys: SetupColumnKey[]): string {
-  return JSON.stringify(ALL_COLUMN_KEYS.filter((k) => keys.includes(k)))
+  return JSON.stringify(withAlwaysShown(keys))
 }
 
 // Column ORDER is stored separately from column VISIBILITY, and deliberately covers every key
@@ -66,15 +82,18 @@ export function serializeVisibleColumns(keys: SetupColumnKey[]): string {
 
 /** The columns that can't be dragged: `stereoLink` draws an absolutely-positioned pair bracket and
  *  seam button that only read correctly at the row's left edge, so it stays pinned leftmost (it's
- *  still toggleable). "Source name" isn't in SetupColumnKey at all — it's always shown, always
- *  second. Both render as locked rows in the reorder UI. */
+ *  still toggleable) and renders as a locked row in the reorder UI. */
 export const PINNED_COLUMN_KEYS: SetupColumnKey[] = ['stereoLink']
 
 /** Parse a stored `column_order` value (JSON array of keys) into a concrete full ordering.
  *  `null`/unset/garbage → canonical order, so pre-feature setups are unaffected. Defensive about
  *  stored content: unknown keys are dropped, duplicates collapsed, and any key missing from the
  *  stored order is appended in canonical order — so a column added to the app in a later version
- *  still appears for users who saved an order before it existed. */
+ *  still appears for users who saved an order before it existed.
+ *
+ *  The one exception is `sourceName`, which only became a key once it could be moved. Every order
+ *  saved before then omits it while still drawing it right after the stereo lane, so a missing
+ *  `sourceName` goes back exactly there rather than to the far right. */
 export function parseColumnOrder(raw: string | null | undefined): SetupColumnKey[] {
   if (!raw) return [...ALL_COLUMN_KEYS]
   try {
@@ -87,6 +106,10 @@ export function parseColumnOrder(raw: string | null | undefined): SetupColumnKey
         seen.add(k as SetupColumnKey)
         known.push(k as SetupColumnKey)
       }
+    }
+    if (!seen.has('sourceName')) {
+      seen.add('sourceName')
+      known.splice(known[0] === 'stereoLink' ? 1 : 0, 0, 'sourceName')
     }
     return [...known, ...ALL_COLUMN_KEYS.filter((k) => !seen.has(k))]
   } catch {
@@ -117,8 +140,9 @@ export function parseExportColumnOverrides(raw: string | null | undefined): Expo
     if (obj == null || typeof obj !== 'object' || Array.isArray(obj)) return {}
     const out: ExportColumnOverrides = {}
     for (const [k, v] of Object.entries(obj)) {
-      if (ALL_COLUMN_KEYS.includes(k as SetupColumnKey) && (v === 'show' || v === 'hide')) {
-        out[k as SetupColumnKey] = v
+      const key = k as SetupColumnKey
+      if (ALL_COLUMN_KEYS.includes(key) && !isAlwaysShown(key) && (v === 'show' || v === 'hide')) {
+        out[key] = v
       }
     }
     return out
@@ -131,12 +155,20 @@ export function serializeExportColumnOverrides(overrides: ExportColumnOverrides)
   return JSON.stringify(parseExportColumnOverrides(JSON.stringify(overrides)))
 }
 
+/** The data columns an export writes, in order: `stereoLink` dropped (it has no column in either
+ *  export) and Source name guaranteed. A list from the renderer already carries Source name where
+ *  the user put it; one from an older caller doesn't, and gets it leftmost, as it always was. */
+export function exportedColumnKeys(keys: SetupColumnKey[]): SetupColumnKey[] {
+  const data = keys.filter((k) => k !== 'stereoLink')
+  return data.includes('sourceName') ? data : ['sourceName', ...data]
+}
+
 /** The visible columns in the user's chosen order — the single helper every renderer and exporter
  *  should use, so the on-screen table, the PDF, and the spreadsheet can't drift apart. */
 export function orderedVisibleColumns(
   columnOrder: SetupColumnKey[],
   visibleColumns: SetupColumnKey[]
 ): SetupColumnKey[] {
-  const visible = new Set(visibleColumns)
+  const visible = new Set(withAlwaysShown(visibleColumns))
   return parseColumnOrder(JSON.stringify(columnOrder)).filter((k) => visible.has(k))
 }

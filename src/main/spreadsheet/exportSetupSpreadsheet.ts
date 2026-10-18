@@ -10,7 +10,7 @@ import { getMicsByIds } from '../db/repositories/micsRepo'
 import { getOutboardByIds } from '../db/repositories/outboardRepo'
 import { getPreampsByIds } from '../db/repositories/preampRepo'
 import { resolveMicText, resolveOutboardSlotText, resolvePreampText } from '../db/resolveGearLabels'
-import { COLUMN_LABELS, orderedVisibleColumns } from '@shared/constants/setupColumns'
+import { COLUMN_LABELS, exportedColumnKeys, orderedVisibleColumns } from '@shared/constants/setupColumns'
 import { isHexColor, readableTextColor } from '@shared/constants/swatches'
 import { layoutPixelsToPoints } from '@shared/constants/roomLayout'
 import { pngSize } from './pngSize'
@@ -27,8 +27,8 @@ function layoutPixelsToSheetPixels(px: number): number {
   return layoutPixelsToPoints(px) * (OOXML_IMAGE_DPI / 72)
 }
 
-/** One spreadsheet column, keyed the same way SetupColumnKey is (plus 'sourceName', which is
- *  always shown and isn't itself a toggleable key). Order and visibility both come from the setup
+/** One spreadsheet column, keyed the same way SetupColumnKey is (outboard splits into one
+ *  `outboard:N` column per slot). Order and visibility both come from the setup
  *  itself via orderedVisibleColumns(), the same helper the on-screen table uses, so the two can't
  *  drift the way they could when this file hardcoded its own sequence. */
 interface ColumnDef {
@@ -95,16 +95,17 @@ export async function exportSetupSpreadsheet(input: ExportSetupSpreadsheetInput)
   // the setup's own visible columns covers callers that predate the chips. Note the deliberate
   // behavior change the chips bring: their defaults leave EMPTY columns off, where this export
   // previously wrote every visible column blank-or-not. 'stereoLink' is skipped either way —
-  // it's a row-pairing ornament, not data, with no spreadsheet equivalent.
-  const exportedKeys = (
+  // it's a row-pairing ornament, not data, with no spreadsheet equivalent. Source name is always
+  // written, wherever the user moved it.
+  const exportedKeys = exportedColumnKeys(
     input.includeColumns ?? orderedVisibleColumns(setup.columnOrder, setup.visibleColumns)
-  ).filter((key) => key !== 'stereoLink')
+  )
   // Still needed below when filling each row's values: exceljs maps values to columns BY KEY, so
   // that loop is order-independent and only cares whether a column is present at all.
   const shownColumns = new Set(exportedKeys)
-  // Source name is always leftmost; everything after it follows the resolved order, so the
-  // spreadsheet reads left-to-right the same way the on-screen table does.
-  const columns: ColumnDef[] = [{ key: 'sourceName', header: 'Source name', width: BASE_WIDTHS.sourceName }]
+  // Everything follows the resolved order, so the spreadsheet reads left-to-right the same way
+  // the on-screen table does.
+  const columns: ColumnDef[] = []
   for (const key of exportedKeys) {
     if (key === 'outboard') {
       // One real column per slot — deliberately NOT consolidated into one cell like the PDF export,

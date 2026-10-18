@@ -382,7 +382,6 @@ export default function SetupSheetTable(): JSX.Element {
                     leaves its whole column unannounced, and this one holds the row-select button
                     and drag handle. */}
                 <th scope="col" aria-label="Select and reorder"></th>
-                <th scope="col">Source name</th>
                 {orderedColumns.map((key) =>
                   key === 'outboard' ? (
                     <Fragment key={key}>
