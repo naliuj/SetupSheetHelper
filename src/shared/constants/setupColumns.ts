@@ -1,9 +1,10 @@
-// The setup-sheet table columns the user can show/hide. "Source name" is always shown (a sheet
-// needs a source) and is deliberately not in this list. These keys are shared by the on-screen
-// table, the per-setup Columns popover, the global default in Settings, and the PDF export.
+// The setup-sheet table columns the user can show/hide, in their default left-to-right order.
+// These keys are shared by the on-screen table, the per-setup Columns popover, the global default
+// in Settings, and the exports.
 
 export type SetupColumnKey =
   | 'stereoLink'
+  | 'sourceName'
   | 'mic'
   | 'phantomPower'
   | 'outboard'
@@ -18,6 +19,7 @@ export const TOGGLEABLE_COLUMNS: { key: SetupColumnKey; label: string }[] = [
   // The slim leftmost stereo-pair link column — a control column, but toggleable like the rest so
   // rock setups (no stereo pairs) can hide it. On for new/unconfigured setups (it's in ALL_COLUMN_KEYS).
   { key: 'stereoLink', label: 'Stereo Link' },
+  { key: 'sourceName', label: 'Source name' },
   { key: 'mic', label: 'Mic' },
   { key: 'phantomPower', label: '48V' },
   { key: 'outboard', label: 'Outboard' },
@@ -40,7 +42,8 @@ export const COLUMN_LABELS: Record<SetupColumnKey, string> = Object.fromEntries(
 
 /** Parse a stored `visible_columns` value (JSON array of keys) into a concrete, order-normalized
  *  list. `null`/unset/garbage → every column visible, so pre-feature setups (and a never-configured
- *  global default) keep today's behavior of showing everything. */
+ *  global default) keep today's behavior of showing everything. Lists saved before Source name was
+ *  a key never named it; migration 047 added it to those, so a list without it now means hidden. */
 export function parseVisibleColumns(raw: string | null | undefined): SetupColumnKey[] {
   if (!raw) return [...ALL_COLUMN_KEYS]
   try {
@@ -66,15 +69,18 @@ export function serializeVisibleColumns(keys: SetupColumnKey[]): string {
 
 /** The columns that can't be dragged: `stereoLink` draws an absolutely-positioned pair bracket and
  *  seam button that only read correctly at the row's left edge, so it stays pinned leftmost (it's
- *  still toggleable). "Source name" isn't in SetupColumnKey at all — it's always shown, always
- *  second. Both render as locked rows in the reorder UI. */
+ *  still toggleable) and renders as a locked row in the reorder UI. */
 export const PINNED_COLUMN_KEYS: SetupColumnKey[] = ['stereoLink']
 
 /** Parse a stored `column_order` value (JSON array of keys) into a concrete full ordering.
  *  `null`/unset/garbage → canonical order, so pre-feature setups are unaffected. Defensive about
  *  stored content: unknown keys are dropped, duplicates collapsed, and any key missing from the
  *  stored order is appended in canonical order — so a column added to the app in a later version
- *  still appears for users who saved an order before it existed. */
+ *  still appears for users who saved an order before it existed.
+ *
+ *  The one exception is `sourceName`, which only became a key once it could be moved. Every order
+ *  saved before then omits it while still drawing it right after the stereo lane, so a missing
+ *  `sourceName` goes back exactly there rather than to the far right. */
 export function parseColumnOrder(raw: string | null | undefined): SetupColumnKey[] {
   if (!raw) return [...ALL_COLUMN_KEYS]
   try {
@@ -87,6 +93,10 @@ export function parseColumnOrder(raw: string | null | undefined): SetupColumnKey
         seen.add(k as SetupColumnKey)
         known.push(k as SetupColumnKey)
       }
+    }
+    if (!seen.has('sourceName')) {
+      seen.add('sourceName')
+      known.splice(known[0] === 'stereoLink' ? 1 : 0, 0, 'sourceName')
     }
     return [...known, ...ALL_COLUMN_KEYS.filter((k) => !seen.has(k))]
   } catch {
@@ -117,8 +127,9 @@ export function parseExportColumnOverrides(raw: string | null | undefined): Expo
     if (obj == null || typeof obj !== 'object' || Array.isArray(obj)) return {}
     const out: ExportColumnOverrides = {}
     for (const [k, v] of Object.entries(obj)) {
-      if (ALL_COLUMN_KEYS.includes(k as SetupColumnKey) && (v === 'show' || v === 'hide')) {
-        out[k as SetupColumnKey] = v
+      const key = k as SetupColumnKey
+      if (ALL_COLUMN_KEYS.includes(key) && (v === 'show' || v === 'hide')) {
+        out[key] = v
       }
     }
     return out

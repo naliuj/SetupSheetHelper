@@ -195,7 +195,18 @@ export function importSetups(setups: ExportedSetup[], targetStudioId: number): v
       setOutboardColumnCount(created.id, setup.outboardColumnCount)
       // Guarded like columnOrder below: export files from before column visibility existed
       // (migration 018) don't carry the field, and serializeVisibleColumns throws on undefined.
-      if (setup.visibleColumns) setVisibleColumns(created.id, setup.visibleColumns)
+      // A file from before Source name was a column key (its columnOrder, if any, never names it)
+      // left Source name out of visibleColumns while still showing it — the same gap migration
+      // 047 filled in the database — so it comes in visible.
+      if (setup.visibleColumns) {
+        const predatesSourceNameKey = !setup.columnOrder?.includes('sourceName')
+        setVisibleColumns(
+          created.id,
+          predatesSourceNameKey && !setup.visibleColumns.includes('sourceName')
+            ? ['sourceName', ...setup.visibleColumns]
+            : setup.visibleColumns
+        )
+      }
       if (setup.columnOrder) setColumnOrder(created.id, setup.columnOrder)
       if (setup.exportColumnOverrides) setExportColumnOverrides(created.id, setup.exportColumnOverrides)
 

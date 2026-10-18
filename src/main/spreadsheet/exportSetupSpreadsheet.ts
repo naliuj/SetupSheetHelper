@@ -27,8 +27,8 @@ function layoutPixelsToSheetPixels(px: number): number {
   return layoutPixelsToPoints(px) * (OOXML_IMAGE_DPI / 72)
 }
 
-/** One spreadsheet column, keyed the same way SetupColumnKey is (plus 'sourceName', which is
- *  always shown and isn't itself a toggleable key). Order and visibility both come from the setup
+/** One spreadsheet column, keyed the same way SetupColumnKey is (outboard splits into one
+ *  `outboard:N` column per slot). Order and visibility both come from the setup
  *  itself via orderedVisibleColumns(), the same helper the on-screen table uses, so the two can't
  *  drift the way they could when this file hardcoded its own sequence. */
 interface ColumnDef {
@@ -102,9 +102,9 @@ export async function exportSetupSpreadsheet(input: ExportSetupSpreadsheetInput)
   // Still needed below when filling each row's values: exceljs maps values to columns BY KEY, so
   // that loop is order-independent and only cares whether a column is present at all.
   const shownColumns = new Set(exportedKeys)
-  // Source name is always leftmost; everything after it follows the resolved order, so the
-  // spreadsheet reads left-to-right the same way the on-screen table does.
-  const columns: ColumnDef[] = [{ key: 'sourceName', header: 'Source name', width: BASE_WIDTHS.sourceName }]
+  // Everything follows the resolved order, so the spreadsheet reads left-to-right the same way
+  // the on-screen table does.
+  const columns: ColumnDef[] = []
   for (const key of exportedKeys) {
     if (key === 'outboard') {
       // One real column per slot — deliberately NOT consolidated into one cell like the PDF export,

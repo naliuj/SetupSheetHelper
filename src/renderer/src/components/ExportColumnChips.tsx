@@ -16,7 +16,7 @@ const REASON_LABEL: Record<ExportColumnOffReason, string> = {
 
 export interface ExportColumnChipsController {
   states: ExportColumnState[]
-  /** The resolved list to hand the exporter (Source name implied, so not in here). */
+  /** The resolved, ordered list to hand the exporter. */
   included: SetupColumnKey[]
   toggle: (key: SetupColumnKey) => void
 }
@@ -91,7 +91,7 @@ export default function ExportColumnChips({
         ))}
       </div>
       <p className="export-column-hint">
-        Click a chip to add or remove it. Source name is always included.
+        Click a chip to add or remove it.
       </p>
     </div>
   )

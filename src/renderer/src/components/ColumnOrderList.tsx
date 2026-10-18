@@ -27,28 +27,21 @@ const rowStyle: React.CSSProperties = {
   padding: '3px 2px'
 }
 
-/** A single non-draggable row — "Source name" (always shown, no toggle) and the pinned stereo-link
- *  column (toggleable, just not movable). Reads as deliberately locked rather than broken. */
+/** The pinned stereo-link column's row: toggleable, just not movable. Reads as deliberately locked
+ *  rather than broken. */
 function PinnedRow({
   label,
   toggle
 }: {
   label: string
-  toggle?: { checked: boolean; onChange: (on: boolean) => void }
+  toggle: { checked: boolean; onChange: (on: boolean) => void }
 }): JSX.Element {
   return (
     <div style={{ ...rowStyle, opacity: 0.75 }}>
       <span style={{ display: 'flex', color: 'var(--color-text-dim)' }} title="Always first">
         <Lock size={13} aria-hidden="true" />
       </span>
-      {toggle ? (
-        <ToggleSwitch checked={toggle.checked} onChange={toggle.onChange} label={label} />
-      ) : (
-        <>
-          <span style={{ flex: 1, fontSize: 13 }}>{label}</span>
-          <span style={{ fontSize: 11, color: 'var(--color-text-dim)' }}>always</span>
-        </>
-      )}
+      <ToggleSwitch checked={toggle.checked} onChange={toggle.onChange} label={label} />
     </div>
   )
 }
@@ -110,7 +103,6 @@ export default function ColumnOrderList({ order, visible, onReorder, onToggle }:
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column' }}>
-      <PinnedRow label="Source name" />
       {PINNED_COLUMN_KEYS.map((key) => (
         <PinnedRow
           key={key}

@@ -459,6 +459,19 @@ function SetupSheetRow({
       // Pinned leftmost and rendered before the gutter — never reaches this dispatcher.
       case 'stereoLink':
         return null
+      case 'sourceName':
+        return (
+          <td key={key}>
+            <input
+              aria-label={`Source name, row ${rowNumber}`}
+              value={sourceName.value}
+              placeholder="Source name"
+              onChange={(e) => sourceName.onChange(e.target.value)}
+              onBlur={sourceName.onBlur}
+              onClick={(e) => e.stopPropagation()}
+            />
+          </td>
+        )
       case 'mic':
         return (
           <td key={key} onClick={(e) => e.stopPropagation()}>
@@ -804,16 +817,6 @@ function SetupSheetRow({
         <span className="drag-handle" {...attributes} {...listeners} style={{ cursor: 'grab' }}>
           <GripVertical size={16} aria-hidden="true" />
         </span>
-      </td>
-      <td>
-        <input
-          aria-label={`Source name, row ${rowNumber}`}
-          value={sourceName.value}
-          placeholder="Source name"
-          onChange={(e) => sourceName.onChange(e.target.value)}
-          onBlur={sourceName.onBlur}
-          onClick={(e) => e.stopPropagation()}
-        />
       </td>
       {orderedColumns.map((key) => renderCell(key))}
       <td>

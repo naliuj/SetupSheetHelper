@@ -50,6 +50,7 @@ import { run as standardizeBerkleeMicNames } from './043_standardize_berklee_mic
 import { run as layoutTextNotes } from './044_layout_text_notes'
 import { run as normalizeImageLayoutUnits } from './045_normalize_image_layout_units'
 import { run as layoutMarks } from './046_layout_marks'
+import { run as sourceNameVisibleColumn } from './047_source_name_visible_column'
 
 import type { MigrationContext } from '../migrate'
 
@@ -111,5 +112,6 @@ export const MIGRATIONS: Migration[] = [
   { version: 43, run: standardizeBerkleeMicNames },
   { version: 44, run: layoutTextNotes },
   { version: 45, run: normalizeImageLayoutUnits },
-  { version: 46, run: layoutMarks }
+  { version: 46, run: layoutMarks },
+  { version: 47, run: sourceNameVisibleColumn }
 ]

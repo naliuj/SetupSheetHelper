@@ -24,7 +24,7 @@ import { getPreampsByIds } from '../db/repositories/preampRepo'
 import { getSetting } from '../db/repositories/settingsRepo'
 import { resolveMicText, resolveOutboardSlotText, resolvePreampText } from '../db/resolveGearLabels'
 import { fitColumns, sanitizeForWinAnsi, wrapText, type ColumnSpec } from './pdfLayout'
-import { orderedVisibleColumns } from '@shared/constants/setupColumns'
+import { orderedVisibleColumns, type SetupColumnKey } from '@shared/constants/setupColumns'
 import { isHexColor } from '@shared/constants/swatches'
 import {
   STEREO_BRACE_BOTTOM,
@@ -258,11 +258,11 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
     // `includeColumns` is the resolved, ordered list the user saw and could flip — so it's taken
     // verbatim and the blank-column auto-drop below is skipped entirely (the chips already showed
     // which columns are empty and let the user include one anyway). COLUMNS is only a label/width
-    // lookup. 'sourceName' is always leftmost and never a chip; 'stereoLink' has no PDF column at
-    // all — it's drawn as a margin bracket instead.
+    // lookup. 'stereoLink' has no PDF column at all — it's drawn as a margin bracket instead.
     const columnByKey = new Map(COLUMNS.map((col) => [col.key, col]))
-    const toSpecs = (keys: string[]): ColumnSpec[] =>
-      ['sourceName', ...keys.filter((k) => k !== 'stereoLink')]
+    const toSpecs = (keys: SetupColumnKey[]): ColumnSpec[] =>
+      keys
+        .filter((k) => k !== 'stereoLink')
         .map((key) => columnByKey.get(key))
         .filter((col): col is ColumnSpec => col != null)
 

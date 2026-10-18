@@ -26,8 +26,7 @@ export interface ExportColumnState {
 
 /** Does any row put data in this column? Drives the default-on decision, so an export stops
  *  carrying six blank columns without the user having to say so — and starts carrying one the
- *  moment they fill it in. `stereoLink` never reaches here (it has no export representation);
- *  "Source name" isn't a SetupColumnKey at all and is always exported. */
+ *  moment they fill it in. `stereoLink` never reaches here (it has no export representation). */
 function isColumnUsed(key: SetupColumnKey, items: SetupItemDraft[]): boolean {
   switch (key) {
     case 'mic':
@@ -51,6 +50,8 @@ function isColumnUsed(key: SetupColumnKey, items: SetupItemDraft[]): boolean {
       return items.some((i) => !!i.notes?.trim())
     case 'stereoLink':
       return false
+    case 'sourceName':
+      return items.some((i) => !!i.sourceName?.trim())
   }
 }
 
@@ -114,8 +115,7 @@ export function toggleExportColumn(
   return next
 }
 
-/** The resolved column list handed to the exporters. Source name is implied (always leftmost,
- *  never a chip) and isn't in here. */
+/** The resolved column list handed to the exporters, in the setup's column order. */
 export function resolveIncludedColumns(states: ExportColumnState[]): SetupColumnKey[] {
   return states.filter((s) => s.on).map((s) => s.key)
 }
