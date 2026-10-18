@@ -9,6 +9,7 @@ import { useSetupStoreApi, useSetupStoreState } from '@renderer/state/setupStore
 import { useCatalogStoreApi, useCatalogStoreState } from '@renderer/state/catalogStoreContext'
 import { useGearCatalogueSuggestions } from '@renderer/state/useGearCatalogueSuggestions'
 import { computeTieLineConflicts } from '@renderer/state/tieLineConflicts'
+import { offsetTieLine, tieLineKey } from '@shared/utils/tieLine'
 import { computeUsageCounts, buildGearUsage } from '@renderer/state/usageCounts'
 import { formatGearLabel, gearIdentityKey, stripManufacturerPrefix } from '@shared/utils/manufacturerPrefix'
 import type { Suggestion } from '@renderer/components/SuggestInput'
@@ -272,7 +273,8 @@ export default function SetupSheetTable(): JSX.Element {
   // across; channel/tie line carry the "N / N+1" stereo-pair convention forward (channel 3 →
   // partner becomes 4, or the reverse if edited from the bottom row) rather than duplicating the
   // exact number, since two rows can't share one channel/tie line — clamped to a minimum of 1
-  // either way. Cue box is free text: a plain integer keeps that N/N+1 convention, but anything
+  // either way. Tie line is free text, so it steps its trailing number ("PB1" → "PB2") and leaves
+  // the partner alone when there isn't one. Cue box is free text: a plain integer keeps that N/N+1 convention, but anything
   // else — most importantly a stereo cue like "1-2", which the pair genuinely SHARES on the
   // console — copies verbatim. Only whichever keys are actually present in `patch` get synced.
   const handleSyncPairFields = useCallback((itemId: number | string, patch: Partial<SetupItemDraft>): void => {
@@ -284,7 +286,10 @@ export default function SetupSheetTable(): JSX.Element {
     if ('phantomPower' in patch) syncPatch.phantomPower = patch.phantomPower
     if ('polarityFlip' in patch) syncPatch.polarityFlip = patch.polarityFlip
     if ('channel' in patch && patch.channel != null) syncPatch.channel = Math.max(1, patch.channel + direction)
-    if ('tieLine' in patch && patch.tieLine != null) syncPatch.tieLine = Math.max(1, patch.tieLine + direction)
+    if ('tieLine' in patch && patch.tieLine != null) {
+      const partnerTieLine = offsetTieLine(patch.tieLine, direction)
+      if (partnerTieLine != null) syncPatch.tieLine = partnerTieLine
+    }
     if ('cueBox' in patch && patch.cueBox != null) {
       syncPatch.cueBox = /^\d+$/.test(patch.cueBox)
         ? String(Math.max(1, Number(patch.cueBox) + direction))
@@ -417,7 +422,7 @@ export default function SetupSheetTable(): JSX.Element {
                     onSyncPairPreamp={handleSyncPairPreamp}
                     onSyncPairFields={handleSyncPairFields}
                     onSyncPairOutboardSlot={handleSyncPairOutboardSlot}
-                    conflict={item.tieLine != null && conflicts.has(item.tieLine)}
+                    conflict={item.tieLine != null && conflicts.has(tieLineKey(item.tieLine))}
                     unresolvedGearHint={unresolvedGearHints.get(item.id)}
                     onClearUnresolvedGearHint={clearUnresolvedGearHint}
                     micUsageCounts={micUsageCounts}

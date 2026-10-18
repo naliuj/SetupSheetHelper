@@ -214,7 +214,8 @@ export function importSetups(setups: ExportedSetup[], targetStudioId: number): v
           micText: mic ? null : item.micName,
           phantomPower: item.phantomPower,
           channel: item.channel,
-          tieLine: item.tieLine,
+          // Export files written before tie line became free text hold numbers here.
+          tieLine: item.tieLine != null ? String(item.tieLine) : null,
           // Export files written before cue box became free text hold numbers here.
           cueBox: item.cueBox != null ? String(item.cueBox) : null,
           outboards: item.outboards.map((slot) => {

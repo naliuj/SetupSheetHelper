@@ -33,6 +33,7 @@ import {
   scaleBracePath
 } from '@shared/constants/stereoBrace'
 import { layoutPixelsToPoints } from '@shared/constants/roomLayout'
+import { tieLineKey } from '@shared/utils/tieLine'
 
 /** Short alias for sanitizeForWinAnsi — applied to every user-supplied string before it is
  *  measured or drawn, so one unencodable character cannot abort the export. */
@@ -89,11 +90,12 @@ function isColumnEmpty(key: string, itemIds: number[], resolvedValues: Map<numbe
   return itemIds.every((id) => !(resolvedValues.get(id)?.[key] ?? '').trim())
 }
 
-function findTieLineConflicts(items: { tieLine: number | null }[]): Set<number> {
-  const counts = new Map<number, number>()
+function findTieLineConflicts(items: { tieLine: string | null }[]): Set<string> {
+  const counts = new Map<string, number>()
   for (const item of items) {
     if (item.tieLine == null) continue
-    counts.set(item.tieLine, (counts.get(item.tieLine) ?? 0) + 1)
+    const key = tieLineKey(item.tieLine)
+    counts.set(key, (counts.get(key) ?? 0) + 1)
   }
   return new Set([...counts.entries()].filter(([, count]) => count > 1).map(([tieLine]) => tieLine))
 }
@@ -219,7 +221,7 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
 
     const resolvedValues = new Map<number, Record<string, string>>()
     for (const item of setup.items) {
-      const isConflict = item.tieLine != null && conflicts.has(item.tieLine)
+      const isConflict = item.tieLine != null && conflicts.has(tieLineKey(item.tieLine))
 
       // Consolidate every outboard slot into one comma-joined cell (empty slots skipped), in slot
       // order — the wrapping cell keeps it readable no matter how many pieces of gear a row has.
@@ -244,7 +246,7 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
         // and this column draws in Helvetica. Measuring it threw before a byte was written, so a
         // duplicated tie line — which is what this marker exists to flag — failed the whole
         // export. See the note on the check mark above fontForColumn for the same hazard.
-        tieLine: item.tieLine != null ? `${isConflict ? '! ' : ''}${item.tieLine}` : '',
+        tieLine: item.tieLine != null ? safe(`${isConflict ? '! ' : ''}${item.tieLine}`) : '',
         cueBox: safe(item.cueBox ?? ''),
         polarity: item.polarityFlip ? 'Ø' : '',
         notes: safe(item.notes ?? '')
