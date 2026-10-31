@@ -1,3 +1,4 @@
+import { rmSync } from 'node:fs'
 import type { PatchbayFile, PatchPoint } from '@shared/types/patchbay'
 import { getDb } from '../index'
 
@@ -76,4 +77,17 @@ export function upsertPatchbayFile(input: {
     )
     .run(input)
   return getPatchbayFileForStudio(input.studioId) as PatchbayFile
+}
+
+/** Removes a studio's patchbay: its row, then its copy in the patchbays folder. Cables drawn on it
+ *  belong to setups and are left alone, so uploading a drawing again brings them back. */
+export function deletePatchbayFile(studioId: number): void {
+  const row = getRow(studioId)
+  if (!row) return
+  getDb().prepare('DELETE FROM patchbay_files WHERE studio_id = ?').run(studioId)
+  try {
+    rmSync(row.file_path, { force: true })
+  } catch {
+    // non-critical: an orphaned file in the patchbays folder
+  }
 }

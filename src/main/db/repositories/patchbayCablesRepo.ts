@@ -57,6 +57,18 @@ export function listCablesBySetup(setupId: number): PatchbayCable[] {
   return rows.map(mapRow)
 }
 
+/** How many cables a studio's setups have drawn, and across how many setups — what replacing or
+ *  removing the studio's drawing would affect. */
+export function countCablesForStudio(studioId: number): { setups: number; cables: number } {
+  return getDb()
+    .prepare(
+      `SELECT COUNT(DISTINCT patchbay_cables.setup_id) AS setups, COUNT(*) AS cables FROM patchbay_cables
+       JOIN setups ON setups.id = patchbay_cables.setup_id
+       WHERE setups.studio_id = ?`
+    )
+    .get(studioId) as { setups: number; cables: number }
+}
+
 /** Copies every cable from one setup to another — used when a setup is duplicated. */
 export function copyCablesToSetup(sourceSetupId: number, targetSetupId: number): void {
   const db = getDb()

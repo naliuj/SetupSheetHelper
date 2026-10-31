@@ -121,10 +121,13 @@ const api: RendererApi = {
   },
   patchbay: {
     getForStudio: (studioId) => ipcRenderer.invoke(IPC.patchbay.getForStudio, studioId),
+    getFileForStudio: (studioId) => ipcRenderer.invoke(IPC.patchbay.getFileForStudio, studioId),
     importForStudio: (studioId) => ipcRenderer.invoke(IPC.patchbay.importForStudio, studioId),
     pickFile: () => ipcRenderer.invoke(IPC.patchbay.pickFile),
     commitPickedToStudio: (studioId, sourcePath) =>
       ipcRenderer.invoke(IPC.patchbay.commitPickedToStudio, studioId, sourcePath),
+    removeForStudio: (studioId) => ipcRenderer.invoke(IPC.patchbay.removeForStudio, studioId),
+    cableUsageForStudio: (studioId) => ipcRenderer.invoke(IPC.patchbay.cableUsageForStudio, studioId),
     listCables: (setupId) => ipcRenderer.invoke(IPC.patchbay.listCables, setupId),
     saveCables: (setupId, cables) => ipcRenderer.invoke(IPC.patchbay.saveCables, setupId, cables),
     onChanged: (callback) => {

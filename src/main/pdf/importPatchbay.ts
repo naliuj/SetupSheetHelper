@@ -57,6 +57,13 @@ export async function importPatchbayForStudio(studioId: number): Promise<Patchba
   return picked ? commitPickedPatchbayToStudio(studioId, picked.sourcePath) : null
 }
 
+/** A studio's patchbay file alone, without detecting its jacks — all the Studio Setup card needs.
+ *  Null when it has none or its copy is missing, as below. */
+export function getPatchbayFile(studioId: number): PatchbayFile | null {
+  const file = getPatchbayFileForStudio(studioId)
+  return file && existsSync(file.filePath) ? file : null
+}
+
 /** A studio's patchbay with its jacks. Jacks are detected on first load (bundled Berklee drawings
  *  are attached without them) and again whenever the detector changes, then cached. */
 export async function getPatchbayWithPoints(studioId: number): Promise<PatchbayWithPoints | null> {

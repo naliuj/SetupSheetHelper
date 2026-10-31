@@ -1,9 +1,15 @@
 import { BrowserWindow, ipcMain } from 'electron'
 import { IPC, PATCHBAY_CHANGED_CHANNEL } from '@shared/types/ipc'
 import type { PatchbayCableDraft } from '@shared/types/patchbay'
-import { listCablesBySetup, replaceCablesForSetup } from '../db/repositories/patchbayCablesRepo'
+import {
+  countCablesForStudio,
+  listCablesBySetup,
+  replaceCablesForSetup
+} from '../db/repositories/patchbayCablesRepo'
+import { deletePatchbayFile } from '../db/repositories/patchbayFileRepo'
 import {
   commitPickedPatchbayToStudio,
+  getPatchbayFile,
   getPatchbayWithPoints,
   importPatchbayForStudio,
   pickPatchbayFile
@@ -19,6 +25,7 @@ async function changing<T>(change: () => Promise<T>): Promise<T> {
 
 export function registerPatchbayHandlers(): void {
   ipcMain.handle(IPC.patchbay.getForStudio, (_e, studioId: number) => getPatchbayWithPoints(studioId))
+  ipcMain.handle(IPC.patchbay.getFileForStudio, (_e, studioId: number) => getPatchbayFile(studioId))
   ipcMain.handle(IPC.patchbay.importForStudio, (_e, studioId: number) =>
     changing(() => importPatchbayForStudio(studioId))
   )
@@ -26,6 +33,10 @@ export function registerPatchbayHandlers(): void {
   ipcMain.handle(IPC.patchbay.commitPickedToStudio, (_e, studioId: number, sourcePath: string) =>
     changing(() => commitPickedPatchbayToStudio(studioId, sourcePath))
   )
+  ipcMain.handle(IPC.patchbay.removeForStudio, (_e, studioId: number) =>
+    changing(async () => deletePatchbayFile(studioId))
+  )
+  ipcMain.handle(IPC.patchbay.cableUsageForStudio, (_e, studioId: number) => countCablesForStudio(studioId))
   ipcMain.handle(IPC.patchbay.listCables, (_e, setupId: number) => listCablesBySetup(setupId))
   ipcMain.handle(IPC.patchbay.saveCables, (_e, setupId: number, cables: PatchbayCableDraft[]) =>
     replaceCablesForSetup(setupId, cables)

@@ -122,9 +122,12 @@ export const IPC = {
   },
   patchbay: {
     getForStudio: 'patchbay:getForStudio',
+    getFileForStudio: 'patchbay:getFileForStudio',
     importForStudio: 'patchbay:importForStudio',
     pickFile: 'patchbay:pickFile',
     commitPickedToStudio: 'patchbay:commitPickedToStudio',
+    removeForStudio: 'patchbay:removeForStudio',
+    cableUsageForStudio: 'patchbay:cableUsageForStudio',
     listCables: 'patchbay:listCables',
     saveCables: 'patchbay:saveCables'
   },
@@ -886,9 +889,15 @@ export interface RendererApi {
   patchbay: {
     /** The studio's patchbay drawing and the jacks found on it, or null when it has none. */
     getForStudio(studioId: number): Promise<PatchbayWithPoints | null>
+    /** The drawing alone, without detecting its jacks — for the Studio Setup card. */
+    getFileForStudio(studioId: number): Promise<PatchbayFile | null>
     importForStudio(studioId: number): Promise<PatchbayFile | null>
     pickFile(): Promise<PickedPatchbayFile | null>
     commitPickedToStudio(studioId: number, sourcePath: string): Promise<PatchbayFile>
+    /** Deletes the studio's drawing. Its setups' cables are kept, hidden until one is uploaded again. */
+    removeForStudio(studioId: number): Promise<void>
+    /** How many cables the studio's setups have drawn, and in how many setups. */
+    cableUsageForStudio(studioId: number): Promise<{ setups: number; cables: number }>
     listCables(setupId: number): Promise<PatchbayCable[]>
     saveCables(setupId: number, cables: PatchbayCableDraft[]): Promise<SavePatchbayCablesResult>
     /** Fires whenever any studio's patchbay drawing changes. Returns an unsubscribe function. */
