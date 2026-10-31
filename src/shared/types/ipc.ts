@@ -419,6 +419,15 @@ export interface ExportedRoomLayoutFile {
   dataBase64: string
 }
 
+/** A studio's patchbay drawing in a pack. Always a PDF, so unlike ExportedRoomLayoutFile it names
+ *  no extension; import checks the payload really is one before writing it. */
+export interface ExportedPatchbayFile {
+  originalName: string | null
+  pageWidthPt: number
+  pageHeightPt: number
+  dataBase64: string
+}
+
 export interface ExportedStudio {
   name: string
   mics: ExportedStudioGear[]
@@ -427,6 +436,9 @@ export interface ExportedStudio {
   /** Present (possibly null) in exports from v3+; absent entirely in older files — always read as
    *  `studio.roomLayoutFile ?? null` on import. */
   roomLayoutFile: ExportedRoomLayoutFile | null
+  /** v4+ only. A file carries v4 only when some studio in it has a drawing, so packs without one
+   *  stay readable by apps that predate Patchbay Mode. */
+  patchbayFile?: ExportedPatchbayFile | null
 }
 
 export interface StudioExportFile {
