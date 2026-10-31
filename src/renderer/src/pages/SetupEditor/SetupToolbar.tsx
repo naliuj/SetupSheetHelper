@@ -360,6 +360,9 @@ export default function SetupToolbar({
       setupStoreApi.getState().selectAll()
     } else if (mode === 'layout') {
       layoutStoreApi.getState().selectAllBlocks()
+    } else if (mode === 'patchbay') {
+      const state = patchbayStoreApi.getState()
+      state.selectCables(state.cables.map((c) => c.id), false)
     }
   }
 

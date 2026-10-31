@@ -448,6 +448,22 @@ input[type='checkbox']:disabled {
   display: inline-flex;
 }
 
+/* The buttons overlap by their shared 1px border, so the later one would paint over an earlier
+   one's accent border on hover or focus; lift whichever is highlighted above its neighbors. */
+.segmented .btn {
+  position: relative;
+}
+
+.segmented .btn:hover,
+.segmented .btn:focus-visible,
+.segmented .btn.primary {
+  z-index: 1;
+}
+
+.segmented .btn:hover {
+  z-index: 2;
+}
+
 .segmented .btn:not(:first-child) {
   border-top-left-radius: 0;
   border-bottom-left-radius: 0;
