@@ -10,6 +10,7 @@ import { useThemeColor } from "@renderer/hooks/useThemeColor";
 import Icon from "@renderer/components/Icon";
 import { PAPER_SHADOW } from "../canvas/LayoutBackground";
 import { appFileUrl, renderPdfPage } from "../canvas/renderPdfPage";
+import { useMiddleButtonPan } from "../canvas/useMiddleButtonPan";
 import PatchbayCable from "./PatchbayCable";
 import { PointIndex, type Pt } from "./cableGeometry";
 
@@ -39,11 +40,19 @@ interface Draft {
 const ZOOM_STEP = 1.05;
 /** How far the pointer has to travel (screen pixels) before a press counts as a drag. */
 const DRAG_THRESHOLD = 4;
+/** While a cable is being drawn or re-patched, a pointer this close to the canvas edge (screen
+ *  pixels) pans the view that way, so a jack off screen can be reached at a readable zoom. */
+const EDGE_PAN_ZONE = 40;
+/** The fastest edge pan, in screen pixels per frame, with the pointer right at the edge. */
+const EDGE_PAN_MAX_SPEED = 15;
+/** Edge panning stops once the drawing's own edge is this far inside the canvas (screen pixels):
+ *  there is nothing more to reach that way. */
+const EDGE_PAN_MARGIN = 60;
 
 /** Patchbay Mode's canvas: the studio's patchbay drawing, with patch cables drawn between its
  *  jacks. Jacks come from the drawing's own text (see detectPatchPoints.ts) and cable ends snap to
  *  them; a drawing with none readable still takes cables, placed freely. View handling (fit,
- *  scroll to zoom toward the cursor, Space-drag to pan) matches Layout Mode's. */
+ *  scroll to zoom toward the cursor, Space-drag or middle-drag to pan) matches Layout Mode's. */
 export default function PatchbayStage({
   studioId,
   stageRef,
@@ -223,6 +232,102 @@ export default function PatchbayStage({
   const [hoverJack, setHoverJack] = useState<PatchPoint | null>(null);
   const [hoverCable, setHoverCable] = useState<number | string | null>(null);
   const [pointer, setPointer] = useState<Pt | null>(null);
+  // The last pointer position over the canvas (client pixels), for edge panning and for keeping a
+  // cable's loose end under the pointer when the view moves beneath it.
+  const lastClientRef = useRef<Pt | null>(null);
+
+  // Middle-drag pans in any state, like Space-drag. It never reaches handleMouseDown, so a cable
+  // being drawn click-to-click carries on through it.
+  const middlePanning = useMiddleButtonPan({
+    containerRef,
+    getPan: () => ({ x: panX, y: panY }),
+    setPan: (x, y) => setZoomPan(zoomScale, x, y),
+    onMove: (x, y) => {
+      lastClientRef.current = { x, y };
+    },
+  });
+
+  // When the view moves (scroll, pinch, a pan, an edge pan) with a cable end following the
+  // pointer, the end follows the pointer to whatever is under it now, rather than staying where it
+  // was on the drawing until the next mouse move.
+  useEffect(() => {
+    const client = lastClientRef.current;
+    if (!client || (!draft && !endDrag?.at)) return;
+    const pos = toCanvas(client.x, client.y);
+    if (!pos) return;
+    const end = endAt(pos);
+    setHoverJack(index.nearest(pos));
+    if (draft) setDraft((d) => (d ? { ...d, to: end } : d));
+    else setEndDrag((d) => (d?.at ? { ...d, at: end } : d));
+    // Only a change of view should move the end; pointer moves are handled as they come.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [finalX, finalY, finalScale]);
+
+  // --- Edge panning: while a cable end follows the pointer, nearing the canvas edge pans that way,
+  // faster the closer it gets, for as long as the pointer stays there. The loop runs between
+  // renders, so it reads the latest view from a ref.
+  const edgePanView = {
+    following: !!(draft || endDrag) && !pan && !middlePanning,
+    zoomScale,
+    panX,
+    panY,
+    finalX,
+    finalY,
+    finalScale,
+    imageWidth: imageSize.width,
+    imageHeight: imageSize.height,
+  };
+  const edgePanRef = useRef(edgePanView);
+  edgePanRef.current = edgePanView;
+  const edgePanFrame = useRef<number | null>(null);
+
+  function edgePanStep(): void {
+    edgePanFrame.current = null;
+    const v = edgePanRef.current;
+    const client = lastClientRef.current;
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!v.following || !client || !rect) return;
+    const speed = (distance: number): number =>
+      distance < EDGE_PAN_ZONE
+        ? EDGE_PAN_MAX_SPEED * (1 - Math.max(0, distance) / EDGE_PAN_ZONE)
+        : 0;
+    let dx = speed(client.x - rect.left) - speed(rect.right - client.x);
+    let dy = speed(client.y - rect.top) - speed(rect.bottom - client.y);
+    // Moving the view right (dx > 0) brings in what's off the left; stop once the drawing's left
+    // edge is in view, and likewise on every side, so the drawing never slides off entirely.
+    const left = v.finalX;
+    const right = v.finalX + v.imageWidth * v.finalScale;
+    const top = v.finalY;
+    const bottom = v.finalY + v.imageHeight * v.finalScale;
+    if (dx > 0) dx = Math.min(dx, Math.max(0, EDGE_PAN_MARGIN - left));
+    if (dx < 0)
+      dx = Math.max(dx, Math.min(0, rect.width - EDGE_PAN_MARGIN - right));
+    if (dy > 0) dy = Math.min(dy, Math.max(0, EDGE_PAN_MARGIN - top));
+    if (dy < 0)
+      dy = Math.max(dy, Math.min(0, rect.height - EDGE_PAN_MARGIN - bottom));
+    if (dx === 0 && dy === 0) return;
+    // Advance the ref too, so the next frame builds on this one even before React re-renders.
+    v.panX += dx;
+    v.panY += dy;
+    v.finalX += dx;
+    v.finalY += dy;
+    setZoomPan(v.zoomScale, v.panX, v.panY);
+    edgePanFrame.current = requestAnimationFrame(edgePanStep);
+  }
+
+  /** Starts the edge-pan loop if it isn't running; it stops itself once there's nothing to do. */
+  function startEdgePan(): void {
+    if (edgePanFrame.current == null)
+      edgePanFrame.current = requestAnimationFrame(edgePanStep);
+  }
+
+  useEffect(
+    () => () => {
+      if (edgePanFrame.current != null)
+        cancelAnimationFrame(edgePanFrame.current);
+    },
+    [],
+  );
 
   function finishDraft(d: Draft): void {
     setDraft(null);
@@ -279,6 +384,7 @@ export default function PatchbayStage({
   }
 
   function handleMouseMove(e: Konva.KonvaEventObject<MouseEvent>): void {
+    lastClientRef.current = { x: e.evt.clientX, y: e.evt.clientY };
     if (pan) {
       setZoomPan(
         zoomScale,
@@ -294,6 +400,7 @@ export default function PatchbayStage({
       setPointer({ x: e.evt.clientX - rect.left, y: e.evt.clientY - rect.top });
     const jack = index.nearest(pos);
     setHoverJack(jack);
+    if (draft || endDrag) startEdgePan();
     if (draft) {
       setDraft({ ...draft, to: endAt(pos) });
       return;
@@ -319,6 +426,8 @@ export default function PatchbayStage({
       setPan(null);
       return;
     }
+    // Only the left button draws; a stray right-button release mustn't finish a cable.
+    if (e.evt.button !== 0) return;
     if (endDrag) {
       commitEndDrag();
       return;
@@ -433,11 +542,13 @@ export default function PatchbayStage({
         position: "relative",
         background: "var(--color-bg)",
         cursor:
-          pan || spaceHeld
-            ? "grab"
-            : draft || hoverJack
-              ? "crosshair"
-              : undefined,
+          pan || middlePanning
+            ? "grabbing"
+            : spaceHeld
+              ? "grab"
+              : draft || hoverJack
+                ? "crosshair"
+                : undefined,
       }}
     >
       {patchbay === "none" && (
@@ -546,10 +657,10 @@ export default function PatchbayStage({
       )}
       <div className="patchbay-hint">
         {draft?.mode === "click"
-          ? "Click another jack to connect · Esc to cancel"
+          ? "Click another jack to connect · Scroll or middle-drag to move around · Esc to cancel"
           : patchbay && points.length === 0
             ? "No jacks could be read from this drawing — cables can go anywhere"
-            : "Drag from jack to jack, or click one then the other · Scroll to zoom · Space-drag to pan"}
+            : "Drag from jack to jack, or click one then the other · Scroll to zoom · Space-drag or middle-drag to pan"}
       </div>
       {tooltip && pointer && (
         <div
@@ -571,6 +682,7 @@ export default function PatchbayStage({
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={() => {
+          lastClientRef.current = null;
           setPan(null);
           setHoverJack(null);
           setPointer(null);
