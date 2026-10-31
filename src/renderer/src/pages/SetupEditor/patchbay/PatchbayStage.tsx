@@ -458,6 +458,64 @@ export default function PatchbayStage({ studioId, stageRef, active, paneActive }
     }
   }
 
+  // --- Drags that leave the canvas. A cable pulled toward the bottom edge easily overshoots the
+  // window; that used to drop it. While a button is held the window keeps getting the pointer's
+  // moves and its release even outside its bounds, so follow them here for anything that isn't
+  // over the canvas itself (the stage's own handlers cover that), and the edge pan keeps going at
+  // full speed while the pointer is past the edge.
+  const dragging = !!pan || !!marquee || !!endDrag || draft?.mode === 'drag'
+  const outsideHandlers = useRef({ move: (_e: MouseEvent): void => {}, up: (_e: MouseEvent): void => {} })
+  outsideHandlers.current = {
+    move: (e) => {
+      lastClientRef.current = { x: e.clientX, y: e.clientY }
+      if (pan) {
+        setZoomPan(zoomScale, pan.start.x + e.clientX - pan.client.x, pan.start.y + e.clientY - pan.client.y)
+        return
+      }
+      const pos = toCanvas(e.clientX, e.clientY)
+      if (!pos) return
+      if (marquee) {
+        setMarquee({ ...marquee, at: pos })
+        return
+      }
+      // Off the canvas no jack is in reach, so the end just follows the pointer.
+      const end: CableEnd = { x: pos.x, y: pos.y, point: null }
+      if (draft || endDrag) startEdgePan()
+      if (draft) setDraft({ ...draft, to: end })
+      else if (endDrag) setEndDrag({ ...endDrag, at: end })
+    },
+    up: (e) => {
+      if (pan) {
+        setPan(null)
+        return
+      }
+      if (e.button !== 0) return
+      if (marquee) finishMarquee(e, marquee)
+      // Let go outside the canvas: nothing lands. A re-patched end snaps back where it was, and a
+      // new cable stays on the pointer (click a jack to finish it, Esc to drop it) — the same
+      // state a click-to-click cable is in.
+      else if (endDrag) setEndDrag(null)
+      else if (draft?.mode === 'drag') setDraft({ ...draft, mode: 'click' })
+    }
+  }
+  useEffect(() => {
+    if (!dragging) return
+    const overCanvas = (e: MouseEvent): boolean =>
+      !!stageRef.current?.content.contains(e.target as Node | null)
+    const onMove = (e: MouseEvent): void => {
+      if (!overCanvas(e)) outsideHandlers.current.move(e)
+    }
+    const onUp = (e: MouseEvent): void => {
+      if (!overCanvas(e)) outsideHandlers.current.up(e)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+    return () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+  }, [dragging, stageRef])
+
   // Space to pan and Escape to drop a cable mid-draw: fixed canvas conventions, as in Layout Mode.
   // Gated on `active` — the stage stays mounted while hidden, and a hidden stage must not swallow
   // Space for the rest of the app.
@@ -674,13 +732,10 @@ export default function PatchbayStage({ studioId, stageRef, active, paneActive }
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={() => {
-          lastClientRef.current = null
-          setPan(null)
+          // A drag in progress carries on outside the canvas — see the window listeners above.
+          if (!dragging) lastClientRef.current = null
           setHoverJack(null)
           setPointer(null)
-          setEndDrag(null)
-          setMarquee(null)
-          if (draft?.mode === 'drag') setDraft(null)
         }}
         onWheel={handleWheel}
       >
