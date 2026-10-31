@@ -1,20 +1,15 @@
 import { useEffect, useState } from 'react'
 import { Image as KonvaImage, Rect } from 'react-konva'
-import * as pdfjsLib from 'pdfjs-dist'
-import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.mjs?url'
 import { BLANK_SHEET_WIDTH_PX, BLANK_SHEET_HEIGHT_PX, normalizedLayoutSize } from '@shared/constants/roomLayout'
 import { useLayoutStoreState } from '@renderer/state/layoutStoreContext'
-
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl
-
-const RENDER_SCALE = 2
+import { appFileUrl, renderPdfPage } from './renderPdfPage'
 
 /** The page edge. Without it the sheet has none: it is white, and in light mode the stage around
  *  it is near-white too (1.22:1), so the canvas reads as an infinite white void rather than a
  *  piece of paper on a desk. A soft drop shadow rather than a stroke, because it has to work on
  *  the dark stage as well, where a gray outline would look like part of the drawing. Applied to
  *  the imported floor plans too, which are white sheets with the same problem. */
-const PAPER_SHADOW = {
+export const PAPER_SHADOW = {
   shadowColor: '#000000',
   shadowBlur: 18,
   shadowOpacity: 0.28,
@@ -25,21 +20,6 @@ interface Props {
   studioId: number
   setupId: number | null
   onSize: (width: number, height: number) => void
-}
-
-async function renderPdf(url: string): Promise<{ image: HTMLCanvasElement; width: number; height: number }> {
-  const doc = await pdfjsLib.getDocument(url).promise
-  const page = await doc.getPage(1)
-  const viewport = page.getViewport({ scale: RENDER_SCALE })
-
-  const offscreen = document.createElement('canvas')
-  offscreen.width = viewport.width
-  offscreen.height = viewport.height
-  const ctx = offscreen.getContext('2d')
-  if (!ctx) throw new Error('Failed to get 2D context for layout PDF render')
-
-  await page.render({ canvasContext: ctx, viewport }).promise
-  return { image: offscreen, width: viewport.width, height: viewport.height }
 }
 
 function loadImage(url: string): Promise<{ image: HTMLImageElement; width: number; height: number }> {
@@ -79,14 +59,9 @@ export default function LayoutBackground({ studioId, setupId, onSize }: Props): 
         return
       }
 
-      // "app-file" is a registered "standard" scheme (like http), which requires a non-empty
-      // host — a bare `app-file:///Users/...` gets misparsed as host "Users" with the rest of
-      // the path silently dropped. Route the real absolute path through a single opaque,
-      // percent-encoded path segment behind a fixed placeholder host instead (matched by the
-      // protocol.handle in src/main/index.ts).
-      const url = `app-file://local-file/${encodeURIComponent(effective.filePath)}`
+      const url = appFileUrl(effective.filePath)
       const isPdf = effective.filePath.toLowerCase().endsWith('.pdf')
-      const result = isPdf ? await renderPdf(url) : await loadImage(url)
+      const result = isPdf ? await renderPdfPage(url) : await loadImage(url)
       if (cancelled) return
 
       let { width, height } = result

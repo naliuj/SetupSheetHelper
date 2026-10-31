@@ -11,6 +11,7 @@ import {
   LAYOUT_WINDOW_FLUSH_ACK_CHANNEL,
   THEME_CHANGED_CHANNEL,
   LAYOUT_FILE_CHANGED_CHANNEL,
+  PATCHBAY_CHANGED_CHANNEL,
   THEME_SYNC_CHANNEL,
   ACCESSIBILITY_CHANGED_CHANNEL,
   ACCESSIBILITY_SYNC_CHANNEL,
@@ -116,6 +117,20 @@ const api: RendererApi = {
       const listener = (): void => callback()
       ipcRenderer.on(LAYOUT_FILE_CHANGED_CHANNEL, listener)
       return () => ipcRenderer.removeListener(LAYOUT_FILE_CHANGED_CHANNEL, listener)
+    }
+  },
+  patchbay: {
+    getForStudio: (studioId) => ipcRenderer.invoke(IPC.patchbay.getForStudio, studioId),
+    importForStudio: (studioId) => ipcRenderer.invoke(IPC.patchbay.importForStudio, studioId),
+    pickFile: () => ipcRenderer.invoke(IPC.patchbay.pickFile),
+    commitPickedToStudio: (studioId, sourcePath) =>
+      ipcRenderer.invoke(IPC.patchbay.commitPickedToStudio, studioId, sourcePath),
+    listCables: (setupId) => ipcRenderer.invoke(IPC.patchbay.listCables, setupId),
+    saveCables: (setupId, cables) => ipcRenderer.invoke(IPC.patchbay.saveCables, setupId, cables),
+    onChanged: (callback) => {
+      const listener = (): void => callback()
+      ipcRenderer.on(PATCHBAY_CHANGED_CHANNEL, listener)
+      return () => ipcRenderer.removeListener(PATCHBAY_CHANGED_CHANNEL, listener)
     }
   },
   spreadsheetImport: {

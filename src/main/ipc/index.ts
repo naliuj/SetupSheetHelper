@@ -4,6 +4,7 @@ import { registerCatalogHandlers } from './catalogHandlers'
 import { registerChannelPresetHandlers } from './channelPresetHandlers'
 import { registerSetupHandlers } from './setupHandlers'
 import { registerLayoutFileHandlers } from './layoutFileHandlers'
+import { registerPatchbayHandlers } from './patchbayHandlers'
 import { registerExportHandlers } from './exportHandlers'
 import { registerFolderHandlers } from './folderHandlers'
 import { registerPresetFolderHandlers } from './presetFolderHandlers'
@@ -25,6 +26,7 @@ export function registerAllIpcHandlers(): void {
   registerChannelPresetHandlers()
   registerSetupHandlers()
   registerLayoutFileHandlers()
+  registerPatchbayHandlers()
   registerExportHandlers()
   registerFolderHandlers()
   registerPresetFolderHandlers()

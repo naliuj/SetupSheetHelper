@@ -12,6 +12,7 @@ import {
 } from '@shared/constants/keybindActions'
 import { useSetupStoreApi, useSetupStoreState } from '@renderer/state/setupStoreContext'
 import { useLayoutStoreApi, useLayoutStoreState } from '@renderer/state/layoutStoreContext'
+import { usePatchbayStoreApi } from '@renderer/state/patchbayStoreContext'
 import { useKeybindPrefsStore } from '@renderer/state/keybindPrefsStore'
 import { useMarkupPrefsStore } from '@renderer/state/markupPrefsStore'
 import { useSnapPrefsStore } from '@renderer/state/snapPrefsStore'
@@ -27,6 +28,9 @@ import RequireLayoutFileModal from './RequireLayoutFileModal'
 import OpenAlongsideModal from './OpenAlongsideModal'
 import { useBufferedField } from './table/useBufferedField'
 import { GENERIC_INSTRUMENT_TYPE } from './table/tableConstants'
+
+/** Layout-scope keybinds that also drive Patchbay Mode's canvas. */
+const PATCHBAY_VIEW_ACTIONS = new Set(['zoom-in', 'zoom-out', 'reset-view'])
 
 interface Props {
   stageRef: React.RefObject<Konva.Stage | null>
@@ -54,6 +58,7 @@ export default function SetupToolbar({
 }: Props): JSX.Element {
   const setupStoreApi = useSetupStoreApi()
   const layoutStoreApi = useLayoutStoreApi()
+  const patchbayStoreApi = usePatchbayStoreApi()
   const setupId = useSetupStoreState((s) => s.setupId)
   const studioId = useSetupStoreState((s) => s.studioId)
   const name = useSetupStoreState((s) => s.name)
@@ -329,6 +334,9 @@ export default function SetupToolbar({
     if (mode === 'table') {
       setupStoreApi.temporal.getState()[direction]()
       setupStoreApi.setState({ isDirty: true })
+    } else if (mode === 'patchbay') {
+      patchbayStoreApi.temporal.getState()[direction]()
+      patchbayStoreApi.setState({ isDirty: true })
     } else {
       layoutStoreApi.temporal.getState()[direction]()
       layoutStoreApi.setState({ isDirty: true })
@@ -371,6 +379,20 @@ export default function SetupToolbar({
   // Layout Mode requires an effective room layout first (this setup's own override, or the
   // studio's shared file) — leaving Layout Mode is always allowed, but entering it checks and, if
   // neither exists, opens a blocking prompt instead of switching.
+  /** Patchbay Mode needs nothing first — a studio without a drawing gets an upload prompt on the
+   *  canvas itself. Toggling from Patchbay Mode returns to Table Mode. */
+  function requestPatchbayMode(): void {
+    onToggleMode(mode === 'patchbay' ? 'table' : 'patchbay')
+  }
+
+  /** The Table | Layout | Patchbay switch: Layout goes through the same room-layout gate as the
+   *  toggle. */
+  function requestMode(next: EditorMode): void {
+    if (next === mode) return
+    if (next === 'layout') void requestToggleMode()
+    else onToggleMode(next)
+  }
+
   async function requestToggleMode(): Promise<void> {
     // Belt-and-suspenders alongside the disabled toggle button below: the keyboard shortcut
     // (Cmd+L) routes through this same function regardless of the button's disabled state, and
@@ -480,11 +502,13 @@ export default function SetupToolbar({
     'export-pdf': handleExport,
     'export-spreadsheet': handleExportSpreadsheet,
     'toggle-mode': requestToggleMode,
+    'toggle-patchbay-mode': requestPatchbayMode,
     'add-source': () => addItem(GENERIC_INSTRUMENT_TYPE),
     'select-all': handleSelectAll,
     'delete-selection': () => {
       if (mode === 'table' && selectedItemIds.size > 0) removeItems([...selectedItemIds])
       else if (mode === 'layout' && selectedBlockIds.size > 0) removeBlocks([...selectedBlockIds])
+      else if (mode === 'patchbay') deleteSelectedCables()
     },
     'duplicate-selection': () => {
       if (mode === 'layout' && selectedBlockIds.size > 0) duplicateBlocks([...selectedBlockIds])
@@ -501,12 +525,15 @@ export default function SetupToolbar({
     },
     'zoom-in': () => {
       if (mode === 'layout') layoutStoreApi.getState().zoomIn()
+      else if (mode === 'patchbay') patchbayStoreApi.getState().zoomIn()
     },
     'zoom-out': () => {
       if (mode === 'layout') layoutStoreApi.getState().zoomOut()
+      else if (mode === 'patchbay') patchbayStoreApi.getState().zoomOut()
     },
     'reset-view': () => {
       if (mode === 'layout') layoutStoreApi.getState().resetView()
+      else if (mode === 'patchbay') patchbayStoreApi.getState().resetView()
     },
     'toggle-markup': () => {
       if (mode === 'layout') {
@@ -535,6 +562,7 @@ export default function SetupToolbar({
     redo: () => handleUndoRedo('redo'),
     'clear-selection': () => {
       if (mode === 'table') clearSelection()
+      else if (mode === 'patchbay') patchbayStoreApi.getState().clearSelection()
       else selectBlock(null)
     },
     'delete-selection-table': () => {
@@ -542,7 +570,15 @@ export default function SetupToolbar({
     },
     'delete-selection-layout': () => {
       if (mode === 'layout' && selectedBlockIds.size > 0) removeBlocks([...selectedBlockIds])
+    },
+    'delete-selection-patchbay': () => {
+      if (mode === 'patchbay') deleteSelectedCables()
     }
+  }
+
+  function deleteSelectedCables(): void {
+    const state = patchbayStoreApi.getState()
+    if (state.selectedCableIds.size > 0) state.removeCables([...state.selectedCableIds])
   }
 
   // Mouse-click path: the native menu's items still send these over IPC when clicked — this
@@ -580,7 +616,10 @@ export default function SetupToolbar({
       for (const action of KEYBIND_ACTIONS) {
         if (action.id === 'open-settings') continue
         if (action.scope === 'table' && mode !== 'table') continue
-        if (action.scope === 'layout' && mode !== 'layout') continue
+        // Zoom and Reset View work in Patchbay Mode too; the rest of the Layout actions don't.
+        if (action.scope === 'layout' && mode !== 'layout' && !(mode === 'patchbay' && PATCHBAY_VIEW_ACTIONS.has(action.id)))
+          continue
+        if (action.scope === 'patchbay' && mode !== 'patchbay') continue
         if (action.scope === 'markup' && (mode !== 'layout' || !layoutStoreApi.getState().markupOn)) continue
         if (resolve(action.id) !== combo) continue
         const handler = handlers[action.id]
@@ -694,14 +733,32 @@ export default function SetupToolbar({
           Setup settings
         </button>
       )}
-      <button
-        className="btn"
-        onClick={requestToggleMode}
-        disabled={layoutPoppedOut}
-        title={layoutPoppedOut ? 'Open on your other display' : formatCombo(resolveKeybind('toggle-mode'))}
-      >
-        {mode === 'table' ? 'Layout Mode' : 'Table Mode'}
-      </button>
+      <div className="segmented" role="group" aria-label="Editor mode">
+        <button
+          className={mode === 'table' ? 'btn primary' : 'btn'}
+          aria-pressed={mode === 'table'}
+          onClick={() => requestMode('table')}
+        >
+          Table
+        </button>
+        <button
+          className={mode === 'layout' ? 'btn primary' : 'btn'}
+          aria-pressed={mode === 'layout'}
+          onClick={() => requestMode('layout')}
+          disabled={layoutPoppedOut}
+          title={layoutPoppedOut ? 'Open on your other display' : formatCombo(resolveKeybind('toggle-mode'))}
+        >
+          Layout
+        </button>
+        <button
+          className={mode === 'patchbay' ? 'btn primary' : 'btn'}
+          aria-pressed={mode === 'patchbay'}
+          onClick={() => requestMode('patchbay')}
+          title={resolveKeybind('toggle-patchbay-mode') ? formatCombo(resolveKeybind('toggle-patchbay-mode')) : undefined}
+        >
+          Patchbay
+        </button>
+      </div>
       {setupId && (
         <button
           className="btn"

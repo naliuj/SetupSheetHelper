@@ -641,6 +641,14 @@ export default function StudioSetupPage(): JSX.Element {
             disabled={activeStudioId == null && !name.trim()}
           />
 
+          <div className="section-title">Patchbay</div>
+          <LayoutFileUploader
+            kind="patchbay"
+            studioId={activeStudioId}
+            ensureStudioId={ensureStudioExists}
+            disabled={activeStudioId == null && !name.trim()}
+          />
+
           <div className="section-title">Fill from elsewhere</div>
           <button className="btn" onClick={() => setImportModalOpen(true)}>
             Import gear from another studio…

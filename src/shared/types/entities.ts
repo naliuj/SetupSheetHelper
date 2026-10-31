@@ -186,5 +186,7 @@ export const APP_SETTINGS_KEYS = {
   /** '1' | '0' — Layout Mode's Snap checkbox: whether drags snap to other blocks. Absent → on. */
   layoutSnapping: 'layout_snapping',
   /** JSON { tool, color, size } — the markup toolbar's last choices. Absent/garbage → pen, red, medium. */
-  markupPrefs: 'markup_prefs'
+  markupPrefs: 'markup_prefs',
+  /** JSON { color, sag } — Patchbay Mode's last cable choices. Absent/garbage → red, 0.35. */
+  patchbayPrefs: 'patchbay_prefs'
 } as const

@@ -24,3 +24,16 @@ export function getBundledLayoutsDir(): string {
   if (app.isPackaged) return join(process.resourcesPath, 'layouts')
   return join(app.getAppPath(), 'resources', 'layouts')
 }
+
+export function getPatchbaysDir(): string {
+  const dir = join(getUserDataDir(), 'patchbays')
+  mkdirSync(dir, { recursive: true })
+  return dir
+}
+
+/** Read-only source directory for the patchbay PDFs bundled with the app — Resources/patchbays
+ *  when packaged (extraResources), resources/patchbays at the project root in dev. */
+export function getBundledPatchbaysDir(): string {
+  if (app.isPackaged) return join(process.resourcesPath, 'patchbays')
+  return join(app.getAppPath(), 'resources', 'patchbays')
+}

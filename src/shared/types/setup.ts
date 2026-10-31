@@ -3,7 +3,7 @@ import type { ExportColumnOverrides, SetupColumnKey } from '../constants/setupCo
 export type SetupKind = 'setup' | 'template'
 export type TemplateSource = 'berklee' | 'custom'
 /** Table vs. Layout mode in the Setup Editor. */
-export type EditorMode = 'table' | 'layout'
+export type EditorMode = 'table' | 'layout' | 'patchbay'
 
 /** Which entity a `folders` row organizes. Studio folders and setup folders are independent
  *  namespaces — a folder created in one never appears in the other. (Channel presets have their

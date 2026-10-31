@@ -16,6 +16,14 @@ import type {
 } from './entities'
 import type { ChannelPreset, ChannelPresetItemInput, ChannelPresetWithItems } from './channelPreset'
 import type { PaletteItem } from './palette'
+import type {
+  PatchbayCable,
+  PatchbayCableDraft,
+  PatchbayFile,
+  PatchbayWithPoints,
+  PickedPatchbayFile,
+  SavePatchbayCablesResult
+} from './patchbay'
 import type { ExportColumnOverrides, SetupColumnKey } from '../constants/setupColumns'
 import type { ResolvedTheme, ThemePreference } from '../constants/theme'
 import type { ContrastPreference } from '../constants/accessibility'
@@ -111,6 +119,14 @@ export const IPC = {
     getOverrideForSetup: 'layoutFile:getOverrideForSetup',
     clearOverrideForSetup: 'layoutFile:clearOverrideForSetup',
     getEffectiveForSetup: 'layoutFile:getEffectiveForSetup'
+  },
+  patchbay: {
+    getForStudio: 'patchbay:getForStudio',
+    importForStudio: 'patchbay:importForStudio',
+    pickFile: 'patchbay:pickFile',
+    commitPickedToStudio: 'patchbay:commitPickedToStudio',
+    listCables: 'patchbay:listCables',
+    saveCables: 'patchbay:saveCables'
   },
   spreadsheetImport: {
     pick: 'spreadsheetImport:pick',
@@ -652,6 +668,7 @@ export type MenuAction =
   | 'export-pdf'
   | 'export-spreadsheet'
   | 'toggle-mode'
+  | 'toggle-patchbay-mode'
   | 'add-source'
   | 'select-all'
   | 'delete-selection'
@@ -703,6 +720,10 @@ export const THEME_CHANGED_CHANNEL = 'theme:changed'
 /** A studio's or setup's room layout changed, pushed to every window so any canvas showing it
  *  redraws (see main/ipc/layoutFileHandlers.ts). */
 export const LAYOUT_FILE_CHANGED_CHANNEL = 'layoutFile:changed'
+
+/** A studio's patchbay drawing changed, pushed to every window so Patchbay Mode redraws (see
+ *  main/ipc/patchbayHandlers.ts). */
+export const PATCHBAY_CHANGED_CHANNEL = 'patchbay:changed'
 
 /** The one SYNCHRONOUS channel in the app (ipcRenderer.sendSync). index.html's CSP is
  *  `script-src 'self'`, so the usual inline bootstrap script that sets data-theme before first
@@ -860,6 +881,17 @@ export interface RendererApi {
     clearOverrideForSetup(setupId: number): Promise<void>
     getEffectiveForSetup(setupId: number | null, studioId: number): Promise<EffectiveLayout>
     /** Fires whenever any studio's or setup's layout changes. Returns an unsubscribe function. */
+    onChanged(callback: () => void): () => void
+  }
+  patchbay: {
+    /** The studio's patchbay drawing and the jacks found on it, or null when it has none. */
+    getForStudio(studioId: number): Promise<PatchbayWithPoints | null>
+    importForStudio(studioId: number): Promise<PatchbayFile | null>
+    pickFile(): Promise<PickedPatchbayFile | null>
+    commitPickedToStudio(studioId: number, sourcePath: string): Promise<PatchbayFile>
+    listCables(setupId: number): Promise<PatchbayCable[]>
+    saveCables(setupId: number, cables: PatchbayCableDraft[]): Promise<SavePatchbayCablesResult>
+    /** Fires whenever any studio's patchbay drawing changes. Returns an unsubscribe function. */
     onChanged(callback: () => void): () => void
   }
   spreadsheetImport: {

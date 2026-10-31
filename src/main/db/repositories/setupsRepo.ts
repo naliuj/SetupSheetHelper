@@ -18,6 +18,7 @@ import { getDb } from '../index'
 import { getSetting } from './settingsRepo'
 import { listItemsBySetup, copyItemsToSetup } from './setupItemsRepo'
 import { copyBlocksToSetup } from './roomLayoutBlocksRepo'
+import { copyCablesToSetup } from './patchbayCablesRepo'
 import { getSetupLayoutOverride, upsertBlankLayoutOverride, upsertFileLayoutOverride } from './setupLayoutOverrideRepo'
 
 interface SetupRow {
@@ -299,6 +300,7 @@ export function duplicateSetup(
     setExportColumnOverrides(setup.id, source.exportColumnOverrides)
     copyItemsToSetup(sourceSetupId, setup.id)
     copyBlocksToSetup(sourceSetupId, setup.id)
+    copyCablesToSetup(sourceSetupId, setup.id)
     const override = getSetupLayoutOverride(sourceSetupId)
     if (override?.kind === 'blank') {
       upsertBlankLayoutOverride(setup.id)
