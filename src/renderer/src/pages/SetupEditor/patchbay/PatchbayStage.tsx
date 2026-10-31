@@ -647,13 +647,16 @@ export default function PatchbayStage({ studioId, stageRef, active, paneActive }
           </div>
         </div>
       )}
-      <div className="patchbay-hint">
-        {draft?.mode === 'click'
-          ? 'Click another jack to connect · Scroll or middle-drag to move around · Esc to cancel'
-          : patchbay && points.length === 0
-            ? 'No jacks could be read from this drawing — cables can go anywhere · Shift-drag to select'
-            : 'Drag from jack to jack, or click one then the other · Drag on empty space to select · Scroll to zoom · Space-drag or middle-drag to pan'}
-      </div>
+      {/* With no drawing there is nothing to draw on, so the upload card speaks alone. */}
+      {patchbay !== 'none' && (
+        <div className="patchbay-hint">
+          {draft?.mode === 'click'
+            ? 'Click another jack to connect · Scroll or middle-drag to move around · Esc to cancel'
+            : patchbay && points.length === 0
+              ? 'No jacks could be read from this drawing — cables can go anywhere · Shift-drag to select'
+              : 'Drag from jack to jack, or click one then the other · Drag on empty space to select · Scroll to zoom · Space-drag or middle-drag to pan'}
+        </div>
+      )}
       {tooltip && pointer && (
         <div className="patchbay-tooltip" style={{ left: pointer.x + 14, top: pointer.y + 14 }}>
           {tooltip}

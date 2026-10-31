@@ -69,7 +69,9 @@ const KINDS: Record<'layout' | 'patchbay', Kind> = {
 
 /** A patchbay change waiting on the user, because setups here already have cables on it. */
 type PendingChange =
-  | { action: 'replace'; studioId: number; picked: PickedPatchbayFile; usage: CableUsage }
+  // `restoring`: the studio has no drawing right now (it was removed), so its kept cables are
+  // about to show again on this one rather than move from an old drawing to a new one.
+  | { action: 'replace'; studioId: number; picked: PickedPatchbayFile; usage: CableUsage; restoring: boolean }
   | { action: 'remove'; studioId: number; usage: CableUsage }
 
 function pluralize(count: number, noun: string): string {
@@ -130,7 +132,7 @@ export default function LayoutFileUploader({
         const picked = await config.cables.pick()
         if (!picked) return
         const usage = await config.cables.usage(id)
-        if (usage.cables > 0) setPending({ action: 'replace', studioId: id, picked, usage })
+        if (usage.cables > 0) setPending({ action: 'replace', studioId: id, picked, usage, restoring: !layout })
         else setLayout(await config.cables.commit(id, picked.sourcePath))
         return
       }
@@ -178,7 +180,11 @@ export default function LayoutFileUploader({
   }
   useEscapeToClose(closePending, !!pending)
   const pendingTitle =
-    pending?.action === 'remove' ? 'Remove the patchbay drawing?' : 'Replace the patchbay drawing?'
+    pending?.action === 'remove'
+      ? 'Remove the patchbay drawing?'
+      : pending?.restoring
+        ? 'Upload a patchbay drawing?'
+        : 'Replace the patchbay drawing?'
   const pendingDialog = useModalDialog(pendingTitle, !!pending)
 
   return (
@@ -218,8 +224,12 @@ export default function LayoutFileUploader({
             {pending.action === 'replace' ? (
               <p className="card-sub">
                 {describeUsage(pending.usage)}{' '}
-                {pending.usage.cables === 1 ? 'stays where it is' : 'stay where they are'}.
-                Ends that land on a jack in &quot;{pending.picked.fileName}&quot; take that jack&apos;s name, and the
+                {pending.restoring
+                  ? `kept from the removed drawing ${pending.usage.cables === 1 ? 'shows' : 'show'} again on this one`
+                  : pending.usage.cables === 1
+                    ? 'stays where it is'
+                    : 'stay where they are'}
+                . Ends that land on a jack in &quot;{pending.picked.fileName}&quot; take that jack&apos;s name, and the
                 rest show as unlabeled.
               </p>
             ) : (
@@ -234,7 +244,7 @@ export default function LayoutFileUploader({
               </button>
               {pending.action === 'replace' ? (
                 <button className="btn primary" onClick={confirmPending} disabled={applying}>
-                  {applying ? 'Importing…' : 'Replace'}
+                  {applying ? 'Importing…' : pending.restoring ? 'Upload' : 'Replace'}
                 </button>
               ) : (
                 <button className="btn danger" onClick={confirmPending} disabled={applying}>

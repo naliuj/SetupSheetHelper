@@ -6,8 +6,9 @@ import { DEFAULT_CABLE_COLOR, DEFAULT_CABLE_SAG } from '@shared/constants/patchC
 const MAX_COORDINATE = 1_000_000
 
 const HEX_COLOR = /^#[0-9a-f]{6}$/i
-/** A jack id as detection writes it: `<row index>:<column index>` (see PatchPoint.id). */
-const POINT_ID = /^\d+:\d+$/
+/** A jack id as detection writes it, colon-separated indexes (`<row>:<run>:<column>` today; see
+ *  detectPatchPoints). Any number of parts, so a later detector version's ids still pass. */
+const POINT_ID = /^\d+(:\d+)+$/
 
 function coordinate(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) && Math.abs(value) <= MAX_COORDINATE ? value : null
