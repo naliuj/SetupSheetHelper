@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { PdfExportInclude, PdfExportOrientation, PdfExportDensity } from '@shared/types/ipc'
+import type { PdfExportParts, PdfExportOrientation, PdfExportDensity } from '@shared/types/ipc'
 import { useEscapeToClose } from '@renderer/hooks/useEscapeToClose'
 import ToggleSwitch from '@renderer/components/ToggleSwitch'
 import ExportColumnChips, { useExportColumnChips } from '@renderer/components/ExportColumnChips'
@@ -8,7 +8,7 @@ import type { SetupColumnKey } from '@shared/constants/setupColumns'
 import { useModalDialog } from '@renderer/hooks/useModalDialog'
 
 export interface ExportOptions {
-  include: PdfExportInclude
+  parts: PdfExportParts
   coloredRows: boolean
   orientation: PdfExportOrientation
   density: PdfExportDensity
@@ -16,31 +16,38 @@ export interface ExportOptions {
 }
 
 interface Props {
-  defaultInclude: PdfExportInclude
+  defaultParts: PdfExportParts
   defaultColoredRows: boolean
   /** Whether this setup currently resolves to an effective room layout (a studio file, a
    *  per-setup file override, or a chosen blank sheet) — the "Room layout" toggle only makes
    *  sense to offer when there's something to include. */
   hasLayout: boolean
+  /** Whether the setup's studio has a patchbay drawing — the same gate for the "Patchbay" toggle. */
+  hasPatchbay: boolean
   onClose: () => void
   onExport: (options: ExportOptions) => Promise<void>
 }
 
-/** Independent checkboxes in the UI, mapped back to the existing PdfExportInclude union on export
- *  so the IPC contract and the remembered-preference setting stay unchanged. */
+/** One independent toggle per part of the PDF: the setup sheet, the room layout, and the patchbay
+ *  (its drawing with the cables, then the cable list). */
 export default function ExportOptionsModal({
-  defaultInclude,
+  defaultParts,
   defaultColoredRows,
   hasLayout,
+  hasPatchbay,
   onClose,
   onExport
 }: Props): JSX.Element {
   useEscapeToClose(onClose)
-  // Without a layout to offer, the setup sheet is the only possible content — always start it
-  // checked, regardless of a remembered "layout only" preference from some other studio that did
-  // have one (otherwise both toggles could start unchecked with no way to tell why Export is inert).
-  const [includeSheet, setIncludeSheet] = useState(!hasLayout || defaultInclude !== 'layout')
-  const [includeLayout, setIncludeLayout] = useState(hasLayout && defaultInclude !== 'sheet')
+  // A remembered part this setup can't offer starts off. If that leaves nothing on — a remembered
+  // "layout only" from some other studio that had one — the setup sheet starts checked, so the
+  // dialog never opens with every toggle off and no way to tell why Export is inert.
+  const startLayout = hasLayout && defaultParts.layout
+  const startPatchbay = hasPatchbay && defaultParts.patchbay
+  const [includeSheet, setIncludeSheet] = useState(defaultParts.sheet || (!startLayout && !startPatchbay))
+  const [includeLayout, setIncludeLayout] = useState(startLayout)
+  const [includePatchbay, setIncludePatchbay] = useState(startPatchbay)
+  const anyPart = includeSheet || includeLayout || includePatchbay
   const [coloredRows, setColoredRows] = useState(defaultColoredRows)
   const [orientation, setOrientation] = useState<PdfExportOrientation>('portrait')
   const [density, setDensity] = useState<PdfExportDensity>('normal')
@@ -59,10 +66,10 @@ export default function ExportOptionsModal({
   }
 
   async function handleExport(): Promise<void> {
-    const include: PdfExportInclude = includeSheet && includeLayout ? 'both' : includeSheet ? 'sheet' : 'layout'
+    const parts: PdfExportParts = { sheet: includeSheet, layout: includeLayout, patchbay: includePatchbay }
     setExporting(true)
     try {
-      await onExport({ include, coloredRows, orientation, density, includeColumns: chips.included })
+      await onExport({ parts, coloredRows, orientation, density, includeColumns: chips.included })
       onClose()
     } finally {
       setExporting(false)
@@ -92,16 +99,18 @@ export default function ExportOptionsModal({
             <ToggleSwitch checked={includeLayout} onChange={setIncludeLayout} label="Room layout" />
           </div>
         )}
+        {hasPatchbay && (
+          <div style={{ marginBottom: 8 }}>
+            <ToggleSwitch checked={includePatchbay} onChange={setIncludePatchbay} label="Patchbay" />
+          </div>
+        )}
         <div style={{ marginBottom: 4 }}>
-          <ToggleSwitch
-            checked={coloredRows}
-            onChange={setColoredRows}
-            disabled={!includeSheet && !includeLayout}
-            label="Colored"
-          />
+          <ToggleSwitch checked={coloredRows} onChange={setColoredRows} disabled={!anyPart} label="Colored" />
         </div>
         <p className="card-sub" style={{ margin: '0 0 12px 24px' }}>
-          Tints rows and layout blocks by color. Leave off for black-and-white printing.
+          {hasPatchbay
+            ? 'Tints rows and layout blocks by color, and keeps patch cables in color. Leave off for black-and-white printing.'
+            : 'Tints rows and layout blocks by color. Leave off for black-and-white printing.'}
         </p>
 
         {includeSheet && <ExportColumnChips states={chips.states} onToggle={chips.toggle} />}
@@ -142,7 +151,7 @@ export default function ExportOptionsModal({
             className="btn primary"
             onClick={handleExport}
             // A sheet with every column chip off would print an empty table.
-            disabled={exporting || (!includeSheet && !includeLayout) || (includeSheet && chips.included.length === 0)}
+            disabled={exporting || !anyPart || (includeSheet && chips.included.length === 0)}
           >
             {exporting ? 'Exporting…' : 'Export'}
           </button>
