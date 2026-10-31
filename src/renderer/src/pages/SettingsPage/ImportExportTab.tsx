@@ -127,8 +127,8 @@ export default function ImportExportTab({
         </div>
         <p className="card-sub">
           A setup file carries the sheet itself: every channel row, your column choices, session
-          notes, and any layout overrides. Importing asks which studio to file the setups under, and
-          matches gear by name against that studio&apos;s lockers.
+          notes, any layout overrides, and patch cables. Importing asks which studio to file the
+          setups under, and matches gear by name against that studio&apos;s lockers.
         </p>
         <div className="inline-form" style={{ marginTop: 10 }}>
           <button className="btn" onClick={onExportSetups}>

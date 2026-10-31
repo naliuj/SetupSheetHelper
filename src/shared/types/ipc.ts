@@ -483,6 +483,18 @@ export interface ExportedSetupItem {
   groupId: string | null
 }
 
+/** A patch cable in a setup file: PatchbayCable without its row ids. Ends are room pixels on the
+ *  drawing it was made on, which ExportedSetup.patchbaySource describes. */
+export type ExportedPatchCable = Omit<PatchbayCable, 'id' | 'setupId'>
+
+/** The patchbay drawing a setup's cables were made on, so import can tell when the target studio's
+ *  drawing is a different page and the ends may not line up. */
+export interface ExportedPatchbaySource {
+  originalName: string | null
+  pageWidthPt: number
+  pageHeightPt: number
+}
+
 export interface ExportedSetup {
   name: string
   sessionDate: string | null
@@ -502,6 +514,11 @@ export interface ExportedSetup {
   /** This setup's own layout override (rare — most setups use their studio's shared layout and
    *  have no override row at all), not the studio's shared layout file. */
   layoutOverride: ExportedRoomLayoutFile | null
+  /** Optional: files exported before Patchbay Mode don't carry cables. Kept on import even when
+   *  the target studio has no drawing; they show once one is uploaded. */
+  patchCables?: ExportedPatchCable[]
+  /** The exporting studio's drawing, or null when it had none. */
+  patchbaySource?: ExportedPatchbaySource | null
 }
 
 export interface SetupExportFile {
