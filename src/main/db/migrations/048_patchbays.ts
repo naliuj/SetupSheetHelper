@@ -1,5 +1,5 @@
-import type Database from "better-sqlite3";
-import { attachBundledPatchbays } from "../bundledPatchbays";
+import type Database from 'better-sqlite3'
+import { attachBundledPatchbays } from '../bundledPatchbays'
 
 /** Patchbay Mode: one patchbay drawing per studio (like room_layout_files) and the cables drawn on
  *  it per setup.
@@ -41,6 +41,6 @@ export function run(db: Database.Database): void {
       updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
     );
     CREATE INDEX idx_patchbay_cables_setup ON patchbay_cables(setup_id);
-  `);
-  attachBundledPatchbays(db);
+  `)
+  attachBundledPatchbays(db)
 }

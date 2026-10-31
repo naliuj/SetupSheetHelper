@@ -12,6 +12,7 @@ import LayoutNote from './LayoutNote'
 import LayoutMark from './LayoutMark'
 import MarkupToolbar from './MarkupToolbar'
 import { useMarkupDrawing } from './useMarkupDrawing'
+import { useMiddleButtonPan } from './useMiddleButtonPan'
 import { scaleMarkData } from './markGeometry'
 import { useMarkupPrefsStore } from '@renderer/state/markupPrefsStore'
 import { Eye, EyeOff, PenLine } from 'lucide-react'
@@ -380,6 +381,13 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
   const finalX = offsetX + panX
   const finalY = offsetY + panY
   const view: StageView = { scale: finalScale, x: finalX, y: finalY }
+
+  // Middle-drag pans in any tool, like Space-drag, without touching the selection or drawing.
+  const middlePanning = useMiddleButtonPan({
+    containerRef,
+    getPan: () => ({ x: panX, y: panY }),
+    setPan: (x, y) => setZoomPan(zoomScale, x, y)
+  })
 
   // A drawing tool is in hand: the canvas takes strokes, and blocks, notes and marks stop answering
   // clicks so a stroke can start on top of one without grabbing it.
@@ -1126,7 +1134,7 @@ export default function LayoutStage({ studioId, stageRef, active, paneActive = t
         overflow: 'hidden',
         background: 'var(--color-bg)',
         position: 'relative',
-        cursor: drawing ? 'crosshair' : undefined,
+        cursor: middlePanning ? 'grabbing' : drawing ? 'crosshair' : undefined,
         // A pen or finger drag draws; without this the browser may treat it as a scroll.
         touchAction: drawing ? 'none' : undefined
       }}

@@ -233,6 +233,8 @@ export function useMarkupDrawing(o: Options): {
     // The right button (or a pen button mapped to it) erases for as long as it's held, whichever
     // tool is picked.
     const secondary = e.button === 2
+    // The middle button pans the view in any tool (see useMiddleButtonPan), so it never draws.
+    if (e.button === 1) return
     if (!(drawing || (markupOn && secondary))) return
     // Only a press on the canvas itself — not the toolbar, zoom buttons or an editor over it.
     if (!(e.target instanceof HTMLCanvasElement)) return
