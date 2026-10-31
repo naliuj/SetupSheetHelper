@@ -2,6 +2,7 @@ import { dialog } from 'electron'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { extname, join } from 'node:path'
 import type {
+  ExportedPatchbayFile,
   ExportedRoomLayoutFile,
   ExportedStudio,
   ExportStudiosResult,
@@ -9,15 +10,24 @@ import type {
   PickImportFileResult,
   StudioExportFile
 } from '@shared/types/ipc'
-import { getLayoutsDir } from '../userDataPaths'
+import { getLayoutsDir, getPatchbaysDir } from '../userDataPaths'
 import { getDb } from '../db/index'
 import * as studiosRepo from '../db/repositories/studiosRepo'
 import { listStudioMics, upsertMic } from '../db/repositories/micsRepo'
 import { listOutboardByStudio, upsertOutboard } from '../db/repositories/outboardRepo'
 import { listPreampsByStudio, upsertPreamp } from '../db/repositories/preampRepo'
 import { getLayoutFileForStudio, upsertLayoutFile } from '../db/repositories/roomLayoutFileRepo'
+import { getPatchbayFileForStudio, upsertPatchbayFile } from '../db/repositories/patchbayFileRepo'
 
-const EXPORT_VERSION = 3
+/** The newest format this app reads and writes. v4 added patchbay drawings, but a file is only
+ *  stamped 4 when one of its studios carries a drawing (see exportVersionFor): the rest of v4 is
+ *  v3, so a pack without a patchbay stays importable by apps from before Patchbay Mode. */
+const EXPORT_VERSION = 4
+const EXPORT_VERSION_WITHOUT_PATCHBAY = 3
+
+export function exportVersionFor(studios: ExportedStudio[]): number {
+  return studios.some((studio) => studio.patchbayFile) ? EXPORT_VERSION : EXPORT_VERSION_WITHOUT_PATCHBAY
+}
 
 /** A pack names its own layout-file extension, and that string is interpolated into a path on
  *  import. Packs used to only ever come from a file the user picked; they can now be fetched from
@@ -39,6 +49,44 @@ function exportRoomLayoutFile(studioId: number): ExportedRoomLayoutFile | null {
     }
   } catch {
     return null
+  }
+}
+
+function exportPatchbayFile(studioId: number): ExportedPatchbayFile | null {
+  const patchbayFile = getPatchbayFileForStudio(studioId)
+  if (!patchbayFile || !existsSync(patchbayFile.filePath)) return null
+  try {
+    return {
+      originalName: patchbayFile.originalName,
+      pageWidthPt: patchbayFile.pageWidthPt,
+      pageHeightPt: patchbayFile.pageHeightPt,
+      dataBase64: readFileSync(patchbayFile.filePath).toString('base64')
+    }
+  } catch {
+    return null
+  }
+}
+
+/** A pack's drawing, decoded, or null when it isn't one worth writing. Packs can come from the web,
+ *  so the payload is untrusted: it has to actually be a PDF, and its page size has to be a real one,
+ *  since Patchbay Mode sizes the whole canvas from it. Jacks aren't read here; Patchbay Mode
+ *  detects them the first time the studio is opened, as it does for the bundled drawings. */
+function decodePatchbayFile(
+  raw: unknown
+): { data: Buffer; originalName: string | null; pageWidthPt: number; pageHeightPt: number } | null {
+  if (typeof raw !== 'object' || raw === null) return null
+  const file = raw as Record<string, unknown>
+  const { pageWidthPt, pageHeightPt, dataBase64 } = file
+  if (typeof pageWidthPt !== 'number' || !Number.isFinite(pageWidthPt) || pageWidthPt <= 0) return null
+  if (typeof pageHeightPt !== 'number' || !Number.isFinite(pageHeightPt) || pageHeightPt <= 0) return null
+  if (typeof dataBase64 !== 'string') return null
+  const data = Buffer.from(dataBase64, 'base64')
+  if (data.subarray(0, 5).toString('latin1') !== '%PDF-') return null
+  return {
+    data,
+    originalName: typeof file.originalName === 'string' ? file.originalName : null,
+    pageWidthPt,
+    pageHeightPt
   }
 }
 
@@ -67,12 +115,13 @@ export async function exportStudiosToFile(studioIds: number[]): Promise<ExportSt
           category: preamp.category,
           channels: preamp.channels
         })),
-        roomLayoutFile: exportRoomLayoutFile(id)
+        roomLayoutFile: exportRoomLayoutFile(id),
+        patchbayFile: exportPatchbayFile(id)
       }
     ]
   })
 
-  const file: StudioExportFile = { version: EXPORT_VERSION, studios }
+  const file: StudioExportFile = { version: exportVersionFor(studios), studios }
 
   const saveResult = await dialog.showSaveDialog({
     title: 'Export Studios',
@@ -112,8 +161,8 @@ export async function pickAndParseImportFile(): Promise<PickImportFileResult> {
 }
 
 /** Imported studios always land as new, ungrouped Custom Studios — building IDs aren't portable
- *  across installations. preamps/roomLayoutFile default safely (empty/null) for older export files
- *  that predate them. */
+ *  across installations. preamps/roomLayoutFile/patchbayFile default safely (empty/null) for older
+ *  export files that predate them. */
 export function importStudios(studios: ExportedStudio[]): ImportStudiosResult {
   const db = getDb()
   // All-or-nothing. Each studio is a create plus N gear upserts plus a layout-file write, and
@@ -121,9 +170,9 @@ export function importStudios(studios: ExportedStudio[]): ImportStudiosResult {
   // studio row created, some of its gear inserted, the rest missing, and every later studio in
   // the file unimported — while the renderer told the user "Nothing was changed."
   //
-  // The layout FILE write is not transactional; nothing rolls back a filesystem write. That is
-  // harmless here: after a rollback no row references the file, and the next import overwrites
-  // it, since its name is derived from the studio id.
+  // The layout and patchbay FILE writes are not transactional; nothing rolls back a filesystem
+  // write. That is harmless here: after a rollback no row references either file, and the next
+  // import overwrites them, since their names are derived from the studio id.
   const run = db.transaction(() => {
     const imported: string[] = []
     for (const studio of studios) {
@@ -181,6 +230,20 @@ export function importStudios(studios: ExportedStudio[]): ImportStudiosResult {
           originalName: layoutFile.originalName,
           pageWidthPt: layoutFile.pageWidthPt,
           pageHeightPt: layoutFile.pageHeightPt
+        })
+      }
+      // Dropped rather than written when it isn't a real PDF — see decodePatchbayFile. The studio
+      // still imports; it just arrives without a patchbay.
+      const patchbayFile = decodePatchbayFile(studio.patchbayFile)
+      if (patchbayFile) {
+        const destPath = join(getPatchbaysDir(), `studio_${created.id}.pdf`)
+        writeFileSync(destPath, patchbayFile.data)
+        upsertPatchbayFile({
+          studioId: created.id,
+          filePath: destPath,
+          originalName: patchbayFile.originalName,
+          pageWidthPt: patchbayFile.pageWidthPt,
+          pageHeightPt: patchbayFile.pageHeightPt
         })
       }
     }

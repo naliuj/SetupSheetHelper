@@ -422,6 +422,15 @@ export interface ExportedRoomLayoutFile {
   dataBase64: string
 }
 
+/** A studio's patchbay drawing in a pack. Always a PDF, so unlike ExportedRoomLayoutFile it names
+ *  no extension; import checks the payload really is one before writing it. */
+export interface ExportedPatchbayFile {
+  originalName: string | null
+  pageWidthPt: number
+  pageHeightPt: number
+  dataBase64: string
+}
+
 export interface ExportedStudio {
   name: string
   mics: ExportedStudioGear[]
@@ -430,6 +439,9 @@ export interface ExportedStudio {
   /** Present (possibly null) in exports from v3+; absent entirely in older files — always read as
    *  `studio.roomLayoutFile ?? null` on import. */
   roomLayoutFile: ExportedRoomLayoutFile | null
+  /** v4+ only. A file carries v4 only when some studio in it has a drawing, so packs without one
+   *  stay readable by apps that predate Patchbay Mode. */
+  patchbayFile?: ExportedPatchbayFile | null
 }
 
 export interface StudioExportFile {
@@ -486,6 +498,18 @@ export interface ExportedSetupItem {
   groupId: string | null
 }
 
+/** A patch cable in a setup file: PatchbayCable without its row ids. Ends are room pixels on the
+ *  drawing it was made on, which ExportedSetup.patchbaySource describes. */
+export type ExportedPatchCable = Omit<PatchbayCable, 'id' | 'setupId'>
+
+/** The patchbay drawing a setup's cables were made on, so import can tell when the target studio's
+ *  drawing is a different page and the ends may not line up. */
+export interface ExportedPatchbaySource {
+  originalName: string | null
+  pageWidthPt: number
+  pageHeightPt: number
+}
+
 export interface ExportedSetup {
   name: string
   sessionDate: string | null
@@ -505,6 +529,11 @@ export interface ExportedSetup {
   /** This setup's own layout override (rare — most setups use their studio's shared layout and
    *  have no override row at all), not the studio's shared layout file. */
   layoutOverride: ExportedRoomLayoutFile | null
+  /** Optional: files exported before Patchbay Mode don't carry cables. Kept on import even when
+   *  the target studio has no drawing; they show once one is uploaded. */
+  patchCables?: ExportedPatchCable[]
+  /** The exporting studio's drawing, or null when it had none. */
+  patchbaySource?: ExportedPatchbaySource | null
 }
 
 export interface SetupExportFile {
@@ -622,6 +651,8 @@ export interface LibraryStudio {
   bytes: number
   counts: { mics: number; outboard: number; preamps: number }
   roomLayout: boolean
+  /** Optional: index entries published before Patchbay Mode don't say either way. */
+  patchbay?: boolean
   gear: string
 }
 

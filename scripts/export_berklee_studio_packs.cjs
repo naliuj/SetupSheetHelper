@@ -14,7 +14,10 @@ const { DatabaseSync } = require('node:sqlite')
 const fs = require('node:fs')
 const path = require('node:path')
 
-const EXPORT_VERSION = 3
+// Same rule as the app's exportVersionFor: a pack is stamped 4 only when it carries a patchbay
+// drawing, so packs without one stay importable by apps from before Patchbay Mode.
+const EXPORT_VERSION = 4
+const EXPORT_VERSION_WITHOUT_PATCHBAY = 3
 
 const [dbPath, outDir] = process.argv.slice(2)
 if (!dbPath || !outDir) {
@@ -43,6 +46,11 @@ const preampsFor = gear('preamps', 'name, manufacturer, category, channels')
 const layoutFor = db.prepare(
   'SELECT file_path, original_name, page_width_pt, page_height_pt FROM room_layout_files WHERE studio_id = ?'
 )
+// A database from before Patchbay Mode has no patchbay_files table; its packs just carry none.
+const hasPatchbays = !!db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'patchbay_files'").get()
+const patchbayFor = hasPatchbays
+  ? db.prepare('SELECT file_path, original_name, page_width_pt, page_height_pt FROM patchbay_files WHERE studio_id = ?')
+  : null
 
 const slug = (s) =>
   s
@@ -64,18 +72,30 @@ for (const studio of studios) {
     }
   }
 
+  const patchbay = patchbayFor?.get(studio.id)
+  let patchbayFile = null
+  if (patchbay && fs.existsSync(patchbay.file_path)) {
+    patchbayFile = {
+      originalName: patchbay.original_name,
+      pageWidthPt: patchbay.page_width_pt,
+      pageHeightPt: patchbay.page_height_pt,
+      dataBase64: fs.readFileSync(patchbay.file_path).toString('base64')
+    }
+  }
+
   // Named for the archive, not for the app's own sidebar: an imported studio lands beside the
   // user's own rooms, where a bare "Studio A" says nothing about whose Studio A it is.
   const name = `Berklee ${studio.building}, ${studio.name}`
   const pack = {
-    version: EXPORT_VERSION,
+    version: patchbayFile ? EXPORT_VERSION : EXPORT_VERSION_WITHOUT_PATCHBAY,
     studios: [
       {
         name,
         mics: micsFor.all(studio.id),
         outboardGear: outboardFor.all(studio.id),
         preamps: preampsFor.all(studio.id),
-        roomLayoutFile
+        roomLayoutFile,
+        patchbayFile
       }
     ]
   }
@@ -83,12 +103,20 @@ for (const studio of studios) {
   const file = path.join(outDir, `${slug(name)}.json`)
   fs.writeFileSync(file, JSON.stringify(pack, null, 2) + '\n')
   const s = pack.studios[0]
-  written.push({ file, name, mics: s.mics.length, outboard: s.outboardGear.length, preamps: s.preamps.length, layout: !!roomLayoutFile })
+  written.push({
+    file,
+    name,
+    mics: s.mics.length,
+    outboard: s.outboardGear.length,
+    preamps: s.preamps.length,
+    layout: !!roomLayoutFile,
+    patchbay: !!patchbayFile
+  })
 }
 
 for (const w of written) {
   console.log(
-    `${path.basename(w.file).padEnd(34)} ${String(w.mics).padStart(3)} mics  ${String(w.outboard).padStart(3)} outboard  ${String(w.preamps).padStart(2)} preamps  ${w.layout ? 'layout' : '      '}  ${(fs.statSync(w.file).size / 1024).toFixed(0)} KB`
+    `${path.basename(w.file).padEnd(34)} ${String(w.mics).padStart(3)} mics  ${String(w.outboard).padStart(3)} outboard  ${String(w.preamps).padStart(2)} preamps  ${w.layout ? 'layout' : '      '}  ${w.patchbay ? 'patchbay' : '        '}  ${(fs.statSync(w.file).size / 1024).toFixed(0)} KB`
   )
 }
 console.log(`\n${written.length} packs written to ${outDir}`)

@@ -7,7 +7,8 @@ import type {
   StudioLibraryPacksResult
 } from '@shared/types/ipc'
 
-const EXPORT_VERSION = 3
+/** Matches studios/exportImport.ts: v4 packs carry a patchbay drawing, v3 packs don't. */
+const EXPORT_VERSION = 4
 
 /** Long enough for a big pack on a slow connection, short enough that a dead server does not leave
  *  the picker spinning forever. Nothing else in main has a request timeout, so this is the first. */
@@ -67,6 +68,8 @@ function isLibraryStudio(value: unknown): value is LibraryStudio {
     typeof entry.file === 'string' &&
     typeof entry.bytes === 'number' &&
     typeof entry.roomLayout === 'boolean' &&
+    // Optional, so an index published before Patchbay Mode still validates.
+    (entry.patchbay === undefined || typeof entry.patchbay === 'boolean') &&
     typeof counts === 'object' &&
     counts !== null &&
     typeof counts.mics === 'number' &&

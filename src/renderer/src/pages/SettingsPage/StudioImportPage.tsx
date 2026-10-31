@@ -160,7 +160,8 @@ export default function StudioImportPage({ file, onBack, onDone }: Props): JSX.E
               <div className="card-sub" style={{ marginTop: 2 }}>
                 {studio.mics.length} mics · {studio.outboardGear.length} outboard ·{' '}
                 {studio.preamps.length} preamp{studio.preamps.length === 1 ? '' : 's'} ·{' '}
-                {studio.roomLayoutFile ? 'room layout' : 'no room layout'}
+                {studio.roomLayoutFile ? 'room layout' : 'no room layout'} ·{' '}
+                {studio.patchbayFile ? 'patchbay' : 'no patchbay'}
               </div>
               {isDuplicate[index] && (
                 <div className="inline-form" style={{ marginTop: 7, alignItems: 'center' }}>

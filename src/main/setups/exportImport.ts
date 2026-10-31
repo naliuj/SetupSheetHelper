@@ -2,6 +2,7 @@ import { dialog } from 'electron'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { extname, join } from 'node:path'
 import type {
+  ExportedPatchbaySource,
   ExportedRoomLayoutFile,
   ExportedSetup,
   ExportedSetupItem,
@@ -22,11 +23,16 @@ import {
 } from '../db/repositories/setupsRepo'
 import { replaceItemsForSetup } from '../db/repositories/setupItemsRepo'
 import { getSetupLayoutOverride, upsertFileLayoutOverride } from '../db/repositories/setupLayoutOverrideRepo'
+import { listCablesBySetup, replaceCablesForSetup } from '../db/repositories/patchbayCablesRepo'
+import { getPatchbayFileForStudio } from '../db/repositories/patchbayFileRepo'
 import { getMicsByIds, listAvailableForStudio as listAvailableMics } from '../db/repositories/micsRepo'
 import { getOutboardByIds, listAvailableForStudio as listAvailableOutboard } from '../db/repositories/outboardRepo'
 import { getPreampsByIds, listAvailableForStudio as listAvailablePreamps } from '../db/repositories/preampRepo'
 import { canonicalMicKey } from '@shared/constants/berkleeMicRenames'
+import { sanitizePatchbaySource, sanitizePatchCables } from './patchCableImport'
 
+/** Still 1: everything added since (column order, export overrides, patch cables) is optional, so
+ *  an older app reading a newer file just goes without it. */
 const EXPORT_VERSION = 1
 
 /** An export names its own layout-file extension, and that string gets interpolated into a path
@@ -50,6 +56,13 @@ function exportLayoutOverride(setupId: number): ExportedRoomLayoutFile | null {
   } catch {
     return null
   }
+}
+
+function exportPatchbaySource(studioId: number): ExportedPatchbaySource | null {
+  const file = getPatchbayFileForStudio(studioId)
+  return file
+    ? { originalName: file.originalName, pageWidthPt: file.pageWidthPt, pageHeightPt: file.pageHeightPt }
+    : null
 }
 
 export async function exportSetupsToFile(setupIds: number[]): Promise<ExportSetupsResult> {
@@ -105,7 +118,9 @@ export async function exportSetupsToFile(setupIds: number[]): Promise<ExportSetu
         exportColumnOverrides: setup.exportColumnOverrides,
         sessionNotes: setup.sessionNotes,
         items,
-        layoutOverride: exportLayoutOverride(id)
+        layoutOverride: exportLayoutOverride(id),
+        patchCables: listCablesBySetup(id).map(({ id: _id, setupId: _setupId, ...cable }) => cable),
+        patchbaySource: exportPatchbaySource(setup.studioId)
       }
     ]
   })
@@ -143,7 +158,13 @@ export async function pickAndParseSetupImportFile(): Promise<PickSetupImportFile
         error: `This file was made by a newer version of Setup Sheet Helper (format ${parsed.version}). Update the app to import it.`
       }
     }
-    return { canceled: false, data: parsed as SetupExportFile }
+    // Sanitized here as well as on import, so the preview counts the cables that will really land.
+    const setups = (parsed.setups as ExportedSetup[]).map((setup) => ({
+      ...setup,
+      patchCables: sanitizePatchCables(setup.patchCables),
+      patchbaySource: sanitizePatchbaySource(setup.patchbaySource)
+    }))
+    return { canceled: false, data: { version: parsed.version, setups } }
   } catch {
     return { canceled: false, error: 'Could not read or parse that file.' }
   }
@@ -263,6 +284,16 @@ export function importSetups(setups: ExportedSetup[], targetStudioId: number): v
           pageWidthPt: layoutOverride.pageWidthPt,
           pageHeightPt: layoutOverride.pageHeightPt
         })
+      }
+
+      // Cleaned again here: this list comes back over IPC, not straight from the parsed file. Kept
+      // whatever the target studio's drawing is; with none they wait, hidden, for one to arrive.
+      const cables = sanitizePatchCables(setup.patchCables)
+      if (cables.length > 0) {
+        replaceCablesForSetup(
+          created.id,
+          cables.map((cable, index) => ({ ...cable, id: `import-${index}` }))
+        )
       }
     }
   })
