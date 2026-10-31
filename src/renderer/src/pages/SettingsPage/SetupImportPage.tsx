@@ -59,8 +59,8 @@ export default function SetupImportPage({ file, onBack, onDone }: Props): JSX.El
     setTargetPatchbay(undefined)
     if (targetStudioId == null) return
     let cancelled = false
-    window.api.patchbay.getForStudio(targetStudioId).then((patchbay) => {
-      if (!cancelled) setTargetPatchbay(patchbay?.file ?? null)
+    window.api.patchbay.getFileForStudio(targetStudioId).then((file) => {
+      if (!cancelled) setTargetPatchbay(file)
     })
     return () => {
       cancelled = true
