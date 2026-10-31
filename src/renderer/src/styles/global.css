@@ -2072,6 +2072,13 @@ input[type='checkbox']:focus-visible {
   width: 90px;
 }
 
+.patchbay-selection-count {
+  font-size: 12px;
+  color: var(--color-text-dim);
+  white-space: nowrap;
+  user-select: none;
+}
+
 .patchbay-hint {
   position: absolute;
   bottom: 8px;

@@ -36,6 +36,8 @@ interface PatchbayState {
   ): void;
   removeCables(ids: (number | string)[]): void;
   selectCable(id: number | string, additive: boolean): void;
+  /** A marquee's result: replaces the selection, or adds to it when `additive`. */
+  selectCables(ids: (number | string)[], additive: boolean): void;
   clearSelection(): void;
   setZoomPan(zoomScale: number, panX: number, panY: number): void;
   zoomIn(): void;
@@ -135,6 +137,13 @@ export function createPatchbayStore(setupStoreApi: SetupStoreApi) {
           else next.add(id);
           set({ selectedCableIds: next });
         },
+
+        selectCables: (ids, additive) =>
+          set({
+            selectedCableIds: additive
+              ? new Set([...get().selectedCableIds, ...ids])
+              : new Set(ids),
+          }),
 
         clearSelection: () => set({ selectedCableIds: new Set() }),
 

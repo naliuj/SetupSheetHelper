@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Circle, Image as KonvaImage, Layer, Stage } from "react-konva";
+import { Circle, Image as KonvaImage, Layer, Rect, Stage } from "react-konva";
 import type Konva from "konva";
 import type { PatchbayWithPoints, PatchPoint } from "@shared/types/patchbay";
 import { CABLE_COLORS, cableColorName } from "@shared/constants/patchCables";
@@ -11,7 +11,7 @@ import Icon from "@renderer/components/Icon";
 import { PAPER_SHADOW } from "../canvas/LayoutBackground";
 import { appFileUrl, renderPdfPage } from "../canvas/renderPdfPage";
 import PatchbayCable from "./PatchbayCable";
-import { PointIndex, type Pt } from "./cableGeometry";
+import { cableIntersectsRect, PointIndex, type Pt } from "./cableGeometry";
 
 interface Props {
   studioId: number;
@@ -64,6 +64,7 @@ export default function PatchbayStage({
   const updateCables = usePatchbayStoreState((s) => s.updateCables);
   const removeCables = usePatchbayStoreState((s) => s.removeCables);
   const selectCable = usePatchbayStoreState((s) => s.selectCable);
+  const selectCables = usePatchbayStoreState((s) => s.selectCables);
   const clearSelection = usePatchbayStoreState((s) => s.clearSelection);
 
   const prefColor = usePatchbayPrefsStore((s) => s.color);
@@ -73,6 +74,9 @@ export default function PatchbayStage({
   useEffect(() => void loadPrefs(), [loadPrefs]);
 
   const accent = useThemeColor("--color-accent");
+  // A translucent wash with a solid edge, as Layout Mode's marquee: the alpha goes on the fill
+  // color itself so the stroke stays at full strength.
+  const marqueeFill = /^#[0-9a-fA-F]{6}$/.test(accent) ? `${accent}2e` : accent;
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState({
     width: 900,
@@ -223,6 +227,16 @@ export default function PatchbayStage({
   const [hoverJack, setHoverJack] = useState<PatchPoint | null>(null);
   const [hoverCable, setHoverCable] = useState<number | string | null>(null);
   const [pointer, setPointer] = useState<Pt | null>(null);
+  // Drag-to-select on empty canvas. `start`/`at` are canvas coordinates for drawing and hit
+  // testing; `startClient` measures the drag in screen pixels, so a slight wobble on a plain click
+  // doesn't count at any zoom. `shiftStarted` marks a marquee that Shift had to start (a drawing
+  // with no jacks, where a bare press starts a cable), so Shift then doesn't also mean "add".
+  const [marquee, setMarquee] = useState<{
+    start: Pt;
+    at: Pt;
+    startClient: Pt;
+    shiftStarted: boolean;
+  } | null>(null);
 
   function finishDraft(d: Draft): void {
     setDraft(null);
@@ -262,11 +276,18 @@ export default function PatchbayStage({
     const name = e.target.name();
     if (name === "cable-end") return; // handled by the handle itself
     if (name === "cable") return; // handled by the cable itself
-    // A press on a jack starts a cable. Anywhere else just clears the selection — unless the
-    // drawing has no readable jacks, where cables start wherever you press.
+    // A press on a jack starts a cable. Anywhere else starts a selection marquee (a press that
+    // doesn't move just clears the selection) — unless the drawing has no readable jacks, where
+    // cables start wherever you press and only Shift starts a marquee.
     const jack = index.nearest(pos);
-    if (!jack && points.length > 0) {
-      clearSelection();
+    const noJacks = points.length === 0;
+    if ((!jack && !noJacks) || (noJacks && e.evt.shiftKey)) {
+      setMarquee({
+        start: pos,
+        at: pos,
+        startClient: { x: e.evt.clientX, y: e.evt.clientY },
+        shiftStarted: noJacks,
+      });
       return;
     }
     const from = endAt(pos);
@@ -292,6 +313,10 @@ export default function PatchbayStage({
     const rect = containerRef.current?.getBoundingClientRect();
     if (rect)
       setPointer({ x: e.evt.clientX - rect.left, y: e.evt.clientY - rect.top });
+    if (marquee) {
+      setMarquee({ ...marquee, at: pos });
+      return;
+    }
     const jack = index.nearest(pos);
     setHoverJack(jack);
     if (draft) {
@@ -314,9 +339,48 @@ export default function PatchbayStage({
     );
   }
 
+  /** Ends a marquee: selects every cable whose curve passes through it, or — for a press that
+   *  barely moved — clears the selection, as a plain click on empty canvas always has. */
+  function finishMarquee(e: MouseEvent, m: NonNullable<typeof marquee>): void {
+    setMarquee(null);
+    const additive =
+      e.metaKey || e.ctrlKey || (e.shiftKey && !m.shiftStarted);
+    const moved = Math.hypot(
+      e.clientX - m.startClient.x,
+      e.clientY - m.startClient.y,
+    );
+    if (moved < DRAG_THRESHOLD) {
+      if (!additive) clearSelection();
+      return;
+    }
+    const rect = {
+      left: Math.min(m.start.x, m.at.x),
+      right: Math.max(m.start.x, m.at.x),
+      top: Math.min(m.start.y, m.at.y),
+      bottom: Math.max(m.start.y, m.at.y),
+    };
+    selectCables(
+      cables
+        .filter((c) =>
+          cableIntersectsRect(
+            { x: c.fromX, y: c.fromY },
+            { x: c.toX, y: c.toY },
+            c.sag,
+            rect,
+          ),
+        )
+        .map((c) => c.id),
+      additive,
+    );
+  }
+
   function handleMouseUp(e: Konva.KonvaEventObject<MouseEvent>): void {
     if (pan) {
       setPan(null);
+      return;
+    }
+    if (marquee) {
+      finishMarquee(e.evt, marquee);
       return;
     }
     if (endDrag) {
@@ -385,9 +449,24 @@ export default function PatchbayStage({
         ? selected[0].color
         : null
       : prefColor;
-  const shownSag = selected.length > 0 ? selected[0].sag : prefSag;
-  // The slider previews locally and commits on release, so one drag is one undo step.
+  // A mixed selection shows the average droop, snapped to the slider's step; dragging the slider
+  // then sets every selected cable to the same value.
+  const shownSag =
+    selected.length > 0
+      ? Math.round(
+          (selected.reduce((sum, c) => sum + c.sag, 0) / selected.length) * 20,
+        ) / 20
+      : prefSag;
+  // The slider previews locally and commits on release, so one drag is one undo step and autosave
+  // never writes the values in between. The selected cables (or the cable being drawn) read the
+  // preview, so the droop follows the thumb live. The ref mirrors it for the release handlers,
+  // which can fire back to back (pointer-up, then blur) before a re-render.
   const [sagPreview, setSagPreview] = useState<number | null>(null);
+  const sagPreviewRef = useRef<number | null>(null);
+  function previewSag(value: number): void {
+    sagPreviewRef.current = value;
+    setSagPreview(value);
+  }
 
   function pickColor(hex: string): void {
     if (selected.length > 0)
@@ -395,15 +474,25 @@ export default function PatchbayStage({
     else setPrefs({ color: hex });
   }
 
-  function commitSag(value: number): void {
+  function commitSag(): void {
+    const value = sagPreviewRef.current;
+    if (value == null) return; // nothing previewed since the last commit
+    sagPreviewRef.current = null;
     setSagPreview(null);
-    if (selected.length > 0)
+    if (selected.length > 0) {
+      // Skip a release that changed nothing, so it doesn't leave an empty undo step.
+      if (selected.every((c) => c.sag === value)) return;
       updateCables([...selectedCableIds], { sag: value });
-    else setPrefs({ sag: value });
+    } else setPrefs({ sag: value });
   }
 
-  // The cables as drawn: the stored ones, with an end being dragged shown where it is now.
-  const shownCables = cables.map((c) => {
+  // The cables as drawn: the stored ones, with the Sag slider's live value on the selected ones
+  // and an end being dragged shown where it is now.
+  const shownCables = cables.map((stored) => {
+    const c =
+      sagPreview != null && selectedCableIds.has(stored.id)
+        ? { ...stored, sag: sagPreview }
+        : stored;
     if (!endDrag?.at || c.id !== endDrag.id) return c;
     const { x, y } = endDrag.at;
     return endDrag.end === "from"
@@ -461,7 +550,11 @@ export default function PatchbayStage({
           <div
             className="patchbay-cable-controls"
             role="group"
-            aria-label={selected.length > 0 ? "Selected cables" : "Next cable"}
+            aria-label={
+              selected.length > 0
+                ? `${selected.length} selected ${selected.length === 1 ? "cable" : "cables"}`
+                : "Next cable"
+            }
           >
             <div
               className="patchbay-swatches"
@@ -488,15 +581,18 @@ export default function PatchbayStage({
                 max={1}
                 step={0.05}
                 value={sagPreview ?? shownSag}
-                onChange={(e) => setSagPreview(Number(e.target.value))}
-                onPointerUp={(e) =>
-                  commitSag(Number((e.target as HTMLInputElement).value))
-                }
-                onKeyUp={(e) =>
-                  commitSag(Number((e.target as HTMLInputElement).value))
-                }
+                onChange={(e) => previewSag(Number(e.target.value))}
+                onPointerUp={commitSag}
+                onPointerCancel={commitSag}
+                onKeyUp={commitSag}
+                onBlur={commitSag}
               />
             </label>
+            {selected.length > 1 && (
+              <span className="patchbay-selection-count">
+                {selected.length} cables selected
+              </span>
+            )}
             {selected.length > 0 && (
               <button
                 className="btn small danger"
@@ -548,8 +644,8 @@ export default function PatchbayStage({
         {draft?.mode === "click"
           ? "Click another jack to connect · Esc to cancel"
           : patchbay && points.length === 0
-            ? "No jacks could be read from this drawing — cables can go anywhere"
-            : "Drag from jack to jack, or click one then the other · Scroll to zoom · Space-drag to pan"}
+            ? "No jacks could be read from this drawing — cables can go anywhere · Shift-drag to select"
+            : "Drag from jack to jack, or click one then the other · Drag on empty space to select · Scroll to zoom · Space-drag to pan"}
       </div>
       {tooltip && pointer && (
         <div
@@ -575,6 +671,7 @@ export default function PatchbayStage({
           setHoverJack(null);
           setPointer(null);
           setEndDrag(null);
+          setMarquee(null);
           if (draft?.mode === "drag") setDraft(null);
         }}
         onWheel={handleWheel}
@@ -656,9 +753,21 @@ export default function PatchbayStage({
               from={draft.from}
               to={draft.to}
               color={prefColor}
-              sag={prefSag}
+              sag={selected.length === 0 ? (sagPreview ?? prefSag) : prefSag}
               weight={weight}
               preview
+            />
+          )}
+          {marquee && (
+            <Rect
+              x={Math.min(marquee.start.x, marquee.at.x)}
+              y={Math.min(marquee.start.y, marquee.at.y)}
+              width={Math.abs(marquee.at.x - marquee.start.x)}
+              height={Math.abs(marquee.at.y - marquee.start.y)}
+              fill={marqueeFill}
+              stroke={accent}
+              strokeWidth={1 / finalScale}
+              listening={false}
             />
           )}
         </Layer>

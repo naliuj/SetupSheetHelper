@@ -96,3 +96,73 @@ function snapRadius(points: PatchPoint[]): number {
   gaps.sort((a, b) => a - b);
   return Math.max(6, Math.min(40, gaps[Math.floor(gaps.length / 2)] / 2));
 }
+
+export interface Rect {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+
+/** How finely a cable's curve is walked when testing it against a selection rectangle. Enough
+ *  that the straight pieces between samples hug even a deep droop. */
+const CURVE_SAMPLES = 24;
+
+/** Whether a cable, drawn as cableControlPoint's curve, passes through `rect` anywhere — a plug
+ *  end inside it, or any stretch of the curve crossing it. The curve is walked as short straight
+ *  pieces and each piece is clipped against the rectangle, so a thin marquee that slips between
+ *  two samples still catches the cable. */
+export function cableIntersectsRect(
+  from: Pt,
+  to: Pt,
+  sag: number,
+  rect: Rect,
+): boolean {
+  const c = cableControlPoint(from, to, sag);
+  let prev = from;
+  if (pointInRect(prev, rect)) return true;
+  for (let i = 1; i <= CURVE_SAMPLES; i++) {
+    const t = i / CURVE_SAMPLES;
+    const u = 1 - t;
+    const next = {
+      x: u * u * from.x + 2 * u * t * c.x + t * t * to.x,
+      y: u * u * from.y + 2 * u * t * c.y + t * t * to.y,
+    };
+    if (segmentIntersectsRect(prev, next, rect)) return true;
+    prev = next;
+  }
+  return false;
+}
+
+function pointInRect(p: Pt, r: Rect): boolean {
+  return p.x >= r.left && p.x <= r.right && p.y >= r.top && p.y <= r.bottom;
+}
+
+/** Liang–Barsky clipping: does any part of the segment a→b lie inside the rectangle? */
+function segmentIntersectsRect(a: Pt, b: Pt, r: Rect): boolean {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  let t0 = 0;
+  let t1 = 1;
+  const edges: [number, number][] = [
+    [-dx, a.x - r.left],
+    [dx, r.right - a.x],
+    [-dy, a.y - r.top],
+    [dy, r.bottom - a.y],
+  ];
+  for (const [p, q] of edges) {
+    if (p === 0) {
+      if (q < 0) return false; // parallel to this edge and outside it
+      continue;
+    }
+    const t = q / p;
+    if (p < 0) {
+      if (t > t1) return false;
+      if (t > t0) t0 = t;
+    } else {
+      if (t < t0) return false;
+      if (t < t1) t1 = t;
+    }
+  }
+  return t0 <= t1;
+}
