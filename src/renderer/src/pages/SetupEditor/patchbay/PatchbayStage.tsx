@@ -3,6 +3,7 @@ import { Circle, Image as KonvaImage, Layer, Rect, Stage } from 'react-konva'
 import type Konva from 'konva'
 import type { PatchbayWithPoints, PatchPoint } from '@shared/types/patchbay'
 import { CABLE_COLORS, cableColorName } from '@shared/constants/patchCables'
+import { describeCable, UNLABELED_POINT } from '@shared/utils/patchCableRows'
 import { MAX_ZOOM, MIN_ZOOM } from '@renderer/state/layoutStore'
 import { usePatchbayStoreState } from '@renderer/state/patchbayStoreContext'
 import { usePatchbayPrefsStore } from '@renderer/state/patchbayPrefsStore'
@@ -12,7 +13,7 @@ import { PAPER_SHADOW } from '../canvas/LayoutBackground'
 import { appFileUrl, renderPdfPage } from '../canvas/renderPdfPage'
 import { useMiddleButtonPan } from '../canvas/useMiddleButtonPan'
 import PatchbayCable from './PatchbayCable'
-import { cableIntersectsRect, PointIndex, type Pt } from './cableGeometry'
+import { cableIntersectsRect, cableWeight, PointIndex, type Pt } from './cableGeometry'
 
 interface Props {
   studioId: number
@@ -139,10 +140,8 @@ export default function PatchbayStage({ studioId, stageRef, active, paneActive }
 
   const points = patchbay && patchbay !== 'none' ? patchbay.points : []
   const index = useMemo(() => new PointIndex(points), [points])
-  // Cable weight follows the drawing's jack spacing, so cables look right on a dense bay and a
-  // roomy one alike.
-  const weight = Math.max(2.5, Math.min(7, index.radius * 0.35))
-  const pointLabel = (id: string | null): string => index.byId(id)?.label ?? 'unlabeled point'
+  const weight = cableWeight(index.radius)
+  const pointLabel = (id: string | null): string => index.byId(id)?.label ?? UNLABELED_POINT
 
   async function upload(): Promise<void> {
     setUploading(true)
@@ -540,10 +539,13 @@ export default function PatchbayStage({ studioId, stageRef, active, paneActive }
   })
 
   const hoveredCable = hoverCable != null ? cables.find((c) => c.id === hoverCable) : null
+  // A hovered cable is named by describeCable, the same resolver the exported cable list uses, so
+  // the tooltip and the printed table always agree on what an end is plugged into.
+  const hoveredEnds = hoveredCable ? describeCable(hoveredCable, index) : null
   const tooltip = draft
     ? `${pointLabel(draft.from.point)} → ${draft.to.point ? pointLabel(draft.to.point) : '…'}`
-    : hoveredCable
-      ? `${pointLabel(hoveredCable.fromPoint)} → ${pointLabel(hoveredCable.toPoint)} · ${cableColorName(hoveredCable.color)}`
+    : hoveredCable && hoveredEnds
+      ? `${hoveredEnds.from} → ${hoveredEnds.to} · ${cableColorName(hoveredCable.color)}`
       : hoverJack
         ? hoverJack.section
           ? `${hoverJack.label} — ${hoverJack.section}`

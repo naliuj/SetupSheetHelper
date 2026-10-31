@@ -15,12 +15,17 @@ export function appFileUrl(filePath: string): string {
   return `app-file://local-file/${encodeURIComponent(filePath)}`
 }
 
-/** Renders page 1 of a PDF onto an offscreen canvas at PDF_RENDER_SCALE. */
-export async function renderPdfPage(url: string): Promise<{ image: HTMLCanvasElement; width: number; height: number }> {
+/** Renders page 1 of a PDF onto an offscreen canvas at PDF_RENDER_SCALE, or at `scale` when given —
+ *  the patchbay export renders sharper than the editor does, so its image holds up when zoomed in
+ *  a printed PDF. */
+export async function renderPdfPage(
+  url: string,
+  scale = PDF_RENDER_SCALE
+): Promise<{ image: HTMLCanvasElement; width: number; height: number }> {
   const doc = await pdfjsLib.getDocument(url).promise
   try {
     const page = await doc.getPage(1)
-    const viewport = page.getViewport({ scale: PDF_RENDER_SCALE })
+    const viewport = page.getViewport({ scale })
     const offscreen = document.createElement('canvas')
     offscreen.width = viewport.width
     offscreen.height = viewport.height
