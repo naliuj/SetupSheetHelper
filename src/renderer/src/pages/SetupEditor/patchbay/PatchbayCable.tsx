@@ -19,6 +19,61 @@ interface Props {
   onMouseLeave?: () => void
 }
 
+export interface CableDrawOptions {
+  from: Pt
+  to: Pt
+  color: string
+  sag: number
+  weight: number
+  selected?: boolean
+  accent?: string
+}
+
+function traceCable(ctx: Konva.Context, from: Pt, to: Pt, sag: number): void {
+  const control = cableControlPoint(from, to, sag)
+  ctx.beginPath()
+  ctx.moveTo(from.x, from.y)
+  ctx.quadraticCurveTo(control.x, control.y, to.x, to.y)
+}
+
+/** Draws one cable by hand: a drooping curve with a plug at each end, a dark outline under the
+ *  colored core so every color reads on white paper. A plain function rather than only the
+ *  component's sceneFunc, so the export (renderPatchbayImage.ts) draws cables exactly as the
+ *  editor does. */
+export function drawCable(
+  ctx: Konva.Context,
+  { from, to, color, sag, weight, selected = false, accent = '#00a1ff' }: CableDrawOptions
+): void {
+  const outline = darken(color)
+  const plug = weight * 1.4
+  ctx.setAttr('lineCap', 'round')
+  if (selected) {
+    traceCable(ctx, from, to, sag)
+    ctx.setAttr('strokeStyle', accent)
+    ctx.setAttr('globalAlpha', 0.45)
+    ctx.setAttr('lineWidth', weight * 2.6)
+    ctx.stroke()
+    ctx.setAttr('globalAlpha', 1)
+  }
+  traceCable(ctx, from, to, sag)
+  ctx.setAttr('strokeStyle', outline)
+  ctx.setAttr('lineWidth', weight * 1.35)
+  ctx.stroke()
+  traceCable(ctx, from, to, sag)
+  ctx.setAttr('strokeStyle', color)
+  ctx.setAttr('lineWidth', weight)
+  ctx.stroke()
+  for (const end of [from, to]) {
+    ctx.beginPath()
+    ctx.arc(end.x, end.y, plug, 0, Math.PI * 2)
+    ctx.setAttr('fillStyle', color)
+    ctx.fill()
+    ctx.setAttr('strokeStyle', outline)
+    ctx.setAttr('lineWidth', weight * 0.45)
+    ctx.stroke()
+  }
+}
+
 /** One patch cable: a drooping curve with a plug at each end, drawn with a dark outline so every
  *  color reads on white paper. */
 export default function PatchbayCable({
@@ -35,16 +90,6 @@ export default function PatchbayCable({
   onMouseEnter,
   onMouseLeave
 }: Props): JSX.Element {
-  const control = cableControlPoint(from, to, sag)
-  const outline = darken(color)
-  const plug = weight * 1.4
-
-  function trace(ctx: Konva.Context): void {
-    ctx.beginPath()
-    ctx.moveTo(from.x, from.y)
-    ctx.quadraticCurveTo(control.x, control.y, to.x, to.y)
-  }
-
   return (
     <Shape
       name={name}
@@ -58,36 +103,9 @@ export default function PatchbayCable({
       stroke={color}
       strokeWidth={weight}
       hitStrokeWidth={Math.max(weight * 3, 12)}
-      sceneFunc={(ctx) => {
-        ctx.setAttr('lineCap', 'round')
-        if (selected) {
-          trace(ctx)
-          ctx.setAttr('strokeStyle', accent)
-          ctx.setAttr('globalAlpha', 0.45)
-          ctx.setAttr('lineWidth', weight * 2.6)
-          ctx.stroke()
-          ctx.setAttr('globalAlpha', 1)
-        }
-        trace(ctx)
-        ctx.setAttr('strokeStyle', outline)
-        ctx.setAttr('lineWidth', weight * 1.35)
-        ctx.stroke()
-        trace(ctx)
-        ctx.setAttr('strokeStyle', color)
-        ctx.setAttr('lineWidth', weight)
-        ctx.stroke()
-        for (const end of [from, to]) {
-          ctx.beginPath()
-          ctx.arc(end.x, end.y, plug, 0, Math.PI * 2)
-          ctx.setAttr('fillStyle', color)
-          ctx.fill()
-          ctx.setAttr('strokeStyle', outline)
-          ctx.setAttr('lineWidth', weight * 0.45)
-          ctx.stroke()
-        }
-      }}
+      sceneFunc={(ctx) => drawCable(ctx, { from, to, color, sag, weight, selected, accent })}
       hitFunc={(ctx, shape) => {
-        trace(ctx)
+        traceCable(ctx, from, to, sag)
         ctx.strokeShape(shape)
       }}
     />

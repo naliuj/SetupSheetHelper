@@ -562,16 +562,37 @@ export interface ChannelPresetCreateInput {
   folderId?: number | null
 }
 
-export type PdfExportInclude = 'sheet' | 'layout' | 'both'
+/** Which parts a PDF export carries, each independently. Remembered under
+ *  APP_SETTINGS_KEYS.defaultPdfExportInclude as a comma list ("sheet,layout,patchbay"); see
+ *  parsePdfExportParts for reading it, including the single values it used to hold. */
+export interface PdfExportParts {
+  sheet: boolean
+  layout: boolean
+  patchbay: boolean
+}
+
+/** A flattened patchbay picture, from renderPatchbayImage in the renderer. The room size travels
+ *  with it because the PNG's own pixel size depends on how sharply it was rendered, while the page
+ *  it prints on is the drawing's true size (room pixels / PATCHBAY_RENDER_SCALE points). */
+export interface PatchbayExportImage {
+  dataUrl: string
+  roomWidth: number
+  roomHeight: number
+}
+
 export type PdfExportOrientation = 'portrait' | 'landscape'
 export type PdfExportDensity = 'normal' | 'compact'
 
 export interface ExportSetupPdfInput {
   setupId: number
   layoutImageDataUrl: string | null
-  include: PdfExportInclude
+  parts: PdfExportParts
+  /** The patchbay page's picture. Null skips the patchbay page and its cable list, as does
+   *  `parts.patchbay` being off. */
+  patchbayImage: PatchbayExportImage | null
   /** When true, draw each row's color as a pale background tint on the setup sheet. Off by
-   *  default — colored rows can hurt legibility when printed in black and white. */
+   *  default — colored rows can hurt legibility when printed in black and white. Also decides
+   *  whether the patchbay cable list prints a color swatch beside each cable. */
   coloredRows: boolean
   /** Page orientation for the setup-sheet table. Landscape gives wide sheets (many outboard
    *  columns) more horizontal room before columns have to shrink/wrap. */
@@ -596,6 +617,9 @@ export interface ExportSetupSpreadsheetInput {
   /** Flattened room-layout PNG, from captureLayoutImage in the renderer — the same capture the PDF
    *  export uses. Null/absent writes the data sheet alone. */
   layoutImageDataUrl?: string | null
+  /** The patchbay picture for a "Patchbay" sheet, from renderPatchbayImage. Null/absent leaves
+   *  that sheet out. */
+  patchbayImage?: PatchbayExportImage | null
   /** The exact columns to write, resolved by the renderer's export chips (in the setup's
    *  column order; 'outboard' expands to one column per slot). Omitted by stale callers,
    *  which fall back to the setup's own visible columns. */

@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import type Konva from 'konva'
 import { Check, ExternalLink, FileText, Keyboard } from 'lucide-react'
 import { APP_SETTINGS_KEYS } from '@shared/types/entities'
-import type { MenuAction, PdfExportInclude } from '@shared/types/ipc'
+import type { MenuAction, PatchbayExportImage, PdfExportParts } from '@shared/types/ipc'
+import { parsePdfExportParts, serializePdfExportParts } from '@shared/constants/pdfLayout'
 import {
   KEYBIND_ACTIONS,
   MARKUP_TOOL_KEYBINDS,
@@ -23,6 +24,7 @@ import SaveAsTemplateModal from './SaveAsTemplateModal'
 import ExportOptionsModal, { type ExportOptions } from './ExportOptionsModal'
 import { captureLayoutImage, type LayoutCaptureResult } from './captureLayoutImage'
 import SpreadsheetExportModal from './SpreadsheetExportModal'
+import { renderPatchbayImage, type PatchbayImageResult } from './patchbay/renderPatchbayImage'
 import type { SetupColumnKey } from '@shared/constants/setupColumns'
 import RequireLayoutFileModal from './RequireLayoutFileModal'
 import OpenAlongsideModal from './OpenAlongsideModal'
@@ -92,13 +94,15 @@ export default function SetupToolbar({
   const [templateModalOpen, setTemplateModalOpen] = useState(false)
   const [exportModalOpen, setExportModalOpen] = useState(false)
   const [spreadsheetModalOpen, setSpreadsheetModalOpen] = useState(false)
-  const [defaultExportInclude, setDefaultExportInclude] = useState<PdfExportInclude>('both')
+  const [defaultExportParts, setDefaultExportParts] = useState<PdfExportParts>(() => parsePdfExportParts(null))
   const [defaultExportColoredRows, setDefaultExportColoredRows] = useState(false)
   const [exportHasLayout, setExportHasLayout] = useState(false)
+  const [exportHasPatchbay, setExportHasPatchbay] = useState(false)
   // Remembered "Room layout" choice for the SPREADSHEET export specifically. Defaults off, so the
   // existing Cmd+Shift+E -> Enter flow produces byte-identical output for anyone who never touches
   // the toggle; the choice is then remembered, matching defaultPdfExportColoredRows.
   const [defaultSpreadsheetLayout, setDefaultSpreadsheetLayout] = useState(false)
+  const [defaultSpreadsheetPatchbay, setDefaultSpreadsheetPatchbay] = useState(false)
   const [layoutGateOpen, setLayoutGateOpen] = useState(false)
   // Which action the "no room layout yet" gate should complete once the user picks/commits a
   // file — toggling Layout Mode locally, or opening it in the standalone window. Set right before
@@ -156,21 +160,37 @@ export default function SetupToolbar({
     await save()
   }
 
+  /** Whether the studio has a patchbay drawing, which decides whether the export dialogs offer it.
+   *  The drawing's jacks are cached once Patchbay Mode has read them, so this is a cheap call. */
+  async function studioHasPatchbay(): Promise<boolean> {
+    return studioId ? (await window.api.patchbay.getForStudio(studioId)) != null : false
+  }
+
+  /** Flattens this setup's patchbay for an export, first saving any cable edit still waiting on
+   *  autosave — the picture is drawn from the database, not from the editor's canvas. */
+  async function capturePatchbay(currentSetupId: number, monochrome: boolean): Promise<PatchbayImageResult> {
+    const patchbayState = patchbayStoreApi.getState()
+    if (patchbayState.isDirty) await patchbayState.save()
+    return renderPatchbayImage({ studioId, setupId: currentSetupId, monochrome })
+  }
+
   async function handleExport(): Promise<void> {
     setExportMessage(null)
-    const [remembered, rememberedColoredRows, effective] = await Promise.all([
+    const [remembered, rememberedColoredRows, effective, hasPatchbay] = await Promise.all([
       window.api.settings.get(APP_SETTINGS_KEYS.defaultPdfExportInclude),
       window.api.settings.get(APP_SETTINGS_KEYS.defaultPdfExportColoredRows),
-      studioId ? window.api.layoutFile.getEffectiveForSetup(setupId, studioId) : Promise.resolve(null)
+      studioId ? window.api.layoutFile.getEffectiveForSetup(setupId, studioId) : Promise.resolve(null),
+      studioHasPatchbay()
     ])
-    setDefaultExportInclude(remembered === 'sheet' || remembered === 'layout' ? remembered : 'both')
+    setDefaultExportParts(parsePdfExportParts(remembered))
     setDefaultExportColoredRows(rememberedColoredRows === '1')
     setExportHasLayout(!!effective)
+    setExportHasPatchbay(hasPatchbay)
     setExportModalOpen(true)
   }
 
   async function performExport({
-    include,
+    parts,
     coloredRows,
     orientation,
     density,
@@ -187,7 +207,7 @@ export default function SetupToolbar({
       // Skipped entirely for a sheet-only export — no need to pay for flattening the canvas.
       let dataUrl: string | null = null
       let layoutUnreachable = false
-      if (include !== 'sheet') {
+      if (parts.layout) {
         const capture = await captureLayoutImage({
           setupId: currentSetupId,
           studioId,
@@ -203,11 +223,26 @@ export default function SetupToolbar({
         layoutUnreachable = capture.status === 'unreachable'
       }
 
-      if (include === 'layout' && !dataUrl) {
+      // Drawn with the same Colored choice as the layout: off grays the drawing and its cables.
+      let patchbayImage: PatchbayExportImage | null = null
+      if (parts.patchbay) {
+        const patchbay = await capturePatchbay(currentSetupId, !coloredRows)
+        if (patchbay.status === 'ok') {
+          patchbayImage = { dataUrl: patchbay.dataUrl, roomWidth: patchbay.roomWidth, roomHeight: patchbay.roomHeight }
+        }
+      }
+      const patchbayMissing = parts.patchbay && !patchbayImage
+
+      // Without the setup sheet, a part that couldn't be had may leave nothing at all to write.
+      if (!parts.sheet && !dataUrl && !patchbayImage) {
         setExportMessage(
           layoutUnreachable
             ? "Couldn't reach the Layout window to capture the room layout — bring it to the front and try again."
-            : 'This studio has no room layout assigned yet — nothing to export.'
+            : parts.layout && parts.patchbay
+              ? 'This studio has no room layout or patchbay drawing yet — nothing to export.'
+              : parts.layout
+                ? 'This studio has no room layout assigned yet — nothing to export.'
+                : 'This studio has no patchbay drawing yet — nothing to export.'
         )
         return
       }
@@ -215,7 +250,8 @@ export default function SetupToolbar({
       const result = await window.api.exportPdf.exportSetup({
         setupId: currentSetupId,
         layoutImageDataUrl: dataUrl,
-        include,
+        parts,
+        patchbayImage,
         coloredRows,
         orientation,
         density,
@@ -223,13 +259,22 @@ export default function SetupToolbar({
       })
       if (result.canceled) {
         setExportMessage(null)
-      } else if (layoutUnreachable) {
-        setExportMessage(`Exported to ${result.filePath} — the room layout page was skipped (couldn't reach the Layout window).`)
       } else {
-        setExportMessage(`Exported to ${result.filePath}`)
+        const skipped: string[] = []
+        if (layoutUnreachable) skipped.push("the room layout page was skipped (couldn't reach the Layout window)")
+        if (patchbayMissing) skipped.push('the patchbay pages were skipped (this studio has no patchbay drawing)')
+        setExportMessage(`Exported to ${result.filePath}${skipped.length > 0 ? ` — ${skipped.join('; ')}.` : ''}`)
       }
       if (!result.canceled) {
-        await window.api.settings.set(APP_SETTINGS_KEYS.defaultPdfExportInclude, include)
+        // A part the dialog didn't offer (no layout, or no patchbay drawing, in this studio) keeps
+        // its remembered choice rather than being saved as off, so it is back on next time in a
+        // studio that has one.
+        const remembered: PdfExportParts = {
+          sheet: parts.sheet,
+          layout: exportHasLayout ? parts.layout : defaultExportParts.layout,
+          patchbay: exportHasPatchbay ? parts.patchbay : defaultExportParts.patchbay
+        }
+        await window.api.settings.set(APP_SETTINGS_KEYS.defaultPdfExportInclude, serializePdfExportParts(remembered))
         await window.api.settings.set(APP_SETTINGS_KEYS.defaultPdfExportColoredRows, coloredRows ? '1' : '0')
       }
     } catch (err) {
@@ -246,18 +291,26 @@ export default function SetupToolbar({
     setExportMessage(null)
     const setupId = setupStoreApi.getState().setupId
     if (!setupId) return
-    const [remembered, effective] = await Promise.all([
+    const [remembered, rememberedPatchbay, effective, hasPatchbay] = await Promise.all([
       window.api.settings.get(APP_SETTINGS_KEYS.defaultSpreadsheetExportLayout),
-      studioId ? window.api.layoutFile.getEffectiveForSetup(setupId, studioId) : Promise.resolve(null)
+      window.api.settings.get(APP_SETTINGS_KEYS.defaultSpreadsheetExportPatchbay),
+      studioId ? window.api.layoutFile.getEffectiveForSetup(setupId, studioId) : Promise.resolve(null),
+      studioHasPatchbay()
     ])
     setDefaultSpreadsheetLayout(remembered === '1')
+    setDefaultSpreadsheetPatchbay(rememberedPatchbay === '1')
     setExportHasLayout(!!effective)
+    setExportHasPatchbay(hasPatchbay)
     setSpreadsheetModalOpen(true)
   }
 
   // Runs once the dialog above resolves the column list. Shares the toolbar's
   // exporting/exportMessage state with the PDF export.
-  async function performSpreadsheetExport(includeColumns: SetupColumnKey[], includeLayout: boolean): Promise<void> {
+  async function performSpreadsheetExport(
+    includeColumns: SetupColumnKey[],
+    includeLayout: boolean,
+    includePatchbay: boolean
+  ): Promise<void> {
     setExporting(true)
     setExportMessage(null)
     try {
@@ -285,25 +338,48 @@ export default function SetupToolbar({
         })
       }
 
+      // Same trade for the patchbay sheet, down to a render that fails outright: the data sheet
+      // still goes out, and the message says what was left off. Always in color, like the layout.
+      let patchbay: PatchbayImageResult | 'failed' = { status: 'none' }
+      if (includePatchbay) {
+        try {
+          patchbay = await capturePatchbay(currentSetupId, false)
+        } catch (err) {
+          console.error('[spreadsheet] skipping the patchbay sheet:', err)
+          patchbay = 'failed'
+        }
+      }
+
       const result = await window.api.exportSpreadsheet.exportSetup({
         setupId: currentSetupId,
         includeColumns,
-        layoutImageDataUrl: capture.status === 'ok' ? capture.dataUrl : null
+        layoutImageDataUrl: capture.status === 'ok' ? capture.dataUrl : null,
+        patchbayImage:
+          patchbay !== 'failed' && patchbay.status === 'ok'
+            ? { dataUrl: patchbay.dataUrl, roomWidth: patchbay.roomWidth, roomHeight: patchbay.roomHeight }
+            : null
       })
       if (!result.canceled) {
         await window.api.settings.set(
           APP_SETTINGS_KEYS.defaultSpreadsheetExportLayout,
           includeLayout ? '1' : '0'
         )
+        await window.api.settings.set(
+          APP_SETTINGS_KEYS.defaultSpreadsheetExportPatchbay,
+          includePatchbay ? '1' : '0'
+        )
+        const skipped: string[] = []
         if (includeLayout && capture.status === 'unreachable') {
-          setExportMessage(
-            `Exported to ${result.filePath} — the room layout sheet was skipped (couldn't reach the Layout window).`
-          )
+          skipped.push("the room layout sheet was skipped (couldn't reach the Layout window)")
         } else if (includeLayout && capture.status === 'none') {
-          setExportMessage(`Exported to ${result.filePath} — this setup has no room layout, so that sheet was skipped.`)
-        } else {
-          setExportMessage(`Exported to ${result.filePath}`)
+          skipped.push('this setup has no room layout, so that sheet was skipped')
         }
+        if (patchbay === 'failed') {
+          skipped.push("the patchbay sheet was skipped (couldn't draw the patchbay)")
+        } else if (includePatchbay && patchbay.status === 'none') {
+          skipped.push('this studio has no patchbay drawing, so that sheet was skipped')
+        }
+        setExportMessage(`Exported to ${result.filePath}${skipped.length > 0 ? ` — ${skipped.join('; ')}.` : ''}`)
       }
     } catch (err) {
       setExportMessage(`Export failed — ${err instanceof Error ? err.message : 'please try again.'}`)
@@ -794,9 +870,10 @@ export default function SetupToolbar({
       )}
       {exportModalOpen && (
         <ExportOptionsModal
-          defaultInclude={defaultExportInclude}
+          defaultParts={defaultExportParts}
           defaultColoredRows={defaultExportColoredRows}
           hasLayout={exportHasLayout}
+          hasPatchbay={exportHasPatchbay}
           onClose={() => setExportModalOpen(false)}
           onExport={performExport}
         />
@@ -805,6 +882,8 @@ export default function SetupToolbar({
         <SpreadsheetExportModal
           hasLayout={exportHasLayout}
           defaultIncludeLayout={defaultSpreadsheetLayout}
+          hasPatchbay={exportHasPatchbay}
+          defaultIncludePatchbay={defaultSpreadsheetPatchbay}
           onClose={() => setSpreadsheetModalOpen(false)}
           onExport={performSpreadsheetExport}
         />

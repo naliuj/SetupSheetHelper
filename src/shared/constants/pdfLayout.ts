@@ -3,6 +3,8 @@
 // applied to every export. Pure module (no pdf-lib/electron/db deps) so both the renderer store
 // and the main-process PDF generator can import it.
 
+import type { PdfExportParts } from '../types/ipc'
+
 export type PdfGridStyle = 'none' | 'full' | 'rows' | 'outer'
 
 export const PDF_GRID_STYLES: { value: PdfGridStyle; label: string }[] = [
@@ -82,4 +84,22 @@ export function formatPdfDate(iso: string, format: PdfDateFormat): string {
     default:
       return `${m}/${d}/${y}`
   }
+}
+
+/** The remembered PDF export parts. The setting is a comma list of the parts that were on
+ *  ("sheet,layout,patchbay"); before Patchbay Mode it held a single 'both' | 'sheet' | 'layout',
+ *  which reads here as the same choice with the patchbay off, so no migration was needed. Unset or
+ *  unreadable -> the setup sheet and room layout, as 'both' always defaulted. A list naming no part
+ *  falls back the same way rather than opening the dialog with nothing to export. */
+export function parsePdfExportParts(raw: string | null | undefined): PdfExportParts {
+  if (raw === 'sheet') return { sheet: true, layout: false, patchbay: false }
+  if (raw === 'layout') return { sheet: false, layout: true, patchbay: false }
+  const names = new Set((raw ?? '').split(',').map((part) => part.trim()))
+  const parts = { sheet: names.has('sheet'), layout: names.has('layout'), patchbay: names.has('patchbay') }
+  if (!parts.sheet && !parts.layout && !parts.patchbay) return { sheet: true, layout: true, patchbay: false }
+  return parts
+}
+
+export function serializePdfExportParts(parts: PdfExportParts): string {
+  return (['sheet', 'layout', 'patchbay'] as const).filter((part) => parts[part]).join(',')
 }

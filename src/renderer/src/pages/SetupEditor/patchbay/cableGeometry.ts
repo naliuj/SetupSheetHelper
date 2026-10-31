@@ -1,9 +1,8 @@
-import type { PatchPoint } from '@shared/types/patchbay'
+import type { Pt } from '@shared/utils/patchPoints'
 
-export interface Pt {
-  x: number
-  y: number
-}
+// The jack index lives in shared code so the exports can name cable ends in the main process by
+// the same rule; re-exported here so the editor keeps one place to import cable geometry from.
+export { PointIndex, snapRadius, type Pt } from '@shared/utils/patchPoints'
 
 /** The curve's control point. A hanging cable droops below the line between its plugs; how far is
  *  `sag` (0–1) times a length that grows with the span, so a long run droops more than a short
@@ -13,6 +12,31 @@ export function cableControlPoint(from: Pt, to: Pt, sag: number): Pt {
   const span = Math.hypot(to.x - from.x, to.y - from.y)
   const droop = sag * (span * 0.45 + 40)
   return { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 + droop * 2 }
+}
+
+/** Plug size and cable weight scale with the drawing's jack spacing (the snap radius), so cables
+ *  look right on a dense bay and a roomy one alike. */
+export function cableWeight(radius: number): number {
+  return Math.max(2.5, Math.min(7, radius * 0.35))
+}
+
+/** The box a cable's curve covers, plugs and stroke not included (pad by the weight for those).
+ *  A quadratic curve's extremes are its ends plus, on each axis, the one turning point where the
+ *  derivative is zero, when that falls between the ends. The droop runs downward, so a cable near
+ *  the bottom of a drawing hangs past it; the export sizes its page from this so it isn't cut off. */
+export function cableBounds(from: Pt, to: Pt, sag: number): Rect {
+  const c = cableControlPoint(from, to, sag)
+  const extremes = (a: number, ctrl: number, b: number): number[] => {
+    const denom = a - 2 * ctrl + b
+    if (denom === 0) return [a, b]
+    const t = (a - ctrl) / denom
+    if (t <= 0 || t >= 1) return [a, b]
+    const u = 1 - t
+    return [a, b, u * u * a + 2 * u * t * ctrl + t * t * b]
+  }
+  const xs = extremes(from.x, c.x, to.x)
+  const ys = extremes(from.y, c.y, to.y)
+  return { left: Math.min(...xs), top: Math.min(...ys), right: Math.max(...xs), bottom: Math.max(...ys) }
 }
 
 /** A hex color darkened toward black — the outline that keeps a white or yellow cable visible on
@@ -26,72 +50,6 @@ export function darken(hex: string, amount = 0.45): string {
       .toString(16)
       .padStart(2, '0')
   return `#${ch(16)}${ch(8)}${ch(0)}`
-}
-
-/** Finds jacks near a point quickly enough to run on every mouse move: points bucketed into a grid
- *  of cells the size of the snap radius. */
-export class PointIndex {
-  readonly radius: number
-  private cells = new Map<string, PatchPoint[]>()
-
-  constructor(readonly points: PatchPoint[]) {
-    this.radius = snapRadius(points)
-    for (const p of points) {
-      const key = this.key(Math.floor(p.x / this.radius), Math.floor(p.y / this.radius))
-      const cell = this.cells.get(key)
-      if (cell) cell.push(p)
-      else this.cells.set(key, [p])
-    }
-  }
-
-  private key(cx: number, cy: number): string {
-    return `${cx},${cy}`
-  }
-
-  /** The jack within the snap radius closest to `pos`, if any. */
-  nearest(pos: Pt): PatchPoint | null {
-    const cx = Math.floor(pos.x / this.radius)
-    const cy = Math.floor(pos.y / this.radius)
-    let best: PatchPoint | null = null
-    let bestDistance = this.radius
-    for (let dx = -1; dx <= 1; dx++) {
-      for (let dy = -1; dy <= 1; dy++) {
-        for (const p of this.cells.get(this.key(cx + dx, cy + dy)) ?? []) {
-          const d = Math.hypot(p.x - pos.x, p.y - pos.y)
-          if (d <= bestDistance) {
-            bestDistance = d
-            best = p
-          }
-        }
-      }
-    }
-    return best
-  }
-
-  byId(id: string | null): PatchPoint | null {
-    if (!id) return null
-    return this.points.find((p) => p.id === id) ?? null
-  }
-}
-
-/** Half the usual gap between neighboring jacks in a row — close enough to grab a jack without
- *  reaching its neighbor. */
-function snapRadius(points: PatchPoint[]): number {
-  const rows = new Map<number, number[]>()
-  for (const p of points) {
-    const key = Math.round(p.y)
-    const row = rows.get(key)
-    if (row) row.push(p.x)
-    else rows.set(key, [p.x])
-  }
-  const gaps: number[] = []
-  for (const xs of rows.values()) {
-    xs.sort((a, b) => a - b)
-    for (let i = 1; i < xs.length; i++) gaps.push(xs[i] - xs[i - 1])
-  }
-  if (gaps.length === 0) return 16
-  gaps.sort((a, b) => a - b)
-  return Math.max(6, Math.min(40, gaps[Math.floor(gaps.length / 2)] / 2))
 }
 
 export interface Rect {

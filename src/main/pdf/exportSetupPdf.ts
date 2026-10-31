@@ -13,8 +13,13 @@ import {
   parsePdfAccentColor,
   parsePdfBoolSetting,
   parsePdfDateFormat,
-  parsePdfGridStyle
+  parsePdfGridStyle,
+  type PdfGridStyle
 } from '@shared/constants/pdfLayout'
+import { PATCHBAY_RENDER_SCALE } from '@shared/types/patchbay'
+import { buildPatchCableRows, type PatchCableRow } from '@shared/utils/patchCableRows'
+import { listCablesBySetup } from '../db/repositories/patchbayCablesRepo'
+import { getPatchbayWithPoints } from './importPatchbay'
 import { getSetupWithItems } from '../db/repositories/setupsRepo'
 import { getStudio } from '../db/repositories/studiosRepo'
 import { listBuildings } from '../db/repositories/buildingsRepo'
@@ -166,6 +171,232 @@ function centeredFirstBaselineY(
   return boxBottom + (boxHeight - blockHeight) / 2 + descent + (lineCount - 1) * lineHeight
 }
 
+interface PatchCableTableOptions {
+  font: PDFFont
+  boldFont: PDFFont
+  /** The setup (and studio) the cables belong to, under the title — the list may be printed on
+   *  its own, without the setup sheet in front of it. Already sanitized. */
+  subtitle: string
+  /** A color chip beside each color name. Off for a black-and-white export, where every chip
+   *  would print as the same gray and the name alone says it. */
+  swatches: boolean
+  // The global table style, so the cable list matches the setup sheet it is printed with.
+  gridStyle: PdfGridStyle
+  zebraStripes: boolean
+  headerShaded: boolean
+  accentColor: string | null
+  gridLineColor: ReturnType<typeof rgb>
+}
+
+/** The patch cable list: `# | From | To | Color` on portrait Letter pages, grouped under the strip
+ *  headings buildPatchCableRows sorted them into. A heading starts a bold row of its own, the
+ *  column headers repeat at the top of every page, and a heading never sits alone at the bottom
+ *  of a page with its first cable on the next. Always the normal density: the sheet's density
+ *  choice is about fitting a wide table, and this one is four columns. */
+function drawPatchCableTable(pdfDoc: PDFDocument, rows: PatchCableRow[], opts: PatchCableTableOptions): void {
+  const { font, boldFont, gridStyle, gridLineColor } = opts
+  const dens = DENSITY.normal
+  const pageWidth = LETTER_SHORT
+  const pageHeight = LETTER_LONG
+  const usableWidth = pageWidth - 2 * MARGIN
+  const swatchSize = 7
+  const swatchGap = 4
+  const numberWidth = 28
+  const colorWidth = 90
+  const endWidth = (usableWidth - numberWidth - colorWidth) / 2
+  const columns = [
+    { key: 'number', label: '#', width: numberWidth },
+    { key: 'from', label: 'From', width: endWidth },
+    { key: 'to', label: 'To', width: endWidth },
+    { key: 'color', label: 'Color', width: colorWidth }
+  ] as const
+  const headerHeight = dens.lineHeight + dens.rowPadding + 3
+
+  let page = pdfDoc.addPage([pageWidth, pageHeight])
+  let cursorY = pageHeight - MARGIN
+  let tableTopY = 0
+
+  // Title block, first page only. Same type sizes and accent as the setup sheet's own title.
+  page.drawText('Patch cables', {
+    x: MARGIN,
+    y: cursorY,
+    size: 14,
+    font: boldFont,
+    color: opts.accentColor ? hexToAccentRgb(opts.accentColor) : undefined
+  })
+  cursorY -= 18
+  for (const line of wrapText(opts.subtitle, font, 10, usableWidth)) {
+    page.drawText(line, { x: MARGIN, y: cursorY, size: 10, font })
+    cursorY -= 18
+  }
+
+  // Row geometry follows the setup sheet's: a row spans [cursorY - height + rowPadding,
+  // cursorY + rowPadding], and the header underline's y is where the first row's top sits.
+  const drawHeaderRow = (): void => {
+    if (opts.headerShaded) {
+      page.drawRectangle({
+        x: MARGIN - ROW_FILL_INSET,
+        y: cursorY - headerHeight + dens.rowPadding,
+        width: usableWidth + ROW_FILL_INSET * 2,
+        height: headerHeight,
+        color: opts.accentColor ? hexToPaleRgb(opts.accentColor) : rgb(0.9, 0.9, 0.9)
+      })
+    }
+    const textY = centeredFirstBaselineY(
+      boldFont,
+      dens.headerSize,
+      dens.lineHeight,
+      1,
+      cursorY + dens.rowPadding,
+      cursorY - headerHeight + dens.rowPadding
+    )
+    let x = MARGIN
+    for (const col of columns) {
+      page.drawText(col.label, { x: x + CELL_PAD, y: textY, size: dens.headerSize, font: boldFont })
+      x += col.width
+    }
+    cursorY -= headerHeight
+    page.drawLine({
+      start: { x: MARGIN, y: cursorY + dens.rowPadding },
+      end: { x: pageWidth - MARGIN, y: cursorY + dens.rowPadding },
+      thickness: 0.5,
+      color: gridLineColor
+    })
+    tableTopY = cursorY + dens.rowPadding
+  }
+
+  const drawOuterFrame = (): void => {
+    if (gridStyle !== 'full' && gridStyle !== 'outer') return
+    const left = MARGIN - ROW_FILL_INSET
+    const right = MARGIN + usableWidth + ROW_FILL_INSET
+    const bottom = cursorY + dens.rowPadding
+    page.drawLine({ start: { x: left, y: tableTopY }, end: { x: left, y: bottom }, thickness: 0.75, color: gridLineColor })
+    page.drawLine({ start: { x: right, y: tableTopY }, end: { x: right, y: bottom }, thickness: 0.75, color: gridLineColor })
+    page.drawLine({ start: { x: left, y: bottom }, end: { x: right, y: bottom }, thickness: 0.75, color: gridLineColor })
+  }
+
+  const startNewPage = (): void => {
+    drawOuterFrame()
+    page = pdfDoc.addPage([pageWidth, pageHeight])
+    cursorY = pageHeight - MARGIN
+    drawHeaderRow()
+  }
+
+  const drawRowLine = (y: number): void => {
+    if (gridStyle !== 'full' && gridStyle !== 'rows') return
+    page.drawLine({
+      start: { x: MARGIN - ROW_FILL_INSET, y },
+      end: { x: MARGIN + usableWidth + ROW_FILL_INSET, y },
+      thickness: 0.5,
+      color: gridLineColor
+    })
+  }
+
+  /** One cable's cells, wrapped to their columns. Measured before drawing so a page break can be
+   *  decided on the row's real height. */
+  const wrapRow = (row: PatchCableRow, number: number): Record<(typeof columns)[number]['key'], string[]> => ({
+    number: [String(number)],
+    from: wrapText(safe(row.from), font, dens.bodySize, endWidth - 2 * CELL_PAD),
+    to: wrapText(safe(row.to), font, dens.bodySize, endWidth - 2 * CELL_PAD),
+    color: wrapText(
+      safe(row.colorName),
+      font,
+      dens.bodySize,
+      colorWidth - 2 * CELL_PAD - (opts.swatches ? swatchSize + swatchGap : 0)
+    )
+  })
+  const heightOf = (cells: Record<string, string[]>): number =>
+    Math.max(...Object.values(cells).map((lines) => lines.length)) * dens.lineHeight + dens.rowPadding
+
+  drawHeaderRow()
+
+  let section: string | null = null
+  let visualRowIndex = 0
+  rows.forEach((row, i) => {
+    const cells = wrapRow(row, i + 1)
+    const rowHeight = heightOf(cells)
+    const startsSection = row.section != null && (i === 0 || row.section !== section)
+    section = row.section
+
+    if (startsSection) {
+      // A heading row plus the first cable under it, kept together on one page.
+      const headingLines = wrapText(safe(row.section!), boldFont, dens.bodySize, usableWidth - 2 * CELL_PAD)
+      const headingHeight = headingLines.length * dens.lineHeight + dens.rowPadding
+      if (cursorY - headingHeight - rowHeight < MARGIN) startNewPage()
+      const top = cursorY + dens.rowPadding
+      const bottom = cursorY - headingHeight + dens.rowPadding
+      const firstLineY = centeredFirstBaselineY(boldFont, dens.bodySize, dens.lineHeight, headingLines.length, top, bottom)
+      headingLines.forEach((line, n) => {
+        page.drawText(line, {
+          x: MARGIN + CELL_PAD,
+          y: firstLineY - n * dens.lineHeight,
+          size: dens.bodySize,
+          font: boldFont
+        })
+      })
+      drawRowLine(bottom)
+      cursorY -= headingHeight
+      // Zebra striping restarts under each heading, so every group opens on a plain row.
+      visualRowIndex = 0
+    } else if (cursorY - rowHeight < MARGIN) {
+      startNewPage()
+    }
+
+    const rowTopY = cursorY + dens.rowPadding
+    const rowBottomY = cursorY - rowHeight + dens.rowPadding
+    if (opts.zebraStripes && visualRowIndex % 2 === 1) {
+      page.drawRectangle({
+        x: MARGIN - ROW_FILL_INSET,
+        y: rowBottomY,
+        width: usableWidth + ROW_FILL_INSET * 2,
+        height: rowHeight,
+        color: rgb(0.93, 0.93, 0.93)
+      })
+    }
+
+    let x = MARGIN
+    for (const col of columns) {
+      const lines = cells[col.key]
+      const firstLineY = centeredFirstBaselineY(font, dens.bodySize, dens.lineHeight, lines.length, rowTopY, rowBottomY)
+      let textX = x + CELL_PAD
+      if (col.key === 'color' && opts.swatches && isHexColor(row.colorHex)) {
+        // Centered on the first line of the name, outlined in a darker shade of itself so a white
+        // or yellow chip still shows on white paper — the cables are drawn the same way.
+        const { r, g, b } = hexToComponents(row.colorHex)
+        const capHeight = font.heightAtSize(dens.bodySize, { descender: false })
+        page.drawRectangle({
+          x: textX,
+          y: firstLineY + capHeight / 2 - swatchSize / 2,
+          width: swatchSize,
+          height: swatchSize,
+          color: rgb(r, g, b),
+          borderColor: rgb(r * 0.55, g * 0.55, b * 0.55),
+          borderWidth: 0.75
+        })
+        textX += swatchSize + swatchGap
+      }
+      lines.forEach((line, n) => {
+        page.drawText(line, { x: textX, y: firstLineY - n * dens.lineHeight, size: dens.bodySize, font })
+      })
+      x += col.width
+    }
+
+    drawRowLine(rowBottomY)
+    if (gridStyle === 'full') {
+      let colX = MARGIN
+      for (let c = 0; c < columns.length - 1; c++) {
+        colX += columns[c].width
+        page.drawLine({ start: { x: colX, y: rowTopY }, end: { x: colX, y: rowBottomY }, thickness: 0.5, color: gridLineColor })
+      }
+    }
+
+    cursorY -= rowHeight
+    visualRowIndex++
+  })
+
+  drawOuterFrame()
+}
+
 export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<ExportSetupPdfResult> {
   const setup = getSetupWithItems(input.setupId)
   if (!setup) return { canceled: true }
@@ -203,8 +434,8 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
   const dingbatsFont = await pdfDoc.embedFont(StandardFonts.ZapfDingbats)
   const fontForColumn = (key: string): typeof font => (key === 'phantomPower' ? dingbatsFont : font)
 
-  // Table page(s) — skipped entirely for a "room layout only" export.
-  if (input.include !== 'layout') {
+  // Table page(s) — skipped entirely for an export without the setup sheet.
+  if (input.parts.sheet) {
     const orientation: PdfExportOrientation = input.orientation
     const pageWidth = orientation === 'landscape' ? LETTER_LONG : LETTER_SHORT
     const pageHeight = orientation === 'landscape' ? LETTER_SHORT : LETTER_LONG
@@ -583,9 +814,9 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
     drawOuterFrameForCurrentPage()
   }
 
-  // Final page (optional): flattened room layout (Konva stage image), appended after the
-  // table so the sheet reads first — only present when the session was built in Layout Mode.
-  if (input.include !== 'sheet' && input.layoutImageDataUrl) {
+  // Optional page: flattened room layout (Konva stage image), appended after the table so the
+  // sheet reads first — only present when the session was built in Layout Mode.
+  if (input.parts.layout && input.layoutImageDataUrl) {
     const base64 = input.layoutImageDataUrl.replace(/^data:image\/png;base64,/, '')
     const imageBytes = Buffer.from(base64, 'base64')
     const pngImage = await pdfDoc.embedPng(imageBytes)
@@ -611,6 +842,36 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
       width: drawWidth,
       height: drawHeight
     })
+  }
+
+  // Last: the patchbay drawing with this setup's cables, then the list of those cables. The page
+  // takes the drawing's own size, as the layout page does, sized from the room dimensions that
+  // travel with the picture rather than from its pixels, whose count depends on how sharply the
+  // renderer could afford to draw it.
+  if (input.parts.patchbay && input.patchbayImage) {
+    const { dataUrl, roomWidth, roomHeight } = input.patchbayImage
+    const pngImage = await pdfDoc.embedPng(Buffer.from(dataUrl.replace(/^data:image\/png;base64,/, ''), 'base64'))
+    const pageWidth = roomWidth / PATCHBAY_RENDER_SCALE
+    const pageHeight = roomHeight / PATCHBAY_RENDER_SCALE
+    pdfDoc.addPage([pageWidth, pageHeight]).drawImage(pngImage, { x: 0, y: 0, width: pageWidth, height: pageHeight })
+
+    // The names come from the same resolver the editor's tooltip uses, over the drawing's cached
+    // jacks — so the list says what the cursor said when hovering each cable.
+    const patchbay = await getPatchbayWithPoints(setup.studioId)
+    const rows = buildPatchCableRows(listCablesBySetup(setup.id), patchbay?.points ?? [])
+    if (rows.length > 0) {
+      drawPatchCableTable(pdfDoc, rows, {
+        font,
+        boldFont,
+        subtitle: [safe(setup.name), studioLabel ? safe(studioLabel) : null].filter(Boolean).join(' · '),
+        swatches: input.coloredRows,
+        gridStyle,
+        zebraStripes,
+        headerShaded,
+        accentColor,
+        gridLineColor
+      })
+    }
   }
 
   const pdfBytes = await pdfDoc.save()
