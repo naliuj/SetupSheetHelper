@@ -705,7 +705,9 @@ export default function PatchbayStage({ studioId, stageRef, active, paneActive }
             />
           )}
         </Layer>
-        <Layer>
+        {/* No drawing (never uploaded, or removed): the setup keeps its cables, but they stay hidden
+            rather than float under the upload card. */}
+        <Layer visible={patchbay !== 'none'}>
           {shownCables.map((cable) => (
             <PatchbayCable
               key={cable.id}
