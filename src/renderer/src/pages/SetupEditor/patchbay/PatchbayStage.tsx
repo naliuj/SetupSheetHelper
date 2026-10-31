@@ -71,6 +71,7 @@ export default function PatchbayStage({ studioId, stageRef, active, paneActive }
   const selectCable = usePatchbayStoreState((s) => s.selectCable)
   const selectCables = usePatchbayStoreState((s) => s.selectCables)
   const clearSelection = usePatchbayStoreState((s) => s.clearSelection)
+  const setDrawingMissing = usePatchbayStoreState((s) => s.setDrawingMissing)
 
   const prefColor = usePatchbayPrefsStore((s) => s.color)
   const prefSag = usePatchbayPrefsStore((s) => s.sag)
@@ -137,6 +138,8 @@ export default function PatchbayStage({ studioId, stageRef, active, paneActive }
       cancelled = true
     }
   }, [studioId, changedCount])
+
+  useEffect(() => setDrawingMissing(patchbay === 'none'), [patchbay, setDrawingMissing])
 
   const points = patchbay && patchbay !== 'none' ? patchbay.points : []
   const index = useMemo(() => new PointIndex(points), [points])

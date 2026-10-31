@@ -25,6 +25,10 @@ interface PatchbayState {
   saveError: { message: string; at: number } | null
   /** Set while a drag is in progress, so autosave waits for it to finish — see layoutStore. */
   gestureStartedAt: number | null
+  /** True while the studio has no patchbay drawing. Its cables are kept but hidden then, so
+   *  Select All and Delete leave them alone — nothing should vanish that the user can't see. */
+  drawingMissing: boolean
+  setDrawingMissing(missing: boolean): void
   beginGesture(): void
   endGesture(): void
   loadForSetup(setupId: number | null): Promise<void>
@@ -60,6 +64,9 @@ export function createPatchbayStore(setupStoreApi: SetupStoreApi) {
         isSaving: false,
         saveError: null,
         gestureStartedAt: null,
+        drawingMissing: false,
+        setDrawingMissing: (missing) =>
+          set(missing ? { drawingMissing: true, selectedCableIds: new Set() } : { drawingMissing: false }),
         beginGesture: () => set({ gestureStartedAt: Date.now() }),
         endGesture: () => set({ gestureStartedAt: null }),
 

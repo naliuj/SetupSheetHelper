@@ -438,7 +438,7 @@ export default function SetupToolbar({
       layoutStoreApi.getState().selectAllBlocks()
     } else if (mode === 'patchbay') {
       const state = patchbayStoreApi.getState()
-      state.selectCables(state.cables.map((c) => c.id), false)
+      if (!state.drawingMissing) state.selectCables(state.cables.map((c) => c.id), false)
     }
   }
 
@@ -657,7 +657,7 @@ export default function SetupToolbar({
 
   function deleteSelectedCables(): void {
     const state = patchbayStoreApi.getState()
-    if (state.selectedCableIds.size > 0) state.removeCables([...state.selectedCableIds])
+    if (!state.drawingMissing && state.selectedCableIds.size > 0) state.removeCables([...state.selectedCableIds])
   }
 
   // Mouse-click path: the native menu's items still send these over IPC when clicked — this
