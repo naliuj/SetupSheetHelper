@@ -130,6 +130,8 @@ export interface PreampWithStudio extends Preamp {
 
 export const APP_SETTINGS_KEYS = {
   defaultEngineerName: 'default_engineer_name',
+  /** Remembered parts of the PDF export, as a comma list ("sheet,layout,patchbay"). Read through
+   *  parsePdfExportParts, which also understands the 'both' | 'sheet' | 'layout' it used to hold. */
   defaultPdfExportInclude: 'default_pdf_export_include',
   /** '1' | '0'. Remembered "Colored rows" choice from the Export Options modal — a general
    *  preference, not something to re-toggle on every export. Absent → off. */
@@ -138,6 +140,9 @@ export const APP_SETTINGS_KEYS = {
    *  so the existing two-keystroke export produces the same file it always did for anyone who
    *  never touches the toggle. */
   defaultSpreadsheetExportLayout: 'default_spreadsheet_export_layout',
+  /** '1' | '0'. Remembered "Patchbay" choice from the spreadsheet export modal. Absent → off, for
+   *  the same reason as defaultSpreadsheetExportLayout. */
+  defaultSpreadsheetExportPatchbay: 'default_spreadsheet_export_patchbay',
   /** ThemePreference: 'light' | 'dark' | 'system'. Absent → 'system', but migration 039 writes an
    *  explicit 'dark' into every database that predates it, so absence only ever means "fresh
    *  profile" — see parseThemePreference. */
@@ -186,5 +191,7 @@ export const APP_SETTINGS_KEYS = {
   /** '1' | '0' — Layout Mode's Snap checkbox: whether drags snap to other blocks. Absent → on. */
   layoutSnapping: 'layout_snapping',
   /** JSON { tool, color, size } — the markup toolbar's last choices. Absent/garbage → pen, red, medium. */
-  markupPrefs: 'markup_prefs'
+  markupPrefs: 'markup_prefs',
+  /** JSON { color, sag } — Patchbay Mode's last cable choices. Absent/garbage → red, 0.35. */
+  patchbayPrefs: 'patchbay_prefs'
 } as const

@@ -213,7 +213,7 @@ export default function LayoutWindowApp(): JSX.Element {
       if (!combo) return
       const { resolve } = useKeybindPrefsStore.getState()
       for (const action of KEYBIND_ACTIONS) {
-        if (action.id === 'open-settings' || action.scope === 'table') continue
+        if (action.id === 'open-settings' || action.scope === 'table' || action.scope === 'patchbay') continue
         if (action.scope === 'markup' && !useLayoutStore.getState().markupOn) continue
         if (resolve(action.id) !== combo) continue
         const handler = handlers[action.id]

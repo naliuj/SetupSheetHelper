@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import type Konva from 'konva'
 import { Check, ExternalLink, FileText, Keyboard } from 'lucide-react'
 import { APP_SETTINGS_KEYS } from '@shared/types/entities'
-import type { MenuAction, PdfExportInclude } from '@shared/types/ipc'
+import type { MenuAction, PatchbayExportImage, PdfExportParts } from '@shared/types/ipc'
+import { parsePdfExportParts, serializePdfExportParts } from '@shared/constants/pdfLayout'
 import {
   KEYBIND_ACTIONS,
   MARKUP_TOOL_KEYBINDS,
@@ -12,6 +13,7 @@ import {
 } from '@shared/constants/keybindActions'
 import { useSetupStoreApi, useSetupStoreState } from '@renderer/state/setupStoreContext'
 import { useLayoutStoreApi, useLayoutStoreState } from '@renderer/state/layoutStoreContext'
+import { usePatchbayStoreApi } from '@renderer/state/patchbayStoreContext'
 import { useKeybindPrefsStore } from '@renderer/state/keybindPrefsStore'
 import { useMarkupPrefsStore } from '@renderer/state/markupPrefsStore'
 import { useSnapPrefsStore } from '@renderer/state/snapPrefsStore'
@@ -22,11 +24,15 @@ import SaveAsTemplateModal from './SaveAsTemplateModal'
 import ExportOptionsModal, { type ExportOptions } from './ExportOptionsModal'
 import { captureLayoutImage, type LayoutCaptureResult } from './captureLayoutImage'
 import SpreadsheetExportModal from './SpreadsheetExportModal'
+import { renderPatchbayImage, type PatchbayImageResult } from './patchbay/renderPatchbayImage'
 import type { SetupColumnKey } from '@shared/constants/setupColumns'
 import RequireLayoutFileModal from './RequireLayoutFileModal'
 import OpenAlongsideModal from './OpenAlongsideModal'
 import { useBufferedField } from './table/useBufferedField'
 import { GENERIC_INSTRUMENT_TYPE } from './table/tableConstants'
+
+/** Layout-scope keybinds that also drive Patchbay Mode's canvas. */
+const PATCHBAY_VIEW_ACTIONS = new Set(['zoom-in', 'zoom-out', 'reset-view'])
 
 interface Props {
   stageRef: React.RefObject<Konva.Stage | null>
@@ -54,6 +60,7 @@ export default function SetupToolbar({
 }: Props): JSX.Element {
   const setupStoreApi = useSetupStoreApi()
   const layoutStoreApi = useLayoutStoreApi()
+  const patchbayStoreApi = usePatchbayStoreApi()
   const setupId = useSetupStoreState((s) => s.setupId)
   const studioId = useSetupStoreState((s) => s.studioId)
   const name = useSetupStoreState((s) => s.name)
@@ -87,13 +94,15 @@ export default function SetupToolbar({
   const [templateModalOpen, setTemplateModalOpen] = useState(false)
   const [exportModalOpen, setExportModalOpen] = useState(false)
   const [spreadsheetModalOpen, setSpreadsheetModalOpen] = useState(false)
-  const [defaultExportInclude, setDefaultExportInclude] = useState<PdfExportInclude>('both')
+  const [defaultExportParts, setDefaultExportParts] = useState<PdfExportParts>(() => parsePdfExportParts(null))
   const [defaultExportColoredRows, setDefaultExportColoredRows] = useState(false)
   const [exportHasLayout, setExportHasLayout] = useState(false)
+  const [exportHasPatchbay, setExportHasPatchbay] = useState(false)
   // Remembered "Room layout" choice for the SPREADSHEET export specifically. Defaults off, so the
   // existing Cmd+Shift+E -> Enter flow produces byte-identical output for anyone who never touches
   // the toggle; the choice is then remembered, matching defaultPdfExportColoredRows.
   const [defaultSpreadsheetLayout, setDefaultSpreadsheetLayout] = useState(false)
+  const [defaultSpreadsheetPatchbay, setDefaultSpreadsheetPatchbay] = useState(false)
   const [layoutGateOpen, setLayoutGateOpen] = useState(false)
   // Which action the "no room layout yet" gate should complete once the user picks/commits a
   // file — toggling Layout Mode locally, or opening it in the standalone window. Set right before
@@ -151,21 +160,37 @@ export default function SetupToolbar({
     await save()
   }
 
+  /** Whether the studio has a patchbay drawing, which decides whether the export dialogs offer it.
+   *  The drawing's jacks are cached once Patchbay Mode has read them, so this is a cheap call. */
+  async function studioHasPatchbay(): Promise<boolean> {
+    return studioId ? (await window.api.patchbay.getForStudio(studioId)) != null : false
+  }
+
+  /** Flattens this setup's patchbay for an export, first saving any cable edit still waiting on
+   *  autosave — the picture is drawn from the database, not from the editor's canvas. */
+  async function capturePatchbay(currentSetupId: number, monochrome: boolean): Promise<PatchbayImageResult> {
+    const patchbayState = patchbayStoreApi.getState()
+    if (patchbayState.isDirty) await patchbayState.save()
+    return renderPatchbayImage({ studioId, setupId: currentSetupId, monochrome })
+  }
+
   async function handleExport(): Promise<void> {
     setExportMessage(null)
-    const [remembered, rememberedColoredRows, effective] = await Promise.all([
+    const [remembered, rememberedColoredRows, effective, hasPatchbay] = await Promise.all([
       window.api.settings.get(APP_SETTINGS_KEYS.defaultPdfExportInclude),
       window.api.settings.get(APP_SETTINGS_KEYS.defaultPdfExportColoredRows),
-      studioId ? window.api.layoutFile.getEffectiveForSetup(setupId, studioId) : Promise.resolve(null)
+      studioId ? window.api.layoutFile.getEffectiveForSetup(setupId, studioId) : Promise.resolve(null),
+      studioHasPatchbay()
     ])
-    setDefaultExportInclude(remembered === 'sheet' || remembered === 'layout' ? remembered : 'both')
+    setDefaultExportParts(parsePdfExportParts(remembered))
     setDefaultExportColoredRows(rememberedColoredRows === '1')
     setExportHasLayout(!!effective)
+    setExportHasPatchbay(hasPatchbay)
     setExportModalOpen(true)
   }
 
   async function performExport({
-    include,
+    parts,
     coloredRows,
     orientation,
     density,
@@ -182,7 +207,7 @@ export default function SetupToolbar({
       // Skipped entirely for a sheet-only export — no need to pay for flattening the canvas.
       let dataUrl: string | null = null
       let layoutUnreachable = false
-      if (include !== 'sheet') {
+      if (parts.layout) {
         const capture = await captureLayoutImage({
           setupId: currentSetupId,
           studioId,
@@ -198,11 +223,26 @@ export default function SetupToolbar({
         layoutUnreachable = capture.status === 'unreachable'
       }
 
-      if (include === 'layout' && !dataUrl) {
+      // Drawn with the same Colored choice as the layout: off grays the drawing and its cables.
+      let patchbayImage: PatchbayExportImage | null = null
+      if (parts.patchbay) {
+        const patchbay = await capturePatchbay(currentSetupId, !coloredRows)
+        if (patchbay.status === 'ok') {
+          patchbayImage = { dataUrl: patchbay.dataUrl, roomWidth: patchbay.roomWidth, roomHeight: patchbay.roomHeight }
+        }
+      }
+      const patchbayMissing = parts.patchbay && !patchbayImage
+
+      // Without the setup sheet, a part that couldn't be had may leave nothing at all to write.
+      if (!parts.sheet && !dataUrl && !patchbayImage) {
         setExportMessage(
           layoutUnreachable
             ? "Couldn't reach the Layout window to capture the room layout — bring it to the front and try again."
-            : 'This studio has no room layout assigned yet — nothing to export.'
+            : parts.layout && parts.patchbay
+              ? 'This studio has no room layout or patchbay drawing yet — nothing to export.'
+              : parts.layout
+                ? 'This studio has no room layout assigned yet — nothing to export.'
+                : 'This studio has no patchbay drawing yet — nothing to export.'
         )
         return
       }
@@ -210,7 +250,8 @@ export default function SetupToolbar({
       const result = await window.api.exportPdf.exportSetup({
         setupId: currentSetupId,
         layoutImageDataUrl: dataUrl,
-        include,
+        parts,
+        patchbayImage,
         coloredRows,
         orientation,
         density,
@@ -218,13 +259,22 @@ export default function SetupToolbar({
       })
       if (result.canceled) {
         setExportMessage(null)
-      } else if (layoutUnreachable) {
-        setExportMessage(`Exported to ${result.filePath} — the room layout page was skipped (couldn't reach the Layout window).`)
       } else {
-        setExportMessage(`Exported to ${result.filePath}`)
+        const skipped: string[] = []
+        if (layoutUnreachable) skipped.push("the room layout page was skipped (couldn't reach the Layout window)")
+        if (patchbayMissing) skipped.push('the patchbay pages were skipped (this studio has no patchbay drawing)')
+        setExportMessage(`Exported to ${result.filePath}${skipped.length > 0 ? ` — ${skipped.join('; ')}.` : ''}`)
       }
       if (!result.canceled) {
-        await window.api.settings.set(APP_SETTINGS_KEYS.defaultPdfExportInclude, include)
+        // A part the dialog didn't offer (no layout, or no patchbay drawing, in this studio) keeps
+        // its remembered choice rather than being saved as off, so it is back on next time in a
+        // studio that has one.
+        const remembered: PdfExportParts = {
+          sheet: parts.sheet,
+          layout: exportHasLayout ? parts.layout : defaultExportParts.layout,
+          patchbay: exportHasPatchbay ? parts.patchbay : defaultExportParts.patchbay
+        }
+        await window.api.settings.set(APP_SETTINGS_KEYS.defaultPdfExportInclude, serializePdfExportParts(remembered))
         await window.api.settings.set(APP_SETTINGS_KEYS.defaultPdfExportColoredRows, coloredRows ? '1' : '0')
       }
     } catch (err) {
@@ -241,18 +291,26 @@ export default function SetupToolbar({
     setExportMessage(null)
     const setupId = setupStoreApi.getState().setupId
     if (!setupId) return
-    const [remembered, effective] = await Promise.all([
+    const [remembered, rememberedPatchbay, effective, hasPatchbay] = await Promise.all([
       window.api.settings.get(APP_SETTINGS_KEYS.defaultSpreadsheetExportLayout),
-      studioId ? window.api.layoutFile.getEffectiveForSetup(setupId, studioId) : Promise.resolve(null)
+      window.api.settings.get(APP_SETTINGS_KEYS.defaultSpreadsheetExportPatchbay),
+      studioId ? window.api.layoutFile.getEffectiveForSetup(setupId, studioId) : Promise.resolve(null),
+      studioHasPatchbay()
     ])
     setDefaultSpreadsheetLayout(remembered === '1')
+    setDefaultSpreadsheetPatchbay(rememberedPatchbay === '1')
     setExportHasLayout(!!effective)
+    setExportHasPatchbay(hasPatchbay)
     setSpreadsheetModalOpen(true)
   }
 
   // Runs once the dialog above resolves the column list. Shares the toolbar's
   // exporting/exportMessage state with the PDF export.
-  async function performSpreadsheetExport(includeColumns: SetupColumnKey[], includeLayout: boolean): Promise<void> {
+  async function performSpreadsheetExport(
+    includeColumns: SetupColumnKey[],
+    includeLayout: boolean,
+    includePatchbay: boolean
+  ): Promise<void> {
     setExporting(true)
     setExportMessage(null)
     try {
@@ -280,25 +338,48 @@ export default function SetupToolbar({
         })
       }
 
+      // Same trade for the patchbay sheet, down to a render that fails outright: the data sheet
+      // still goes out, and the message says what was left off. Always in color, like the layout.
+      let patchbay: PatchbayImageResult | 'failed' = { status: 'none' }
+      if (includePatchbay) {
+        try {
+          patchbay = await capturePatchbay(currentSetupId, false)
+        } catch (err) {
+          console.error('[spreadsheet] skipping the patchbay sheet:', err)
+          patchbay = 'failed'
+        }
+      }
+
       const result = await window.api.exportSpreadsheet.exportSetup({
         setupId: currentSetupId,
         includeColumns,
-        layoutImageDataUrl: capture.status === 'ok' ? capture.dataUrl : null
+        layoutImageDataUrl: capture.status === 'ok' ? capture.dataUrl : null,
+        patchbayImage:
+          patchbay !== 'failed' && patchbay.status === 'ok'
+            ? { dataUrl: patchbay.dataUrl, roomWidth: patchbay.roomWidth, roomHeight: patchbay.roomHeight }
+            : null
       })
       if (!result.canceled) {
         await window.api.settings.set(
           APP_SETTINGS_KEYS.defaultSpreadsheetExportLayout,
           includeLayout ? '1' : '0'
         )
+        await window.api.settings.set(
+          APP_SETTINGS_KEYS.defaultSpreadsheetExportPatchbay,
+          includePatchbay ? '1' : '0'
+        )
+        const skipped: string[] = []
         if (includeLayout && capture.status === 'unreachable') {
-          setExportMessage(
-            `Exported to ${result.filePath} — the room layout sheet was skipped (couldn't reach the Layout window).`
-          )
+          skipped.push("the room layout sheet was skipped (couldn't reach the Layout window)")
         } else if (includeLayout && capture.status === 'none') {
-          setExportMessage(`Exported to ${result.filePath} — this setup has no room layout, so that sheet was skipped.`)
-        } else {
-          setExportMessage(`Exported to ${result.filePath}`)
+          skipped.push('this setup has no room layout, so that sheet was skipped')
         }
+        if (patchbay === 'failed') {
+          skipped.push("the patchbay sheet was skipped (couldn't draw the patchbay)")
+        } else if (includePatchbay && patchbay.status === 'none') {
+          skipped.push('this studio has no patchbay drawing, so that sheet was skipped')
+        }
+        setExportMessage(`Exported to ${result.filePath}${skipped.length > 0 ? ` — ${skipped.join('; ')}.` : ''}`)
       }
     } catch (err) {
       setExportMessage(`Export failed — ${err instanceof Error ? err.message : 'please try again.'}`)
@@ -329,6 +410,9 @@ export default function SetupToolbar({
     if (mode === 'table') {
       setupStoreApi.temporal.getState()[direction]()
       setupStoreApi.setState({ isDirty: true })
+    } else if (mode === 'patchbay') {
+      patchbayStoreApi.temporal.getState()[direction]()
+      patchbayStoreApi.setState({ isDirty: true })
     } else {
       layoutStoreApi.temporal.getState()[direction]()
       layoutStoreApi.setState({ isDirty: true })
@@ -352,6 +436,9 @@ export default function SetupToolbar({
       setupStoreApi.getState().selectAll()
     } else if (mode === 'layout') {
       layoutStoreApi.getState().selectAllBlocks()
+    } else if (mode === 'patchbay') {
+      const state = patchbayStoreApi.getState()
+      if (!state.drawingMissing) state.selectCables(state.cables.map((c) => c.id), false)
     }
   }
 
@@ -371,6 +458,20 @@ export default function SetupToolbar({
   // Layout Mode requires an effective room layout first (this setup's own override, or the
   // studio's shared file) — leaving Layout Mode is always allowed, but entering it checks and, if
   // neither exists, opens a blocking prompt instead of switching.
+  /** Patchbay Mode needs nothing first — a studio without a drawing gets an upload prompt on the
+   *  canvas itself. Toggling from Patchbay Mode returns to Table Mode. */
+  function requestPatchbayMode(): void {
+    onToggleMode(mode === 'patchbay' ? 'table' : 'patchbay')
+  }
+
+  /** The Table | Layout | Patchbay switch: Layout goes through the same room-layout gate as the
+   *  toggle. */
+  function requestMode(next: EditorMode): void {
+    if (next === mode) return
+    if (next === 'layout') void requestToggleMode()
+    else onToggleMode(next)
+  }
+
   async function requestToggleMode(): Promise<void> {
     // Belt-and-suspenders alongside the disabled toggle button below: the keyboard shortcut
     // (Cmd+L) routes through this same function regardless of the button's disabled state, and
@@ -480,11 +581,13 @@ export default function SetupToolbar({
     'export-pdf': handleExport,
     'export-spreadsheet': handleExportSpreadsheet,
     'toggle-mode': requestToggleMode,
+    'toggle-patchbay-mode': requestPatchbayMode,
     'add-source': () => addItem(GENERIC_INSTRUMENT_TYPE),
     'select-all': handleSelectAll,
     'delete-selection': () => {
       if (mode === 'table' && selectedItemIds.size > 0) removeItems([...selectedItemIds])
       else if (mode === 'layout' && selectedBlockIds.size > 0) removeBlocks([...selectedBlockIds])
+      else if (mode === 'patchbay') deleteSelectedCables()
     },
     'duplicate-selection': () => {
       if (mode === 'layout' && selectedBlockIds.size > 0) duplicateBlocks([...selectedBlockIds])
@@ -501,12 +604,15 @@ export default function SetupToolbar({
     },
     'zoom-in': () => {
       if (mode === 'layout') layoutStoreApi.getState().zoomIn()
+      else if (mode === 'patchbay') patchbayStoreApi.getState().zoomIn()
     },
     'zoom-out': () => {
       if (mode === 'layout') layoutStoreApi.getState().zoomOut()
+      else if (mode === 'patchbay') patchbayStoreApi.getState().zoomOut()
     },
     'reset-view': () => {
       if (mode === 'layout') layoutStoreApi.getState().resetView()
+      else if (mode === 'patchbay') patchbayStoreApi.getState().resetView()
     },
     'toggle-markup': () => {
       if (mode === 'layout') {
@@ -535,6 +641,7 @@ export default function SetupToolbar({
     redo: () => handleUndoRedo('redo'),
     'clear-selection': () => {
       if (mode === 'table') clearSelection()
+      else if (mode === 'patchbay') patchbayStoreApi.getState().clearSelection()
       else selectBlock(null)
     },
     'delete-selection-table': () => {
@@ -542,7 +649,15 @@ export default function SetupToolbar({
     },
     'delete-selection-layout': () => {
       if (mode === 'layout' && selectedBlockIds.size > 0) removeBlocks([...selectedBlockIds])
+    },
+    'delete-selection-patchbay': () => {
+      if (mode === 'patchbay') deleteSelectedCables()
     }
+  }
+
+  function deleteSelectedCables(): void {
+    const state = patchbayStoreApi.getState()
+    if (!state.drawingMissing && state.selectedCableIds.size > 0) state.removeCables([...state.selectedCableIds])
   }
 
   // Mouse-click path: the native menu's items still send these over IPC when clicked — this
@@ -580,7 +695,10 @@ export default function SetupToolbar({
       for (const action of KEYBIND_ACTIONS) {
         if (action.id === 'open-settings') continue
         if (action.scope === 'table' && mode !== 'table') continue
-        if (action.scope === 'layout' && mode !== 'layout') continue
+        // Zoom and Reset View work in Patchbay Mode too; the rest of the Layout actions don't.
+        if (action.scope === 'layout' && mode !== 'layout' && !(mode === 'patchbay' && PATCHBAY_VIEW_ACTIONS.has(action.id)))
+          continue
+        if (action.scope === 'patchbay' && mode !== 'patchbay') continue
         if (action.scope === 'markup' && (mode !== 'layout' || !layoutStoreApi.getState().markupOn)) continue
         if (resolve(action.id) !== combo) continue
         const handler = handlers[action.id]
@@ -694,14 +812,32 @@ export default function SetupToolbar({
           Setup settings
         </button>
       )}
-      <button
-        className="btn"
-        onClick={requestToggleMode}
-        disabled={layoutPoppedOut}
-        title={layoutPoppedOut ? 'Open on your other display' : formatCombo(resolveKeybind('toggle-mode'))}
-      >
-        {mode === 'table' ? 'Layout Mode' : 'Table Mode'}
-      </button>
+      <div className="segmented" role="group" aria-label="Editor mode">
+        <button
+          className={mode === 'table' ? 'btn primary' : 'btn'}
+          aria-pressed={mode === 'table'}
+          onClick={() => requestMode('table')}
+        >
+          Table
+        </button>
+        <button
+          className={mode === 'layout' ? 'btn primary' : 'btn'}
+          aria-pressed={mode === 'layout'}
+          onClick={() => requestMode('layout')}
+          disabled={layoutPoppedOut}
+          title={layoutPoppedOut ? 'Open on your other display' : formatCombo(resolveKeybind('toggle-mode'))}
+        >
+          Layout
+        </button>
+        <button
+          className={mode === 'patchbay' ? 'btn primary' : 'btn'}
+          aria-pressed={mode === 'patchbay'}
+          onClick={() => requestMode('patchbay')}
+          title={resolveKeybind('toggle-patchbay-mode') ? formatCombo(resolveKeybind('toggle-patchbay-mode')) : undefined}
+        >
+          Patchbay
+        </button>
+      </div>
       {setupId && (
         <button
           className="btn"
@@ -734,9 +870,10 @@ export default function SetupToolbar({
       )}
       {exportModalOpen && (
         <ExportOptionsModal
-          defaultInclude={defaultExportInclude}
+          defaultParts={defaultExportParts}
           defaultColoredRows={defaultExportColoredRows}
           hasLayout={exportHasLayout}
+          hasPatchbay={exportHasPatchbay}
           onClose={() => setExportModalOpen(false)}
           onExport={performExport}
         />
@@ -745,6 +882,8 @@ export default function SetupToolbar({
         <SpreadsheetExportModal
           hasLayout={exportHasLayout}
           defaultIncludeLayout={defaultSpreadsheetLayout}
+          hasPatchbay={exportHasPatchbay}
+          defaultIncludePatchbay={defaultSpreadsheetPatchbay}
           onClose={() => setSpreadsheetModalOpen(false)}
           onExport={performSpreadsheetExport}
         />

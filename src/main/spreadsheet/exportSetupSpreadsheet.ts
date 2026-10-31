@@ -13,6 +13,10 @@ import { resolveMicText, resolveOutboardSlotText, resolvePreampText } from '../d
 import { COLUMN_LABELS, orderedVisibleColumns } from '@shared/constants/setupColumns'
 import { isHexColor, readableTextColor } from '@shared/constants/swatches'
 import { layoutPixelsToPoints } from '@shared/constants/roomLayout'
+import { PATCHBAY_RENDER_SCALE } from '@shared/types/patchbay'
+import { buildPatchCableRows } from '@shared/utils/patchCableRows'
+import { listCablesBySetup } from '../db/repositories/patchbayCablesRepo'
+import { getPatchbayWithPoints } from '../pdf/importPatchbay'
 import { pngSize } from './pngSize'
 
 /** OOXML measures a drawing's extent in EMU, and exceljs's `ext` is in the 96-dpi "pixel" it
@@ -25,6 +29,13 @@ const OOXML_IMAGE_DPI = 96
  *  layout constant ever moves. */
 function layoutPixelsToSheetPixels(px: number): number {
   return layoutPixelsToPoints(px) * (OOXML_IMAGE_DPI / 72)
+}
+
+/** Patchbay room pixels -> the on-sheet size that prints at the drawing's true dimensions. Takes
+ *  ROOM pixels, not the PNG's: the patchbay picture is rendered at whatever sharpness its size
+ *  allows (see renderPatchbayImage), so only the room size it travels with says how big it is. */
+function patchbayRoomToSheetPixels(roomPx: number): number {
+  return (roomPx / PATCHBAY_RENDER_SCALE) * (OOXML_IMAGE_DPI / 72)
 }
 
 /** One spreadsheet column, keyed the same way SetupColumnKey is (outboard splits into one
@@ -188,6 +199,57 @@ export async function exportSetupSpreadsheet(input: ExportSetupSpreadsheetInput)
       })
     } catch (err) {
       console.error('[spreadsheet] skipping the room layout sheet:', err)
+    }
+  }
+
+  // Last sheet: the patch cables as a table, which is the part worth having as data, with the
+  // patchbay picture below it. Guarded the same way as the layout sheet.
+  if (input.patchbayImage) {
+    try {
+      const { dataUrl, roomWidth, roomHeight } = input.patchbayImage
+      const bytes = Buffer.from(dataUrl.replace(/^data:image\/png;base64,/, ''), 'base64')
+      pngSize(bytes) // throws on a malformed capture before the sheet is added
+      const patchbay = await getPatchbayWithPoints(setup.studioId)
+      const rows = buildPatchCableRows(listCablesBySetup(setup.id), patchbay?.points ?? [])
+
+      const patchbaySheet = workbook.addWorksheet(uniqueSheetName(workbook, 'Patchbay'), {
+        views: [{ showGridLines: false }]
+      })
+      // No header row for a setup without cables: the picture then starts at the top on its own.
+      const header = (label: string): string | undefined => (rows.length > 0 ? label : undefined)
+      patchbaySheet.columns = [
+        { header: header('#'), key: 'number', width: 6 },
+        { header: header('From'), key: 'from', width: 28 },
+        { header: header('To'), key: 'to', width: 28 },
+        { header: header('Color'), key: 'color', width: 12 }
+      ]
+      if (rows.length > 0) patchbaySheet.getRow(1).font = { bold: true }
+      let section: string | null = null
+      rows.forEach((row, i) => {
+        // A heading gets a bold row of its own above its first cable, as in the PDF.
+        if (row.section != null && (i === 0 || row.section !== section)) {
+          patchbaySheet.addRow({ number: row.section }).font = { bold: true }
+        }
+        section = row.section
+        const added = patchbaySheet.addRow({ number: i + 1, from: row.from, to: row.to, color: row.colorName })
+        // The color cell in its own color, with the text picked to read on it — the same treatment
+        // the data sheet gives a colored row.
+        if (isHexColor(row.colorHex)) {
+          const cell = added.getCell('color')
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: hexToArgb(row.colorHex) } }
+          cell.font = { color: { argb: `FF${readableTextColor(row.colorHex).replace('#', '').toUpperCase()}` } }
+        }
+      })
+
+      const imageId = workbook.addImage({ base64: bytes.toString('base64'), extension: 'png' })
+      patchbaySheet.addImage(imageId, {
+        // Zero-based: the header row and the table's rows, then one blank row before the picture.
+        tl: { col: 0, row: rows.length > 0 ? patchbaySheet.rowCount + 1 : 0 },
+        ext: { width: patchbayRoomToSheetPixels(roomWidth), height: patchbayRoomToSheetPixels(roomHeight) },
+        editAs: 'absolute'
+      })
+    } catch (err) {
+      console.error('[spreadsheet] skipping the patchbay sheet:', err)
     }
   }
 

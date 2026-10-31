@@ -65,6 +65,7 @@ export function installAppMenu(updateDialogParent: BrowserWindow): void {
         { label: 'Export Spreadsheet…', click: () => send('export-spreadsheet') },
         { type: 'separator' },
         { label: 'Toggle Layout/Table Mode', click: () => send('toggle-mode') },
+        { label: 'Toggle Patchbay Mode', click: () => send('toggle-patchbay-mode') },
         ...(isMac ? [] : [{ type: 'separator' } as const, { role: 'quit' } as const])
       ]
     },

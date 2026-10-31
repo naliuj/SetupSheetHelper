@@ -4,6 +4,7 @@ import { APP_SETTINGS_KEYS } from '@shared/types/entities'
 import type { EditorMode } from '@renderer/state/navigationStore'
 import { useSetupStoreApi, useSetupStoreState } from '@renderer/state/setupStoreContext'
 import { useLayoutStoreApi, useLayoutStoreState } from '@renderer/state/layoutStoreContext'
+import { usePatchbayStoreApi, usePatchbayStoreState } from '@renderer/state/patchbayStoreContext'
 import { useCatalogStoreState } from '@renderer/state/catalogStoreContext'
 import { useLayoutWindowStore } from '@renderer/state/layoutWindowStore'
 import { registerFlusher } from '@renderer/state/flushRegistry'
@@ -35,6 +36,7 @@ const AUTOSAVE_RETRY_MS = 10_000
 // don't pay their parse cost. The stage still mounts (hidden) as soon as the editor opens, so
 // PDF export's stageRef capture keeps working exactly as before.
 const LayoutStage = lazy(() => import('./canvas/LayoutStage'))
+const PatchbayStage = lazy(() => import('./patchbay/PatchbayStage'))
 
 interface Props {
   /** null for custom (buildingless) studios. */
@@ -71,13 +73,20 @@ export default function SetupEditorPane({
   paneActive
 }: Props): JSX.Element {
   const [settingsOpen, setSettingsOpen] = useState(false)
+  // Whether Patchbay Mode has been opened in this pane yet — see where PatchbayStage mounts.
+  const [patchbayVisited, setPatchbayVisited] = useState(mode === 'patchbay')
+  useEffect(() => {
+    if (mode === 'patchbay') setPatchbayVisited(true)
+  }, [mode])
 
   const setupStoreApi = useSetupStoreApi()
   const layoutStoreApi = useLayoutStoreApi()
+  const patchbayStoreApi = usePatchbayStoreApi()
 
   const startNewSetup = useSetupStoreState((s) => s.startNewSetup)
   const loadFromSetup = useSetupStoreState((s) => s.loadFromSetup)
   const loadLayoutBlocks = useLayoutStoreState((s) => s.loadForSetup)
+  const loadCables = usePatchbayStoreState((s) => s.loadForSetup)
   const loadCatalog = useCatalogStoreState((s) => s.loadForStudio)
 
   const items = useSetupStoreState((s) => s.items)
@@ -98,7 +107,13 @@ export default function SetupEditorPane({
   const layoutSaveError = useLayoutStoreState((s) => s.saveError)
   const saveLayout = useLayoutStoreState((s) => s.save)
 
+  const cables = usePatchbayStoreState((s) => s.cables)
+  const cablesDirty = usePatchbayStoreState((s) => s.isDirty)
+  const cablesSaveError = usePatchbayStoreState((s) => s.saveError)
+  const saveCables = usePatchbayStoreState((s) => s.save)
+
   const stageRef = useRef<Konva.Stage>(null)
+  const patchbayStageRef = useRef<Konva.Stage>(null)
   /** When the current run of unsaved edits began, so the autosave below can cap how long a
    *  continuous burst delays a save. Null whenever everything is saved. */
   const dirtySinceRef = useRef<number | null>(null)
@@ -144,6 +159,7 @@ export default function SetupEditorPane({
     if (useLayoutWindowStore.getState().openForSetupId !== setupId) {
       loadLayoutBlocks(setupId)
     }
+    loadCables(setupId)
 
     if (setupId) {
       window.api.setups.getWithItems(setupId).then((setup) => {
@@ -185,10 +201,11 @@ export default function SetupEditorPane({
 
   // Debounced autosave: any dirty change (re)starts a short timer that saves once things
   // settle, instead of hammering a full items-table replace on every keystroke/drag. Table
-  // Mode's setupStore and Layout Mode's layoutStore are fully independent, but both flush on
-  // the same timer for simplicity — each only actually writes if its own isDirty is set.
+  // Mode's setupStore, Layout Mode's layoutStore and Patchbay Mode's patchbayStore are fully
+  // independent, but all flush on the same timer for simplicity — each only actually writes if
+  // its own isDirty is set.
   useEffect(() => {
-    if (!isDirty && !layoutIsDirty) {
+    if (!isDirty && !layoutIsDirty && !cablesDirty) {
       dirtySinceRef.current = null
       return
     }
@@ -198,7 +215,7 @@ export default function SetupEditorPane({
     // burst first went dirty — see that constant. After a failure, back off instead: saveError
     // is a fresh object each time, so a failed attempt re-runs this effect and schedules the
     // next try without needing the user to touch anything.
-    const failed = saveError != null || layoutSaveError != null
+    const failed = saveError != null || layoutSaveError != null || cablesSaveError != null
     const elapsed = Date.now() - dirtySinceRef.current
     const delay = failed
       ? AUTOSAVE_RETRY_MS
@@ -209,6 +226,7 @@ export default function SetupEditorPane({
       dirtySinceRef.current = Date.now()
       if (isDirty) save()
       if (layoutIsDirty) saveLayout()
+      if (cablesDirty) saveCables()
     }, delay)
     return () => clearTimeout(timer)
   }, [
@@ -225,7 +243,11 @@ export default function SetupEditorPane({
     layoutBlocks,
     layoutIsDirty,
     layoutSaveError,
-    saveLayout
+    saveLayout,
+    cables,
+    cablesDirty,
+    cablesSaveError,
+    saveCables
   ])
 
   // Register this pane's stores for the quit-time flush. Split View gives each pane its own
@@ -239,8 +261,10 @@ export default function SetupEditorPane({
       layoutStoreApi.getState().commitNoteEdit()
       const layoutState = layoutStoreApi.getState()
       if (layoutState.isDirty) await layoutState.save()
+      const patchbayState = patchbayStoreApi.getState()
+      if (patchbayState.isDirty) await patchbayState.save()
     })
-  }, [setupStoreApi, layoutStoreApi])
+  }, [setupStoreApi, layoutStoreApi, patchbayStoreApi])
 
   // Flush any pending edit immediately when this pane unmounts, so a quick navigation away right
   // after typing/dragging doesn't lose the last second of work. For the SINGLE-pane case this
@@ -255,8 +279,10 @@ export default function SetupEditorPane({
       layoutStoreApi.getState().commitNoteEdit()
       const layoutState = layoutStoreApi.getState()
       if (layoutState.isDirty) layoutState.save()
+      const patchbayState = patchbayStoreApi.getState()
+      if (patchbayState.isDirty) patchbayState.save()
     }
-  }, [setupStoreApi, layoutStoreApi])
+  }, [setupStoreApi, layoutStoreApi, patchbayStoreApi])
 
   if (settingsOpen && setupId) {
     return <SetupSettingsPage setupId={setupId} onBack={() => setSettingsOpen(false)} />
@@ -290,7 +316,7 @@ export default function SetupEditorPane({
           setup's layout is popped out: the standalone window is the sole editor and the sole
           source of that capture in that case (see requestExportImage in performExport). */}
       {!layoutPoppedOut && (
-        <div style={{ flex: 1, display: mode === 'table' ? 'none' : 'flex', minHeight: 0 }}>
+        <div style={{ flex: 1, display: mode === 'layout' ? 'flex' : 'none', minHeight: 0 }}>
           <InstrumentPalette />
           <div style={{ flex: 1, minWidth: 0 }}>
             <Suspense fallback={null}>
@@ -302,6 +328,20 @@ export default function SetupEditorPane({
               />
             </Suspense>
           </div>
+        </div>
+      )}
+      {/* Mounted only once Patchbay Mode is first opened (unlike the layout stage, nothing needs to
+          capture it from another mode yet), then kept mounted so switching back is instant. */}
+      {patchbayVisited && (
+        <div style={{ flex: 1, display: mode === 'patchbay' ? 'flex' : 'none', minHeight: 0 }}>
+          <Suspense fallback={null}>
+            <PatchbayStage
+              studioId={studioId}
+              stageRef={patchbayStageRef}
+              active={mode === 'patchbay'}
+              paneActive={paneActive}
+            />
+          </Suspense>
         </div>
       )}
     </div>

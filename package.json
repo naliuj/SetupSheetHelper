@@ -66,6 +66,10 @@
       {
         "from": "resources/layouts",
         "to": "layouts"
+      },
+      {
+        "from": "resources/patchbays",
+        "to": "patchbays"
       }
     ],
     "mac": {

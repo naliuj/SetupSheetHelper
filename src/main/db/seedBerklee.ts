@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import seedData from './migrations/berkleeSeedData.json'
 import { canonicalMicKey } from '@shared/constants/berkleeMicRenames'
 import { getBundledLayoutsDir, getLayoutsDir } from '../userDataPaths'
+import { attachBundledPatchbays } from './bundledPatchbays'
 
 /** Room-layout PDFs bundled with the app (resources/layouts, see package.json's
  *  extraResources) — sourced from real Berklee setup-sheet PDFs, cropped to just the floor-plan
@@ -22,9 +23,9 @@ const BUNDLED_LAYOUTS: { buildingName: string; studioName: string; file: string;
 ]
 
 /** Seeds the real Berklee institutional data (buildings, studios, their studio/building/
- *  faculty-reserve gear, and room-layout PDFs). Called on demand — from the "Pre-load Berklee
- *  studios and gear?" onboarding prompt when the user opts in, or later from the Settings
- *  toggle when re-enabling. Guarded by `buildings` already having rows, so calling it again
+ *  faculty-reserve gear, room-layout PDFs, and patchbay PDFs). Called on demand — from the
+ *  "Pre-load Berklee studios and gear?" onboarding prompt when the user opts in, or later from
+ *  the Settings toggle when re-enabling. Guarded by `buildings` already having rows, so calling it again
  *  (e.g. re-enabling after a prior disable) is always a safe no-op rather than duplicating
  *  anything. User-created (buildingless) studios, setups, and personal gear are deliberately
  *  never part of this seed.
@@ -110,6 +111,8 @@ export function seedBerkleeData(db: Database.Database): void {
       copyFileSync(sourcePath, destPath)
       insertLayout.run(studioId, destPath, layout.file, layout.widthPt, layout.heightPt)
     }
+
+    attachBundledPatchbays(db)
   })
   run()
 }

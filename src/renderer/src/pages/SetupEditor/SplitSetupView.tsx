@@ -6,6 +6,8 @@ import { useLayoutStore, createLayoutStore } from '@renderer/state/layoutStore'
 import { createCatalogStore } from '@renderer/state/catalogStore'
 import { SetupStoreProvider } from '@renderer/state/setupStoreContext'
 import { LayoutStoreProvider } from '@renderer/state/layoutStoreContext'
+import { createPatchbayStore, usePatchbayStore } from '@renderer/state/patchbayStore'
+import { PatchbayStoreProvider } from '@renderer/state/patchbayStoreContext'
 import { CatalogStoreProvider } from '@renderer/state/catalogStoreContext'
 import SetupEditorPane from './SetupEditorPane'
 import SplitDivider from './SplitDivider'
@@ -76,8 +78,9 @@ export default function SplitSetupView({
   const [rightStores] = useState(() => {
     const setupStoreApi = createSetupStore()
     const layoutStoreApi = createLayoutStore(setupStoreApi)
+    const patchbayStoreApi = createPatchbayStore(setupStoreApi)
     const catalogStoreApi = createCatalogStore()
-    return { setupStoreApi, layoutStoreApi, catalogStoreApi }
+    return { setupStoreApi, layoutStoreApi, patchbayStoreApi, catalogStoreApi }
   })
 
   const [activePane, setActivePane] = useState<'left' | 'right'>('left')
@@ -121,11 +124,15 @@ export default function SplitSetupView({
       if (leftSetupState.isDirty) await leftSetupState.save()
       const leftLayoutState = useLayoutStore.getState()
       if (leftLayoutState.isDirty) await leftLayoutState.save()
+      const leftPatchbayState = usePatchbayStore.getState()
+      if (leftPatchbayState.isDirty) await leftPatchbayState.save()
 
       const rightSetupState = rightStores.setupStoreApi.getState()
       if (rightSetupState.isDirty) await rightSetupState.save()
       const rightLayoutState = rightStores.layoutStoreApi.getState()
       if (rightLayoutState.isDirty) await rightLayoutState.save()
+      const rightPatchbayState = rightStores.patchbayStoreApi.getState()
+      if (rightPatchbayState.isDirty) await rightPatchbayState.save()
 
       closeSplitView()
     } finally {
@@ -167,16 +174,18 @@ export default function SplitSetupView({
         >
           <SetupStoreProvider store={rightStores.setupStoreApi}>
             <LayoutStoreProvider store={rightStores.layoutStoreApi}>
-              <CatalogStoreProvider store={rightStores.catalogStoreApi}>
-                <SetupEditorPane
-                  buildingId={rightBuildingId}
-                  studioId={rightStudioId}
-                  setupId={rightSetupId}
-                  mode={rightMode}
-                  onModeChange={setRightMode}
-                  paneActive={activePane === 'right'}
-                />
-              </CatalogStoreProvider>
+              <PatchbayStoreProvider store={rightStores.patchbayStoreApi}>
+                <CatalogStoreProvider store={rightStores.catalogStoreApi}>
+                  <SetupEditorPane
+                    buildingId={rightBuildingId}
+                    studioId={rightStudioId}
+                    setupId={rightSetupId}
+                    mode={rightMode}
+                    onModeChange={setRightMode}
+                    paneActive={activePane === 'right'}
+                  />
+                </CatalogStoreProvider>
+              </PatchbayStoreProvider>
             </LayoutStoreProvider>
           </SetupStoreProvider>
         </div>

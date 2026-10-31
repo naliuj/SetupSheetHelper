@@ -443,6 +443,38 @@ input[type='checkbox']:disabled {
   color: var(--color-on-accent);
 }
 
+/* A row of buttons acting as one switch (the editor's Table | Layout | Patchbay). */
+.segmented {
+  display: inline-flex;
+}
+
+/* The buttons overlap by their shared 1px border, so the later one would paint over an earlier
+   one's accent border on hover or focus; lift whichever is highlighted above its neighbors. */
+.segmented .btn {
+  position: relative;
+}
+
+.segmented .btn:hover,
+.segmented .btn:focus-visible,
+.segmented .btn.primary {
+  z-index: 1;
+}
+
+.segmented .btn:hover {
+  z-index: 2;
+}
+
+.segmented .btn:not(:first-child) {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  margin-left: -1px;
+}
+
+.segmented .btn:not(:last-child) {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
 .btn.danger {
   color: var(--color-danger);
 }
@@ -2005,4 +2037,94 @@ input[type='checkbox']:focus-visible {
 
 .studio-library-row:hover {
   background: var(--color-surface-alt);
+}
+
+/* --- Patchbay Mode -------------------------------------------------------------------------- */
+
+.patchbay-topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.patchbay-cable-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface-raised);
+}
+
+.patchbay-swatches {
+  display: flex;
+  gap: 4px;
+}
+
+/* A thin dark ring on every swatch, so White reads against a light toolbar and Black against a
+   dark one. */
+.patchbay-swatch {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid rgb(0 0 0 / 0.35);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.25);
+}
+
+.patchbay-swatch[aria-pressed='true'] {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.patchbay-sag {
+  font-size: 12px;
+  color: var(--color-text-dim);
+  gap: 6px;
+}
+
+.patchbay-sag input {
+  width: 90px;
+}
+
+.patchbay-selection-count {
+  font-size: 12px;
+  color: var(--color-text-dim);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.patchbay-hint {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  z-index: 10;
+  font-size: 12px;
+  color: var(--color-text-dim);
+  user-select: none;
+  pointer-events: none;
+}
+
+.patchbay-tooltip {
+  position: absolute;
+  z-index: 20;
+  max-width: 360px;
+  padding: 4px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  font-size: 12px;
+  pointer-events: none;
+  box-shadow: 0 4px 12px var(--color-shadow);
+}
+
+.patchbay-empty {
+  position: absolute;
+  inset: 0;
+  z-index: 15;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }

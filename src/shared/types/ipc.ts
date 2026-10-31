@@ -16,6 +16,14 @@ import type {
 } from './entities'
 import type { ChannelPreset, ChannelPresetItemInput, ChannelPresetWithItems } from './channelPreset'
 import type { PaletteItem } from './palette'
+import type {
+  PatchbayCable,
+  PatchbayCableDraft,
+  PatchbayFile,
+  PatchbayWithPoints,
+  PickedPatchbayFile,
+  SavePatchbayCablesResult
+} from './patchbay'
 import type { ExportColumnOverrides, SetupColumnKey } from '../constants/setupColumns'
 import type { ResolvedTheme, ThemePreference } from '../constants/theme'
 import type { ContrastPreference } from '../constants/accessibility'
@@ -111,6 +119,17 @@ export const IPC = {
     getOverrideForSetup: 'layoutFile:getOverrideForSetup',
     clearOverrideForSetup: 'layoutFile:clearOverrideForSetup',
     getEffectiveForSetup: 'layoutFile:getEffectiveForSetup'
+  },
+  patchbay: {
+    getForStudio: 'patchbay:getForStudio',
+    getFileForStudio: 'patchbay:getFileForStudio',
+    importForStudio: 'patchbay:importForStudio',
+    pickFile: 'patchbay:pickFile',
+    commitPickedToStudio: 'patchbay:commitPickedToStudio',
+    removeForStudio: 'patchbay:removeForStudio',
+    cableUsageForStudio: 'patchbay:cableUsageForStudio',
+    listCables: 'patchbay:listCables',
+    saveCables: 'patchbay:saveCables'
   },
   spreadsheetImport: {
     pick: 'spreadsheetImport:pick',
@@ -403,6 +422,15 @@ export interface ExportedRoomLayoutFile {
   dataBase64: string
 }
 
+/** A studio's patchbay drawing in a pack. Always a PDF, so unlike ExportedRoomLayoutFile it names
+ *  no extension; import checks the payload really is one before writing it. */
+export interface ExportedPatchbayFile {
+  originalName: string | null
+  pageWidthPt: number
+  pageHeightPt: number
+  dataBase64: string
+}
+
 export interface ExportedStudio {
   name: string
   mics: ExportedStudioGear[]
@@ -411,6 +439,9 @@ export interface ExportedStudio {
   /** Present (possibly null) in exports from v3+; absent entirely in older files — always read as
    *  `studio.roomLayoutFile ?? null` on import. */
   roomLayoutFile: ExportedRoomLayoutFile | null
+  /** v4+ only. A file carries v4 only when some studio in it has a drawing, so packs without one
+   *  stay readable by apps that predate Patchbay Mode. */
+  patchbayFile?: ExportedPatchbayFile | null
 }
 
 export interface StudioExportFile {
@@ -467,6 +498,18 @@ export interface ExportedSetupItem {
   groupId: string | null
 }
 
+/** A patch cable in a setup file: PatchbayCable without its row ids. Ends are room pixels on the
+ *  drawing it was made on, which ExportedSetup.patchbaySource describes. */
+export type ExportedPatchCable = Omit<PatchbayCable, 'id' | 'setupId'>
+
+/** The patchbay drawing a setup's cables were made on, so import can tell when the target studio's
+ *  drawing is a different page and the ends may not line up. */
+export interface ExportedPatchbaySource {
+  originalName: string | null
+  pageWidthPt: number
+  pageHeightPt: number
+}
+
 export interface ExportedSetup {
   name: string
   sessionDate: string | null
@@ -486,6 +529,11 @@ export interface ExportedSetup {
   /** This setup's own layout override (rare — most setups use their studio's shared layout and
    *  have no override row at all), not the studio's shared layout file. */
   layoutOverride: ExportedRoomLayoutFile | null
+  /** Optional: files exported before Patchbay Mode don't carry cables. Kept on import even when
+   *  the target studio has no drawing; they show once one is uploaded. */
+  patchCables?: ExportedPatchCable[]
+  /** The exporting studio's drawing, or null when it had none. */
+  patchbaySource?: ExportedPatchbaySource | null
 }
 
 export interface SetupExportFile {
@@ -514,16 +562,37 @@ export interface ChannelPresetCreateInput {
   folderId?: number | null
 }
 
-export type PdfExportInclude = 'sheet' | 'layout' | 'both'
+/** Which parts a PDF export carries, each independently. Remembered under
+ *  APP_SETTINGS_KEYS.defaultPdfExportInclude as a comma list ("sheet,layout,patchbay"); see
+ *  parsePdfExportParts for reading it, including the single values it used to hold. */
+export interface PdfExportParts {
+  sheet: boolean
+  layout: boolean
+  patchbay: boolean
+}
+
+/** A flattened patchbay picture, from renderPatchbayImage in the renderer. The room size travels
+ *  with it because the PNG's own pixel size depends on how sharply it was rendered, while the page
+ *  it prints on is the drawing's true size (room pixels / PATCHBAY_RENDER_SCALE points). */
+export interface PatchbayExportImage {
+  dataUrl: string
+  roomWidth: number
+  roomHeight: number
+}
+
 export type PdfExportOrientation = 'portrait' | 'landscape'
 export type PdfExportDensity = 'normal' | 'compact'
 
 export interface ExportSetupPdfInput {
   setupId: number
   layoutImageDataUrl: string | null
-  include: PdfExportInclude
+  parts: PdfExportParts
+  /** The patchbay page's picture. Null skips the patchbay page and its cable list, as does
+   *  `parts.patchbay` being off. */
+  patchbayImage: PatchbayExportImage | null
   /** When true, draw each row's color as a pale background tint on the setup sheet. Off by
-   *  default — colored rows can hurt legibility when printed in black and white. */
+   *  default — colored rows can hurt legibility when printed in black and white. Also decides
+   *  whether the patchbay cable list prints a color swatch beside each cable. */
   coloredRows: boolean
   /** Page orientation for the setup-sheet table. Landscape gives wide sheets (many outboard
    *  columns) more horizontal room before columns have to shrink/wrap. */
@@ -548,6 +617,9 @@ export interface ExportSetupSpreadsheetInput {
   /** Flattened room-layout PNG, from captureLayoutImage in the renderer — the same capture the PDF
    *  export uses. Null/absent writes the data sheet alone. */
   layoutImageDataUrl?: string | null
+  /** The patchbay picture for a "Patchbay" sheet, from renderPatchbayImage. Null/absent leaves
+   *  that sheet out. */
+  patchbayImage?: PatchbayExportImage | null
   /** The exact columns to write, resolved by the renderer's export chips (in the setup's
    *  column order; 'outboard' expands to one column per slot). Omitted by stale callers,
    *  which fall back to the setup's own visible columns. */
@@ -603,6 +675,8 @@ export interface LibraryStudio {
   bytes: number
   counts: { mics: number; outboard: number; preamps: number }
   roomLayout: boolean
+  /** Optional: index entries published before Patchbay Mode don't say either way. */
+  patchbay?: boolean
   gear: string
 }
 
@@ -652,6 +726,7 @@ export type MenuAction =
   | 'export-pdf'
   | 'export-spreadsheet'
   | 'toggle-mode'
+  | 'toggle-patchbay-mode'
   | 'add-source'
   | 'select-all'
   | 'delete-selection'
@@ -703,6 +778,10 @@ export const THEME_CHANGED_CHANNEL = 'theme:changed'
 /** A studio's or setup's room layout changed, pushed to every window so any canvas showing it
  *  redraws (see main/ipc/layoutFileHandlers.ts). */
 export const LAYOUT_FILE_CHANGED_CHANNEL = 'layoutFile:changed'
+
+/** A studio's patchbay drawing changed, pushed to every window so Patchbay Mode redraws (see
+ *  main/ipc/patchbayHandlers.ts). */
+export const PATCHBAY_CHANGED_CHANNEL = 'patchbay:changed'
 
 /** The one SYNCHRONOUS channel in the app (ipcRenderer.sendSync). index.html's CSP is
  *  `script-src 'self'`, so the usual inline bootstrap script that sets data-theme before first
@@ -860,6 +939,23 @@ export interface RendererApi {
     clearOverrideForSetup(setupId: number): Promise<void>
     getEffectiveForSetup(setupId: number | null, studioId: number): Promise<EffectiveLayout>
     /** Fires whenever any studio's or setup's layout changes. Returns an unsubscribe function. */
+    onChanged(callback: () => void): () => void
+  }
+  patchbay: {
+    /** The studio's patchbay drawing and the jacks found on it, or null when it has none. */
+    getForStudio(studioId: number): Promise<PatchbayWithPoints | null>
+    /** The drawing alone, without detecting its jacks — for the Studio Setup card. */
+    getFileForStudio(studioId: number): Promise<PatchbayFile | null>
+    importForStudio(studioId: number): Promise<PatchbayFile | null>
+    pickFile(): Promise<PickedPatchbayFile | null>
+    commitPickedToStudio(studioId: number, sourcePath: string): Promise<PatchbayFile>
+    /** Deletes the studio's drawing. Its setups' cables are kept, hidden until one is uploaded again. */
+    removeForStudio(studioId: number): Promise<void>
+    /** How many cables the studio's setups have drawn, and in how many setups. */
+    cableUsageForStudio(studioId: number): Promise<{ setups: number; cables: number }>
+    listCables(setupId: number): Promise<PatchbayCable[]>
+    saveCables(setupId: number, cables: PatchbayCableDraft[]): Promise<SavePatchbayCablesResult>
+    /** Fires whenever any studio's patchbay drawing changes. Returns an unsubscribe function. */
     onChanged(callback: () => void): () => void
   }
   spreadsheetImport: {

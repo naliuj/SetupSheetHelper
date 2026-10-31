@@ -5,7 +5,7 @@
 /** `markup` is a slice of `layout`: its actions only fire while Layout Mode is showing AND markup
  *  mode is on, which is what lets them be bare letters without taking those keys from anything
  *  else in Layout Mode. */
-export type KeybindScope = 'global' | 'table' | 'layout' | 'markup'
+export type KeybindScope = 'global' | 'table' | 'layout' | 'markup' | 'patchbay'
 
 export interface KeybindActionDef {
   id: string
@@ -74,6 +74,14 @@ export const KEYBIND_ACTIONS: KeybindActionDef[] = [
     category: 'File',
     scope: 'global',
     defaultCombo: 'CmdOrCtrl+L'
+  },
+  // No default: the obvious combos are taken. Assign one in Settings → Keybinds.
+  {
+    id: 'toggle-patchbay-mode',
+    label: 'Toggle Patchbay Mode',
+    category: 'File',
+    scope: 'global',
+    defaultCombo: ''
   },
   { id: 'undo', label: 'Undo', category: 'Edit', scope: 'global', defaultCombo: 'CmdOrCtrl+Z' },
   { id: 'redo', label: 'Redo', category: 'Edit', scope: 'global', defaultCombo: 'CmdOrCtrl+Shift+Z' },
@@ -181,6 +189,14 @@ export const KEYBIND_ACTIONS: KeybindActionDef[] = [
     scope: 'layout',
     defaultCombo: ''
   },
+  {
+    id: 'delete-selection-patchbay',
+    label: 'Delete Selected Cables',
+    category: 'Patchbay',
+    scope: 'patchbay',
+    defaultCombo: 'Delete',
+    allowBareKey: true
+  },
   ...MARKUP_TOOL_KEYBINDS.map(
     ({ tool, label, key }): KeybindActionDef => ({
       id: markupToolActionId(tool),
@@ -254,10 +270,10 @@ export function formatCombo(combo: string): string {
     .join(IS_MAC ? '' : '+')
 }
 
-/** Two scopes overlap (and so must be conflict-checked against each other) unless they're the
- *  two mutually-exclusive editor modes — table and layout are never visible at the same time, so
- *  the same physical key in each is never actually ambiguous to the user. Markup lives inside
- *  Layout Mode, so it overlaps layout and not table. */
+/** Two scopes overlap (and so must be conflict-checked against each other) unless they're
+ *  mutually-exclusive editor modes — table, layout and patchbay are never visible at the same
+ *  time, so the same physical key in each is never actually ambiguous to the user. Markup lives
+ *  inside Layout Mode, so it overlaps layout and not table. */
 export function scopesOverlap(a: KeybindScope, b: KeybindScope): boolean {
   if (a === 'global' || b === 'global') return true
   const inLayout = (s: KeybindScope): boolean => s === 'layout' || s === 'markup'

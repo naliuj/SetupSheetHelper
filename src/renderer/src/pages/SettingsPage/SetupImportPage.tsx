@@ -1,12 +1,21 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { SetupExportFile } from '@shared/types/ipc'
+import type { ExportedPatchbaySource, SetupExportFile } from '@shared/types/ipc'
 import type { Building, Studio } from '@shared/types/entities'
+import type { PatchbayFile } from '@shared/types/patchbay'
 import { useBerkleeFeaturesStore } from '@renderer/state/berkleeFeaturesStore'
 
 interface Props {
   file: SetupExportFile
   onBack: () => void
   onDone: (imported: string[]) => void
+}
+
+/** Within a point either way counts as the same drawing; page sizes round-trip through floats. */
+function samePage(source: ExportedPatchbaySource, drawing: PatchbayFile): boolean {
+  return (
+    Math.abs(source.pageWidthPt - drawing.pageWidthPt) < 1 &&
+    Math.abs(source.pageHeightPt - drawing.pageHeightPt) < 1
+  )
 }
 
 /** Unlike studio import (which always creates its own new studio), imported setups need an
@@ -18,6 +27,8 @@ export default function SetupImportPage({ file, onBack, onDone }: Props): JSX.El
   const [berkleeStudios, setBerkleeStudios] = useState<Studio[]>([])
   const [customStudios, setCustomStudios] = useState<Studio[]>([])
   const [targetStudioId, setTargetStudioId] = useState<number | null>(null)
+  // The target studio's patchbay drawing: undefined until it's known, null when it has none.
+  const [targetPatchbay, setTargetPatchbay] = useState<PatchbayFile | null | undefined>(undefined)
   const [selectedIndexes, setSelectedIndexes] = useState<Set<number>>(new Set())
   const [importing, setImporting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -44,6 +55,18 @@ export default function SetupImportPage({ file, onBack, onDone }: Props): JSX.El
     }
   }, [berkleeFeaturesEnabled])
 
+  useEffect(() => {
+    setTargetPatchbay(undefined)
+    if (targetStudioId == null) return
+    let cancelled = false
+    window.api.patchbay.getFileForStudio(targetStudioId).then((file) => {
+      if (!cancelled) setTargetPatchbay(file)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [targetStudioId])
+
   const buildingNameById = useMemo(() => new Map(buildings.map((b) => [b.id, b.name])), [buildings])
 
   function toggle(index: number): void {
@@ -54,6 +77,13 @@ export default function SetupImportPage({ file, onBack, onDone }: Props): JSX.El
       return next
     })
   }
+
+  const selectedWithCables = file.setups.filter(
+    (setup, index) => selectedIndexes.has(index) && (setup.patchCables?.length ?? 0) > 0
+  )
+  const drawnElsewhere = targetPatchbay
+    ? selectedWithCables.filter((setup) => setup.patchbaySource && !samePage(setup.patchbaySource, targetPatchbay))
+    : []
 
   async function handleImport(): Promise<void> {
     if (targetStudioId == null) return
@@ -143,11 +173,28 @@ export default function SetupImportPage({ file, onBack, onDone }: Props): JSX.El
             </span>
             <span className="card-sub no-shrink">
               ({setup.items.length} item{setup.items.length === 1 ? '' : 's'}
-              {setup.layoutOverride ? ', layout included' : ''})
+              {setup.layoutOverride ? ', layout included' : ''}
+              {setup.patchCables?.length
+                ? `, ${setup.patchCables.length} cable${setup.patchCables.length === 1 ? '' : 's'}`
+                : ''}
+              )
             </span>
           </label>
         ))}
       </div>
+      {selectedWithCables.length > 0 && targetPatchbay === null && (
+        <p className="card-sub">
+          This studio has no patchbay drawing, so the cables won&apos;t show yet. They&apos;ll appear once one is
+          uploaded.
+        </p>
+      )}
+      {drawnElsewhere.length > 0 && (
+        <p className="card-sub" style={{ color: 'var(--color-warning)' }}>
+          The cables in{' '}
+          {drawnElsewhere.length === 1 ? `“${drawnElsewhere[0].name}”` : `${drawnElsewhere.length} of these setups`}{' '}
+          were drawn on a different patchbay, so they may not line up.
+        </p>
+      )}
       {error && (
         <p className="card-sub" style={{ color: 'var(--color-danger)' }}>
           {error}
