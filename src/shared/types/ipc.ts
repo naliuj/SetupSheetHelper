@@ -648,6 +648,8 @@ export interface LibraryStudio {
   bytes: number
   counts: { mics: number; outboard: number; preamps: number }
   roomLayout: boolean
+  /** Optional: index entries published before Patchbay Mode don't say either way. */
+  patchbay?: boolean
   gear: string
 }
 

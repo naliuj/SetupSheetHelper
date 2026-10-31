@@ -156,7 +156,10 @@ export default function StudioLibraryPage({ onBack, onDownloaded }: Props): JSX.
                           <span className="card-sub" style={{ display: 'block', marginTop: 2 }}>
                             {studio.counts.mics} mics · {studio.counts.outboard} outboard ·{' '}
                             {studio.counts.preamps} preamp{studio.counts.preamps === 1 ? '' : 's'} ·{' '}
-                            {studio.roomLayout ? 'room layout' : 'no room layout'} · {formatSize(studio.bytes)}
+                            {studio.roomLayout ? 'room layout' : 'no room layout'} ·{' '}
+                            {/* Left out for index entries from before the flag existed. */}
+                            {studio.patchbay !== undefined && `${studio.patchbay ? 'patchbay' : 'no patchbay'} · `}
+                            {formatSize(studio.bytes)}
                           </span>
                         </span>
                       </label>

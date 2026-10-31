@@ -68,6 +68,8 @@ function isLibraryStudio(value: unknown): value is LibraryStudio {
     typeof entry.file === 'string' &&
     typeof entry.bytes === 'number' &&
     typeof entry.roomLayout === 'boolean' &&
+    // Optional, so an index published before Patchbay Mode still validates.
+    (entry.patchbay === undefined || typeof entry.patchbay === 'boolean') &&
     typeof counts === 'object' &&
     counts !== null &&
     typeof counts.mics === 'number' &&
