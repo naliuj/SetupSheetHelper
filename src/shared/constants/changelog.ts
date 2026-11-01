@@ -428,5 +428,14 @@ export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
       'Source name can now be moved and hidden like any other column, in a setup\u2019s Columns menu and in Settings \u203a Columns. Exports follow its place, and it has its own chip in the export dialogs.',
       'The new user manual is a step-by-step guide to everything the app does, with screenshots. Open it from Help \u203a Setup Sheet Helper Manual. "Manage palette\u2026" in the Layout palette now opens Settings \u203a Layout Palette.'
     ]
+  },
+  {
+    version: '1.22.0',
+    date: '2026-10-31',
+    highlights: [
+      'New Patchbay Mode, next to Table and Layout in the editor\u2019s toolbar. Draw colored patch cables between the jacks on the studio\u2019s patchbay drawing. Cables snap onto the jacks, and hovering a cable shows where it goes. Berklee rooms come with their patchbay drawings (all but Studio A76), and you can upload one for your own studios.',
+      'PDF and spreadsheet exports can include the patchbay: the drawing with your cables on it, and a list of every cable with where it starts, where it ends and its color.',
+      'Studio files and online studios now bring the patchbay drawing along, and setup files bring their patch cables. In the studio editor you can replace or remove a patchbay drawing without losing any cables.'
+    ]
   }
 ]
