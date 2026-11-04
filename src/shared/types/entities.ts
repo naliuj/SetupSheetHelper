@@ -192,6 +192,7 @@ export const APP_SETTINGS_KEYS = {
   layoutSnapping: 'layout_snapping',
   /** JSON { tool, color, size } — the markup toolbar's last choices. Absent/garbage → pen, red, medium. */
   markupPrefs: 'markup_prefs',
-  /** JSON { color, sag } — Patchbay Mode's last cable choices. Absent/garbage → red, 0.35. */
+  /** JSON { color, sag, plugStyle } — Patchbay Mode's last cable choices and plug style.
+   *  Absent/garbage → red, 0.35, rings. */
   patchbayPrefs: 'patchbay_prefs'
 } as const

@@ -13,7 +13,14 @@ import { PAPER_SHADOW } from '../canvas/LayoutBackground'
 import { appFileUrl, renderPdfPage } from '../canvas/renderPdfPage'
 import { useMiddleButtonPan } from '../canvas/useMiddleButtonPan'
 import PatchbayCable from './PatchbayCable'
-import { cableIntersectsRect, cableWeight, PointIndex, type Pt } from './cableGeometry'
+import {
+  cableEnds,
+  cableIntersectsRect,
+  cableWeight,
+  plugRadius as plugRadiusFor,
+  PointIndex,
+  type Pt
+} from './cableGeometry'
 
 interface Props {
   studioId: number
@@ -77,6 +84,7 @@ export default function PatchbayStage({ studioId, stageRef, active, paneActive }
   const prefSag = usePatchbayPrefsStore((s) => s.sag)
   const setPrefs = usePatchbayPrefsStore((s) => s.set)
   const loadPrefs = usePatchbayPrefsStore((s) => s.load)
+  const plugStyle = usePatchbayPrefsStore((s) => s.plugStyle)
   useEffect(() => void loadPrefs(), [loadPrefs])
 
   const accent = useThemeColor('--color-accent')
@@ -144,6 +152,7 @@ export default function PatchbayStage({ studioId, stageRef, active, paneActive }
   const points = patchbay && patchbay !== 'none' ? patchbay.points : []
   const index = useMemo(() => new PointIndex(points), [points])
   const weight = cableWeight(index.radius)
+  const plugRadius = plugRadiusFor(index.radius, plugStyle)
   const pointLabel = (id: string | null): string => index.byId(id)?.label ?? UNLABELED_POINT
 
   async function upload(): Promise<void> {
@@ -427,7 +436,11 @@ export default function PatchbayStage({ studioId, stageRef, active, paneActive }
     }
     selectCables(
       cables
-        .filter((c) => cableIntersectsRect({ x: c.fromX, y: c.fromY }, { x: c.toX, y: c.toY }, c.sag, rect))
+        .filter((c) => {
+          // The curve as drawn, plug to plug.
+          const ends = cableEnds({ x: c.fromX, y: c.fromY }, { x: c.toX, y: c.toY }, plugRadius, plugStyle)
+          return cableIntersectsRect(ends.from, ends.to, c.sag, rect)
+        })
         .map((c) => c.id),
       additive
     )
@@ -681,6 +694,26 @@ export default function PatchbayStage({ studioId, stageRef, active, paneActive }
               </button>
             )}
           </div>
+          {/* Every cable at once, in every setup and in exports — not the selection, unlike the
+              color and sag controls beside it. */}
+          <div className="segmented" role="group" aria-label="Plug style">
+            <button
+              className={plugStyle === 'ring' ? 'btn small primary' : 'btn small'}
+              aria-pressed={plugStyle === 'ring'}
+              onClick={() => setPrefs({ plugStyle: 'ring' })}
+              title="Plugs ring the jack so its label stays readable"
+            >
+              Rings
+            </button>
+            <button
+              className={plugStyle === 'solid' ? 'btn small primary' : 'btn small'}
+              aria-pressed={plugStyle === 'solid'}
+              onClick={() => setPrefs({ plugStyle: 'solid' })}
+              title="Solid plugs drawn over the jack"
+            >
+              Solid
+            </button>
+          </div>
           <div className="layout-canvas-zoom">
             <button className="btn small" onClick={zoomOut} disabled={zoomScale <= MIN_ZOOM} aria-label="Zoom out">
               <Icon name="minus" size={14} />
@@ -779,7 +812,10 @@ export default function PatchbayStage({ studioId, stageRef, active, paneActive }
               color={cable.color}
               sag={cable.sag}
               weight={weight}
+              plugRadius={plugRadius}
+              plugStyle={plugStyle}
               selected={selectedCableIds.has(cable.id)}
+              emphasized={hoverCable === cable.id}
               accent={accent}
               onMouseDown={(e) => {
                 if (spaceHeld || draft) return
@@ -799,8 +835,10 @@ export default function PatchbayStage({ studioId, stageRef, active, paneActive }
                   name="cable-end"
                   x={end === 'from' ? cable.fromX : cable.toX}
                   y={end === 'from' ? cable.fromY : cable.toY}
-                  radius={weight * 2}
-                  fill="white"
+                  // With ring plugs, a matching ring rather than a disc, so re-patching doesn't hide
+                  // the label either; the transparent fill still takes the click.
+                  radius={plugStyle === 'ring' ? plugRadius : weight * 2}
+                  fill={plugStyle === 'ring' ? 'rgba(0, 0, 0, 0)' : 'white'}
                   stroke={accent}
                   strokeWidth={2 / finalScale}
                   onMouseDown={(e) => {
@@ -818,6 +856,8 @@ export default function PatchbayStage({ studioId, stageRef, active, paneActive }
               color={prefColor}
               sag={selected.length === 0 ? (sagPreview ?? prefSag) : prefSag}
               weight={weight}
+              plugRadius={plugRadius}
+              plugStyle={plugStyle}
               preview
             />
           )}

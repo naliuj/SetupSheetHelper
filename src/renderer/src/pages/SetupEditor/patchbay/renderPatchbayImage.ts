@@ -2,7 +2,8 @@ import Konva from 'konva'
 import { PATCHBAY_RENDER_SCALE } from '@shared/types/patchbay'
 import { appFileUrl, PDF_RENDER_SCALE, renderPdfPage } from '../canvas/renderPdfPage'
 import { drawCable } from './PatchbayCable'
-import { cableBounds, cableWeight, PointIndex } from './cableGeometry'
+import { usePatchbayPrefsStore } from '@renderer/state/patchbayPrefsStore'
+import { cableBounds, cableEnds, cableWeight, plugRadius as plugRadiusFor, PointIndex } from './cableGeometry'
 
 /** The most pixels an export image is allowed: about a 6000 × 6000 picture. A Letter-size drawing
  *  stays at the full 2× sharpness well under it; a very wide drawing is rendered less sharply
@@ -41,17 +42,24 @@ export async function renderPatchbayImage({ studioId, setupId, monochrome }: Opt
 
   const drawingWidth = patchbay.file.pageWidthPt * PATCHBAY_RENDER_SCALE
   const drawingHeight = patchbay.file.pageHeightPt * PATCHBAY_RENDER_SCALE
-  const weight = cableWeight(new PointIndex(patchbay.points).radius)
+  const radius = new PointIndex(patchbay.points).radius
+  const weight = cableWeight(radius)
+  // The plug style is app-wide, so the export draws plugs the way the editor shows them. Loaded
+  // here because the store only loads when Patchbay Mode opens, and an export can come first.
+  await usePatchbayPrefsStore.getState().load()
+  const plugStyle = usePatchbayPrefsStore.getState().plugStyle
+  const plugRadius = plugRadiusFor(radius, plugStyle)
 
-  // The picture covers the drawing plus every cable, plugs included: a plug is 1.4× the weight
-  // across with an outline on top, so twice the weight clears it.
-  const pad = weight * 2
+  // The picture covers the drawing plus every cable, plugs included: each plug reaches plugRadius
+  // from its jack, with an outline up to the weight wide on top.
+  const pad = plugRadius + weight
   let left = 0
   let top = 0
   let right = drawingWidth
   let bottom = drawingHeight
   for (const c of cables) {
-    const b = cableBounds({ x: c.fromX, y: c.fromY }, { x: c.toX, y: c.toY }, c.sag)
+    const ends = cableEnds({ x: c.fromX, y: c.fromY }, { x: c.toX, y: c.toY }, plugRadius, plugStyle)
+    const b = cableBounds(ends.from, ends.to, c.sag)
     left = Math.min(left, b.left - pad)
     top = Math.min(top, b.top - pad)
     right = Math.max(right, b.right + pad)
@@ -98,7 +106,9 @@ export async function renderPatchbayImage({ studioId, setupId, monochrome }: Opt
               to: { x: c.toX, y: c.toY },
               color: c.color,
               sag: c.sag,
-              weight
+              weight,
+              plugRadius,
+              plugStyle
             })
         })
       )

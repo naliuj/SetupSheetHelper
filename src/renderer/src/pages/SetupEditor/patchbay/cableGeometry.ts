@@ -20,6 +20,25 @@ export function cableWeight(radius: number): number {
   return Math.max(2.5, Math.min(7, radius * 0.35))
 }
 
+/** How plugs are drawn, an app-wide choice (Patchbay Mode's toolbar): a ring around the jack's
+ *  label, so connected jacks stay readable, or the original solid plug on top of it. */
+export type PlugStyle = 'ring' | 'solid'
+
+/** The radius of a plug. A ring circles the label rather than covering it: most of the way to the
+ *  neighboring jack (the snap radius is half the spacing), never thinner than the cable itself. A
+ *  solid plug is a small disc over the jack. */
+export function plugRadius(radius: number, style: PlugStyle): number {
+  const weight = cableWeight(radius)
+  return style === 'ring' ? Math.max(weight * 1.5, radius * 0.85) : weight * 1.4
+}
+
+/** Where the curve meets each plug. A ring's bottom, so the cable never runs across the label
+ *  inside it (cables droop, so leaving downward is also how one hangs); a solid plug's center. */
+export function cableEnds(from: Pt, to: Pt, plug: number, style: PlugStyle): { from: Pt; to: Pt } {
+  const drop = style === 'ring' ? plug : 0
+  return { from: { x: from.x, y: from.y + drop }, to: { x: to.x, y: to.y + drop } }
+}
+
 /** The box a cable's curve covers, plugs and stroke not included (pad by the weight for those).
  *  A quadratic curve's extremes are its ends plus, on each axis, the one turning point where the
  *  derivative is zero, when that falls between the ends. The droop runs downward, so a cable near
