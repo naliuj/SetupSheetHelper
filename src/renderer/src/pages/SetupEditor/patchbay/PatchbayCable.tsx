@@ -43,7 +43,7 @@ const BODY_ALPHA = 0.8
 
 /** The curve between two jacks, starting and ending where it meets each plug. */
 function traceCable(ctx: Konva.Context, jackFrom: Pt, jackTo: Pt, sag: number, plug: number, style: PlugStyle): void {
-  const { from, to } = cableEnds(jackFrom, jackTo, plug, style)
+  const { from, to } = cableEnds(jackFrom, jackTo, plug, style, sag)
   const control = cableControlPoint(from, to, sag)
   ctx.beginPath()
   ctx.moveTo(from.x, from.y)
@@ -52,8 +52,8 @@ function traceCable(ctx: Konva.Context, jackFrom: Pt, jackTo: Pt, sag: number, p
 
 /** Draws one cable by hand: a drooping curve with a dark outline under its colored core, so every
  *  color reads on white paper, and a plug at each end. On these drawings a jack's label is the jack
- *  itself, so the 'ring' style circles the label rather than covering it, and the cable leaves
- *  from the ring's bottom; the 'solid' style is the original disc on top. A plain function rather
+ *  itself, so the 'ring' style circles the label rather than covering it, and the cable meets the
+ *  ring on the side facing its path; the 'solid' style is the original disc on top. A plain function rather
  *  than only the component's sceneFunc, so the export (renderPatchbayImage.ts) draws cables exactly
  *  as the editor does. */
 export function drawCable(

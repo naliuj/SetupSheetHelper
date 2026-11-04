@@ -32,11 +32,22 @@ export function plugRadius(radius: number, style: PlugStyle): number {
   return style === 'ring' ? Math.max(weight * 1.5, radius * 0.85) : weight * 1.4
 }
 
-/** Where the curve meets each plug. A ring's bottom, so the cable never runs across the label
- *  inside it (cables droop, so leaving downward is also how one hangs); a solid plug's center. */
-export function cableEnds(from: Pt, to: Pt, plug: number, style: PlugStyle): { from: Pt; to: Pt } {
-  const drop = style === 'ring' ? plug : 0
-  return { from: { x: from.x, y: from.y + drop }, to: { x: to.x, y: to.y + drop } }
+/** Where the curve meets each plug. For a ring, the point on the ring facing the way the cable
+ *  runs (toward the curve's control point), so the cable never crosses the label inside: between
+ *  neighbors on a row it hangs from the lower inside of each ring, and a cable down to a jack below
+ *  meets the top of that jack's ring. A solid plug's center otherwise. */
+export function cableEnds(from: Pt, to: Pt, plug: number, style: PlugStyle, sag: number): { from: Pt; to: Pt } {
+  if (style !== 'ring') return { from, to }
+  const control = cableControlPoint(from, to, sag)
+  const toward = (end: Pt): Pt => {
+    const dx = control.x - end.x
+    const dy = control.y - end.y
+    const length = Math.hypot(dx, dy)
+    // The control point only sits on a jack when the cable has no length; hang from the bottom.
+    if (length === 0) return { x: end.x, y: end.y + plug }
+    return { x: end.x + (dx / length) * plug, y: end.y + (dy / length) * plug }
+  }
+  return { from: toward(from), to: toward(to) }
 }
 
 /** The box a cable's curve covers, plugs and stroke not included (pad by the weight for those).

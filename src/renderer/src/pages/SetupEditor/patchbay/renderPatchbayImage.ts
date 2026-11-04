@@ -58,7 +58,7 @@ export async function renderPatchbayImage({ studioId, setupId, monochrome }: Opt
   let right = drawingWidth
   let bottom = drawingHeight
   for (const c of cables) {
-    const ends = cableEnds({ x: c.fromX, y: c.fromY }, { x: c.toX, y: c.toY }, plugRadius, plugStyle)
+    const ends = cableEnds({ x: c.fromX, y: c.fromY }, { x: c.toX, y: c.toY }, plugRadius, plugStyle, c.sag)
     const b = cableBounds(ends.from, ends.to, c.sag)
     left = Math.min(left, b.left - pad)
     top = Math.min(top, b.top - pad)

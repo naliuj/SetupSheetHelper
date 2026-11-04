@@ -438,7 +438,7 @@ export default function PatchbayStage({ studioId, stageRef, active, paneActive }
       cables
         .filter((c) => {
           // The curve as drawn, plug to plug.
-          const ends = cableEnds({ x: c.fromX, y: c.fromY }, { x: c.toX, y: c.toY }, plugRadius, plugStyle)
+          const ends = cableEnds({ x: c.fromX, y: c.fromY }, { x: c.toX, y: c.toY }, plugRadius, plugStyle, c.sag)
           return cableIntersectsRect(ends.from, ends.to, c.sag, rect)
         })
         .map((c) => c.id),
