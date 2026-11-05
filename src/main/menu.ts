@@ -20,7 +20,7 @@ const MANUAL_URL = 'https://setupsheethelper.julianro.se/manual.html'
  *  the OS only routes Cmd/Ctrl+A into a focused text field via an actual menu accelerator, so
  *  without one it's not a "text field loses default behavior" case, it's "nothing happens at all,
  *  anywhere in the app". See App.tsx/SetupToolbar.tsx's handleSelectAll for the renderer side. */
-export function installAppMenu(updateDialogParent: BrowserWindow): void {
+export function installAppMenu(): void {
   const isMac = process.platform === 'darwin'
 
   // Targets whichever window is actually focused, not a window captured at menu-build time —
@@ -38,7 +38,7 @@ export function installAppMenu(updateDialogParent: BrowserWindow): void {
     label: 'Setup Sheet Helper',
     submenu: [
       { role: 'about' },
-      { label: 'Check for Updates…', click: () => checkForUpdatesManually(updateDialogParent) },
+      { label: 'Check for Updates…', click: () => checkForUpdatesManually() },
       { label: "What's New…", click: () => send('show-whats-new') },
       { type: 'separator' },
       { label: 'Settings…', click: () => send('open-settings') },

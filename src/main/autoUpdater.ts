@@ -1,4 +1,4 @@
-import { app, dialog, type BrowserWindow } from 'electron'
+import { app, BrowserWindow, dialog, type MessageBoxOptions } from 'electron'
 import electronUpdater from 'electron-updater'
 
 const { autoUpdater } = electronUpdater
@@ -11,26 +11,32 @@ autoUpdater.autoInstallOnAppQuit = true
  *  keeps polling so a long-lived session still picks one up (and prompts) within a few hours. */
 const UPDATE_CHECK_INTERVAL_MS = 2 * 60 * 60 * 1000 // 2 hours
 
-/** Wires up electron-updater against the public setup-sheet-helper-releases GitHub Releases,
+/** Parents a dialog to whatever window is live when it is shown, not one captured at startup: on
+ *  macOS the first window can be closed and a new one opened, and showMessageBox on a destroyed
+ *  window throws. With no window at all the dialog is shown unparented. */
+function showMessageBox(options: MessageBoxOptions): Promise<Electron.MessageBoxReturnValue> {
+  const parent = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows().find((w) => !w.isDestroyed())
+  return parent ? dialog.showMessageBox(parent, options) : dialog.showMessageBox(options)
+}
+
+/** Wires up electron-updater against the public naliuj/SetupSheetHelper GitHub Releases,
  *  published directly by `npm run release:mac` (see package.json's `build.publish` config) —
  *  a private repo's release feed 404s on unauthenticated requests, which is what every install
  *  would be making. No-ops in dev (unpackaged) since there's no packaged app-update.yml to read
  *  update feed info from. */
-export function initAutoUpdater(mainWindow: BrowserWindow): void {
+export function initAutoUpdater(): void {
   if (!app.isPackaged) return
 
   autoUpdater.on('update-downloaded', (info) => {
-    dialog
-      .showMessageBox(mainWindow, {
-        type: 'info',
-        buttons: ['Restart Now', 'Later'],
-        defaultId: 0,
-        message: `Setup Sheet Helper ${info.version} is ready to install.`,
-        detail: 'Restart the app to finish updating.'
-      })
-      .then((result) => {
-        if (result.response === 0) autoUpdater.quitAndInstall()
-      })
+    showMessageBox({
+      type: 'info',
+      buttons: ['Restart Now', 'Later'],
+      defaultId: 0,
+      message: `Setup Sheet Helper ${info.version} is ready to install.`,
+      detail: 'Restart the app to finish updating.'
+    }).then((result) => {
+      if (result.response === 0) autoUpdater.quitAndInstall()
+    })
   })
 
   autoUpdater.on('error', (err) => {
@@ -52,30 +58,39 @@ export function initAutoUpdater(mainWindow: BrowserWindow): void {
 
 /** "Check for Updates…" menu item — reports back if nothing was found, since the automatic
  *  startup check above stays silent unless there's actually something to install. */
-export function checkForUpdatesManually(mainWindow: BrowserWindow): void {
+export function checkForUpdatesManually(): void {
   if (!app.isPackaged) {
-    dialog.showMessageBox(mainWindow, {
+    showMessageBox({
       type: 'info',
       message: 'Updates are only available in the installed app, not in development.'
     })
     return
   }
 
-  autoUpdater.once('update-not-available', () => {
-    dialog.showMessageBox(mainWindow, {
+  const onNotAvailable = (): void => {
+    showMessageBox({
       type: 'info',
       message: 'You\'re up to date.',
       detail: `Setup Sheet Helper ${app.getVersion()} is the latest version.`
     })
-  })
-
-  autoUpdater.once('error', (err) => {
-    dialog.showMessageBox(mainWindow, {
+  }
+  const onError = (err: Error): void => {
+    showMessageBox({
       type: 'error',
       message: 'Couldn\'t check for updates.',
       detail: err.message
     })
-  })
+  }
+  autoUpdater.once('update-not-available', onNotAvailable)
+  autoUpdater.once('error', onError)
 
-  autoUpdater.checkForUpdates()
+  // Both listeners go once this check settles. Left behind, the unused one would answer a later
+  // background poll — a stale "Couldn't check" dialog hours after the user asked.
+  autoUpdater
+    .checkForUpdates()
+    .catch(() => {}) // already reported through the 'error' listener above
+    .finally(() => {
+      autoUpdater.removeListener('update-not-available', onNotAvailable)
+      autoUpdater.removeListener('error', onError)
+    })
 }
