@@ -28,6 +28,26 @@ function askWindowToFlush(win: BrowserWindow): Promise<void> {
   })
 }
 
+/** The main window's version of the Layout window's close intercept: closing it (the red button,
+ *  Cmd+W) destroys the renderer without React unmounting, so a debounced autosave still armed
+ *  would be dropped. Ask it to flush first, with the same timeout, then destroy it — destroy()
+ *  rather than close() so this handler is not re-entered.
+ *
+ *  Skipped once the before-quit flush has run: the quit then closes every window, and they have
+ *  already saved. window-all-closed still fires after destroy(), so non-mac quits as before. */
+export function flushBeforeClose(win: BrowserWindow): void {
+  let closing = false
+  win.on('close', (event) => {
+    if (flushed || win.webContents.isDestroyed()) return
+    event.preventDefault()
+    if (closing) return
+    closing = true
+    askWindowToFlush(win).finally(() => {
+      if (!win.isDestroyed()) win.destroy()
+    })
+  })
+}
+
 /** Gives every open window a chance to write unsaved editor state before the app exits.
  *
  *  The standalone Layout window already intercepted its own close, because closing it is the only

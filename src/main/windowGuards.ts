@@ -24,6 +24,14 @@ function isAppPage(url: string): boolean {
   }
 }
 
+function isHttps(url: string): boolean {
+  try {
+    return new URL(url).protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
 /** Keeps every window on the app's own page and sends any other URL to the system browser.
  *
  *  Chromium's default for a file dropped somewhere no handler accepts it is to NAVIGATE the window
@@ -42,7 +50,11 @@ export function initWindowGuards(): void {
       if (!isAppPage(url)) event.preventDefault()
     })
     win.webContents.setWindowOpenHandler((details) => {
-      shell.openExternal(details.url)
+      // https only: openExternal hands the URL to the OS, which would happily run file:, custom
+      // app schemes or anything else a link or a compromised renderer asked for.
+      if (isHttps(details.url)) {
+        shell.openExternal(details.url).catch((err) => console.error('openExternal failed', err))
+      }
       return { action: 'deny' }
     })
   })

@@ -17,6 +17,16 @@ export default defineConfig({
       alias: {
         '@shared': resolve('src/shared')
       }
+    },
+    // A sandboxed preload can't load ES modules, so this one is CommonJS. .cjs rather than .js
+    // because package.json's "type": "module" would make Node read a .js file as ESM.
+    build: {
+      rollupOptions: {
+        output: {
+          format: 'cjs',
+          entryFileNames: '[name].cjs'
+        }
+      }
     }
   },
   renderer: {

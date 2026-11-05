@@ -1,16 +1,17 @@
 import { app, BrowserWindow, dialog, net, protocol } from 'electron'
-import { join } from 'node:path'
+import { join, resolve, sep } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { closeDb, openDatabaseAtStartup } from './db'
 import { initTheme, themeBackgroundColor } from './theme'
 import { initAccessibility } from './accessibility'
 import { initWindowGuards } from './windowGuards'
 import { attachRendererLogging, initLogging } from './log'
-import { installQuitFlush } from './quitFlush'
+import { flushBeforeClose, installQuitFlush } from './quitFlush'
 import { registerAllIpcHandlers } from './ipc'
 import { installAppMenu } from './menu'
 import { initAutoUpdater } from './autoUpdater'
 import { restoreBounds, saveBounds } from './windowBounds'
+import { getLayoutsDir, getPatchbaysDir } from './userDataPaths'
 
 // Redirects EVERY on-disk trace of a run — database, room layouts, window bounds, Chromium's own
 // caches — into a throwaway directory, so a demo or a screen recording gets a genuine first launch
@@ -63,14 +64,15 @@ function createWindow(): BrowserWindow {
     // first paint. Without it that area is white, which reads as a flash on a dark theme.
     backgroundColor: themeBackgroundColor(),
     webPreferences: {
-      preload: join(__dirname, '../preload/index.mjs'),
+      preload: join(__dirname, '../preload/index.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false
+      sandbox: true
     }
   })
   saveBounds('main', mainWindow)
   attachRendererLogging(mainWindow.webContents)
+  flushBeforeClose(mainWindow)
 
   mainWindow.once('ready-to-show', () => mainWindow.show())
 
@@ -101,7 +103,12 @@ app.whenReady().then(() => {
     // string-slicing so the real absolute path (a single percent-encoded segment) round-trips
     // correctly regardless of what the host segment happens to be.
     const url = new URL(request.url)
-    const filePath = decodeURIComponent(url.pathname.slice(1))
+    const filePath = resolve(decodeURIComponent(url.pathname.slice(1)))
+    // Every file the renderer loads over this scheme is a copy under userData (imports and the
+    // bundled PDFs are copied in), so nothing else is served — a compromised renderer must not
+    // be able to read arbitrary files. resolve() first so `..` segments can't climb out.
+    const allowed = [getLayoutsDir(), getPatchbaysDir()].some((dir) => filePath.startsWith(dir + sep))
+    if (!allowed) return new Response(null, { status: 403 })
     return net.fetch(pathToFileURL(filePath).toString())
   })
 
@@ -132,9 +139,9 @@ app.whenReady().then(() => {
   initAccessibility()
   initWindowGuards()
   installQuitFlush()
-  const mainWindow = createWindow()
-  installAppMenu(mainWindow)
-  initAutoUpdater(mainWindow)
+  createWindow()
+  installAppMenu()
+  initAutoUpdater()
 
   // installAppMenu is deliberately called only once: menu actions now target whichever window is
   // focused at click time (see menu.ts), so a later window doesn't need its own menu install.
