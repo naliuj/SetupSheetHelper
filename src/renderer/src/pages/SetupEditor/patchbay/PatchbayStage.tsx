@@ -79,6 +79,8 @@ export default function PatchbayStage({ studioId, stageRef, active, paneActive }
   const selectCables = usePatchbayStoreState((s) => s.selectCables)
   const clearSelection = usePatchbayStoreState((s) => s.clearSelection)
   const setDrawingMissing = usePatchbayStoreState((s) => s.setDrawingMissing)
+  const beginGesture = usePatchbayStoreState((s) => s.beginGesture)
+  const endGesture = usePatchbayStoreState((s) => s.endGesture)
 
   const prefColor = usePatchbayPrefsStore((s) => s.color)
   const prefSag = usePatchbayPrefsStore((s) => s.sag)
@@ -407,6 +409,7 @@ export default function PatchbayStage({ studioId, stageRef, active, paneActive }
 
   function commitEndDrag(): void {
     if (!endDrag) return
+    endGesture()
     setEndDrag(null)
     const end = endDrag.at
     if (!end) return
@@ -507,8 +510,10 @@ export default function PatchbayStage({ studioId, stageRef, active, paneActive }
       // Let go outside the canvas: nothing lands. A re-patched end snaps back where it was, and a
       // new cable stays on the pointer (click a jack to finish it, Esc to drop it) — the same
       // state a click-to-click cable is in.
-      else if (endDrag) setEndDrag(null)
-      else if (draft?.mode === 'drag') setDraft({ ...draft, mode: 'click' })
+      else if (endDrag) {
+        endGesture()
+        setEndDrag(null)
+      } else if (draft?.mode === 'drag') setDraft({ ...draft, mode: 'click' })
     }
   }
   useEffect(() => {
@@ -844,6 +849,9 @@ export default function PatchbayStage({ studioId, stageRef, active, paneActive }
                   onMouseDown={(e) => {
                     if (spaceHeld) return
                     e.cancelBubble = true
+                    // Holds autosave off until the end lands: a save mid-drag swaps a new cable's
+                    // draft id, and the release would then patch an id that no longer exists.
+                    beginGesture()
                     setEndDrag({ id: cable.id, end, at: null })
                   }}
                 />

@@ -81,6 +81,8 @@ export function createPatchbayStore(setupStoreApi: SetupStoreApi) {
           }
           if (!setupId) {
             set({ cables: [], ...fresh })
+            // After the set too: zundo records the pre-set state, i.e. the previous setup's cables.
+            store.temporal.getState().clear()
             return
           }
           const cables = await window.api.patchbay.listCables(setupId)

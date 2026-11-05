@@ -160,6 +160,11 @@ interface SetupState {
  *  instance's own undo/redo history is always the one it drives — not whichever instance
  *  happens to be the singleton. */
 export function createSetupStore() {
+  // Bumped by every load, so a save that straddles one knows its results belong to the old setup.
+  let loadSeq = 0
+  // The save currently running, so a second save() waits for it instead of racing it (two
+  // concurrent first saves each created a setup).
+  let inFlight: Promise<void> | null = null
   const store = create<SetupState>()(
   temporal(
     (set, get) => ({
@@ -186,7 +191,7 @@ export function createSetupStore() {
   saveError: null,
 
   startNewSetup: (studioId, name, sessionDate, folderId = null, engineer = null, artist = null) => {
-    store.temporal.getState().clear()
+    loadSeq++
     set({
       setupId: null,
       studioId,
@@ -209,10 +214,13 @@ export function createSetupStore() {
       unresolvedGearHints: new Map(),
       isDirty: false
     })
+    // After the set, not before: zundo records the pre-set state on every set(), so clearing first
+    // left the previous setup as an undo step.
+    store.temporal.getState().clear()
   },
 
   loadFromSetup: (setup) => {
-    store.temporal.getState().clear()
+    loadSeq++
     set({
       setupId: setup.id,
       studioId: setup.studioId,
@@ -233,6 +241,7 @@ export function createSetupStore() {
       unresolvedGearHints: new Map(),
       isDirty: false
     })
+    store.temporal.getState().clear()
   },
 
   setName: (name) => set({ name, isDirty: true }),
@@ -386,8 +395,9 @@ export function createSetupStore() {
   removeItem: (id) => get().removeItems([id]),
 
   removeItems: (ids) => {
+    const removing = new Set(ids)
+    const removedAt = get().items.flatMap((item, index) => (removing.has(item.id) ? [{ item, index }] : []))
     set((state) => {
-      const removing = new Set(ids)
       const selectedItemIds = new Set([...state.selectedItemIds].filter((id) => !removing.has(id)))
       return {
         items: state.items.filter((item) => !removing.has(item.id)),
@@ -400,15 +410,20 @@ export function createSetupStore() {
     if (ids.length > 0) {
       useToastStore
         .getState()
-        .show(`Deleted ${ids.length} row${ids.length === 1 ? '' : 's'}`, () => {
-          store.temporal.getState().undo()
-          // The delete has almost certainly been committed by now — the toast lives 5s, autosave
-          // fires at 1s — so undoing it is a NEW change that has to be written back. zundo
-          // restores the previous partialized slice, which does not include isDirty, so without
-          // this the rows come back on screen and are never saved. SetupToolbar's undo/redo does
-          // the same thing for the same reason.
-          set({ isDirty: true })
-        })
+        .show(`Deleted ${ids.length} row${ids.length === 1 ? '' : 's'}`, () =>
+          // Re-inserts exactly the rows this delete removed rather than calling temporal.undo(),
+          // which undoes whatever the LAST edit was if anything changed since. A normal set, so it
+          // is one undoable step and marks the sheet dirty. Rows already back (via Cmd+Z) are skipped.
+          set((state) => {
+            // rowKey too: a draft row brought back by Cmd+Z may since have been saved under a new id.
+            const present = new Set(state.items.flatMap((item) => [item.id, item.rowKey]))
+            const missing = removedAt.filter(({ item }) => !present.has(item.id))
+            if (missing.length === 0) return {}
+            const items = [...state.items]
+            for (const { item, index } of missing) items.splice(Math.min(index, items.length), 0, item)
+            return { items, isDirty: true }
+          })
+        )
     }
   },
 
@@ -423,7 +438,9 @@ export function createSetupStore() {
       for (const item of state.items) {
         nextItems.push(item)
         if (idSet.has(item.id)) {
-          const duplicate: SetupItemDraft = { ...item, id: newDraftId() }
+          // A fresh rowKey (none) — sharing the original's would give two rows the same React key.
+          const { rowKey: _rowKey, ...copy } = item
+          const duplicate: SetupItemDraft = { ...copy, id: newDraftId() }
           nextItems.push(duplicate)
           newSelected.add(duplicate.id)
         }
@@ -552,8 +569,16 @@ export function createSetupStore() {
     }),
 
   save: async () => {
+    // A save that starts while another runs waits for it, then only goes ahead if there's still
+    // something unsaved — the first save may well have written everything.
+    while (inFlight) {
+      await inFlight
+      if (!get().isDirty) return
+    }
+    const run = (async () => {
     const state = get()
     if (!state.studioId) return
+    const seq = loadSeq
     set({ isSaving: true })
     try {
       let setupId = state.setupId
@@ -569,9 +594,9 @@ export function createSetupStore() {
           state.sessionNotes
         )
         setupId = created.id
-        if (state.outboardColumnCount !== 1) {
-          await window.api.setups.setOutboardColumnCount(setupId, state.outboardColumnCount)
-        }
+        // Adopt the id straight away so the write-through actions (columns, outboard count) can
+        // persist edits made during the rest of this save. Not if a different setup has loaded since.
+        if (seq === loadSeq) set({ setupId })
       } else {
         await window.api.setups.rename(
           setupId,
@@ -590,15 +615,27 @@ export function createSetupStore() {
       // hidden column on reopen; (2) on a FIRST save, a toggle made while create() was in flight
       // couldn't write through (setupId was still null) and the snapshot here predates it — the
       // stale write then clobbered the toggle and isDirty:false below discarded the retry.
-      await window.api.setups.setVisibleColumns(setupId, get().visibleColumns)
-      await window.api.setups.setColumnOrder(setupId, get().columnOrder)
-      await window.api.setups.setExportColumnOverrides(setupId, get().exportColumnOverrides)
+      // The outboard column count too: undo/redo restores it without going through its action's
+      // write-through, so undoing "remove outboard column" otherwise never reached the database.
+      // Once a different setup has loaded, the store holds ITS values, so fall back to the snapshot.
+      const live = (): SetupState => (seq === loadSeq ? get() : state)
+      await window.api.setups.setOutboardColumnCount(setupId, live().outboardColumnCount)
+      await window.api.setups.setVisibleColumns(setupId, live().visibleColumns)
+      await window.api.setups.setColumnOrder(setupId, live().columnOrder)
+      await window.api.setups.setExportColumnOverrides(setupId, live().exportColumnOverrides)
 
       const itemsBeforeSave = state.items
       const saved = await window.api.setups.saveItems(
         setupId,
-        itemsBeforeSave.map((item) => ({ ...item }))
+        itemsBeforeSave.map(({ rowKey: _rowKey, ...item }) => item)
       )
+
+      // The user opened another setup while this was in flight. Everything above was written
+      // against the setup it started on; none of it belongs in the store now.
+      if (seq !== loadSeq) {
+        set({ isSaving: false })
+        return
+      }
 
       // saveItems assigns each row's sort_order from its array index and returns rows
       // ordered by sort_order, so saved[i] is itemsBeforeSave[i] with its real DB id.
@@ -618,6 +655,17 @@ export function createSetupStore() {
         const savedItem = saved[index]
         if (savedItem && savedItem.id !== oldItem.id) newIdByOldId.set(oldItem.id, savedItem.id)
       })
+      // A row leaving its draft id keeps that draft id as its rowKey, its React key, so the swap
+      // doesn't remount it and drop whatever is being typed into it. (A numeric id that changes
+      // still remounts: a stale number could collide with a live row's key.)
+      const remapItems = (items: SetupItemDraft[]): SetupItemDraft[] =>
+        items.map((item) => {
+          const newId = newIdByOldId.get(item.id)
+          if (newId == null) return item
+          return typeof item.id === 'string'
+            ? { ...item, id: newId, rowKey: item.rowKey ?? item.id }
+            : { ...item, id: newId }
+        })
 
       // Read the store fresh: the user may have kept editing during the awaited IPC call,
       // and those edits must not be clobbered by the pre-save snapshot.
@@ -628,9 +676,7 @@ export function createSetupStore() {
       if (newIdByOldId.size > 0) {
         // One lookup per row against its ORIGINAL id, so a swap that reuses an id another row
         // just vacated cannot cascade.
-        nextItems = currentItems.map((item) =>
-          newIdByOldId.has(item.id) ? { ...item, id: newIdByOldId.get(item.id)! } : item
-        )
+        nextItems = remapItems(currentItems)
         nextHints = new Map<number | string, UnresolvedGearHint>()
         currentHints.forEach((hint, id) => {
           nextHints.set(newIdByOldId.get(id) ?? id, hint)
@@ -651,28 +697,53 @@ export function createSetupStore() {
         after.artist !== state.artist ||
         after.facultyReserveEnabled !== state.facultyReserveEnabled ||
         after.sessionNotes !== state.sessionNotes ||
-        // Only sent from the snapshot on the CREATE path; once a setupId exists its own action
-        // writes through directly. Compared here because that write-through is skipped while
-        // setupId is still null, which is exactly the window this guard covers.
+        // Undo/redo can change it without a write-through, so a change after it was sent above
+        // still needs another save.
         after.outboardColumnCount !== state.outboardColumnCount
 
-      set({
-        setupId,
-        items: nextItems,
-        unresolvedGearHints: nextHints,
-        isDirty: changedDuringSave,
-        isSaving: false,
-        saveError: null
-      })
+      // A save must never create an undo step (see layoutStore.save): rewrite the id swap into
+      // every snapshot, so undoing past this save can't bring back a draft id that would be
+      // inserted all over again, and pause tracking so the swap itself isn't recorded.
+      const temporal = store.temporal
+      if (newIdByOldId.size > 0) {
+        const remapSnapshot = (snap: Partial<SetupState>): Partial<SetupState> =>
+          snap.items ? { ...snap, items: remapItems(snap.items) } : snap
+        temporal.setState((t) => ({
+          pastStates: t.pastStates.map(remapSnapshot),
+          futureStates: t.futureStates.map(remapSnapshot)
+        }))
+      }
+      temporal.getState().pause()
+      try {
+        set({
+          setupId,
+          items: nextItems,
+          unresolvedGearHints: nextHints,
+          isDirty: changedDuringSave,
+          isSaving: false,
+          saveError: null
+        })
+      } finally {
+        temporal.getState().resume()
+      }
     } catch (err) {
       // Deliberately does NOT rethrow. Every caller is fire-and-forget — the debounced autosave,
       // the unmount flush — so throwing only ever produced an unhandled rejection nobody saw.
       // isDirty stays set, so the work is still pending, and saveError drives both the toolbar's
-      // message and the retry.
-      set({
-        isSaving: false,
-        saveError: { message: err instanceof Error ? err.message : String(err), at: Date.now() }
-      })
+      // message and the retry. A failure belonging to a setup that's since been replaced isn't
+      // this one's error.
+      set(
+        seq === loadSeq
+          ? { isSaving: false, saveError: { message: err instanceof Error ? err.message : String(err), at: Date.now() } }
+          : { isSaving: false }
+      )
+    }
+    })()
+    inFlight = run
+    try {
+      await run
+    } finally {
+      if (inFlight === run) inFlight = null
     }
   }
     }),

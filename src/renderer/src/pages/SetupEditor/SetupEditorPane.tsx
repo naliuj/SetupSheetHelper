@@ -31,6 +31,12 @@ const AUTOSAVE_MAX_WAIT_MS = 5000
  *  user happened to edit something else. */
 const AUTOSAVE_RETRY_MS = 10_000
 
+/** The flushers' fresh read of `layoutPoppedOut`: they skip the layout while the pop-out window
+ *  owns it, for the same reason autosave does, and run long after they were registered. */
+function isLayoutPoppedOut(setupId: number | null): boolean {
+  return setupId != null && useLayoutWindowStore.getState().openForSetupId === setupId
+}
+
 // Lazy so konva + react-konva + pdfjs (the app's heaviest dependencies, all reached only through
 // the canvas) live in their own chunk instead of the startup bundle — app launch and Table Mode
 // don't pay their parse cost. The stage still mounts (hidden) as soon as the editor opens, so
@@ -225,7 +231,9 @@ export default function SetupEditorPane({
       // Open a fresh window before saving, so a run of failures cannot collapse the delay to 0.
       dirtySinceRef.current = Date.now()
       if (isDirty) save()
-      if (layoutIsDirty) saveLayout()
+      // The pop-out window owns this setup's layout; this window's copy is stale and must not
+      // overwrite the blocks being edited over there.
+      if (layoutIsDirty && !layoutPoppedOut) saveLayout()
       if (cablesDirty) saveCables()
     }, delay)
     return () => clearTimeout(timer)
@@ -244,6 +252,7 @@ export default function SetupEditorPane({
     layoutIsDirty,
     layoutSaveError,
     saveLayout,
+    layoutPoppedOut,
     cables,
     cablesDirty,
     cablesSaveError,
@@ -257,10 +266,12 @@ export default function SetupEditorPane({
     return registerFlusher(async () => {
       const setupState = setupStoreApi.getState()
       if (setupState.isDirty) await setupState.save()
-      // A note still being typed counts as an edit — write it into the blocks before saving them.
-      layoutStoreApi.getState().commitNoteEdit()
-      const layoutState = layoutStoreApi.getState()
-      if (layoutState.isDirty) await layoutState.save()
+      if (!isLayoutPoppedOut(setupStoreApi.getState().setupId)) {
+        // A note still being typed counts as an edit — write it into the blocks before saving them.
+        layoutStoreApi.getState().commitNoteEdit()
+        const layoutState = layoutStoreApi.getState()
+        if (layoutState.isDirty) await layoutState.save()
+      }
       const patchbayState = patchbayStoreApi.getState()
       if (patchbayState.isDirty) await patchbayState.save()
     })
@@ -276,9 +287,11 @@ export default function SetupEditorPane({
     return () => {
       const setupState = setupStoreApi.getState()
       if (setupState.isDirty) setupState.save()
-      layoutStoreApi.getState().commitNoteEdit()
-      const layoutState = layoutStoreApi.getState()
-      if (layoutState.isDirty) layoutState.save()
+      if (!isLayoutPoppedOut(setupStoreApi.getState().setupId)) {
+        layoutStoreApi.getState().commitNoteEdit()
+        const layoutState = layoutStoreApi.getState()
+        if (layoutState.isDirty) layoutState.save()
+      }
       const patchbayState = patchbayStoreApi.getState()
       if (patchbayState.isDirty) patchbayState.save()
     }

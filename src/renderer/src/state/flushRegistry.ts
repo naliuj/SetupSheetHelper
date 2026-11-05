@@ -20,7 +20,15 @@ export function registerFlusher(fn: Flusher): () => void {
  *  failing pane must not stop the others from saving, and at quit time there is nothing useful
  *  left to do with the error anyway. */
 export async function flushAll(): Promise<void> {
+  // Table cells buffer their text until blur, so a cell still focused at quit time holds edits no
+  // store has seen. Blurring fires React's onBlur synchronously, committing them before the flush.
+  blurActiveElement()
   await Promise.allSettled([...flushers].map((fn) => fn()))
+}
+
+/** Commits whatever the focused field is buffering (see flushAll). */
+export function blurActiveElement(): void {
+  if (document.activeElement instanceof HTMLElement) document.activeElement.blur()
 }
 
 /** Registers `fn` for as long as the calling component is mounted. */

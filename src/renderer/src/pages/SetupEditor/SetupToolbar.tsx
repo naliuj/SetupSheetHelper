@@ -19,6 +19,7 @@ import { useMarkupPrefsStore } from '@renderer/state/markupPrefsStore'
 import { useSnapPrefsStore } from '@renderer/state/snapPrefsStore'
 import { useNavigationStore, type EditorMode } from '@renderer/state/navigationStore'
 import { useLayoutWindowStore } from '@renderer/state/layoutWindowStore'
+import { blurActiveElement } from '@renderer/state/flushRegistry'
 import Icon from '@renderer/components/Icon'
 import SaveAsTemplateModal from './SaveAsTemplateModal'
 import ExportOptionsModal, { type ExportOptions } from './ExportOptionsModal'
@@ -157,6 +158,8 @@ export default function SetupToolbar({
   }, [notesOpen])
 
   async function handleSave(): Promise<void> {
+    // Commit a focused cell's buffered text first — otherwise Cmd+S saves without it.
+    blurActiveElement()
     await save()
   }
 
@@ -922,6 +925,14 @@ export default function SetupToolbar({
           onClose={() => setSplitPickerOpen(false)}
           onConfirm={async (picked) => {
             setSplitPickerOpen(false)
+            // Save this pane's pending edits first, the same flush SplitSetupView does on close:
+            // Split View reloads this setup from the database, which could revert them.
+            const setupState = setupStoreApi.getState()
+            if (setupState.isDirty) await setupState.save()
+            const layoutState = layoutStoreApi.getState()
+            if (layoutState.isDirty && !layoutPoppedOut) await layoutState.save()
+            const patchbayState = patchbayStoreApi.getState()
+            if (patchbayState.isDirty) await patchbayState.save()
             // Mirrors Home.tsx's own buildingId resolution at open-time — the picked setup isn't
             // guaranteed to be this studio's, so its buildingId has to be looked up fresh rather
             // than reused from this pane's own studioId/buildingId.

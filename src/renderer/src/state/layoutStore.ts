@@ -199,14 +199,18 @@ export function createLayoutStore(setupStoreApi: SetupStoreApi) {
       setMarkupOn: (on) => set(on ? { markupOn: true, markupHidden: false } : { markupOn: false }),
       setMarkupHidden: (hidden) => set({ markupHidden: hidden }),
 
+      // Cleared again AFTER each set: zundo records the pre-set state on every set(), so clearing
+      // only beforehand left the previous setup's layout as an undo step.
       loadForSetup: async (setupId) => {
         store.temporal.getState().clear()
         if (!setupId) {
           set({ blocks: [], selectedBlockIds: new Set(), zoomScale: 1, panX: 0, panY: 0, isDirty: false, noteEdit: null })
+          store.temporal.getState().clear()
           return
         }
         const blocks = await window.api.roomLayoutBlocks.listBySetup(setupId)
         set({ blocks, selectedBlockIds: new Set(), zoomScale: 1, panX: 0, panY: 0, isDirty: false, noteEdit: null })
+        store.temporal.getState().clear()
       },
 
       addBlock: ({ label, shape, color, x, y, width, height, personName, labelColor, kind, fontSize, fontBold, markData, select = true }) => {
@@ -272,7 +276,8 @@ export function createLayoutStore(setupStoreApi: SetupStoreApi) {
 
       removeBlocks: (ids) => {
         const idSet = new Set(ids)
-        const removed = get().blocks.filter((b) => idSet.has(b.id))
+        const removedAt = get().blocks.flatMap((block, index) => (idSet.has(block.id) ? [{ block, index }] : []))
+        const removed = removedAt.map(({ block }) => block)
         const kinds = new Set(removed.map((b) => b.kind))
         const noun = kinds.size !== 1 ? 'item' : kinds.has('note') ? 'note' : kinds.has('mark') ? 'mark' : 'block'
         set((state) => {
@@ -287,13 +292,19 @@ export function createLayoutStore(setupStoreApi: SetupStoreApi) {
         if (ids.length > 0) {
           useToastStore
             .getState()
-            .show(`Deleted ${ids.length} ${noun}${ids.length === 1 ? '' : 's'}`, () => {
-              store.temporal.getState().undo()
-              // Autosave (1s) beats the toast (5s), so by the time Undo is clicked the delete is
-              // already committed. zundo does not restore isDirty, so without this the blocks
-              // reappear on screen and are never written back.
-              set({ isDirty: true })
-            })
+            .show(`Deleted ${ids.length} ${noun}${ids.length === 1 ? '' : 's'}`, () =>
+              // Puts back exactly what this delete removed, as one normal undoable (and dirtying)
+              // step — temporal.undo() would undo the latest edit instead if anything changed since.
+              // Blocks already back (via Cmd+Z) are skipped.
+              set((state) => {
+                const present = new Set(state.blocks.map((b) => b.id))
+                const missing = removedAt.filter(({ block }) => !present.has(block.id))
+                if (missing.length === 0) return {}
+                const blocks = [...state.blocks]
+                for (const { block, index } of missing) blocks.splice(Math.min(index, blocks.length), 0, block)
+                return { blocks, isDirty: true }
+              })
+            )
         }
       },
 

@@ -400,7 +400,7 @@ export default function SetupSheetTable(): JSX.Element {
               <tbody>
                 {items.map((item, i) => (
                   <SetupSheetRow
-                    key={item.id}
+                    key={item.rowKey ?? item.id}
                     item={item}
                     mics={mics}
                     outboardGear={outboardGear}
