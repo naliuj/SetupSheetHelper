@@ -160,6 +160,9 @@ export interface SetupWithItems extends Setup {
 /** Renderer-side working copy of a SetupItem. Unsaved items carry a client-generated string id. */
 export interface SetupItemDraft extends Omit<SetupItem, 'id' | 'setupId'> {
   id: number | string
+  /** Renderer-only React key: the draft id a row was created under, kept after the first save swaps
+   *  in its DB id so the row isn't remounted mid-edit. Never sent to main. */
+  rowKey?: string
 }
 
 /** Renderer-side working copy of a RoomLayoutBlock. Unsaved blocks carry a client-generated
