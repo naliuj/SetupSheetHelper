@@ -20,12 +20,19 @@ const REQUEST_TIMEOUT_MS = 20_000
 const MAX_INDEX_BYTES = 2 * 1024 * 1024
 const MAX_PACK_BYTES = 25 * 1024 * 1024
 
+/** The picker lists the library's studios one per row; nobody picks more than this at once, and
+ *  the list arrives from the renderer, so it bounds how many 25 MB downloads one call can start. */
+const MAX_PACKS_PER_REQUEST = 50
+
 /** Every request goes through here so the timeout, the size cap and the "never throw" contract are
  *  applied uniformly. Returns the parsed JSON, or a message fit to show a user. */
 async function fetchJson(url: string, maxBytes: number): Promise<{ ok: true; data: unknown } | { ok: false; error: string }> {
   try {
     const response = await fetch(url, {
       headers: { Accept: 'application/json' },
+      // resolveWithinSite vets the URL we ask for, not where a redirect would take us; following
+      // one would let the site's host hand the app a pack from anywhere.
+      redirect: 'error',
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
     })
     if (!response.ok) {
@@ -108,8 +115,14 @@ export async function fetchStudioLibraryIndex(): Promise<StudioLibraryIndexResul
 /** Downloads the named packs and flattens them into one importable list, in the order given.
  *  `files` are manifest `file` values, not arbitrary URLs. */
 export async function fetchStudioLibraryPacks(files: string[]): Promise<StudioLibraryPacksResult> {
+  if (!Array.isArray(files) || files.length > MAX_PACKS_PER_REQUEST) {
+    return { ok: false, error: `Choose at most ${MAX_PACKS_PER_REQUEST} studios at a time. Nothing was downloaded.` }
+  }
   const urls: string[] = []
   for (const file of files) {
+    if (typeof file !== 'string') {
+      return { ok: false, error: 'The studio library pointed somewhere unexpected. Nothing was downloaded.' }
+    }
     const url = resolveWithinSite(file)
     if (!url) return { ok: false, error: 'The studio library pointed somewhere unexpected. Nothing was downloaded.' }
     urls.push(url)

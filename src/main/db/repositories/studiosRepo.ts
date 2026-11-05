@@ -2,6 +2,7 @@ import type { Studio } from '@shared/types/entities'
 import type { SaveStudioInventoryInput } from '@shared/types/ipc'
 import { getDb } from '../index'
 import { removeSetup } from './setupsRepo'
+import { collectStoredFiles, removeStoredFilesIfUnused } from '../storedFiles'
 import { removeMic, upsertMic } from './micsRepo'
 import { removeOutboard, upsertOutboard } from './outboardRepo'
 import { removePreamp, upsertPreamp } from './preampRepo'
@@ -112,6 +113,7 @@ export function getStudioDeleteImpact(id: number): StudioDeleteImpact {
  *  on studio_id, so only setups need explicit pre-deletion (their studio_id FK is RESTRICT). */
 export function removeStudioCascade(id: number): void {
   const db = getDb()
+  const files = collectStoredFiles([], [id])
   const run = db.transaction(() => {
     const setupIds = (
       db.prepare('SELECT id FROM setups WHERE studio_id = ?').all(id) as { id: number }[]
@@ -120,16 +122,19 @@ export function removeStudioCascade(id: number): void {
     db.prepare('DELETE FROM studios WHERE id = ?').run(id)
   })
   run()
+  removeStoredFilesIfUnused(files)
 }
 
 /** Bulk variant of removeStudioCascade — one outer transaction wrapping the per-id cascade (each
  *  removeStudioCascade opens its own transaction too, but better-sqlite3 nests these as savepoints). */
 export function removeStudiosCascade(ids: number[]): void {
   const db = getDb()
+  const files = collectStoredFiles([], ids)
   const run = db.transaction(() => {
     for (const id of ids) removeStudioCascade(id)
   })
   run()
+  removeStoredFilesIfUnused(files)
 }
 
 /** Lightweight reparent for drag-to-folder — unlike updateCustomStudio, doesn't touch name. */

@@ -15,6 +15,7 @@ import { extname, join } from 'node:path'
 import { APP_SETTINGS_KEYS } from '@shared/types/entities'
 import { getLayoutsDir } from '../../userDataPaths'
 import { getDb } from '../index'
+import { collectStoredFiles, removeStoredFilesIfUnused } from '../storedFiles'
 import { getSetting } from './settingsRepo'
 import { listItemsBySetup, copyItemsToSetup } from './setupItemsRepo'
 import { copyBlocksToSetup } from './roomLayoutBlocksRepo'
@@ -189,19 +190,28 @@ export function touchSetup(id: number): void {
 /** "+ Add Outboard Column" bumps this sheet-wide — every row conceptually gains one more
  *  outboard slot, though rows only actually get a setup_item_outboards row once filled in. */
 export function setOutboardColumnCount(id: number, count: number): void {
-  getDb().prepare('UPDATE setups SET outboard_column_count = ? WHERE id = ?').run(count, id)
+  // Clamped here because both the IPC handler and setup import (a shared file) feed it: a huge
+  // count renders that many cells on every row, and a fraction or NaN breaks the table outright.
+  const clamped = Number.isFinite(count) ? Math.min(MAX_OUTBOARD_COLUMNS, Math.max(1, Math.round(count))) : 1
+  getDb().prepare('UPDATE setups SET outboard_column_count = ? WHERE id = ?').run(clamped, id)
 }
 
+const MAX_OUTBOARD_COLUMNS = 50
+
 export function removeSetup(id: number): void {
+  const files = collectStoredFiles([id], [])
   getDb().prepare('DELETE FROM setups WHERE id = ?').run(id)
+  removeStoredFilesIfUnused(files)
 }
 
 export function removeSetups(ids: number[]): void {
   if (ids.length === 0) return
+  const files = collectStoredFiles(ids, [])
   const placeholders = ids.map(() => '?').join(',')
   getDb()
     .prepare(`DELETE FROM setups WHERE id IN (${placeholders})`)
     .run(...ids)
+  removeStoredFilesIfUnused(files)
 }
 
 /** Lightweight reparent for drag-to-folder — doesn't touch name/updated_at. */

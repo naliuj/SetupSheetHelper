@@ -22,7 +22,12 @@ import {
   setExportColumnOverrides
 } from '../db/repositories/setupsRepo'
 import { replaceItemsForSetup } from '../db/repositories/setupItemsRepo'
-import { getSetupLayoutOverride, upsertFileLayoutOverride } from '../db/repositories/setupLayoutOverrideRepo'
+import {
+  getSetupLayoutOverride,
+  upsertBlankLayoutOverride,
+  upsertFileLayoutOverride
+} from '../db/repositories/setupLayoutOverrideRepo'
+import { listBlocksBySetup, replaceBlocksForSetup } from '../db/repositories/roomLayoutBlocksRepo'
 import { listCablesBySetup, replaceCablesForSetup } from '../db/repositories/patchbayCablesRepo'
 import { getPatchbayFileForStudio } from '../db/repositories/patchbayFileRepo'
 import { getMicsByIds, listAvailableForStudio as listAvailableMics } from '../db/repositories/micsRepo'
@@ -30,17 +35,12 @@ import { getOutboardByIds, listAvailableForStudio as listAvailableOutboard } fro
 import { getPreampsByIds, listAvailableForStudio as listAvailablePreamps } from '../db/repositories/preampRepo'
 import { canonicalMicKey } from '@shared/constants/berkleeMicRenames'
 import { sanitizePatchbaySource, sanitizePatchCables } from './patchCableImport'
+import { sanitizeLayoutBlocks } from './layoutBlockImport'
+import { decodeLayoutFile } from '../studios/exportImport'
 
-/** Still 1: everything added since (column order, export overrides, patch cables) is optional, so
- *  an older app reading a newer file just goes without it. */
+/** Still 1: everything added since (column order, export overrides, patch cables, layout blocks) is
+ *  optional, so an older app reading a newer file just goes without it. */
 const EXPORT_VERSION = 1
-
-/** An export names its own layout-file extension, and that string gets interpolated into a path
- *  that is then written to. join() normalizes, so a value like '../../../../etc/x' escapes the
- *  layouts directory entirely and writes wherever the user can. The studio importer has carried
- *  this guard since packs became web-fetchable; the setup importer reads the same shape of file
- *  from the same kind of source and needs the same list. */
-const ALLOWED_LAYOUT_EXTENSIONS = new Set(['.pdf', '.png', '.jpg', '.jpeg'])
 
 function exportLayoutOverride(setupId: number): ExportedRoomLayoutFile | null {
   const override = getSetupLayoutOverride(setupId)
@@ -120,7 +120,9 @@ export async function exportSetupsToFile(setupIds: number[]): Promise<ExportSetu
         items,
         layoutOverride: exportLayoutOverride(id),
         patchCables: listCablesBySetup(id).map(({ id: _id, setupId: _setupId, ...cable }) => cable),
-        patchbaySource: exportPatchbaySource(setup.studioId)
+        patchbaySource: exportPatchbaySource(setup.studioId),
+        layoutBlocks: listBlocksBySetup(id).map(({ id: _id, setupId: _setupId, ...block }) => block),
+        layoutBlank: getSetupLayoutOverride(id)?.kind === 'blank'
       }
     ]
   })
@@ -162,7 +164,10 @@ export async function pickAndParseSetupImportFile(): Promise<PickSetupImportFile
     const setups = (parsed.setups as ExportedSetup[]).map((setup) => ({
       ...setup,
       patchCables: sanitizePatchCables(setup.patchCables),
-      patchbaySource: sanitizePatchbaySource(setup.patchbaySource)
+      patchbaySource: sanitizePatchbaySource(setup.patchbaySource),
+      layoutBlocks: sanitizeLayoutBlocks(setup.layoutBlocks),
+      // So "layout included" in the preview only shows for a file that will really be written.
+      layoutOverride: decodeLayoutFile(setup.layoutOverride) ? setup.layoutOverride : null
     }))
     return { canceled: false, data: { version: parsed.version, setups } }
   } catch {
@@ -268,15 +273,12 @@ export function importSetups(setups: ExportedSetup[], targetStudioId: number): v
       })
       replaceItemsForSetup(created.id, items)
 
-      // Dropped rather than written when the extension is not one we recognize — see
-      // ALLOWED_LAYOUT_EXTENSIONS. The setup still imports; it just arrives without its background.
-      const layoutOverride =
-        setup.layoutOverride && ALLOWED_LAYOUT_EXTENSIONS.has(setup.layoutOverride.extension.toLowerCase())
-          ? setup.layoutOverride
-          : null
+      // Dropped rather than written when it isn't a layout we recognize — see decodeLayoutFile. The
+      // setup still imports; it just arrives without its background.
+      const layoutOverride = decodeLayoutFile(setup.layoutOverride)
       if (layoutOverride) {
         const destPath = join(getLayoutsDir(), `setup_${created.id}${layoutOverride.extension}`)
-        writeFileSync(destPath, Buffer.from(layoutOverride.dataBase64, 'base64'))
+        writeFileSync(destPath, layoutOverride.data)
         upsertFileLayoutOverride({
           setupId: created.id,
           filePath: destPath,
@@ -284,6 +286,18 @@ export function importSetups(setups: ExportedSetup[], targetStudioId: number): v
           pageWidthPt: layoutOverride.pageWidthPt,
           pageHeightPt: layoutOverride.pageHeightPt
         })
+      } else if (setup.layoutBlank === true) {
+        upsertBlankLayoutOverride(created.id)
+      }
+
+      // Cleaned again here for the same reason as the cables below. Without them a setup arrived
+      // with its Layout Mode empty, however much had been placed on it.
+      const blocks = sanitizeLayoutBlocks(setup.layoutBlocks)
+      if (blocks.length > 0) {
+        replaceBlocksForSetup(
+          created.id,
+          blocks.map((block, index) => ({ ...block, id: `import-${index}` }))
+        )
       }
 
       // Cleaned again here: this list comes back over IPC, not straight from the parsed file. Kept

@@ -3,6 +3,7 @@ import type { FolderDeleteImpact } from '@shared/types/ipc'
 import { getDb } from '../index'
 import { removeStudioCascade } from './studiosRepo'
 import { removeSetup } from './setupsRepo'
+import { collectStoredFiles, removeStoredFilesIfUnused, type StoredFiles } from '../storedFiles'
 
 interface FolderRow {
   id: number
@@ -107,6 +108,7 @@ export function getFolderDeleteImpact(id: number): FolderDeleteImpact {
  */
 export function deleteFolderRecursive(id: number): void {
   const db = getDb()
+  let files: StoredFiles = { layouts: [], patchbays: [] }
   const run = db.transaction(() => {
     const subtreeIds = [id, ...collectDescendantFolderIds(db, id)]
     const placeholders = subtreeIds.map(() => '?').join(',')
@@ -116,6 +118,13 @@ export function deleteFolderRecursive(id: number): void {
         id: number
       }[]
     ).map((r) => r.id)
+    const filedSetupIds = (
+      db.prepare(`SELECT id FROM setups WHERE folder_id IN (${placeholders})`).all(...subtreeIds) as {
+        id: number
+      }[]
+    ).map((r) => r.id)
+    // The nested removes skip their own file cleanup inside this transaction; see storedFiles.
+    files = collectStoredFiles(filedSetupIds, studioIds)
     for (const studioId of studioIds) removeStudioCascade(studioId)
 
     // Setups/templates filed directly in the subtree that weren't already removed via their
@@ -134,6 +143,7 @@ export function deleteFolderRecursive(id: number): void {
     }
   })
   run()
+  removeStoredFilesIfUnused(files)
 }
 
 /**

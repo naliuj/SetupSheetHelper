@@ -10,6 +10,7 @@ import type {
   PickImportFileResult,
   StudioExportFile
 } from '@shared/types/ipc'
+import { LAYOUT_FILE_EXTENSIONS } from '@shared/constants/roomLayout'
 import { getLayoutsDir, getPatchbaysDir } from '../userDataPaths'
 import { getDb } from '../db/index'
 import * as studiosRepo from '../db/repositories/studiosRepo'
@@ -29,11 +30,72 @@ export function exportVersionFor(studios: ExportedStudio[]): number {
   return studios.some((studio) => studio.patchbayFile) ? EXPORT_VERSION : EXPORT_VERSION_WITHOUT_PATCHBAY
 }
 
-/** A pack names its own layout-file extension, and that string is interpolated into a path on
- *  import. Packs used to only ever come from a file the user picked; they can now be fetched from
- *  the web, so the value is untrusted input. Anything outside this list is dropped rather than
- *  written. */
-const ALLOWED_LAYOUT_EXTENSIONS = new Set(['.pdf', '.png', '.jpg', '.jpeg'])
+/** A pack or setup file names its own layout-file extension, and that string is interpolated into
+ *  a path on import (join() normalizes, so '../../x' would escape the layouts folder). Packs can
+ *  be fetched from the web, so the value is untrusted input. Exactly the types the upload dialog
+ *  accepts; anything else is dropped rather than written. */
+const ALLOWED_LAYOUT_EXTENSIONS = new Set(LAYOUT_FILE_EXTENSIONS.map((ext) => `.${ext}`))
+
+/** Whether the payload really is the format its extension claims, by its leading bytes. */
+function matchesLayoutFormat(extension: string, data: Buffer): boolean {
+  const head = data.subarray(0, 16).toString('latin1')
+  switch (extension) {
+    case '.pdf':
+      return head.startsWith('%PDF-')
+    case '.png':
+      return head.startsWith('\x89PNG')
+    case '.jpg':
+    case '.jpeg':
+      return data[0] === 0xff && data[1] === 0xd8 && data[2] === 0xff
+    case '.gif':
+      return head.startsWith('GIF8')
+    case '.webp':
+      return head.startsWith('RIFF') && head.slice(8, 12) === 'WEBP'
+    case '.bmp':
+      return head.startsWith('BM')
+    case '.svg':
+      // Text, so there is no magic number: an XML declaration, a comment or <svg> itself, after an
+      // optional byte-order mark and leading whitespace.
+      return /^(\uFEFF)?\s*</.test(data.subarray(0, 1024).toString('utf8'))
+    default:
+      return false
+  }
+}
+
+function positiveOrNull(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null
+}
+
+/** A shared file's layout, decoded, or null when it isn't one worth writing. Studio packs and setup
+ *  files both carry one and both can come from someone else, so the same checks as
+ *  decodePatchbayFile: a known extension (lowercased, so the file lands as setup_7.pdf and a later
+ *  upload of setup_7.pdf overwrites rather than deletes it on a case-insensitive disk), and a
+ *  payload that is actually that format. Page sizes only describe a PDF; a bad one becomes null
+ *  and Layout Mode measures the file itself. */
+export function decodeLayoutFile(
+  raw: unknown
+): (Omit<ExportedRoomLayoutFile, 'dataBase64'> & { data: Buffer }) | null {
+  if (typeof raw !== 'object' || raw === null) return null
+  const file = raw as Record<string, unknown>
+  if (typeof file.extension !== 'string' || typeof file.dataBase64 !== 'string') return null
+  const extension = file.extension.toLowerCase()
+  if (!ALLOWED_LAYOUT_EXTENSIONS.has(extension)) return null
+  const data = Buffer.from(file.dataBase64, 'base64')
+  if (!matchesLayoutFormat(extension, data)) return null
+  return {
+    data,
+    extension,
+    originalName: typeof file.originalName === 'string' ? file.originalName : null,
+    pageWidthPt: positiveOrNull(file.pageWidthPt),
+    pageHeightPt: positiveOrNull(file.pageHeightPt)
+  }
+}
+
+/** Gear counts from a shared file. A missing, fractional or negative count would otherwise land in
+ *  the catalog as-is and show as "0x" or "NaN" stock. */
+function positiveCount(value: unknown): number {
+  return typeof value === 'number' && Number.isInteger(value) && value > 0 ? value : 1
+}
 
 function exportRoomLayoutFile(studioId: number): ExportedRoomLayoutFile | null {
   const layoutFile = getLayoutFileForStudio(studioId)
@@ -188,7 +250,7 @@ export function importStudios(studios: ExportedStudio[]): ImportStudiosResult {
           manufacturer: mic.manufacturer,
           category: mic.category,
           notes: null,
-          quantity: mic.quantity
+          quantity: positiveCount(mic.quantity)
         })
       }
       for (const gear of studio.outboardGear) {
@@ -201,7 +263,7 @@ export function importStudios(studios: ExportedStudio[]): ImportStudiosResult {
           manufacturer: gear.manufacturer,
           category: gear.category,
           notes: null,
-          quantity: gear.quantity
+          quantity: positiveCount(gear.quantity)
         })
       }
       for (const preamp of studio.preamps ?? []) {
@@ -214,16 +276,14 @@ export function importStudios(studios: ExportedStudio[]): ImportStudiosResult {
           manufacturer: preamp.manufacturer,
           category: preamp.category,
           notes: null,
-          channels: preamp.channels
+          channels: positiveCount(preamp.channels)
         })
       }
-      const layoutFile =
-        studio.roomLayoutFile && ALLOWED_LAYOUT_EXTENSIONS.has(studio.roomLayoutFile.extension.toLowerCase())
-          ? studio.roomLayoutFile
-          : null
+      // Dropped rather than written when it isn't a layout we recognize — see decodeLayoutFile.
+      const layoutFile = decodeLayoutFile(studio.roomLayoutFile)
       if (layoutFile) {
         const destPath = join(getLayoutsDir(), `studio_${created.id}${layoutFile.extension}`)
-        writeFileSync(destPath, Buffer.from(layoutFile.dataBase64, 'base64'))
+        writeFileSync(destPath, layoutFile.data)
         upsertLayoutFile({
           studioId: created.id,
           filePath: destPath,
