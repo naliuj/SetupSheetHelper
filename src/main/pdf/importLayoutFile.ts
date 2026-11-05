@@ -13,9 +13,9 @@ import {
   upsertFileLayoutOverride
 } from '../db/repositories/setupLayoutOverrideRepo'
 
-/** Deletes a setup's old layout file once no layout row names it any more. Called after the
+/** Deletes an old layout file once no layout row names it any more. Called after the
  *  database change, so the count already excludes the row that just stopped using it. */
-function removeLayoutFileIfUnused(filePath: string | null | undefined): void {
+export function removeLayoutFileIfUnused(filePath: string | null | undefined): void {
   if (!filePath || !existsSync(filePath) || countLayoutFileReferences(filePath) > 0) return
   try {
     unlinkSync(filePath)
@@ -86,28 +86,24 @@ export async function commitPickedLayoutFileToStudio(studioId: number, sourcePat
   const extension = extname(sourcePath).toLowerCase()
   const destPath = join(getLayoutsDir(), `studio_${studioId}${extension}`)
 
-  // Replacing a layout that had a different extension (e.g. swapping a PDF for a PNG) would
-  // otherwise leave the old file orphaned on disk — best-effort cleanup, not critical if it fails.
   const previous = getLayoutFileForStudio(studioId)
-  if (previous && previous.filePath !== destPath && existsSync(previous.filePath)) {
-    try {
-      unlinkSync(previous.filePath)
-    } catch {
-      // non-critical
-    }
-  }
 
   copyFileSync(sourcePath, destPath)
 
   const size = extension === '.pdf' ? await getPdfPageSize(destPath) : null
 
-  return upsertLayoutFile({
+  const layoutFile = upsertLayoutFile({
     studioId,
     filePath: destPath,
     originalName: basename(sourcePath),
     pageWidthPt: size?.width ?? null,
     pageHeightPt: size?.height ?? null
   })
+  // Only once the new file is in place and the row names it: deleting first meant a failed copy
+  // left the studio pointing at a file that no longer existed. A swap to a different extension
+  // (a PDF for a PNG) leaves the old file behind unless it's tidied here.
+  if (previous?.filePath !== destPath) removeLayoutFileIfUnused(previous?.filePath)
+  return layoutFile
 }
 
 export async function importLayoutFileForStudio(studioId: number): Promise<RoomLayoutFile | null> {

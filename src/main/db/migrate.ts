@@ -73,8 +73,22 @@ export function runMigrations(db: Database.Database, dbPath?: string, ctx?: Migr
     const applyMigration = db.transaction(() => {
       if ('sql' in migration) db.exec(migration.sql)
       else migration.run(db, ctx ?? { freshDatabase: false })
+      // Inside the transaction, so a rebuild that left a dangling reference rolls back whole.
+      if (migration.rebuildsTables) {
+        const violations = db.pragma('foreign_key_check') as unknown[]
+        if (violations.length > 0) {
+          throw new Error(`Migration ${migration.version} left ${violations.length} broken foreign key reference(s).`)
+        }
+      }
       db.prepare('INSERT INTO schema_migrations (version) VALUES (?)').run(migration.version)
     })
-    applyMigration()
+    // See Migration.rebuildsTables. The pragma is a no-op inside a transaction, hence out here.
+    const foreignKeysWere = migration.rebuildsTables ? db.pragma('foreign_keys', { simple: true }) : null
+    if (migration.rebuildsTables) db.pragma('foreign_keys = OFF')
+    try {
+      applyMigration()
+    } finally {
+      if (migration.rebuildsTables) db.pragma(`foreign_keys = ${foreignKeysWere ? 'ON' : 'OFF'}`)
+    }
   }
 }

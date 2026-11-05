@@ -55,13 +55,22 @@ import { run as patchbays } from './048_patchbays'
 
 import type { MigrationContext } from '../migrate'
 
-export interface SqlMigration {
+interface MigrationBase {
   version: number
+  /** Set on a migration that rebuilds a table (CREATE new, copy, DROP old, RENAME), SQLite's only
+   *  way to change most column definitions. With foreign keys on, as the app always runs, DROP
+   *  TABLE deletes the old table's rows one by one and fires every ON DELETE CASCADE / SET NULL
+   *  pointing at it, silently emptying or unlinking the child tables. The runner turns foreign
+   *  keys off around such a migration (it can't inside the transaction), then fails it if
+   *  `PRAGMA foreign_key_check` finds a dangling reference afterward. */
+  rebuildsTables?: true
+}
+
+export interface SqlMigration extends MigrationBase {
   sql: string
 }
 
-export interface RunMigration {
-  version: number
+export interface RunMigration extends MigrationBase {
   /** `ctx` is optional to every existing migration: a `(db) => void` is assignable to this, so
    *  none of them needed touching when it was added. */
   run: (db: Database.Database, ctx: MigrationContext) => void

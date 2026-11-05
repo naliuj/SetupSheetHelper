@@ -534,7 +534,15 @@ export interface ExportedSetup {
   patchCables?: ExportedPatchCable[]
   /** The exporting studio's drawing, or null when it had none. */
   patchbaySource?: ExportedPatchbaySource | null
+  /** Optional: files exported before Layout Mode content traveled don't carry it, and the setup
+   *  imports with an empty canvas. */
+  layoutBlocks?: ExportedLayoutBlock[]
+  /** True when the setup used a blank sheet of its own rather than any layout file. */
+  layoutBlank?: boolean
 }
+
+/** A Layout Mode block, note or mark in a setup file: RoomLayoutBlock without its row ids. */
+export type ExportedLayoutBlock = Omit<RoomLayoutBlock, 'id' | 'setupId'>
 
 export interface SetupExportFile {
   version: number
