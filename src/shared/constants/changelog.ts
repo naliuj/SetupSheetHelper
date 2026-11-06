@@ -437,5 +437,15 @@ export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
       'PDF and spreadsheet exports can include the patchbay: the drawing with your cables on it, and a list of every cable with where it starts, where it ends and its color.',
       'Studio files and online studios now bring the patchbay drawing along, and setup files bring their patch cables. In the studio editor you can replace or remove a patchbay drawing without losing any cables.'
     ]
+  },
+  {
+    version: '1.22.1',
+    date: '2026-11-06',
+    highlights: [
+      'Patch cables now ring each jack instead of covering it, so the jack\u2019s label stays readable, and each cable meets its ring on the side it comes from. To go back to the old look, pick Solid in the new Rings | Solid switch on the Patchbay toolbar. It applies to every cable, on screen and in exports.',
+      'Patchbay drawings now stay sharp as you zoom in, even dense ones like Studio 3\u2019s.',
+      'Setup files now bring the floor plan\u2019s blocks, notes and markup along, and a setup that uses a blank sheet stays blank when it\u2019s imported.',
+      'Fixes: undo no longer steps back into the setup you had open before, text typed into a new row is no longer lost, and closing the window saves any edits that hadn\u2019t been saved yet.'
+    ]
   }
 ]
