@@ -10,7 +10,7 @@ import { usePatchbayPrefsStore } from '@renderer/state/patchbayPrefsStore'
 import { useThemeColor } from '@renderer/hooks/useThemeColor'
 import Icon from '@renderer/components/Icon'
 import { PAPER_SHADOW } from '../canvas/LayoutBackground'
-import { appFileUrl, renderPdfPage } from '../canvas/renderPdfPage'
+import { appFileUrl, PDF_RENDER_SCALE, renderPdfPage } from '../canvas/renderPdfPage'
 import { useMiddleButtonPan } from '../canvas/useMiddleButtonPan'
 import PatchbayCable from './PatchbayCable'
 import {
@@ -44,6 +44,9 @@ interface Draft {
   mode: 'drag' | 'click'
   startClient: Pt
 }
+
+/** The most pixels the drawing is rendered with when sharpened for zoom: about 100 MB of canvas. */
+const MAX_DRAWING_PIXELS = 24_000_000
 
 const ZOOM_STEP = 1.05
 /** How far the pointer has to travel (screen pixels) before a press counts as a drag. */
@@ -111,10 +114,13 @@ export default function PatchbayStage({ studioId, stageRef, active, paneActive }
 
   // --- The drawing and its jacks ----------------------------------------------------------------
   const [patchbay, setPatchbay] = useState<PatchbayWithPoints | null | 'none'>(null)
+  // width/height are room pixels; `scale` is how sharply `source` was rendered (see the
+  // sharpening effect below).
   const [image, setImage] = useState<{
     source: HTMLCanvasElement
     width: number
     height: number
+    scale: number
   } | null>(null)
   const [uploading, setUploading] = useState(false)
   const [changedCount, setChangedCount] = useState(0)
@@ -137,7 +143,8 @@ export default function PatchbayStage({ studioId, stageRef, active, paneActive }
       setImage({
         source: rendered.image,
         width: rendered.width,
-        height: rendered.height
+        height: rendered.height,
+        scale: PDF_RENDER_SCALE
       })
     }
     load().catch((err) => {
@@ -175,6 +182,31 @@ export default function PatchbayStage({ studioId, stageRef, active, paneActive }
   const offsetY = (containerSize.height - imageSize.height * fitScale) / 2
   const finalScale = fitScale * zoomScale
   const finalX = offsetX + panX
+
+  // The drawing is rendered at 2× and then scaled with the view, so zooming into a small page
+  // (Studio 3's labels are under 3 pt) blurred it. Once the zoom settles, re-render it as sharp as
+  // the screen needs, within a pixel budget so a big drawing can't eat memory. Never re-renders
+  // softer: zooming back out keeps the sharp copy.
+  useEffect(() => {
+    if (!image || !patchbay || patchbay === 'none') return
+    const { filePath, pageWidthPt, pageHeightPt } = patchbay.file
+    const wanted = PDF_RENDER_SCALE * finalScale * window.devicePixelRatio
+    const budget = Math.sqrt(MAX_DRAWING_PIXELS / (pageWidthPt * pageHeightPt))
+    const scale = Math.max(PDF_RENDER_SCALE, Math.min(wanted, budget))
+    if (scale <= image.scale * 1.25) return
+    let cancelled = false
+    const timer = setTimeout(() => {
+      renderPdfPage(appFileUrl(filePath), scale)
+        .then((r) => {
+          if (!cancelled) setImage({ ...image, source: r.image, scale })
+        })
+        .catch((err) => console.error('Failed to sharpen the patchbay', err))
+    }, 250)
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [finalScale, image, patchbay])
   const finalY = offsetY + panY
 
   function toCanvas(clientX: number, clientY: number): Pt | null {
