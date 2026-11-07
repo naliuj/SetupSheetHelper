@@ -257,6 +257,18 @@ input[type='checkbox']:disabled {
   flex: 1;
 }
 
+/* A short status beside the toolbar's buttons ("Unsaved changes", "Saving…"). .card-sub lets text
+   break anywhere, so on a crowded toolbar the status folded into a tall column of syllables, and
+   the whole table dropped while it showed and jumped back up once the save landed: a click aimed
+   at a cell in that moment hit the row next to it. Kept on one line: where there's no room it
+   shortens to an ellipsis instead of pushing the buttons further off the toolbar. */
+.top-bar .toolbar-status {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
 /* Setup Editor toolbar's name field — deliberately understated (no border/background at rest,
    matching the surrounding toolbar chrome) but needs SOME affordance that it's editable, not
    static text. A border on hover is that hint; keyboard/click focus gets the shared
