@@ -178,6 +178,9 @@ export default function SetupToolbar({
   }
 
   async function handleExport(): Promise<void> {
+    // Commit a focused cell's buffered text first, as Save does, rather than relying on the
+    // dialog taking focus to do it.
+    blurActiveElement()
     setExportMessage(null)
     const [remembered, rememberedColoredRows, effective, hasPatchbay] = await Promise.all([
       window.api.settings.get(APP_SETTINGS_KEYS.defaultPdfExportInclude),
@@ -291,6 +294,7 @@ export default function SetupToolbar({
   // own small dialog (SpreadsheetExportModal) rather than PDF export's full options modal —
   // Export is autofocused there so Cmd/Ctrl+Shift+E → Enter stays a two-keystroke export.
   async function handleExportSpreadsheet(): Promise<void> {
+    blurActiveElement() // see handleExport
     setExportMessage(null)
     const setupId = setupStoreApi.getState().setupId
     if (!setupId) return
