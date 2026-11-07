@@ -178,6 +178,9 @@ export default function SetupToolbar({
   }
 
   async function handleExport(): Promise<void> {
+    // Commit a focused cell's buffered text first, as Save does, rather than relying on the
+    // dialog taking focus to do it.
+    blurActiveElement()
     setExportMessage(null)
     const [remembered, rememberedColoredRows, effective, hasPatchbay] = await Promise.all([
       window.api.settings.get(APP_SETTINGS_KEYS.defaultPdfExportInclude),
@@ -291,6 +294,7 @@ export default function SetupToolbar({
   // own small dialog (SpreadsheetExportModal) rather than PDF export's full options modal —
   // Export is autofocused there so Cmd/Ctrl+Shift+E → Enter stays a two-keystroke export.
   async function handleExportSpreadsheet(): Promise<void> {
+    blurActiveElement() // see handleExport
     setExportMessage(null)
     const setupId = setupStoreApi.getState().setupId
     if (!setupId) return
@@ -781,35 +785,39 @@ export default function SetupToolbar({
           </div>
         )}
       </div>
-      <div className="spacer" />
       {/* The message is a full filesystem path the user chose, and Chromium will not break one
           at its slashes — so unbounded it refuses to shrink and shoves Setup settings, Layout
           Mode, Split View and the rest past the right edge of the window, unreachable until it
-          clears. Same treatment StudioSetupPage already gives its save error. */}
-      {exportMessage && (
-        <span className="card-sub truncate" style={{ maxWidth: '46ch' }} title={exportMessage}>
-          {exportMessage}
-        </span>
-      )}
+          clears. Same treatment StudioSetupPage already gives its save error. It lives inside the
+          spacer, so it only ever fills the toolbar's free room: as a sibling, even squeezed to
+          nothing it still cost a gap, and that was enough to fold the buttons onto two lines
+          (see .toolbar-status). */}
+      <div className="spacer" style={{ display: 'flex', justifyContent: 'flex-end', minWidth: 0 }}>
+        {exportMessage && (
+          <span className="card-sub truncate" style={{ maxWidth: '46ch' }} title={exportMessage}>
+            {exportMessage}
+          </span>
+        )}
+      </div>
       {/* A failed save used to be completely silent: the store rethrew into a caller that
           dropped the promise, so the only trace was "Unsaved changes" never clearing. */}
       {(saveError || layoutSaveError) && !isSaving && (
         <span
-          className="card-sub"
+          className="card-sub toolbar-status"
           style={{ color: 'var(--color-danger)' }}
           title={(saveError ?? layoutSaveError)?.message}
         >
           Couldn&apos;t save — retrying
         </span>
       )}
-      {isDirty && !saveError && !layoutSaveError && <span className="card-sub">Unsaved changes</span>}
-      {isSaving && <span className="card-sub">Saving…</span>}
+      {isDirty && !saveError && !layoutSaveError && <span className="card-sub toolbar-status">Unsaved changes</span>}
+      {isSaving && <span className="card-sub toolbar-status">Saving…</span>}
       {!isSaving && !isDirty && justSaved && (
-        <span className="card-sub inline-icon-text">
+        <span className="card-sub inline-icon-text toolbar-status">
           <Check size={14} aria-hidden="true" /> Saved
         </span>
       )}
-      {exporting && <span className="card-sub">Exporting…</span>}
+      {exporting && <span className="card-sub toolbar-status">Exporting…</span>}
       {setupId && (
         <button className="btn" onClick={onOpenSettings}>
           Setup settings
