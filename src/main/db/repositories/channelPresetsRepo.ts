@@ -31,11 +31,10 @@ interface ChannelPresetItemRow {
   preamp_name: string | null
   preamp_manufacturer: string | null
   channel: number | null
-  /** Free text now ("PB1"); see setupItemsRepo's tie_line note. */
-  tie_line: number | string | null
-  /** Free text now ("1-2" stereo cues); legacy rows are integers via the column's INTEGER
-   *  affinity — mapItem normalizes both to string. See setupItemsRepo's cue_box note. */
-  cue_box: number | string | null
+  /** Free text ("PB1"); a TEXT column since migration 49. */
+  tie_line: string | null
+  /** Free text ("1-2" stereo cues); a TEXT column since migration 49. */
+  cue_box: string | null
   polarity_flip: number | null
   notes: string | null
   color: string | null
@@ -67,8 +66,8 @@ function mapItem(row: ChannelPresetItemRow): ChannelPresetItem {
     preampName: row.preamp_name,
     preampManufacturer: row.preamp_manufacturer,
     channel: row.channel,
-    tieLine: row.tie_line != null ? String(row.tie_line) : null,
-    cueBox: row.cue_box != null ? String(row.cue_box) : null,
+    tieLine: row.tie_line,
+    cueBox: row.cue_box,
     polarityFlip: row.polarity_flip == null ? null : row.polarity_flip === 1,
     notes: row.notes,
     color: row.color
