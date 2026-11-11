@@ -332,10 +332,11 @@ input[type='checkbox']:disabled {
 
 .setup-toolbar-status-slot {
   /* contain makes the text inside count as zero width toward the toolbar's layout, so a status can't
-     push the buttons to another row; min-width is the room kept for it whether or not one shows ("Unsaved changes" fits). */
+     push the buttons to another row; min-width is the room kept for it whether or not one shows: enough for the widest one,
+     "Couldn't save — retrying", which never shrinks. */
   contain: inline-size;
   flex: 1 1 0;
-  min-width: 6.5rem;
+  min-width: 9rem;
   display: flex;
   justify-content: flex-end;
   gap: 12px;

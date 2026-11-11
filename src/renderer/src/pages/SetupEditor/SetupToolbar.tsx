@@ -801,11 +801,13 @@ export default function SetupToolbar({
             </span>
           )}
           {/* A failed save used to be completely silent: the store rethrew into a caller that
-              dropped the promise, so the only trace was "Unsaved changes" never clearing. */}
+              dropped the promise, so the only trace was "Unsaved changes" never clearing. Unlike the
+              other statuses it never shrinks (the slot keeps room for it), so it can't be squeezed
+              to nothing. */}
           {(saveError || layoutSaveError) && !isSaving && (
             <span
               className="card-sub toolbar-status"
-              style={{ color: 'var(--color-danger)' }}
+              style={{ color: 'var(--color-danger)', flexShrink: 0 }}
               title={(saveError ?? layoutSaveError)?.message}
             >
               Couldn&apos;t save — retrying
