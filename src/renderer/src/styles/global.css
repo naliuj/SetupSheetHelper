@@ -269,6 +269,78 @@ input[type='checkbox']:disabled {
   min-width: 0;
 }
 
+/* Setup Editor toolbar: the fields, then the status slot and buttons. When both groups can't share
+   a row (narrow window, Split View pane) the actions group drops to a second row. Whether it wraps
+   depends only on the width: the status slot is a fixed size to the layout (see below), so
+   "Unsaved changes" or "Saved" appearing never adds or removes a row. The fields shrink to their
+   floors (min-content) before the wrap happens. */
+.setup-toolbar {
+  flex-wrap: wrap;
+  row-gap: 8px;
+}
+
+.setup-toolbar-fields,
+.setup-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.setup-toolbar-fields {
+  /* Takes the free room first, up to its full width; whatever is left goes to the status slot. */
+  flex: 1000 1 0;
+  min-width: min-content;
+  max-width: max-content;
+}
+
+/* min-width is each box's floor, max-width its full size. The percentage width is what lets the
+   group's min-content be the floors and its max-content the full sizes (a text input with a
+   percentage width contributes nothing to min-content), so it shrinks before it wraps. */
+.setup-toolbar-fields .setup-name-input {
+  width: 100%;
+  min-width: 120px;
+  max-width: 240px;
+  flex: 2 1 auto;
+}
+
+.setup-toolbar-fields .setup-meta-input:not([type='date']) {
+  width: 100%;
+  min-width: 72px;
+  max-width: 120px;
+  flex: 1 1 auto;
+}
+
+.setup-toolbar-fields .setup-meta-input[type='date'] {
+  flex-shrink: 0;
+}
+
+.setup-toolbar-actions {
+  flex: 1 1 auto;
+  min-width: 0;
+  justify-content: flex-end;
+  /* Below even one row of buttons (a pane dragged very narrow) the buttons wrap among themselves;
+     the fixed-size status slot still can't affect where. */
+  flex-wrap: wrap;
+  row-gap: 8px;
+}
+
+/* Buttons keep one line: a button folding to two lines was its own height jump. */
+.setup-toolbar-actions > :not(.setup-toolbar-status-slot) {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.setup-toolbar-status-slot {
+  /* contain makes the text inside count as zero width toward the toolbar's layout, so a status can't
+     push the buttons to another row; min-width is the room kept for it whether or not one shows ("Unsaved changes" fits). */
+  contain: inline-size;
+  flex: 1 1 0;
+  min-width: 6.5rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
 /* Setup Editor toolbar's name field — deliberately understated (no border/background at rest,
    matching the surrounding toolbar chrome) but needs SOME affordance that it's editable, not
    static text. A border on hover is that hint; keyboard/click focus gets the shared

@@ -722,160 +722,166 @@ export default function SetupToolbar({
   }, [mode, selectedItemIds, selectedBlockIds, studioId, onOpenSettings, paneActive])
 
   return (
-    <div className="top-bar" style={{ borderTop: '1px solid var(--color-border)' }}>
-      <input
-        aria-label="Setup name"
-        value={nameField.value}
-        onChange={(e) => nameField.onChange(e.target.value)}
-        onBlur={nameField.onBlur}
-        className="setup-name-input"
-      />
-      <input
-        aria-label="Session date"
-        type="date"
-        value={sessionDateField.value}
-        onChange={(e) => sessionDateField.onChange(e.target.value)}
-        onBlur={sessionDateField.onBlur}
-        className="setup-meta-input"
-      />
-      <input
-        aria-label="Engineer"
-        placeholder="Engineer"
-        value={engineerField.value}
-        onChange={(e) => engineerField.onChange(e.target.value)}
-        onBlur={engineerField.onBlur}
-        className="setup-meta-input"
-      />
-      <input
-        aria-label="Artist"
-        placeholder="Artist"
-        value={artistField.value}
-        onChange={(e) => artistField.onChange(e.target.value)}
-        onBlur={artistField.onBlur}
-        className="setup-meta-input"
-      />
-      <div ref={notesRef} style={{ position: 'relative' }}>
-        <button
-          className="btn"
-          onClick={() => setNotesOpen((open) => !open)}
-          title="Session notes"
-          aria-label="Session notes"
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-        >
-          <FileText size={16} aria-hidden="true" color={sessionNotes ? 'var(--color-accent)' : undefined} />
-        </button>
-        {notesOpen && (
-          <div
-            className="picker-menu"
-            style={{ position: 'absolute', top: '100%', left: 0, marginTop: 4, width: 320, padding: 10 }}
+    <div className="top-bar setup-toolbar" style={{ borderTop: '1px solid var(--color-border)' }}>
+      <div className="setup-toolbar-fields">
+        <input
+          aria-label="Setup name"
+          value={nameField.value}
+          onChange={(e) => nameField.onChange(e.target.value)}
+          onBlur={nameField.onBlur}
+          className="setup-name-input"
+        />
+        <input
+          aria-label="Session date"
+          type="date"
+          value={sessionDateField.value}
+          onChange={(e) => sessionDateField.onChange(e.target.value)}
+          onBlur={sessionDateField.onBlur}
+          className="setup-meta-input"
+        />
+        <input
+          aria-label="Engineer"
+          placeholder="Engineer"
+          value={engineerField.value}
+          onChange={(e) => engineerField.onChange(e.target.value)}
+          onBlur={engineerField.onBlur}
+          className="setup-meta-input"
+        />
+        <input
+          aria-label="Artist"
+          placeholder="Artist"
+          value={artistField.value}
+          onChange={(e) => artistField.onChange(e.target.value)}
+          onBlur={artistField.onBlur}
+          className="setup-meta-input"
+        />
+        <div ref={notesRef} style={{ position: 'relative' }}>
+          <button
+            className="btn"
+            onClick={() => setNotesOpen((open) => !open)}
+            title="Session notes"
+            aria-label="Session notes"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
           >
-            <div className="card-sub" style={{ margin: '0 0 8px' }}>
-              Session notes
+            <FileText size={16} aria-hidden="true" color={sessionNotes ? 'var(--color-accent)' : undefined} />
+          </button>
+          {notesOpen && (
+            <div
+              className="picker-menu"
+              style={{ position: 'absolute', top: '100%', left: 0, marginTop: 4, width: 320, padding: 10 }}
+            >
+              <div className="card-sub" style={{ margin: '0 0 8px' }}>
+                Session notes
+              </div>
+              <textarea
+                autoFocus
+                rows={7}
+                className="field-input"
+                style={{ width: '100%', resize: 'vertical' }}
+                placeholder="Tuning reference, mic-array spacing, or anything else worth noting for this session"
+                value={sessionNotes ?? ''}
+                onChange={(e) => setSessionNotes(e.target.value || null)}
+                onClick={(e) => e.stopPropagation()}
+              />
             </div>
-            <textarea
-              autoFocus
-              rows={7}
-              className="field-input"
-              style={{ width: '100%', resize: 'vertical' }}
-              placeholder="Tuning reference, mic-array spacing, or anything else worth noting for this session"
-              value={sessionNotes ?? ''}
-              onChange={(e) => setSessionNotes(e.target.value || null)}
-              onClick={(e) => e.stopPropagation()}
-            />
-          </div>
+          )}
+        </div>
+      </div>
+      <div className="setup-toolbar-actions">
+        {/* The message is a full filesystem path the user chose, and Chromium will not break one
+            at its slashes — so unbounded it refuses to shrink and shoves Setup settings, Layout
+            Mode, Split View and the rest past the right edge of the window, unreachable until it
+            clears. Same treatment StudioSetupPage already gives its save error. It and the save
+            statuses all live inside this one slot, so they only ever fill the toolbar's free room
+            and never decide whether the buttons wrap to a second row (see .setup-toolbar). */}
+        <div className="setup-toolbar-status-slot">
+          {exportMessage && (
+            <span className="card-sub truncate" style={{ maxWidth: '46ch' }} title={exportMessage}>
+              {exportMessage}
+            </span>
+          )}
+          {/* A failed save used to be completely silent: the store rethrew into a caller that
+              dropped the promise, so the only trace was "Unsaved changes" never clearing. */}
+          {(saveError || layoutSaveError) && !isSaving && (
+            <span
+              className="card-sub toolbar-status"
+              style={{ color: 'var(--color-danger)' }}
+              title={(saveError ?? layoutSaveError)?.message}
+            >
+              Couldn&apos;t save — retrying
+            </span>
+          )}
+          {isDirty && !saveError && !layoutSaveError && <span className="card-sub toolbar-status">Unsaved changes</span>}
+          {isSaving && <span className="card-sub toolbar-status">Saving…</span>}
+          {!isSaving && !isDirty && justSaved && (
+            <span className="card-sub inline-icon-text toolbar-status">
+              <Check size={14} aria-hidden="true" /> Saved
+            </span>
+          )}
+          {exporting && <span className="card-sub toolbar-status">Exporting…</span>}
+        </div>
+        {setupId && (
+          <button className="btn" onClick={onOpenSettings}>
+            Setup settings
+          </button>
         )}
-      </div>
-      {/* The message is a full filesystem path the user chose, and Chromium will not break one
-          at its slashes — so unbounded it refuses to shrink and shoves Setup settings, Layout
-          Mode, Split View and the rest past the right edge of the window, unreachable until it
-          clears. Same treatment StudioSetupPage already gives its save error. It lives inside the
-          spacer, so it only ever fills the toolbar's free room: as a sibling, even squeezed to
-          nothing it still cost a gap, and that was enough to fold the buttons onto two lines
-          (see .toolbar-status). */}
-      <div className="spacer" style={{ display: 'flex', justifyContent: 'flex-end', minWidth: 0 }}>
-        {exportMessage && (
-          <span className="card-sub truncate" style={{ maxWidth: '46ch' }} title={exportMessage}>
-            {exportMessage}
-          </span>
+        <div className="segmented" role="group" aria-label="Editor mode">
+          <button
+            className={mode === 'table' ? 'btn primary' : 'btn'}
+            aria-pressed={mode === 'table'}
+            onClick={() => requestMode('table')}
+          >
+            Table
+          </button>
+          <button
+            className={mode === 'layout' ? 'btn primary' : 'btn'}
+            aria-pressed={mode === 'layout'}
+            onClick={() => requestMode('layout')}
+            disabled={layoutPoppedOut}
+            title={layoutPoppedOut ? 'Open on your other display' : formatCombo(resolveKeybind('toggle-mode'))}
+          >
+            Layout
+          </button>
+          <button
+            className={mode === 'patchbay' ? 'btn primary' : 'btn'}
+            aria-pressed={mode === 'patchbay'}
+            onClick={() => requestMode('patchbay')}
+            title={resolveKeybind('toggle-patchbay-mode') ? formatCombo(resolveKeybind('toggle-patchbay-mode')) : undefined}
+          >
+            Patchbay
+          </button>
+        </div>
+        {setupId && (
+          <button
+            className="btn"
+            onClick={requestPopOut}
+            title={layoutPoppedOut ? 'Bring the Layout window to the front' : 'Open Layout Mode in a new window'}
+            aria-label={layoutPoppedOut ? 'Bring the Layout window to the front' : 'Open Layout Mode in a new window'}
+          >
+            <ExternalLink size={16} aria-hidden="true" />
+          </button>
         )}
-      </div>
-      {/* A failed save used to be completely silent: the store rethrew into a caller that
-          dropped the promise, so the only trace was "Unsaved changes" never clearing. */}
-      {(saveError || layoutSaveError) && !isSaving && (
-        <span
-          className="card-sub toolbar-status"
-          style={{ color: 'var(--color-danger)' }}
-          title={(saveError ?? layoutSaveError)?.message}
-        >
-          Couldn&apos;t save — retrying
-        </span>
-      )}
-      {isDirty && !saveError && !layoutSaveError && <span className="card-sub toolbar-status">Unsaved changes</span>}
-      {isSaving && <span className="card-sub toolbar-status">Saving…</span>}
-      {!isSaving && !isDirty && justSaved && (
-        <span className="card-sub inline-icon-text toolbar-status">
-          <Check size={14} aria-hidden="true" /> Saved
-        </span>
-      )}
-      {exporting && <span className="card-sub toolbar-status">Exporting…</span>}
-      {setupId && (
-        <button className="btn" onClick={onOpenSettings}>
-          Setup settings
-        </button>
-      )}
-      <div className="segmented" role="group" aria-label="Editor mode">
-        <button
-          className={mode === 'table' ? 'btn primary' : 'btn'}
-          aria-pressed={mode === 'table'}
-          onClick={() => requestMode('table')}
-        >
-          Table
-        </button>
-        <button
-          className={mode === 'layout' ? 'btn primary' : 'btn'}
-          aria-pressed={mode === 'layout'}
-          onClick={() => requestMode('layout')}
-          disabled={layoutPoppedOut}
-          title={layoutPoppedOut ? 'Open on your other display' : formatCombo(resolveKeybind('toggle-mode'))}
-        >
-          Layout
-        </button>
-        <button
-          className={mode === 'patchbay' ? 'btn primary' : 'btn'}
-          aria-pressed={mode === 'patchbay'}
-          onClick={() => requestMode('patchbay')}
-          title={resolveKeybind('toggle-patchbay-mode') ? formatCombo(resolveKeybind('toggle-patchbay-mode')) : undefined}
-        >
-          Patchbay
-        </button>
-      </div>
-      {setupId && (
+        {/* Always disabled inside a Split View pane, so it isn't worth the room there. */}
+        {!splitActive && (
+          <button
+            className="btn inline-icon-text"
+            onClick={() => setSplitPickerOpen(true)}
+            disabled={layoutPoppedOut}
+            title="Open another setup alongside this one"
+          >
+            <Icon name="columns" size={15} />
+            Split View
+          </button>
+        )}
         <button
           className="btn"
-          onClick={requestPopOut}
-          title={layoutPoppedOut ? 'Bring the Layout window to the front' : 'Open Layout Mode in a new window'}
-          aria-label={layoutPoppedOut ? 'Bring the Layout window to the front' : 'Open Layout Mode in a new window'}
+          onClick={() => goToSettings('keybinds')}
+          title="Keyboard shortcuts"
+          aria-label="Keyboard shortcuts"
         >
-          <ExternalLink size={16} aria-hidden="true" />
+          <Keyboard size={16} aria-hidden="true" />
         </button>
-      )}
-      <button
-        className="btn inline-icon-text"
-        onClick={() => setSplitPickerOpen(true)}
-        disabled={splitActive || layoutPoppedOut}
-        title={splitActive ? 'Already in Split View' : 'Open another setup alongside this one'}
-      >
-        <Icon name="columns" size={15} />
-        Split View
-      </button>
-      <button
-        className="btn"
-        onClick={() => goToSettings('keybinds')}
-        title="Keyboard shortcuts"
-        aria-label="Keyboard shortcuts"
-      >
-        <Keyboard size={16} aria-hidden="true" />
-      </button>
+      </div>
       {templateModalOpen && (
         <SaveAsTemplateModal onClose={() => setTemplateModalOpen(false)} onSave={handleSaveAsTemplate} />
       )}
