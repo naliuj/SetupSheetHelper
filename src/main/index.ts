@@ -49,7 +49,10 @@ app.on('second-instance', () => {
 // letting pdfjs-dist fetch() the layout PDF bytes in the renderer without
 // piping large buffers through ipcRenderer.
 protocol.registerSchemesAsPrivileged([
-  { scheme: 'app-file', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }
+  {
+    scheme: 'app-file',
+    privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, corsEnabled: true }
+  }
 ])
 
 function createWindow(): BrowserWindow {
