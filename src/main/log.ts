@@ -101,11 +101,14 @@ export function initLogging(): void {
  *  ErrorBoundary catch, a failed IPC call, a React warning — go to the devtools console, which a
  *  packaged build does not open, so they were invisible to everyone. Call once per window.
  *
- *  Only levels 2 and 3 (warning, error); info and verbose would drown the file in noise. */
+ *  Only warnings and errors; info and debug would drown the file in noise. */
 export function attachRendererLogging(contents: WebContents): void {
-  contents.on('console-message', (_event, level, message, line, sourceId) => {
-    if (level < 2) return
-    write(level === 3 ? 'error' : 'warn', [`[renderer] ${message}`, sourceId ? `(${sourceId}:${line})` : ''])
+  contents.on('console-message', ({ level, message, lineNumber, sourceId }) => {
+    if (level !== 'warning' && level !== 'error') return
+    write(level === 'error' ? 'error' : 'warn', [
+      `[renderer] ${message}`,
+      sourceId ? `(${sourceId}:${lineNumber})` : ''
+    ])
   })
 }
 
