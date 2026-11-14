@@ -8,7 +8,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "postinstall": "patch-package && electron-rebuild -f -w better-sqlite3,setup-sheet-haptics",
+    "postinstall": "patch-package && install-electron && electron-rebuild -f -w better-sqlite3,setup-sheet-haptics",
     "backfill:manufacturers": "node scripts/backfill_manufacturers.cjs",
     "seed:export": "node scripts/export_berklee_seed_data.cjs",
     "dev": "electron-vite dev",
@@ -31,7 +31,7 @@
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
-    "better-sqlite3": "^12.11.1",
+    "better-sqlite3": "^13.1.1",
     "electron-updater": "^6.3.9",
     "exceljs": "^4.4.0",
     "konva": "^9.3.16",
@@ -47,13 +47,13 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
-    "@electron/rebuild": "^3.7.2",
+    "@electron/rebuild": "^4.2.1",
     "@types/better-sqlite3": "^7.6.11",
     "@types/node": "^20.14.9",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^4.3.4",
-    "electron": "^33.4.11",
+    "electron": "^45.3.1",
     "electron-builder": "26.13.1",
     "electron-vite": "^2.3.0",
     "patch-package": "^8.0.1",
@@ -71,6 +71,11 @@
         "from": "resources/patchbays",
         "to": "patchbays"
       }
+    ],
+    "files": [
+      "out/**",
+      "package.json",
+      "!node_modules/better-sqlite3/prebuilds/{win32,linux,linuxmusl}-*"
     ],
     "mac": {
       "icon": "build/icon.icns",
@@ -99,6 +104,11 @@
       "provider": "github",
       "owner": "naliuj",
       "repo": "SetupSheetHelper"
+    }
+  },
+  "overrides": {
+    "app-builder-lib": {
+      "node-abi": "^4.40.0"
     }
   }
 }
