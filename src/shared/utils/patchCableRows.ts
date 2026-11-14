@@ -27,6 +27,25 @@ export function describeCable(
   return { fromJack, toJack, from, to }
 }
 
+/** Whether jack `a` reads before jack `b` on the drawing: higher row first, then further left
+ *  (rows bucketed by rounded y, as in the sort below). Being on a jack beats being off one. */
+function comesBefore(a: PatchPoint | null, b: PatchPoint | null): boolean {
+  if (!a) return false
+  if (!b) return true
+  return (Math.round(a.y) - Math.round(b.y) || a.x - b.x) < 0
+}
+
+function swapEnds(cable: CableEnds): CableEnds {
+  return {
+    fromX: cable.toX,
+    fromY: cable.toY,
+    toX: cable.fromX,
+    toY: cable.fromY,
+    fromPoint: cable.toPoint,
+    toPoint: cable.fromPoint
+  }
+}
+
 /** One line of the exported cable list. */
 export interface PatchCableRow {
   /** The heading this row is grouped under: the near end's strip heading, OTHER_SECTION for a row
@@ -39,8 +58,8 @@ export interface PatchCableRow {
   colorHex: string
 }
 
-/** The cable list as the PDF and spreadsheet print it, read the way the drawing is: by where each
- *  cable starts, top row first and left to right along it, then grouped under their strip
+/** The cable list as the PDF and spreadsheet print it, read the way the drawing is: by each
+ *  cable's top/left end, top row first and left to right along it, then grouped under their strip
  *  headings in the order those first appear. Cables that start off any jack go last. `cables` is
  *  expected in drawing order (z_index, then id), which breaks ties between cables sharing a jack. */
 export function buildPatchCableRows(
@@ -48,7 +67,14 @@ export function buildPatchCableRows(
   points: PatchPoint[]
 ): PatchCableRow[] {
   const index = new PointIndex(points)
-  const described = cables.map((cable) => ({ cable, ...describeCable(cable, index) }))
+  // A patch cable has no direction, so each one is listed from its top (then leftmost) end. A1→G1
+  // and G2→A2 then sort together as A1 → G1, A2 → G2, whichever end was dragged first.
+  const described = cables.map((cable) => {
+    const d = describeCable(cable, index)
+    return comesBefore(d.toJack, d.fromJack)
+      ? { cable, ...describeCable(swapEnds(cable), index) }
+      : { cable, ...d }
+  })
 
   // Rows are bucketed the same way snapRadius finds them: jacks in one strip share a y, give or
   // take rounding. A stable sort keeps drawing order for cables starting at the same jack.
