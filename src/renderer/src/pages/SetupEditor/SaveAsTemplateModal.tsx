@@ -13,7 +13,7 @@ export default function SaveAsTemplateModal({ onClose, onSave }: Props): JSX.Ele
   useEscapeToClose(onClose)
   const [name, setName] = useState('')
   const [saving, setSaving] = useState(false)
-  // Templates live alongside custom studios in grid 1 ("New Setup From Studio Template"), so their
+  // Templates live alongside custom studios in grid 1 ("Start a new setup: pick a studio"), so their
   // folders belong to the 'studio' namespace — not 'setup'.
   const { folders, selectedFolderId, setSelectedFolderId, createFolder } = useFolderPicker('studio')
 

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Speaker, FileText } from 'lucide-react'
+import { Speaker, FileText, Info, Zap } from 'lucide-react'
 import type { Building, Studio } from '@shared/types/entities'
 import type { Folder, FolderScope, Setup } from '@shared/types/setup'
 import type { FolderDeleteImpact } from '@shared/types/ipc'
@@ -9,6 +9,7 @@ import { useHomeLayoutStore } from '@renderer/state/homeLayoutStore'
 import HomeSection, { type HomeEntry } from '@renderer/components/home/HomeSection'
 import NewSetupModal, { type NewSetupDetails } from '@renderer/components/NewSetupModal'
 import ManageItemsModal, { type ManagedItem } from '@renderer/components/ManageItemsModal'
+import StudioPickerModal from '@renderer/components/StudioPickerModal'
 
 type CustomStudioItem = { kind: 'studio'; data: Studio } | { kind: 'template'; data: Setup }
 
@@ -23,6 +24,8 @@ export default function Home(): JSX.Element {
   const goToStudioSetup = useNavigationStore((s) => s.goToStudioSetup)
   const setEditorMode = useNavigationStore((s) => s.setEditorMode)
   const berkleeFeaturesEnabled = useBerkleeFeaturesStore((s) => s.enabled)
+  const homeHintPending = useBerkleeFeaturesStore((s) => s.homeHintPending)
+  const setHomeHintPending = useBerkleeFeaturesStore((s) => s.setHomeHintPending)
   const homeLayout = useHomeLayoutStore((s) => s.layout)
 
   const [customStudios, setCustomStudios] = useState<Studio[]>([])
@@ -40,6 +43,7 @@ export default function Home(): JSX.Element {
   const [berkleeBuildings, setBerkleeBuildings] = useState<Building[]>([])
   const [berkleeStudios, setBerkleeStudios] = useState<Studio[]>([])
   const [manageMode, setManageMode] = useState<'studios' | 'setups' | null>(null)
+  const [pickerOpen, setPickerOpen] = useState(false)
 
   function reload(): void {
     window.api.studios.listCustom().then(setCustomStudios)
@@ -106,6 +110,7 @@ export default function Home(): JSX.Element {
       details.artist,
       details.facultyReserveEnabled
     )
+    if (homeHintPending) setHomeHintPending(false)
     setEditorMode('table')
     goToSetup(pendingSelection.buildingId, pendingSelection.studioId, setup.id)
     setPendingSelection(null)
@@ -125,6 +130,7 @@ export default function Home(): JSX.Element {
     const newSetup = await window.api.setups.instantiateFromTemplate(template.id)
     const studio = await window.api.studios.get(newSetup.studioId)
     if (!studio) return
+    if (homeHintPending) setHomeHintPending(false)
     setEditorMode('table')
     goToSetup(studio.buildingId, newSetup.studioId, newSetup.id)
   }
@@ -313,14 +319,64 @@ export default function Home(): JSX.Element {
     reload()
   }
 
-  const templateSectionTitle = 'New Setup From Studio Template'
+  // The "+ New setup" picker: Berklee studios by building, then the user's own studios and gear
+  // lists, then quick setup. Recent = studios of the newest saved setups.
+  const pickerGroups = [
+    ...berkleeBuildings.map((b) => ({
+      label: `Berklee · ${b.name}`,
+      entries: berkleeStudioEntries.filter((e) => e.folderId === berkleeBuildingFolderId(b.id))
+    })),
+    { label: 'Your studios', entries: templateEntries },
+    {
+      label: 'No studio',
+      entries: [
+        {
+          id: 'quick-setup',
+          kind: 'studio' as const,
+          folderId: null,
+          label: 'Quick setup',
+          meta: 'Empty sheet, no gear list',
+          icon: Zap,
+          onActivate: startQuickSetup
+        }
+      ]
+    }
+  ]
+  const studioEntries = [...berkleeStudioEntries, ...templateEntries.filter((e) => e.kind === 'studio')]
+  const recentEntries = [
+    ...new Set([...savedSetups].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map((s) => s.studioId))
+  ]
+    .map((id) => studioEntries.find((e) => e.id === `studio-${id}` || e.id === `berklee-studio-${id}`))
+    .filter((e): e is HomeEntry => e != null)
+    .slice(0, 3)
 
   return (
     <div className="page">
-      <h2 style={{ margin: 0 }}>Setup Sheet Helper</h2>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+        <h2 style={{ margin: 0 }}>Setup Sheet Helper</h2>
+        <button className="btn primary" onClick={() => setPickerOpen(true)}>
+          + New setup
+        </button>
+      </div>
+
+      {berkleeFeaturesEnabled && homeHintPending && (
+        <div className="home-hint" role="status">
+          <Info size={16} aria-hidden="true" />
+          <div>
+            <div className="template-nudge-title">Berklee studios are loaded</div>
+            <div className="template-nudge-subtitle">
+              To start a setup, click New setup and pick the studio you&apos;re working in, or open the Berklee
+              folder below. Your setup starts with that room&apos;s gear.
+            </div>
+          </div>
+          <button className="btn small" onClick={() => setHomeHintPending(false)}>
+            Got it
+          </button>
+        </div>
+      )}
 
       <HomeSection
-        title={templateSectionTitle}
+        title="Start a new setup: pick a studio"
         layout={homeLayout}
         folders={[...berkleeFolders, ...studioFolders]}
         entries={[...templateEntries, ...berkleeStudioEntries]}
@@ -342,8 +398,8 @@ export default function Home(): JSX.Element {
         }
         headerAction={
           <div style={{ display: 'flex', gap: 8 }}>
-            <button className="btn small primary" onClick={() => goToStudioSetup(null)}>
-              + New studio
+            <button className="btn small" onClick={() => goToStudioSetup(null)}>
+              Add your own studio
             </button>
             <button className="btn small" onClick={() => setManageMode('studios')}>
               Manage studios
@@ -373,6 +429,10 @@ export default function Home(): JSX.Element {
           </button>
         }
       />
+
+      {pickerOpen && (
+        <StudioPickerModal recent={recentEntries} groups={pickerGroups} onClose={() => setPickerOpen(false)} />
+      )}
 
       {pendingSelection && (
         <NewSetupModal onClose={() => setPendingSelection(null)} onCreate={handleCreateSetup} />
