@@ -53,6 +53,7 @@ import { run as layoutMarks } from './046_layout_marks'
 import { run as sourceNameVisibleColumn } from './047_source_name_visible_column'
 import { run as patchbays } from './048_patchbays'
 import { run as textTieLineCueBox } from './049_text_tie_line_cue_box'
+import { run as channelPresetPairKey } from './050_channel_preset_pair_key'
 
 import type { MigrationContext } from '../migrate'
 
@@ -126,5 +127,6 @@ export const MIGRATIONS: Migration[] = [
   { version: 46, run: layoutMarks },
   { version: 47, run: sourceNameVisibleColumn },
   { version: 48, run: patchbays },
-  { version: 49, run: textTieLineCueBox, rebuildsTables: true }
+  { version: 49, run: textTieLineCueBox, rebuildsTables: true },
+  { version: 50, run: channelPresetPairKey }
 ]

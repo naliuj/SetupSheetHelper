@@ -48,6 +48,7 @@ export function resolveChannelPresetItems(
       polarityFlip: item.polarityFlip,
       notes: item.notes,
       color: item.color,
+      pairKey: item.pairKey,
       unresolvedMicName: item.micName && !mic ? item.micName : undefined,
       unresolvedOutboardName: item.outboardName && !outboard ? item.outboardName : undefined,
       unresolvedPreampName: item.preampName && !preamp ? item.preampName : undefined

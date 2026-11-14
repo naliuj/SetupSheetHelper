@@ -38,6 +38,7 @@ interface ChannelPresetItemRow {
   polarity_flip: number | null
   notes: string | null
   color: string | null
+  pair_key: string | null
 }
 
 function mapPreset(row: ChannelPresetRow): ChannelPreset {
@@ -70,7 +71,8 @@ function mapItem(row: ChannelPresetItemRow): ChannelPresetItem {
     cueBox: row.cue_box,
     polarityFlip: row.polarity_flip == null ? null : row.polarity_flip === 1,
     notes: row.notes,
-    color: row.color
+    color: row.color,
+    pairKey: row.pair_key
   }
 }
 
@@ -93,8 +95,8 @@ export function getChannelPresetWithItems(id: number): ChannelPresetWithItems | 
 function insertItems(db: Database.Database, presetId: number, items: ChannelPresetItemInput[]): void {
   const insert = db.prepare(
     `INSERT INTO channel_preset_items
-      (preset_id, sort_order, instrument_type, source_name, mic_name, mic_manufacturer, outboard_name, outboard_manufacturer, preamp_name, preamp_manufacturer, channel, tie_line, cue_box, polarity_flip, notes, color)
-     VALUES (@presetId, @sortOrder, @instrumentType, @sourceName, @micName, @micManufacturer, @outboardName, @outboardManufacturer, @preampName, @preampManufacturer, @channel, @tieLine, @cueBox, @polarityFlip, @notes, @color)`
+      (preset_id, sort_order, instrument_type, source_name, mic_name, mic_manufacturer, outboard_name, outboard_manufacturer, preamp_name, preamp_manufacturer, channel, tie_line, cue_box, polarity_flip, notes, color, pair_key)
+     VALUES (@presetId, @sortOrder, @instrumentType, @sourceName, @micName, @micManufacturer, @outboardName, @outboardManufacturer, @preampName, @preampManufacturer, @channel, @tieLine, @cueBox, @polarityFlip, @notes, @color, @pairKey)`
   )
   items.forEach((item, index) => {
     insert.run({
@@ -113,7 +115,8 @@ function insertItems(db: Database.Database, presetId: number, items: ChannelPres
       cueBox: item.cueBox,
       polarityFlip: item.polarityFlip == null ? null : item.polarityFlip ? 1 : 0,
       notes: item.notes,
-      color: item.color
+      color: item.color,
+      pairKey: item.pairKey
     })
   })
 }

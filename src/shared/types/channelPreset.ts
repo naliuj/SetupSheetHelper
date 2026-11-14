@@ -20,6 +20,8 @@ export interface ChannelPresetItem {
   polarityFlip: boolean | null
   notes: string | null
   color: string | null
+  /** Rows sharing a non-null pairKey were a linked stereo pair when saved (the sheet's groupId). */
+  pairKey: string | null
 }
 
 export interface ChannelPreset {
@@ -53,4 +55,6 @@ export interface ChannelPresetItemInput {
   polarityFlip: boolean | null
   notes: string | null
   color: string | null
+  /** Rows sharing a non-null pairKey were a linked stereo pair when saved (the sheet's groupId). */
+  pairKey: string | null
 }
