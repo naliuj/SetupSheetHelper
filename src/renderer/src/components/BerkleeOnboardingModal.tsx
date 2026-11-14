@@ -7,6 +7,7 @@ import { useModalDialog } from '@renderer/hooks/useModalDialog'
 export default function BerkleeOnboardingModal(): JSX.Element {
   const enable = useBerkleeFeaturesStore((s) => s.enable)
   const disable = useBerkleeFeaturesStore((s) => s.disable)
+  const setHomeHintPending = useBerkleeFeaturesStore((s) => s.setHomeHintPending)
   const [working, setWorking] = useState(false)
 
   async function choose(action: () => Promise<void>): Promise<void> {
@@ -32,7 +33,12 @@ export default function BerkleeOnboardingModal(): JSX.Element {
           <button className="btn" disabled={working} onClick={() => choose(disable)}>
             No, start blank
           </button>
-          <button className="btn primary" disabled={working} onClick={() => choose(enable)}>
+          <button className="btn primary" disabled={working} onClick={() =>
+              choose(async () => {
+                await enable()
+                await setHomeHintPending(true)
+              })
+            }>
             {working ? 'Loading…' : 'Yes, pre-load Berklee'}
           </button>
         </div>

@@ -148,6 +148,9 @@ export const APP_SETTINGS_KEYS = {
    *  profile" — see parseThemePreference. */
   theme: 'theme',
   berkleeFeaturesEnabled: 'berklee_features_enabled',
+  /** '1' | '0'. Set to '1' when the first-run prompt pre-loads Berklee, so the home screen shows a
+   *  one-time "Berklee studios are loaded" hint; '0' once dismissed or a setup is created. */
+  berkleeHomeHintPending: 'berklee_home_hint_pending',
   /** JSON array of SetupColumnKey — the columns a newly created setup starts with. Absent → all. */
   defaultVisibleColumns: 'default_visible_columns',
   /** JSON array of SetupColumnKey (all of them, hidden included) — the left-to-right column order a
