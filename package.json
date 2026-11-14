@@ -1,7 +1,7 @@
 {
   "name": "setup-sheet-helper",
   "productName": "Setup Sheet Helper",
-  "version": "1.22.1",
+  "version": "1.23.0",
   "description": "Studio session setup sheet planner",
   "main": "./out/main/index.js",
   "author": "",

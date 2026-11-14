@@ -447,5 +447,15 @@ export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
       'Setup files now bring the floor plan\u2019s blocks, notes and markup along, and a setup that uses a blank sheet stays blank when it\u2019s imported.',
       'Fixes: undo no longer steps back into the setup you had open before, text typed into a new row is no longer lost, and closing the window saves any edits that hadn\u2019t been saved yet.'
     ]
+  },
+  {
+    version: '1.23.0',
+    date: '2026-11-13',
+    highlights: [
+      'Starting a setup is easier to find. The new + New setup button on the home screen lists every studio you can start from, with a search box, your recent studios at the top and Quick setup at the bottom. The studio section is now called "Start a new setup: pick a studio", "+ New studio" is now "Add your own studio", and after pre-loading Berklee a short note shows where its studios are.',
+      'Channel presets now keep stereo pairs linked. Picking a mic for one row of a pair also clears the "Preset expected" note on its partner. Presets saved before this update need saving again to remember their pairs.',
+      'The cable list in PDF and spreadsheet exports now reads each cable from its higher end, whichever end you dragged from, so a cable from G2 up to A2 lists as A2 \u2192 G2, right after A1 \u2192 G1.',
+      'Fixes: the editor\u2019s toolbar moves its buttons to a second row in narrow windows and Split View instead of cutting them off, tie lines and cue boxes keep exactly what you type (such as "01"), and an edit still being typed is included when you export. The app also runs on a newer, supported version of Electron with current security fixes.'
+    ]
   }
 ]
