@@ -338,8 +338,7 @@ function SetupSheetRow({
     // the only place micText gets set again.
     onChange({ micId, micText: null, notes: nextNotes })
     onClearUnresolvedGearHint('mic')
-    // Only the top row of an actively-linked pair drives the sync — changing the bottom row's mic
-    // never pushes back up.
+    // Either row of an actively-linked pair drives the sync (see handleSyncPairMic).
     if (isPairSyncSource) onSyncPairMic(item.id, micId)
   }
 
@@ -374,8 +373,7 @@ function SetupSheetRow({
     const nextNotes = applyMicPoolNotesTag(item.notes ?? '', preamp?.poolType ?? null)
     onChange({ preampId, preampText: null, notes: nextNotes })
     onClearUnresolvedGearHint('preamp')
-    // Only the top row of an actively-linked pair drives the sync — changing the bottom row's
-    // preamp never pushes back up.
+    // Either row of an actively-linked pair drives the sync (see handleSyncPairPreamp).
     if (isPairSyncSource) onSyncPairPreamp(item.id, preampId)
   }
 

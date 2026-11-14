@@ -44,6 +44,7 @@ export interface ResolvedChannelPresetItem {
   polarityFlip: boolean | null
   notes: string | null
   color: string | null
+  pairKey: string | null
   unresolvedMicName?: string
   unresolvedOutboardName?: string
   unresolvedPreampName?: string
@@ -532,8 +533,15 @@ export function createSetupStore() {
     set((state) => {
       const newItems: SetupItemDraft[] = []
       const hints = new Map(state.unresolvedGearHints)
+      // A fresh groupId per saved pair, so appended pairs never join a group already on the sheet.
+      const groupIds = new Map<string, string>()
       for (const item of presetItems) {
         const id = newDraftId()
+        let groupId: string | null = null
+        if (item.pairKey != null) {
+          groupId = groupIds.get(item.pairKey) ?? newDraftId()
+          groupIds.set(item.pairKey, groupId)
+        }
         newItems.push({
           id,
           instrumentType: item.instrumentType,
@@ -555,7 +563,7 @@ export function createSetupStore() {
           polarityFlip: item.polarityFlip ?? false,
           notes: item.notes,
           color: item.color ?? null,
-          groupId: null
+          groupId
         })
         if (item.unresolvedMicName || item.unresolvedOutboardName || item.unresolvedPreampName) {
           hints.set(id, {

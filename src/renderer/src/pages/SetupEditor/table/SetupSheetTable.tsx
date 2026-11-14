@@ -215,18 +215,21 @@ export default function SetupSheetTable(): JSX.Element {
   // its partner too, keeping a stereo pair on matched mics without manual re-entry. Clearing a
   // row's mic (picking "No Mic") always propagates too — resetting isn't subject to the quantity
   // gate, since there's nothing to run out of. Fires from either row of an actively-linked pair
-  // (see SetupSheetRow's handleMicChange) — editing either side updates the other.
+  // (see SetupSheetRow's handleMicChange) — editing either side updates the other. A partner that
+  // takes the change also drops its "missing from this studio" flag, same as the edited row does.
   const handleSyncPairMic = useCallback((itemId: number | string, micId: number | null): void => {
     const state = setupStoreApi.getState()
     const found = findLinkedPartner(state, itemId)
     if (!found) return
     if (micId == null) {
       state.updateItemFields(found.partner.id, { micId: null, micText: null })
+      state.clearUnresolvedGearHint(found.partner.id, 'mic')
       return
     }
     const mic = catalogStoreApi.getState().mics.find((m) => m.id === micId)
     if (!mic || mic.quantity < 2) return
     state.updateItemFields(found.partner.id, { micId, micText: null })
+    state.clearUnresolvedGearHint(found.partner.id, 'mic')
   }, [])
 
   // Same ongoing sync as handleSyncPairMic, for preamp (catalog preamps use `channels` as their
@@ -237,11 +240,13 @@ export default function SetupSheetTable(): JSX.Element {
     if (!found) return
     if (preampId == null) {
       state.updateItemFields(found.partner.id, { preampId: null, preampText: null })
+      state.clearUnresolvedGearHint(found.partner.id, 'preamp')
       return
     }
     const preamp = catalogStoreApi.getState().preamps.find((p) => p.id === preampId)
     if (!preamp || preamp.channels < 2) return
     state.updateItemFields(found.partner.id, { preampId, preampText: null })
+    state.clearUnresolvedGearHint(found.partner.id, 'preamp')
   }, [])
 
   /** Shared "is this row part of an actively-linked pair, and who's its partner" check, reused by
@@ -306,6 +311,7 @@ export default function SetupSheetTable(): JSX.Element {
       const found = findLinkedPartner(state, itemId)
       if (!found) return
       state.updateItemOutboardSlot(found.partner.id, slotIndex, patch)
+      if ('outboardId' in patch) state.clearUnresolvedGearHint(found.partner.id, 'outboard')
     },
     []
   )

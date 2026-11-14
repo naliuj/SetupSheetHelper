@@ -68,6 +68,14 @@ export default function SaveChannelPresetModal({ onClose }: { onClose: () => voi
 
   const targetItems = selectedItemIds.size > 0 ? items.filter((item) => selectedItemIds.has(item.id)) : items
 
+  // A pair stays linked only when both its rows are saved; one split by the selection saves unlinked.
+  function savedPairKey(item: (typeof items)[number]): string | null {
+    if (item.groupId == null) return null
+    const index = items.indexOf(item)
+    const partner = [items[index - 1], items[index + 1]].find((n) => n?.groupId === item.groupId)
+    return partner && targetItems.includes(partner) ? item.groupId : null
+  }
+
   function toggleField(field: IncludeField): void {
     setIncluded((prev) => ({ ...prev, [field]: !prev[field] }))
   }
@@ -99,7 +107,8 @@ export default function SaveChannelPresetModal({ onClose }: { onClose: () => voi
           cueBox: included.cueBox ? item.cueBox : null,
           polarityFlip: included.polarity ? item.polarityFlip : null,
           notes: included.notes ? item.notes : null,
-          color: included.color ? item.color : null
+          color: included.color ? item.color : null,
+          pairKey: savedPairKey(item)
         }
       })
       await window.api.presets.create({
