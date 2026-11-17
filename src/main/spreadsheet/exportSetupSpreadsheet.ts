@@ -62,12 +62,14 @@ const BASE_WIDTHS: Record<string, number> = {
   notes: 30
 }
 
-/** Excel sheet names: 31-char hard limit, and `: \ / ? * [ ]` are all rejected outright. Distinct
- *  from the PDF export's filename sanitizer (exportSetupPdf.ts) — that one doesn't enforce a
- *  length cap since filenames don't have Excel's specific limit. */
-function sanitizeSheetName(name: string): string {
-  const cleaned = (name || 'Setup').replace(/[:\\/?*[\]]/g, '').trim() || 'Setup'
-  return cleaned.slice(0, 31)
+/** Excel sheet names: 31-char hard limit, `: \ / ? * [ ]` are all rejected outright, and so are
+ *  a leading or trailing `'` and the reserved name "History" (exceljs throws on each). Distinct
+ *  from exportFileName (exportShared.ts), since file names don't share Excel's limits. */
+export function sanitizeSheetName(name: string): string {
+  const cleaned = (name || '').replace(/[:\\/?*[\]]/g, '').trim()
+  // Stripped after the slice, which can leave a new trailing quote at character 31.
+  const sheet = cleaned.slice(0, 31).replace(/^'+|'+$/g, '').trim()
+  return sheet && sheet.toLowerCase() !== 'history' ? sheet : 'Setup'
 }
 
 /** Excel sheet names must be unique, case-insensitively, and exceljs will happily write a
