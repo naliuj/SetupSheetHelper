@@ -58,11 +58,13 @@ export function upsertFileLayoutOverride(input: {
   originalName: string | null
   pageWidthPt: number | null
   pageHeightPt: number | null
+  /** Only a copy of an existing override keeps this; a new upload clears it (see migration 045). */
+  legacyPixelUnits?: boolean
 }): SetupLayoutOverride {
   getDb()
     .prepare(
-      `INSERT INTO setup_layout_overrides (setup_id, kind, file_path, original_name, page_width_pt, page_height_pt)
-       VALUES (@setupId, 'file', @filePath, @originalName, @pageWidthPt, @pageHeightPt)
+      `INSERT INTO setup_layout_overrides (setup_id, kind, file_path, original_name, page_width_pt, page_height_pt, legacy_pixel_units)
+       VALUES (@setupId, 'file', @filePath, @originalName, @pageWidthPt, @pageHeightPt, @legacyPixelUnits)
        ON CONFLICT(setup_id) DO UPDATE SET
          kind = 'file',
          file_path = excluded.file_path,
@@ -70,9 +72,9 @@ export function upsertFileLayoutOverride(input: {
          page_width_pt = excluded.page_width_pt,
          page_height_pt = excluded.page_height_pt,
          imported_at = datetime('now'),
-         legacy_pixel_units = 0`
+         legacy_pixel_units = excluded.legacy_pixel_units`
     )
-    .run(input)
+    .run({ ...input, legacyPixelUnits: input.legacyPixelUnits ? 1 : 0 })
   return getSetupLayoutOverride(input.setupId) as SetupLayoutOverride
 }
 

@@ -335,7 +335,8 @@ export function duplicateSetup(
         filePath,
         originalName: override.originalName,
         pageWidthPt: override.pageWidthPt,
-        pageHeightPt: override.pageHeightPt
+        pageHeightPt: override.pageHeightPt,
+        legacyPixelUnits: override.legacyPixelUnits
       })
     }
     return setup
