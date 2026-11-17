@@ -13,13 +13,9 @@ import { useSnapPrefsStore } from './state/snapPrefsStore'
 import InstrumentPalette from './pages/SetupEditor/palette/InstrumentPalette'
 import { exportStageToDataUrl } from './pages/SetupEditor/canvas/konvaExport'
 import Toast from './components/Toast'
+import { useToastStore } from './state/toastStore'
+import { useAutosave } from './hooks/useAutosave'
 import appIcon from './assets/app-icon.png'
-
-// Same rationale as SetupEditor.tsx's identical constant: batches a burst of block edits into one
-// write instead of hammering a full blocks-table replace per drag/keystroke. Not imported from
-// there — that file pulls in the whole Table Mode component tree (SetupSheetTable, SetupToolbar,
-// …), which this window has no other reason to load.
-const AUTOSAVE_DELAY_MS = 1000
 
 // Mirrors SetupEditor.tsx's own lazy import of the same module — konva/react-konva only ever
 // needs to parse once either window actually shows a canvas. Keeping this a dynamic import (not a
@@ -44,6 +40,8 @@ function handleUndoRedo(direction: 'undo' | 'redo'): void {
     document.execCommand(direction)
     return
   }
+  // A history step can bring back blocks the toast would re-insert a second time.
+  useToastStore.getState().dismiss()
   useLayoutStore.temporal.getState()[direction]()
   useLayoutStore.setState({ isDirty: true })
 }
@@ -111,6 +109,7 @@ export default function LayoutWindowApp(): JSX.Element {
   const isDirty = useLayoutStore((s) => s.isDirty)
   const isSaving = useLayoutStore((s) => s.isSaving)
   const save = useLayoutStore((s) => s.save)
+  const saveError = useLayoutStore((s) => s.saveError)
   const stageRef = useRef<Konva.Stage>(null)
   const [setupName, setSetupName] = useState<string | null>(null)
 
@@ -137,13 +136,9 @@ export default function LayoutWindowApp(): JSX.Element {
     })
   }, [params])
 
-  // Debounced autosave, mirroring SetupEditor.tsx's — layoutStore only, since there's nothing
-  // else to save here.
-  useEffect(() => {
-    if (!isDirty) return
-    const timer = setTimeout(save, AUTOSAVE_DELAY_MS)
-    return () => clearTimeout(timer)
-  }, [blocks, isDirty, save])
+  // The editor pane's autosave (debounce, max-wait, retry after a failure) — layoutStore only,
+  // since there's nothing else to save here.
+  useAutosave(isDirty, [saveError], [blocks], save)
 
   // The same flush, but for quitting rather than closing this window: main asks every window
   // before it exits. Registering the store here means the shared helper handles the ack.
@@ -247,7 +242,12 @@ export default function LayoutWindowApp(): JSX.Element {
         </h1>
         <div className="spacer" />
         {isSaving && <span className="card-sub no-shrink">Saving…</span>}
-        {!isSaving && isDirty && <span className="card-sub no-shrink">Unsaved changes</span>}
+        {!isSaving && saveError && (
+          <span className="card-sub no-shrink" style={{ color: 'var(--color-danger)' }} title={saveError.message}>
+            Couldn&apos;t save — retrying
+          </span>
+        )}
+        {!isSaving && isDirty && !saveError && <span className="card-sub no-shrink">Unsaved changes</span>}
         {!isSaving && !isDirty && <span className="card-sub no-shrink">Saved</span>}
       </div>
       <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
