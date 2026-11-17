@@ -1,4 +1,4 @@
-import { Fragment, memo, useMemo, useState, type CSSProperties } from 'react'
+import { Fragment, memo, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { readableTextColor, swatchName } from '@shared/constants/swatches'
@@ -20,6 +20,7 @@ import type { SetupItemDraft, SetupItemOutboardSlot } from '@shared/types/setup'
 import { COLUMN_LABELS, type SetupColumnKey } from '@shared/constants/setupColumns'
 import type { Mic, OutboardGear, Preamp } from '@shared/types/entities'
 import type { UnresolvedGearHint } from '@renderer/state/setupStore'
+import { useSetupStoreApi } from '@renderer/state/setupStoreContext'
 import ManufacturerPickerDropdown from '@renderer/components/ManufacturerPickerDropdown'
 import SuggestInput, { type Suggestion } from '@renderer/components/SuggestInput'
 import CustomGearModal from '@renderer/components/CustomGearModal'
@@ -270,16 +271,31 @@ function SetupSheetRow({
   // "top"/"bottom" to get the channel/tie line/cue box offset direction right regardless of which
   // side was edited. A non-null `bracket` means this row belongs to a linked pair.
   const isPairSyncSource = bracket != null
+  // The partner's copy of an edit is applied without its own undo snapshot, so it rides along
+  // with this row's edit: one Cmd+Z reverts both rows instead of only one.
+  const setupStoreApi = useSetupStoreApi()
+  const withoutHistory = (fn: () => void): void => {
+    const temporal = setupStoreApi.temporal.getState()
+    temporal.pause()
+    try {
+      fn()
+    } finally {
+      temporal.resume()
+    }
+  }
+  const syncPartner = (fn: () => void): void => {
+    if (isPairSyncSource) withoutHistory(fn)
+  }
   const onChange = (patch: Partial<SetupItemDraft>): void => {
     onChangeById(item.id, patch)
-    if (isPairSyncSource) onSyncPairFields(item.id, patch)
+    syncPartner(() => onSyncPairFields(item.id, patch))
   }
   const onOutboardSlotChange = (
     slotIndex: number,
     patch: Partial<Pick<SetupItemOutboardSlot, 'outboardId' | 'outboardText'>>
   ): void => {
     onOutboardSlotChangeById(item.id, slotIndex, patch)
-    if (isPairSyncSource) onSyncPairOutboardSlot(item.id, slotIndex, patch)
+    syncPartner(() => onSyncPairOutboardSlot(item.id, slotIndex, patch))
   }
   const onClearUnresolvedGearHint = (field: 'mic' | 'outboard' | 'preamp'): void =>
     onClearUnresolvedGearHintById(item.id, field)
@@ -339,7 +355,7 @@ function SetupSheetRow({
     onChange({ micId, micText: null, notes: nextNotes })
     onClearUnresolvedGearHint('mic')
     // Either row of an actively-linked pair drives the sync (see handleSyncPairMic).
-    if (isPairSyncSource) onSyncPairMic(item.id, micId)
+    syncPartner(() => onSyncPairMic(item.id, micId))
   }
 
   // Free-text entry from the picker's "Custom…" row, for studios that aren't already in the
@@ -374,7 +390,7 @@ function SetupSheetRow({
     onChange({ preampId, preampText: null, notes: nextNotes })
     onClearUnresolvedGearHint('preamp')
     // Either row of an actively-linked pair drives the sync (see handleSyncPairPreamp).
-    if (isPairSyncSource) onSyncPairPreamp(item.id, preampId)
+    syncPartner(() => onSyncPairPreamp(item.id, preampId))
   }
 
   // See handleMicCustom's comment — same free-text entry point, same reasons for not pair-syncing.
@@ -409,23 +425,41 @@ function SetupSheetRow({
   const sourceName = useBufferedField(item.sourceName, (v) => onChange({ sourceName: v }))
   const micText = useBufferedField(item.micText ?? '', (v) => onChange({ micText: v }))
   const preampText = useBufferedField(item.preampText ?? '', (v) => onChange({ preampText: v }))
+  // True once a channel/tie line edit has pushed its first live update to the partner (below).
+  // That first update records the undo snapshot from before the edit; everything after it, this
+  // row's own commit included, is applied without one, so the whole edit undoes in one step.
+  const liveSyncStartedRef = useRef(false)
+  const commitAfterLiveSync = (patch: Partial<SetupItemDraft>): void => {
+    if (liveSyncStartedRef.current) withoutHistory(() => onChange(patch))
+    else onChange(patch)
+  }
+  const endLiveSync = (blur: () => void) => (): void => {
+    blur()
+    liveSyncStartedRef.current = false
+  }
   const channel = useBufferedField(String(item.channel ?? ''), (v) =>
-    onChange({ channel: v ? Math.max(1, Number(v)) : null })
+    commitAfterLiveSync({ channel: v ? Math.max(1, Number(v)) : null })
   )
   // Free text, unlike channel: some patch bays label their tie lines ("PB1").
-  const tieLine = useBufferedField(item.tieLine ?? '', (v) => onChange({ tieLine: v.trim() || null }))
+  const tieLine = useBufferedField(item.tieLine ?? '', (v) => commitAfterLiveSync({ tieLine: v.trim() || null }))
   // Channel and tie line push to the linked partner on every keystroke, not just on blur like the
   // rest of the buffered fields — seeing the paired channel/tie line update live (rather than only
   // once you tab away) is what makes the pairing visually obvious while you're actively numbering a
   // sheet. This row's own value still only commits to the store (and autosave) on blur as usual;
   // only the partner's value is pushed immediately.
+  function pushLive(patch: Partial<SetupItemDraft>): void {
+    if (!isPairSyncSource) return
+    if (liveSyncStartedRef.current) withoutHistory(() => onSyncPairFields(item.id, patch))
+    else onSyncPairFields(item.id, patch)
+    liveSyncStartedRef.current = true
+  }
   function handleChannelInputChange(raw: string): void {
     channel.onChange(raw)
-    if (isPairSyncSource) onSyncPairFields(item.id, { channel: raw ? Math.max(1, Number(raw)) : null })
+    pushLive({ channel: raw ? Math.max(1, Number(raw)) : null })
   }
   function handleTieLineInputChange(raw: string): void {
     tieLine.onChange(raw)
-    if (isPairSyncSource) onSyncPairFields(item.id, { tieLine: raw.trim() || null })
+    pushLive({ tieLine: raw.trim() || null })
   }
   // Free text, unlike channel: a cue is often a stereo pair summed on the console
   // ("1-2"), which a number input can't hold — Chromium's badInput state made typed pairs
@@ -553,7 +587,7 @@ function SetupSheetRow({
               aria-label={cellLabel('channel')}
               value={channel.value}
               onChange={(e) => handleChannelInputChange(e.target.value)}
-              onBlur={channel.onBlur}
+              onBlur={endLiveSync(channel.onBlur)}
               onClick={(e) => e.stopPropagation()}
             />
           </td>
@@ -610,7 +644,7 @@ function SetupSheetRow({
               aria-label={cellLabel('tieLine')}
               value={tieLine.value}
               onChange={(e) => handleTieLineInputChange(e.target.value)}
-              onBlur={tieLine.onBlur}
+              onBlur={endLiveSync(tieLine.onBlur)}
               onClick={(e) => e.stopPropagation()}
             />
             {conflict && (

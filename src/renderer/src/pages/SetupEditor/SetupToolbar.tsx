@@ -13,7 +13,8 @@ import {
 } from '@shared/constants/keybindActions'
 import { useSetupStoreApi, useSetupStoreState } from '@renderer/state/setupStoreContext'
 import { useLayoutStoreApi, useLayoutStoreState } from '@renderer/state/layoutStoreContext'
-import { usePatchbayStoreApi } from '@renderer/state/patchbayStoreContext'
+import { usePatchbayStoreApi, usePatchbayStoreState } from '@renderer/state/patchbayStoreContext'
+import { useToastStore } from '@renderer/state/toastStore'
 import { useKeybindPrefsStore } from '@renderer/state/keybindPrefsStore'
 import { useMarkupPrefsStore } from '@renderer/state/markupPrefsStore'
 import { useSnapPrefsStore } from '@renderer/state/snapPrefsStore'
@@ -79,6 +80,8 @@ export default function SetupToolbar({
   const isSaving = useSetupStoreState((s) => s.isSaving)
   const saveError = useSetupStoreState((s) => s.saveError)
   const layoutSaveError = useLayoutStoreState((s) => s.saveError)
+  const patchbaySaveError = usePatchbayStoreState((s) => s.saveError)
+  const anySaveError = saveError ?? layoutSaveError ?? patchbaySaveError
   const addItem = useSetupStoreState((s) => s.addItem)
   const selectedItemIds = useSetupStoreState((s) => s.selectedItemIds)
   const removeItems = useSetupStoreState((s) => s.removeItems)
@@ -414,6 +417,8 @@ export default function SetupToolbar({
       document.execCommand(direction)
       return
     }
+    // A history step can bring back rows the toast would re-insert a second time.
+    useToastStore.getState().dismiss()
     if (mode === 'table') {
       setupStoreApi.temporal.getState()[direction]()
       setupStoreApi.setState({ isDirty: true })
@@ -529,16 +534,12 @@ export default function SetupToolbar({
     // Flush before handing over. The standalone window loads its blocks from the database, and
     // saving is a whole-list replace: an edit still sitting in this window's debounced autosave
     // would not just be missing over there, it would be deleted outright by that window's first
-    // save. If the flush itself fails the store stays dirty and the pane's unmount flush gets
-    // another go, so opening anyway is no worse than the unconditional open this replaced.
+    // save. save() reports failure through saveError rather than throwing, and once the layout
+    // is popped out nothing here saves it again, so a layout still dirty after the flush must not
+    // be handed over — the toolbar's error badge tells the user why nothing opened.
     const layoutState = layoutStoreApi.getState()
-    if (layoutState.isDirty) {
-      try {
-        await layoutState.save()
-      } catch {
-        // Deliberately non-blocking — surfacing save failures is a separate, app-wide gap.
-      }
-    }
+    if (layoutState.isDirty) await layoutState.save()
+    if (layoutStoreApi.getState().isDirty) return
 
     window.api.layoutWindow.open(targetSetupId, targetStudioId)
   }
@@ -804,16 +805,16 @@ export default function SetupToolbar({
               dropped the promise, so the only trace was "Unsaved changes" never clearing. Unlike the
               other statuses it never shrinks (the slot keeps room for it), so it can't be squeezed
               to nothing. */}
-          {(saveError || layoutSaveError) && !isSaving && (
+          {anySaveError && !isSaving && (
             <span
               className="card-sub toolbar-status"
               style={{ color: 'var(--color-danger)', flexShrink: 0 }}
-              title={(saveError ?? layoutSaveError)?.message}
+              title={anySaveError.message}
             >
               Couldn&apos;t save — retrying
             </span>
           )}
-          {isDirty && !saveError && !layoutSaveError && <span className="card-sub toolbar-status">Unsaved changes</span>}
+          {isDirty && !anySaveError && <span className="card-sub toolbar-status">Unsaved changes</span>}
           {isSaving && <span className="card-sub toolbar-status">Saving…</span>}
           {!isSaving && !isDirty && justSaved && (
             <span className="card-sub inline-icon-text toolbar-status">

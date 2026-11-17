@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useToastStore } from '@renderer/state/toastStore'
 
 /** Bottom-center notification for the current toast, if any — see toastStore for lifecycle.
@@ -15,6 +16,9 @@ export default function Toast(): JSX.Element {
   const message = useToastStore((s) => s.message)
   const onUndo = useToastStore((s) => s.onUndo)
   const dismiss = useToastStore((s) => s.dismiss)
+  // The toast's Undo re-inserts rows into whichever sheet is open, so it must not outlive the
+  // editor that showed it — leaving for Home or another setup would land the rows there.
+  useEffect(() => () => useToastStore.getState().dismiss(), [])
 
   return (
     <>

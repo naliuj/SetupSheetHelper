@@ -10,7 +10,7 @@ import { usePdfLayoutPrefsStore } from './state/pdfLayoutPrefsStore'
 import { useKeybindPrefsStore } from './state/keybindPrefsStore'
 import { useHomeLayoutStore } from './state/homeLayoutStore'
 import { useLayoutWindowStore } from './state/layoutWindowStore'
-import { useQuitFlush } from './state/flushRegistry'
+import { blurActiveElement, useQuitFlush } from './state/flushRegistry'
 import { normalizeKeyEvent } from '@shared/constants/keybindActions'
 import Home from './pages/Home/Home'
 import SettingsPage from './pages/SettingsPage/SettingsPage'
@@ -98,7 +98,12 @@ export default function App(): JSX.Element {
   // is open, then falls through to selecting every row/block if no text field has focus.
   useEffect(() => {
     return window.api.menu.onAction((action) => {
-      if (action === 'open-settings') goToSettings()
+      if (action === 'open-settings') {
+        // Clicking the menu bar doesn't blur the focused cell, and its buffered text only reaches
+        // the store on blur — leaving the editor first would drop it.
+        blurActiveElement()
+        goToSettings()
+      }
       if (action === 'show-whats-new') useWhatsNewStore.getState().openManually()
       if (action === 'select-all') {
         const active = document.activeElement

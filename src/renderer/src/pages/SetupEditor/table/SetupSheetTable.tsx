@@ -15,6 +15,7 @@ import { formatGearLabel, gearIdentityKey, stripManufacturerPrefix } from '@shar
 import type { Suggestion } from '@renderer/components/SuggestInput'
 import SetupSheetRow, { SHEET_EDGE_INSET } from './SetupSheetRow'
 import { GENERIC_INSTRUMENT_TYPE } from './tableConstants'
+import { avoidSplittingPair } from '@renderer/state/pairRows'
 
 /** Quick Setup's free-text suggestions. Two things this has to get right, both of which used to
  *  produce what looked like duplicate entries:
@@ -98,11 +99,12 @@ export default function SetupSheetTable(): JSX.Element {
       const overIndexInOthers = others.findIndex((item) => item.id === over.id)
       const insertAt = newIndex > oldIndex ? overIndexInOthers + 1 : overIndexInOthers
       const reordered = [...others.slice(0, insertAt), ...block, ...others.slice(insertAt)]
-      reorderItems(reordered.map((item) => item.id))
+      reorderItems(avoidSplittingPair(reordered, blockIds, newIndex > oldIndex).map((item) => item.id))
       return
     }
 
-    reorderItems(arrayMove(items, oldIndex, newIndex).map((item) => item.id))
+    const moved = avoidSplittingPair(arrayMove(items, oldIndex, newIndex), new Set([active.id]), newIndex > oldIndex)
+    reorderItems(moved.map((item) => item.id))
   }
 
   // Stable identity (deps are all stable store actions) so memoized rows aren't re-rendered
@@ -156,21 +158,27 @@ export default function SetupSheetTable(): JSX.Element {
 
     const linked = topItem.groupId != null && topItem.groupId === bottomItem.groupId
     if (linked) {
-      state.updateItemFields(topItem.id, { groupId: null })
-      state.updateItemFields(bottomItem.id, { groupId: null })
+      state.updateItemsFields(
+        new Map([
+          [topItem.id, { groupId: null }],
+          [bottomItem.id, { groupId: null }]
+        ])
+      )
       return
     }
+    // Every row this link touches, applied in one set() so it's one undo step.
+    const patches = new Map<number | string, Partial<SetupItemDraft>>()
 
     // A row can only belong to one pair — before linking this seam, break any existing link the two
     // rows already have with their *other* neighbors (the row above `topItem`, or below
     // `bottomItem`), so linking (2,3) after (1,2) cleanly moves row 2 into the new pair.
     const above = currentItems[idx - 1]
     if (above && above.groupId != null && above.groupId === topItem.groupId) {
-      state.updateItemFields(above.id, { groupId: null })
+      patches.set(above.id, { groupId: null })
     }
     const below = currentItems[idx + 2]
     if (below && below.groupId != null && below.groupId === bottomItem.groupId) {
-      state.updateItemFields(below.id, { groupId: null })
+      patches.set(below.id, { groupId: null })
     }
 
     // Linking: the top row (first of the pair, by position) is always the "source" for one-time
@@ -206,8 +214,9 @@ export default function SetupSheetTable(): JSX.Element {
     if (bottomItem.outboards.length === 0 && topItem.outboards.length > 0) {
       patch.outboards = topItem.outboards.map((slot) => ({ ...slot }))
     }
-    state.updateItemFields(topItem.id, { groupId })
-    state.updateItemFields(bottomItem.id, patch)
+    patches.set(topItem.id, { groupId })
+    patches.set(bottomItem.id, patch)
+    state.updateItemsFields(patches)
   }, [])
 
   // Ongoing sync (separate from the one-time auto-fill above): once a pair is linked, changing
