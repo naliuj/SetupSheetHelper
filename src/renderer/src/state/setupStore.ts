@@ -9,6 +9,7 @@ import {
 } from '@shared/constants/setupColumns'
 import { useColumnPrefsStore } from './columnPrefsStore'
 import { useToastStore } from './toastStore'
+import { duplicateRows } from './pairRows'
 
 /** Why the last save failed. `at` exists so a repeat of the same failure is a NEW value, which
  *  is what lets a retry re-arm rather than sitting idle behind an unchanged state slice. */
@@ -119,6 +120,8 @@ interface SetupState {
   resetColumnsToDefault(): void
   addItem(instrumentType: string, defaults?: NewItemDefaults): string
   updateItemFields(id: number | string, patch: Partial<SetupItemDraft>): void
+  /** Several rows' patches in one set(), so linking or unlinking a pair is one undo step. */
+  updateItemsFields(patches: Map<number | string, Partial<SetupItemDraft>>): void
   setItemsColor(ids: Array<number | string>, color: string | null): void
   updateItemOutboardSlot(
     id: number | string,
@@ -288,6 +291,15 @@ export function createSetupStore() {
       isDirty: true
     })),
 
+  updateItemsFields: (patches) =>
+    set((state) => ({
+      items: state.items.map((item) => {
+        const patch = patches.get(item.id)
+        return patch ? { ...item, ...patch } : item
+      }),
+      isDirty: true
+    })),
+
   // Applies (or clears, with null) a row tint to every listed item at once — drives the
   // selection bar's Color control. Goes through the same zundo-tracked set() so it's undoable.
   setItemsColor: (ids, color) =>
@@ -388,25 +400,18 @@ export function createSetupStore() {
     }
   },
 
-  // Duplicates every listed row in place (right after its original), mirroring layoutStore's
-  // duplicateBlocks — selects the new copies afterward. Unlike blocks, rows have no x/y to
-  // offset; position in the list is what "in place" means here.
+  // Duplicates every listed row, mirroring layoutStore's duplicateBlocks, and selects the copies.
+  // See duplicateRows for where copies land and how pair links carry over.
   duplicateItems: (ids) =>
     set((state) => {
-      const idSet = new Set(ids)
-      const newSelected = new Set<number | string>()
-      const nextItems: SetupItemDraft[] = []
-      for (const item of state.items) {
-        nextItems.push(item)
-        if (idSet.has(item.id)) {
-          // A fresh rowKey (none) — sharing the original's would give two rows the same React key.
-          const { rowKey: _rowKey, ...copy } = item
-          const duplicate: SetupItemDraft = { ...copy, id: newDraftId() }
-          nextItems.push(duplicate)
-          newSelected.add(duplicate.id)
-        }
-      }
-      return { items: nextItems, selectedItemIds: newSelected, isDirty: true }
+      const { items, copyIds } = duplicateRows(
+        state.items,
+        ids,
+        // A fresh rowKey (none) — sharing the original's would give two rows the same React key.
+        ({ rowKey: _rowKey, ...item }, groupId) => ({ ...item, id: newDraftId(), groupId }),
+        () => crypto.randomUUID()
+      )
+      return { items, selectedItemIds: new Set(copyIds), isDirty: true }
     }),
 
   selectItem: (id) =>
