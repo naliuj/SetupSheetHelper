@@ -111,8 +111,3 @@ export function attachRendererLogging(contents: WebContents): void {
     ])
   })
 }
-
-/** Where the log lives, for the "something went wrong" dialog to point at. */
-export function getLogPath(): string | null {
-  return logPath
-}

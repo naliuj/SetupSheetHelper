@@ -75,10 +75,6 @@ export function updateCustomStudio(id: number, name: string, folderId: number | 
   return mapRow(row)
 }
 
-export function removeStudio(id: number): void {
-  getDb().prepare('DELETE FROM studios WHERE id = ?').run(id)
-}
-
 export interface StudioDeleteImpact {
   setupCount: number
   templateCount: number

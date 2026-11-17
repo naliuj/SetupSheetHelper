@@ -51,15 +51,6 @@ export function swatchName(hex: string | null | undefined): string | null {
   return null
 }
 
-/** Every swatch hex in one flat list (one entry per shade row), for membership checks. */
-export const ALL_SWATCH_HEXES: string[] = COLOR_SWATCHES.flatMap((g) => [
-  g.lightest,
-  g.light,
-  g.base,
-  g.dark,
-  g.darkest
-])
-
 /** #rgb / #rrggbb only — the same shape parsePdfAccentColor enforces for the PDF accent.
  *
  *  A row's color normally comes from the swatch grid above, but exportImport.ts passes item.color

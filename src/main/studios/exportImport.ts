@@ -23,7 +23,7 @@ import { getPatchbayFileForStudio, upsertPatchbayFile } from '../db/repositories
 /** The newest format this app reads and writes. v4 added patchbay drawings, but a file is only
  *  stamped 4 when one of its studios carries a drawing (see exportVersionFor): the rest of v4 is
  *  v3, so a pack without a patchbay stays importable by apps from before Patchbay Mode. */
-const EXPORT_VERSION = 4
+export const EXPORT_VERSION = 4
 const EXPORT_VERSION_WITHOUT_PATCHBAY = 3
 
 export function exportVersionFor(studios: ExportedStudio[]): number {
