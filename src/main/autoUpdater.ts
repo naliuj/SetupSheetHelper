@@ -27,7 +27,12 @@ function showMessageBox(options: MessageBoxOptions): Promise<Electron.MessageBox
 export function initAutoUpdater(): void {
   if (!app.isPackaged) return
 
+  let pollTimer: ReturnType<typeof setInterval> | undefined
+
   autoUpdater.on('update-downloaded', (info) => {
+    // Stop polling: with a download cached, every poll re-fires this event and "Later" would
+    // re-prompt every interval. The staged update installs on the next quit anyway.
+    clearInterval(pollTimer)
     showMessageBox({
       type: 'info',
       buttons: ['Restart Now', 'Later'],
@@ -50,10 +55,10 @@ export function initAutoUpdater(): void {
   }
 
   check() // once on launch
-  // …then on an interval. Each 'update-downloaded' fires only once per version, so a user who
-  // clicks "Later" isn't re-nagged for the same build; a genuinely newer release will download
-  // and prompt again. autoInstallOnAppQuit still applies any staged update on the next quit.
-  setInterval(check, UPDATE_CHECK_INTERVAL_MS)
+  // …then on an interval, until an update has downloaded (see 'update-downloaded' above).
+  // electron-updater re-fires 'update-downloaded' on every check while a download is cached, so
+  // polling stops there; autoInstallOnAppQuit applies the staged update on the next quit.
+  pollTimer = setInterval(check, UPDATE_CHECK_INTERVAL_MS)
 }
 
 /** "Check for Updates…" menu item — reports back if nothing was found, since the automatic
