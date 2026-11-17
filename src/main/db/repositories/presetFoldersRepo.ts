@@ -2,6 +2,7 @@ import type { Folder } from '@shared/types/setup'
 import type { FolderDeleteImpact } from '@shared/types/ipc'
 import { getDb } from '../index'
 import { removeChannelPreset } from './channelPresetsRepo'
+import { collectDescendantFolderIds } from './foldersRepo'
 
 /** Preset folders are a separate namespace from the `folders` table (which organizes
  *  studios/setups) — see foldersRepo.ts, which this mirrors against preset_folders +
@@ -37,21 +38,10 @@ export function renamePresetFolder(id: number, name: string): void {
   getDb().prepare('UPDATE preset_folders SET name = ? WHERE id = ?').run(name, id)
 }
 
-/** All descendant folder ids of `id` (not including `id` itself) — shared by delete/impact logic. */
-function collectDescendantFolderIds(db: ReturnType<typeof getDb>, id: number): number[] {
-  const direct = db.prepare('SELECT id FROM preset_folders WHERE parent_folder_id = ?').all(id) as { id: number }[]
-  const result: number[] = []
-  for (const { id: childId } of direct) {
-    result.push(childId)
-    result.push(...collectDescendantFolderIds(db, childId))
-  }
-  return result
-}
-
 /** Counts what a delete of this folder's subtree would affect, for the confirmation prompt. */
 export function getPresetFolderDeleteImpact(id: number): FolderDeleteImpact {
   const db = getDb()
-  const subtreeIds = [id, ...collectDescendantFolderIds(db, id)]
+  const subtreeIds = [id, ...collectDescendantFolderIds(db, 'preset_folders', id)]
   const placeholders = subtreeIds.map(() => '?').join(',')
   const presetCount = (
     db.prepare(`SELECT COUNT(*) c FROM channel_presets WHERE folder_id IN (${placeholders})`).get(...subtreeIds) as {
@@ -66,7 +56,7 @@ export function getPresetFolderDeleteImpact(id: number): FolderDeleteImpact {
 export function deletePresetFolderRecursive(id: number): void {
   const db = getDb()
   const run = db.transaction(() => {
-    const subtreeIds = [id, ...collectDescendantFolderIds(db, id)]
+    const subtreeIds = [id, ...collectDescendantFolderIds(db, 'preset_folders', id)]
     const placeholders = subtreeIds.map(() => '?').join(',')
 
     const presetIds = (
@@ -94,6 +84,9 @@ export function deletePresetFolderPromoteContents(id: number): void {
     if (!target) return
     const grandparentId = target.parent_folder_id
 
+    // Out of the way first: a child with this folder's own name would otherwise clash with it at
+    // the grandparent. A clash with another sibling there still throws and rolls back.
+    db.prepare('UPDATE preset_folders SET name = char(0) || id WHERE id = ?').run(id)
     db.prepare('UPDATE preset_folders SET parent_folder_id = ? WHERE parent_folder_id = ?').run(grandparentId, id)
     db.prepare('UPDATE channel_presets SET folder_id = ? WHERE folder_id = ?').run(grandparentId, id)
 
