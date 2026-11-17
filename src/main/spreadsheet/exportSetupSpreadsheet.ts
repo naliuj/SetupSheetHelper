@@ -6,17 +6,18 @@ import ExcelJS from 'exceljs'
 import { dialog } from 'electron'
 import type { ExportSetupSpreadsheetInput, ExportSetupSpreadsheetResult } from '@shared/types/ipc'
 import { getSetupWithItems } from '../db/repositories/setupsRepo'
-import { getMicsByIds } from '../db/repositories/micsRepo'
-import { getOutboardByIds } from '../db/repositories/outboardRepo'
-import { getPreampsByIds } from '../db/repositories/preampRepo'
-import { resolveMicText, resolveOutboardSlotText, resolvePreampText } from '../db/resolveGearLabels'
+import { resolveMicText, resolvePreampText } from '../db/resolveGearLabels'
+import {
+  exportFileName,
+  loadPatchCableRows,
+  loadSetupGear,
+  outboardSlotTexts,
+  pngBytesFromDataUrl
+} from '../db/exportShared'
 import { COLUMN_LABELS, orderedVisibleColumns } from '@shared/constants/setupColumns'
 import { isHexColor, readableTextColor } from '@shared/constants/swatches'
 import { layoutPixelsToPoints } from '@shared/constants/roomLayout'
 import { PATCHBAY_RENDER_SCALE } from '@shared/types/patchbay'
-import { buildPatchCableRows } from '@shared/utils/patchCableRows'
-import { listCablesBySetup } from '../db/repositories/patchbayCablesRepo'
-import { getPatchbayWithPoints } from '../pdf/importPatchbay'
 import { pngSize } from './pngSize'
 
 /** OOXML measures a drawing's extent in EMU, and exceljs's `ext` is in the 96-dpi "pixel" it
@@ -61,12 +62,14 @@ const BASE_WIDTHS: Record<string, number> = {
   notes: 30
 }
 
-/** Excel sheet names: 31-char hard limit, and `: \ / ? * [ ]` are all rejected outright. Distinct
- *  from the PDF export's filename sanitizer (exportSetupPdf.ts) — that one doesn't enforce a
- *  length cap since filenames don't have Excel's specific limit. */
-function sanitizeSheetName(name: string): string {
-  const cleaned = (name || 'Setup').replace(/[:\\/?*[\]]/g, '').trim() || 'Setup'
-  return cleaned.slice(0, 31)
+/** Excel sheet names: 31-char hard limit, `: \ / ? * [ ]` are all rejected outright, and so are
+ *  a leading or trailing `'` and the reserved name "History" (exceljs throws on each). Distinct
+ *  from exportFileName (exportShared.ts), since file names don't share Excel's limits. */
+export function sanitizeSheetName(name: string): string {
+  const cleaned = (name || '').replace(/[:\\/?*[\]]/g, '').trim()
+  // Stripped after the slice, which can leave a new trailing quote at character 31.
+  const sheet = cleaned.slice(0, 31).replace(/^'+|'+$/g, '').trim()
+  return sheet && sheet.toLowerCase() !== 'history' ? sheet : 'Setup'
 }
 
 /** Excel sheet names must be unique, case-insensitively, and exceljs will happily write a
@@ -95,11 +98,7 @@ export async function exportSetupSpreadsheet(input: ExportSetupSpreadsheetInput)
   const setup = getSetupWithItems(input.setupId)
   if (!setup) return { canceled: true }
 
-  const micById = getMicsByIds(setup.items.flatMap((item) => (item.micId != null ? [item.micId] : [])))
-  const preampById = getPreampsByIds(setup.items.flatMap((item) => (item.preampId != null ? [item.preampId] : [])))
-  const outboardById = getOutboardByIds(
-    setup.items.flatMap((item) => item.outboards.flatMap((s) => (s.outboardId != null ? [s.outboardId] : [])))
-  )
+  const { micById, preampById, outboardById } = loadSetupGear(setup.items)
 
   // Which columns get written. Normally the renderer's export chips have already decided —
   // `includeColumns` is the resolved, ordered list the user saw and could flip. Falling back to
@@ -147,10 +146,9 @@ export async function exportSetupSpreadsheet(input: ExportSetupSpreadsheetInput)
     if (shownColumns.has('mic')) values.mic = resolveMicText(item, micById)
     if (shownColumns.has('phantomPower')) values.phantomPower = item.phantomPower ? 'Yes' : ''
     if (shownColumns.has('outboard')) {
-      for (let i = 0; i < setup.outboardColumnCount; i++) {
-        const slot = item.outboards.find((s) => s.slotIndex === i) ?? { slotIndex: i, outboardId: null, outboardText: null }
-        values[`outboard:${i}`] = resolveOutboardSlotText(slot, outboardById)
-      }
+      outboardSlotTexts(item, setup.outboardColumnCount, outboardById).forEach((text, i) => {
+        values[`outboard:${i}`] = text
+      })
     }
     if (shownColumns.has('channel')) values.channel = item.channel != null ? String(item.channel) : ''
     if (shownColumns.has('preamp')) values.preamp = resolvePreampText(item, preampById)
@@ -184,7 +182,7 @@ export async function exportSetupSpreadsheet(input: ExportSetupSpreadsheetInput)
   // malformed capture costs the picture rather than the whole export.
   if (input.layoutImageDataUrl) {
     try {
-      const bytes = Buffer.from(input.layoutImageDataUrl.replace(/^data:image\/png;base64,/, ''), 'base64')
+      const bytes = pngBytesFromDataUrl(input.layoutImageDataUrl)
       const { width, height } = pngSize(bytes)
       const layoutSheet = workbook.addWorksheet(uniqueSheetName(workbook, 'Room layout'), {
         // It is a figure, not a table; gridlines behind it just read as noise.
@@ -207,10 +205,9 @@ export async function exportSetupSpreadsheet(input: ExportSetupSpreadsheetInput)
   if (input.patchbayImage) {
     try {
       const { dataUrl, roomWidth, roomHeight } = input.patchbayImage
-      const bytes = Buffer.from(dataUrl.replace(/^data:image\/png;base64,/, ''), 'base64')
+      const bytes = pngBytesFromDataUrl(dataUrl)
       pngSize(bytes) // throws on a malformed capture before the sheet is added
-      const patchbay = await getPatchbayWithPoints(setup.studioId)
-      const rows = buildPatchCableRows(listCablesBySetup(setup.id), patchbay?.points ?? [])
+      const rows = await loadPatchCableRows(setup)
 
       const patchbaySheet = workbook.addWorksheet(uniqueSheetName(workbook, 'Patchbay'), {
         views: [{ showGridLines: false }]
@@ -255,7 +252,7 @@ export async function exportSetupSpreadsheet(input: ExportSetupSpreadsheetInput)
 
   const saveResult = await dialog.showSaveDialog({
     title: 'Export Setup Sheet Spreadsheet',
-    defaultPath: `${setup.name.replace(/[^\w\- ]/g, '')}.xlsx`,
+    defaultPath: `${exportFileName(setup.name)}.xlsx`,
     filters: [{ name: 'Excel Workbook', extensions: ['xlsx'] }]
   })
   if (saveResult.canceled || !saveResult.filePath) return { canceled: true }

@@ -214,7 +214,7 @@ function headerField(header: string): { field: ColumnField | 'typeish'; sure: bo
   if (CATEGORY_HEADERS.includes(h)) return { field: 'category', sure: true }
   if (TYPE_HEADERS.includes(h)) return { field: 'typeish', sure: false }
   if (h.includes('qty') || h.includes('quantity')) return { field: 'quantity', sure: true }
-  if (/^(manufactur|brand|mfr|vendor|maker)/.test(h)) return { field: 'manufacturer', sure: true }
+  if (/^(manufactur|brand|mfr|vendor|maker|company)/.test(h)) return { field: 'manufacturer', sure: true }
   if (h.endsWith('name') || h.includes('model')) return { field: 'name', sure: true }
   if (h.includes('units') || h.includes('count')) return { field: 'quantity', sure: false }
   return null
@@ -427,12 +427,13 @@ export interface PlannedItem {
 
 /** One identity per physical model, whether or not the name repeats the manufacturer in front
  *  (most seeded outboard is stored "API 2500" + API; the manual form stores "2500" + API). Mics go
- *  through canonicalMicKey, so a retired spelling (AT-4050) matches the current one (AT4050);
- *  everything else through gearIdentityKey. Kind is part of it — a mic and an outboard box never
- *  merge. */
+ *  through canonicalMicKey, so a retired spelling (AT-4050) matches the current one (AT4050).
+ *  Outboard and preamps key on the model alone, since the database allows one of each name per
+ *  studio: "Universal Audio, 1176" and ", 1176" must plan one item, not two that can't both save.
+ *  Kind is part of it — a mic and an outboard box never merge. */
 function identity(kind: GearKind, name: string, manufacturer: string | null): string {
   const model = stripManufacturerPrefix(name, manufacturer ?? '')
-  return `${kind}:${kind === 'mic' ? canonicalMicKey(manufacturer, model) : gearIdentityKey(model, manufacturer)}`
+  return `${kind}:${kind === 'mic' ? canonicalMicKey(manufacturer, model) : gearIdentityKey(model, null)}`
 }
 
 /** The name part of a mic's canonical key — its current spelling, lowercased. */
@@ -480,13 +481,29 @@ export function planImport(rows: ImportRow[], existing: ExistingGear[]): Planned
       item.rowNumbers.push(row.rowNumber)
       for (const note of row.notes) if (!item.notes.includes(note)) item.notes.push(note)
       item.category = item.category ?? row.category
-      // Between two spellings of one mic, keep the current one.
-      if (kind === 'mic' && row.name.toLowerCase() === canonicalMicName(row.manufacturer, row.name)) item.name = row.name
+      if (kind !== 'mic' && item.manufacturer && row.manufacturer && item.manufacturer.toLowerCase() !== row.manufacturer.toLowerCase()) {
+        const note = `merged by name — the file lists it under ${item.manufacturer} and ${row.manufacturer}`
+        if (!item.notes.includes(note)) item.notes.push(note)
+      }
+      item.manufacturer = item.manufacturer ?? row.manufacturer
+      // Between two spellings of one mic, keep the current one; between two cases of it, the first.
+      if (
+        kind === 'mic' &&
+        item.name.toLowerCase() !== canonicalMicName(item.manufacturer, item.name) &&
+        row.name.toLowerCase() === canonicalMicName(row.manufacturer, row.name)
+      )
+        item.name = row.name
       continue
     }
     const notes = [...row.notes]
     if (target && listedTwice.has(id)) notes.push('this studio lists it twice — added to the first')
-    if (target && row.manufacturer && target.manufacturer && identity(kind, row.name, row.manufacturer) !== id) {
+    if (
+      target &&
+      kind !== 'mic' &&
+      row.manufacturer &&
+      target.manufacturer &&
+      row.manufacturer.toLowerCase() !== target.manufacturer.toLowerCase()
+    ) {
       notes.push(`matched by name — your row says ${target.manufacturer}, the file says ${row.manufacturer}`)
     }
     planned.set(id, {

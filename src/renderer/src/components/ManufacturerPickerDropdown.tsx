@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { stripManufacturerPrefix } from '@shared/utils/manufacturerPrefix'
+import { byManufacturerThenModel, stripManufacturerPrefix } from '@shared/utils/manufacturerPrefix'
 import Icon from '@renderer/components/Icon'
 import type { GearSearchGroup } from '@renderer/state/gearSearchGroups'
 
@@ -60,29 +60,21 @@ interface Props<T extends PickerItem> {
 const MENU_WIDTH = 280
 const MENU_MAX_HEIGHT = 320
 
+/** One submenu per manufacturer, ignoring case so "Shure" and "shure" share one. Sorting first
+ *  puts the submenus and their models in order; blank manufacturers sort last, under "Other". */
 function groupByManufacturer<T extends PickerItem>(list: T[]): MenuNode<T>[] {
-  const buckets = new Map<string, T[]>()
-  for (const item of list) {
-    const key = item.manufacturer?.trim() || 'Other'
-    const arr = buckets.get(key) ?? []
-    arr.push(item)
-    buckets.set(key, arr)
+  const buckets = new Map<string, MenuNode<T> & { children: MenuNode<T>[] }>()
+  for (const item of [...list].sort(byManufacturerThenModel)) {
+    const make = item.manufacturer?.trim() ?? ''
+    const id = make.toLowerCase()
+    let bucket = buckets.get(id)
+    if (!bucket) {
+      bucket = { key: `mfr-${id || 'other'}`, label: make || 'Other', children: [] }
+      buckets.set(id, bucket)
+    }
+    bucket.children.push({ key: `item-${item.id}`, label: make ? stripManufacturerPrefix(item.name, make) : item.name, item })
   }
-  const keys = [...buckets.keys()].filter((k) => k !== 'Other').sort((a, b) => a.localeCompare(b))
-  if (buckets.has('Other')) keys.push('Other')
-
-  return keys.map((key) => ({
-    key: `mfr-${key}`,
-    label: key,
-    children: (buckets.get(key) ?? [])
-      .slice()
-      .sort((a, b) => a.name.localeCompare(b.name))
-      .map((item) => ({
-        key: `item-${item.id}`,
-        label: key === 'Other' ? item.name : stripManufacturerPrefix(item.name, key),
-        item
-      }))
-  }))
+  return [...buckets.values()]
 }
 
 function buildMenuTree<T extends PickerItem>(
@@ -182,7 +174,7 @@ export default function ManufacturerPickerDropdown<T extends PickerItem>({
                 item.name.toLowerCase().includes(trimmedSearch) ||
                 (item.manufacturer ?? '').toLowerCase().includes(trimmedSearch)
             )
-            .sort((a, b) => a.name.localeCompare(b.name))
+            .sort(byManufacturerThenModel)
         : null,
     [open, items, trimmedSearch]
   )
