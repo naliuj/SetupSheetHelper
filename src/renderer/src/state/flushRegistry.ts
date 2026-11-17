@@ -31,11 +31,6 @@ export function blurActiveElement(): void {
   if (document.activeElement instanceof HTMLElement) document.activeElement.blur()
 }
 
-/** Registers `fn` for as long as the calling component is mounted. */
-export function useFlusher(fn: Flusher): void {
-  useEffect(() => registerFlusher(fn), [fn])
-}
-
 /** Answers main's before-quit flush request: save everything registered, then ack.
  *
  *  Always acks, even on failure — main waits out a full timeout otherwise, which would make the

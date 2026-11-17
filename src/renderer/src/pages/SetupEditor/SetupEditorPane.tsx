@@ -1,6 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import type Konva from 'konva'
-import { APP_SETTINGS_KEYS } from '@shared/types/entities'
 import type { EditorMode } from '@renderer/state/navigationStore'
 import { useSetupStoreApi, useSetupStoreState } from '@renderer/state/setupStoreContext'
 import { useLayoutStoreApi, useLayoutStoreState } from '@renderer/state/layoutStoreContext'
@@ -89,7 +88,6 @@ export default function SetupEditorPane({
   const layoutStoreApi = useLayoutStoreApi()
   const patchbayStoreApi = usePatchbayStoreApi()
 
-  const startNewSetup = useSetupStoreState((s) => s.startNewSetup)
   const loadFromSetup = useSetupStoreState((s) => s.loadFromSetup)
   const loadLayoutBlocks = useLayoutStoreState((s) => s.loadForSetup)
   const loadCables = usePatchbayStoreState((s) => s.loadForSetup)
@@ -177,18 +175,6 @@ export default function SetupEditorPane({
           const poppedOut = useLayoutWindowStore.getState().openForSetupId === setup.id
           onModeChange(poppedOut ? 'table' : setup.lastEditorMode)
         }
-        setSetupLoaded(true)
-      })
-    } else {
-      window.api.settings.get(APP_SETTINGS_KEYS.defaultEngineerName).then((defaultEngineer) => {
-        startNewSetup(
-          studioId,
-          'Untitled Setup',
-          new Date().toISOString().slice(0, 10),
-          null,
-          defaultEngineer || null
-        )
-        onModeChange('table')
         setSetupLoaded(true)
       })
     }
