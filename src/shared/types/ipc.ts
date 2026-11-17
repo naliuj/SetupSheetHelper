@@ -410,6 +410,9 @@ export interface ExportedRoomLayoutFile {
   pageWidthPt: number | null
   pageHeightPt: number | null
   dataBase64: string
+  /** A setup layout whose blocks are stored in the image's pixels rather than page points (see
+   *  migration 045). Absent in older files and studio packs, which means false. */
+  legacyPixelUnits?: boolean
 }
 
 /** A studio's patchbay drawing in a pack. Always a PDF, so unlike ExportedRoomLayoutFile it names
