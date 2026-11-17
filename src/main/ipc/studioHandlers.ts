@@ -6,29 +6,19 @@ import { exportStudiosToFile, importStudios, pickAndParseImportFile } from '../s
 
 export function registerStudioHandlers(): void {
   ipcMain.handle(IPC.buildings.list, () => buildingsRepo.listBuildings())
-  ipcMain.handle(IPC.buildings.create, (_e, name: string) => buildingsRepo.createBuilding(name))
-  ipcMain.handle(IPC.buildings.rename, (_e, id: number, name: string) => buildingsRepo.renameBuilding(id, name))
-  ipcMain.handle(IPC.buildings.remove, (_e, id: number) => buildingsRepo.removeBuilding(id))
 
   ipcMain.handle(IPC.studios.listByBuilding, (_e, buildingId: number) =>
     studiosRepo.listStudiosByBuilding(buildingId)
   )
   ipcMain.handle(IPC.studios.listCustom, () => studiosRepo.listCustomStudios())
   ipcMain.handle(IPC.studios.get, (_e, id: number) => studiosRepo.getStudio(id))
-  ipcMain.handle(IPC.studios.create, (_e, buildingId: number, name: string) =>
-    studiosRepo.createStudio(buildingId, name)
-  )
   ipcMain.handle(IPC.studios.createCustom, (_e, name: string, folderId: number | null) =>
     studiosRepo.createCustomStudio(name, folderId)
   )
   ipcMain.handle(IPC.studios.createTemporary, () => studiosRepo.createTemporaryStudio())
-  ipcMain.handle(IPC.studios.updateCustomDetails, (_e, id: number, name: string, folderId: number | null) =>
-    studiosRepo.updateCustomStudio(id, name, folderId)
-  )
   ipcMain.handle(IPC.studios.saveInventory, (_e, input: SaveStudioInventoryInput) =>
     studiosRepo.saveStudioInventory(input)
   )
-  ipcMain.handle(IPC.studios.rename, (_e, id: number, name: string) => studiosRepo.renameStudio(id, name))
   ipcMain.handle(IPC.studios.remove, (_e, id: number) => studiosRepo.removeStudioCascade(id))
   ipcMain.handle(IPC.studios.removeMany, (_e, ids: number[]) => studiosRepo.removeStudiosCascade(ids))
   ipcMain.handle(IPC.studios.exportToFile, (_e, studioIds: number[]) => exportStudiosToFile(studioIds))

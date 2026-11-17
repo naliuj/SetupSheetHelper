@@ -44,20 +44,14 @@ import type {
 
 export const IPC = {
   buildings: {
-    list: 'buildings:list',
-    create: 'buildings:create',
-    rename: 'buildings:rename',
-    remove: 'buildings:remove'
+    list: 'buildings:list'
   },
   studios: {
     listByBuilding: 'studios:listByBuilding',
     listCustom: 'studios:listCustom',
     get: 'studios:get',
-    create: 'studios:create',
     createCustom: 'studios:createCustom',
     createTemporary: 'studios:createTemporary',
-    updateCustomDetails: 'studios:updateCustomDetails',
-    rename: 'studios:rename',
     remove: 'studios:remove',
     removeMany: 'studios:removeMany',
     exportToFile: 'studios:exportToFile',
@@ -72,7 +66,6 @@ export const IPC = {
   mics: {
     listAvailableForStudio: 'mics:listAvailableForStudio',
     listStudioMics: 'mics:listStudioMics',
-    listBuildingPool: 'mics:listBuildingPool',
     listFacultyReserve: 'mics:listFacultyReserve',
     listPersonalPool: 'mics:listPersonalPool',
     listSetupGear: 'mics:listSetupGear',
@@ -84,7 +77,6 @@ export const IPC = {
   outboard: {
     listByStudio: 'outboard:listByStudio',
     listAvailableForStudio: 'outboard:listAvailableForStudio',
-    listBuildingPool: 'outboard:listBuildingPool',
     listFacultyReserve: 'outboard:listFacultyReserve',
     listPersonalOutboard: 'outboard:listPersonalOutboard',
     listSetupGear: 'outboard:listSetupGear',
@@ -96,7 +88,6 @@ export const IPC = {
   preamps: {
     listByStudio: 'preamps:listByStudio',
     listAvailableForStudio: 'preamps:listAvailableForStudio',
-    listBuildingPreamps: 'preamps:listBuildingPreamps',
     listFacultyReservePreamps: 'preamps:listFacultyReservePreamps',
     listPersonalPreamps: 'preamps:listPersonalPreamps',
     listSetupGear: 'preamps:listSetupGear',
@@ -139,7 +130,6 @@ export const IPC = {
     list: 'presets:list',
     getWithItems: 'presets:getWithItems',
     create: 'presets:create',
-    update: 'presets:update',
     remove: 'presets:remove',
     removeMany: 'presets:removeMany',
     rename: 'presets:rename',
@@ -853,19 +843,13 @@ export interface LayoutWindowFlushAck {
 export interface RendererApi {
   buildings: {
     list(): Promise<Building[]>
-    create(name: string): Promise<Building>
-    rename(id: number, name: string): Promise<void>
-    remove(id: number): Promise<void>
   }
   studios: {
     listByBuilding(buildingId: number): Promise<Studio[]>
     listCustom(): Promise<Studio[]>
     get(id: number): Promise<Studio | null>
-    create(buildingId: number, name: string): Promise<Studio>
     createCustom(name: string, folderId: number | null): Promise<Studio>
     createTemporary(): Promise<Studio>
-    updateCustomDetails(id: number, name: string, folderId: number | null): Promise<Studio>
-    rename(id: number, name: string): Promise<void>
     remove(id: number): Promise<void>
     removeMany(ids: number[]): Promise<void>
     exportToFile(studioIds: number[]): Promise<ExportStudiosResult>
@@ -887,7 +871,6 @@ export interface RendererApi {
       facultyReserveEnabledForSetup?: boolean
     ): Promise<Mic[]>
     listStudioMics(studioId: number): Promise<Mic[]>
-    listBuildingPool(buildingId: number): Promise<Mic[]>
     listFacultyReserve(): Promise<Mic[]>
     listPersonalPool(): Promise<Mic[]>
     listSetupGear(setupId: number): Promise<Mic[]>
@@ -903,7 +886,6 @@ export interface RendererApi {
       setupId?: number | null,
       facultyReserveEnabledForSetup?: boolean
     ): Promise<OutboardGear[]>
-    listBuildingPool(buildingId: number): Promise<OutboardGear[]>
     listFacultyReserve(): Promise<OutboardGear[]>
     listPersonalOutboard(): Promise<OutboardGear[]>
     listSetupGear(setupId: number): Promise<OutboardGear[]>
@@ -919,7 +901,6 @@ export interface RendererApi {
       setupId?: number | null,
       facultyReserveEnabledForSetup?: boolean
     ): Promise<Preamp[]>
-    listBuildingPreamps(buildingId: number): Promise<Preamp[]>
     listFacultyReservePreamps(): Promise<Preamp[]>
     listPersonalPreamps(): Promise<Preamp[]>
     listSetupGear(setupId: number): Promise<Preamp[]>
@@ -975,7 +956,6 @@ export interface RendererApi {
     list(): Promise<ChannelPreset[]>
     getWithItems(id: number): Promise<ChannelPresetWithItems | null>
     create(input: ChannelPresetCreateInput): Promise<ChannelPreset>
-    update(id: number, input: ChannelPresetCreateInput): Promise<ChannelPreset>
     remove(id: number): Promise<void>
     removeMany(ids: number[]): Promise<void>
     rename(id: number, name: string, description: string | null): Promise<ChannelPreset>

@@ -49,14 +49,6 @@ export function getStudio(id: number): Studio | null {
   return row ? mapRow(row) : null
 }
 
-export function createStudio(buildingId: number, name: string): Studio {
-  const info = getDb()
-    .prepare('INSERT INTO studios (building_id, name) VALUES (?, ?)')
-    .run(buildingId, name)
-  const row = getDb().prepare('SELECT * FROM studios WHERE id = ?').get(info.lastInsertRowid) as StudioRow
-  return mapRow(row)
-}
-
 /** Creates a custom studio with no building — organized (optionally) by folder instead. */
 export function createCustomStudio(name: string, folderId: number | null = null): Studio {
   const info = getDb()
@@ -75,20 +67,12 @@ export function createTemporaryStudio(name = 'Quick Setup'): Studio {
   return mapRow(row)
 }
 
-export function renameStudio(id: number, name: string): void {
-  getDb().prepare('UPDATE studios SET name = ? WHERE id = ?').run(name, id)
-}
-
 /** Updates a custom studio's name and folder together — used by the full-window studio setup page. */
 export function updateCustomStudio(id: number, name: string, folderId: number | null): Studio {
   const db = getDb()
   db.prepare('UPDATE studios SET name = ?, folder_id = ? WHERE id = ?').run(name, folderId, id)
   const row = db.prepare('SELECT * FROM studios WHERE id = ?').get(id) as StudioRow
   return mapRow(row)
-}
-
-export function removeStudio(id: number): void {
-  getDb().prepare('DELETE FROM studios WHERE id = ?').run(id)
 }
 
 export interface StudioDeleteImpact {

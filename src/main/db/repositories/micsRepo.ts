@@ -164,13 +164,8 @@ export function removeMic(id: number): void {
   })()
 }
 
-export function getMicById(id: number): Mic | null {
-  const row = getDb().prepare('SELECT * FROM mics WHERE id = ?').get(id) as MicRow | undefined
-  return row ? mapRow(row) : null
-}
-
 /** Batch id lookup in one query — for per-row resolution loops (e.g. PDF export), where calling
- *  getMicById per row would issue one query per item. */
+ *  a single-id query per row would issue one query per item. */
 export function getMicsByIds(ids: number[]): Map<number, Mic> {
   const map = new Map<number, Mic>()
   if (ids.length === 0) return map

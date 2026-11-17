@@ -18,8 +18,7 @@ interface Props {
 
 /** A single flat folder row for search results — same shape as ManageItemsModal's own
  *  FlatFolderRow, minus the CRUD actions (this is a read-only picker, not a manager). */
-function FlatFolderRow({ id, name, selected, onSelect }: {
-  id: number
+function FlatFolderRow({ name, selected, onSelect }: {
   name: string
   selected: boolean
   onSelect: () => void
@@ -126,7 +125,6 @@ export default function OpenAlongsideModal({
                   searchMatches.map(({ folder }) => (
                     <FlatFolderRow
                       key={folder.id}
-                      id={folder.id}
                       name={folder.name}
                       selected={selectedFolderId === folder.id}
                       onSelect={() => selectFolder(folder.id)}

@@ -6,9 +6,7 @@ import type {
   StudioLibraryIndexResult,
   StudioLibraryPacksResult
 } from '@shared/types/ipc'
-
-/** Matches studios/exportImport.ts: v4 packs carry a patchbay drawing, v3 packs don't. */
-const EXPORT_VERSION = 4
+import { EXPORT_VERSION } from './exportImport'
 
 /** Long enough for a big pack on a slow connection, short enough that a dead server does not leave
  *  the picker spinning forever. Nothing else in main has a request timeout, so this is the first. */
