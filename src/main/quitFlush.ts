@@ -12,6 +12,12 @@ const pendingAcks = new Map<string, () => void>()
  *  from preventing the quit all over again. */
 let flushed = false
 
+/** True once the before-quit flush has run and the quit is going ahead: window close intercepts
+ *  must step aside then, or their preventDefault() cancels the quit. */
+export function isQuitFlushed(): boolean {
+  return flushed
+}
+
 function askWindowToFlush(win: BrowserWindow): Promise<void> {
   if (win.isDestroyed() || win.webContents.isDestroyed()) return Promise.resolve()
   return new Promise((resolve) => {
