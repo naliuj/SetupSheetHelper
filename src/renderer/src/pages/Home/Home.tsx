@@ -226,17 +226,12 @@ export default function Home(): JSX.Element {
     reload()
   }
   async function handleDeleteFolderPromoteContents(id: number): Promise<void> {
+    // A failure propagates to ManageItemsModal, which explains it inside the delete dialog.
     try {
       await window.api.folders.deletePromoteContents(id)
-    } catch (err) {
-      // The move rolled back, so nothing changed; say why rather than fail silently.
-      alert(
-        err instanceof Error && /UNIQUE/i.test(err.message)
-          ? 'A folder with the same name is already where its contents would go. Rename one and try again.'
-          : 'Could not delete this folder. Nothing was changed.'
-      )
+    } finally {
+      reload()
     }
-    reload()
   }
 
   const manageStudioItems: ManagedItem[] = customStudioItems.map((item) => ({

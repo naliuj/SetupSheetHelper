@@ -96,17 +96,12 @@ export default function ManagePresetsModal({ onClose }: { onClose: () => void })
           await reload()
         }}
         onDeleteFolderPromoteContents={async (id) => {
+          // A failure propagates to ManageItemsModal, which explains it inside the delete dialog.
           try {
             await window.api.presetFolders.deletePromoteContents(id)
-          } catch (err) {
-            // The move rolled back, so nothing changed; say why rather than fail silently.
-            alert(
-              err instanceof Error && /UNIQUE/i.test(err.message)
-                ? 'A folder with the same name is already where its contents would go. Rename one and try again.'
-                : 'Could not delete this folder. Nothing was changed.'
-            )
+          } finally {
+            await reload()
           }
-          await reload()
         }}
         onEditItem={openEdit}
         disableEscapeClose={editing !== null}
