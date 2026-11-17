@@ -17,6 +17,7 @@ import {
 } from '@shared/types/ipc'
 import { restoreBounds, saveBounds } from './windowBounds'
 import { attachRendererLogging } from './log'
+import { isQuitFlushed } from './quitFlush'
 
 /** One relay timeout for both the export-image round trip and the close-flush handshake — a
  *  hung/unresponsive renderer must never leave the caller waiting forever (export would hang the
@@ -119,7 +120,8 @@ function createLayoutWindow(setupId: number, studioId: number): BrowserWindow {
   // save if dirty, then let the close proceed for real. closingForFlush guards against the
   // preventDefault()'d close re-entering this handler when we call win.close() ourselves below.
   win.on('close', (e) => {
-    if (closingForFlush || win.webContents.isDestroyed()) return
+    // After the quit flush, this window has saved; intercepting again would cancel the quit.
+    if (closingForFlush || isQuitFlushed() || win.webContents.isDestroyed()) return
     e.preventDefault()
     requestFlush(win, () => {
       closingForFlush = true
