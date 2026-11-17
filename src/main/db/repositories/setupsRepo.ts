@@ -13,6 +13,7 @@ import {
 import { copyFileSync } from 'node:fs'
 import { extname, join } from 'node:path'
 import { APP_SETTINGS_KEYS } from '@shared/types/entities'
+import { localDateString } from '@shared/utils/localDate'
 import { getLayoutsDir } from '../../userDataPaths'
 import { getDb } from '../index'
 import { collectStoredFiles, removeStoredFilesIfUnused } from '../storedFiles'
@@ -352,7 +353,7 @@ export function instantiateFromTemplate(templateId: number): Setup {
     const setup = createSetup(
       template.studioId,
       template.name,
-      new Date().toISOString().slice(0, 10),
+      localDateString(),
       'setup',
       null
     )

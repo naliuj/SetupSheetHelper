@@ -5,6 +5,7 @@ import FolderPicker from '@renderer/components/FolderPicker'
 import ToggleSwitch from '@renderer/components/ToggleSwitch'
 import { useEscapeToClose } from '@renderer/hooks/useEscapeToClose'
 import { useModalDialog } from '@renderer/hooks/useModalDialog'
+import { localDateString } from '@shared/utils/localDate'
 
 export interface NewSetupDetails {
   name: string
@@ -31,10 +32,6 @@ interface Props {
   onCreate: (details: NewSetupDetails) => Promise<void>
 }
 
-function today(): string {
-  return new Date().toISOString().slice(0, 10)
-}
-
 export default function NewSetupModal({
   initialName = '',
   initialSessionDate,
@@ -49,7 +46,7 @@ export default function NewSetupModal({
 }: Props): JSX.Element {
   useEscapeToClose(onClose)
   const [name, setName] = useState(initialName)
-  const [sessionDate, setSessionDate] = useState(initialSessionDate ?? today())
+  const [sessionDate, setSessionDate] = useState(initialSessionDate ?? localDateString())
   const [engineer, setEngineer] = useState(initialEngineer ?? '')
   const [artist, setArtist] = useState(initialArtist ?? '')
   const [facultyReserveEnabled, setFacultyReserveEnabled] = useState(initialFacultyReserveEnabled)
