@@ -1,4 +1,6 @@
 import type { PDFFont } from 'pdf-lib'
+import { bandIndexes } from '@shared/utils/bands'
+import { tieLineKey } from '@shared/utils/tieLine'
 
 // Pure layout math for the setup-sheet PDF table — no electron/db/pdf-document dependencies, so it
 // can be unit-tested in plain node. exportSetupPdf.ts owns the actual drawing.
@@ -195,4 +197,20 @@ export function fitColumns(columns: ColumnSpec[], usableWidth: number): RenderCo
     }
   }
   return columns.map((c) => ({ key: c.key, label: c.label, width: c.width }))
+}
+
+/** Ids of the rows whose tie line another row in the SAME band also uses. Each band is patched on
+ *  its own, so one tie line reused across bands is not a clash. A sheet without bands is one band,
+ *  which is the old whole-sheet check. */
+export function tieLineConflictIds<T extends { id: number; instrumentType: string; tieLine: string | null }>(
+  items: T[]
+): Set<number> {
+  const bands = bandIndexes(items)
+  const idsByKey = new Map<string, number[]>()
+  items.forEach((item, i) => {
+    if (item.tieLine == null) return
+    const key = `${bands[i]}:${tieLineKey(item.tieLine)}`
+    idsByKey.set(key, [...(idsByKey.get(key) ?? []), item.id])
+  })
+  return new Set([...idsByKey.values()].filter((ids) => ids.length > 1).flat())
 }

@@ -59,3 +59,11 @@ export async function loadPatchCableRows(setup: { id: number; studioId: number }
   const patchbay = await getPatchbayWithPoints(setup.studioId)
   return buildPatchCableRows(listCablesBySetup(setup.id), patchbay?.points ?? [])
 }
+
+/** A band divider's heading in both exports: "Late set · 9:30 pm", or "Band 2" for a divider left
+ *  unnamed. Notes are not part of it; each export lays them out under the heading. */
+export function bandTitle(divider: Pick<SetupItem, 'sourceName' | 'startTime'>, bandIndex: number): string {
+  const name = divider.sourceName.trim() || `Band ${bandIndex + 1}`
+  const time = divider.startTime?.trim()
+  return time ? `${name} \u00b7 ${time}` : name
+}
