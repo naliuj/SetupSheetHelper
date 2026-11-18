@@ -226,8 +226,12 @@ export default function Home(): JSX.Element {
     reload()
   }
   async function handleDeleteFolderPromoteContents(id: number): Promise<void> {
-    await window.api.folders.deletePromoteContents(id)
-    reload()
+    // A failure propagates to ManageItemsModal, which explains it inside the delete dialog.
+    try {
+      await window.api.folders.deletePromoteContents(id)
+    } finally {
+      reload()
+    }
   }
 
   const manageStudioItems: ManagedItem[] = customStudioItems.map((item) => ({

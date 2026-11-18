@@ -13,6 +13,7 @@ export function registerFeedbackHandlers(): void {
       try {
         const response = await fetch(FORMSPREE_ENDPOINT, {
           method: 'POST',
+          signal: AbortSignal.timeout(20_000), // a stalled connection would leave the form spinning forever
           headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
           body: JSON.stringify({
             category: input.category,

@@ -138,22 +138,6 @@ export function createChannelPreset(input: ChannelPresetCreateInput): ChannelPre
   return mapPreset(row)
 }
 
-export function updateChannelPreset(id: number, input: ChannelPresetCreateInput): ChannelPreset {
-  const db = getDb()
-  const update = db.transaction(() => {
-    db.prepare("UPDATE channel_presets SET name = ?, description = ?, updated_at = datetime('now') WHERE id = ?").run(
-      input.name,
-      input.description,
-      id
-    )
-    db.prepare('DELETE FROM channel_preset_items WHERE preset_id = ?').run(id)
-    insertItems(db, id, input.items)
-  })
-  update()
-  const row = db.prepare('SELECT * FROM channel_presets WHERE id = ?').get(id) as ChannelPresetRow
-  return mapPreset(row)
-}
-
 export function removeChannelPreset(id: number): void {
   getDb().prepare('DELETE FROM channel_presets WHERE id = ?').run(id)
 }
@@ -166,8 +150,7 @@ export function removeChannelPresets(ids: number[]): void {
     .run(...ids)
 }
 
-/** Lightweight name/description edit — updates only those, without touching the captured items
- *  (unlike updateChannelPreset, which does a full item replace). */
+/** Lightweight name/description edit — updates only those, without touching the captured items. */
 export function renameChannelPreset(id: number, name: string, description: string | null): ChannelPreset {
   const db = getDb()
   db.prepare("UPDATE channel_presets SET name = ?, description = ?, updated_at = datetime('now') WHERE id = ?").run(

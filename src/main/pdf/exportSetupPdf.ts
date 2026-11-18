@@ -17,17 +17,19 @@ import {
   type PdfGridStyle
 } from '@shared/constants/pdfLayout'
 import { PATCHBAY_RENDER_SCALE } from '@shared/types/patchbay'
-import { buildPatchCableRows, type PatchCableRow } from '@shared/utils/patchCableRows'
-import { listCablesBySetup } from '../db/repositories/patchbayCablesRepo'
-import { getPatchbayWithPoints } from './importPatchbay'
+import type { PatchCableRow } from '@shared/utils/patchCableRows'
 import { getSetupWithItems } from '../db/repositories/setupsRepo'
 import { getStudio } from '../db/repositories/studiosRepo'
 import { listBuildings } from '../db/repositories/buildingsRepo'
-import { getMicsByIds } from '../db/repositories/micsRepo'
-import { getOutboardByIds } from '../db/repositories/outboardRepo'
-import { getPreampsByIds } from '../db/repositories/preampRepo'
 import { getSetting } from '../db/repositories/settingsRepo'
-import { resolveMicText, resolveOutboardSlotText, resolvePreampText } from '../db/resolveGearLabels'
+import { resolveMicText, resolvePreampText } from '../db/resolveGearLabels'
+import {
+  exportFileName,
+  loadPatchCableRows,
+  loadSetupGear,
+  outboardSlotTexts,
+  pngBytesFromDataUrl
+} from '../db/exportShared'
 import { fitColumns, sanitizeForWinAnsi, wrapText, type ColumnSpec } from './pdfLayout'
 import { orderedVisibleColumns, type SetupColumnKey } from '@shared/constants/setupColumns'
 import { isHexColor } from '@shared/constants/swatches'
@@ -442,13 +444,7 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
     const usableWidth = pageWidth - 2 * MARGIN
     const dens = DENSITY[input.density]
 
-    // Resolve every referenced piece of gear in one IN() query per gear type, instead of one
-    // query per row/slot (an N+1 that hit ~200 queries on a large sheet).
-    const micById = getMicsByIds(setup.items.flatMap((item) => (item.micId != null ? [item.micId] : [])))
-    const preampById = getPreampsByIds(setup.items.flatMap((item) => (item.preampId != null ? [item.preampId] : [])))
-    const outboardById = getOutboardByIds(
-      setup.items.flatMap((item) => item.outboards.flatMap((s) => (s.outboardId != null ? [s.outboardId] : [])))
-    )
+    const { micById, preampById, outboardById } = loadSetupGear(setup.items)
 
     const resolvedValues = new Map<number, Record<string, string>>()
     for (const item of setup.items) {
@@ -456,12 +452,9 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
 
       // Consolidate every outboard slot into one comma-joined cell (empty slots skipped), in slot
       // order — the wrapping cell keeps it readable no matter how many pieces of gear a row has.
-      const outboardParts: string[] = []
-      for (let i = 0; i < setup.outboardColumnCount; i++) {
-        const slot = item.outboards.find((s) => s.slotIndex === i) ?? { slotIndex: i, outboardId: null, outboardText: null }
-        const text = resolveOutboardSlotText(slot, outboardById).trim()
-        if (text) outboardParts.push(text)
-      }
+      const outboardParts = outboardSlotTexts(item, setup.outboardColumnCount, outboardById)
+        .map((text) => text.trim())
+        .filter(Boolean)
 
       // Every value here is drawn in Helvetica (WinAnsi) and so must be sanitized — see
       // sanitizeForWinAnsi. The one exception is phantomPower: it is our own glyph, drawn in
@@ -817,9 +810,7 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
   // Optional page: flattened room layout (Konva stage image), appended after the table so the
   // sheet reads first — only present when the session was built in Layout Mode.
   if (input.parts.layout && input.layoutImageDataUrl) {
-    const base64 = input.layoutImageDataUrl.replace(/^data:image\/png;base64,/, '')
-    const imageBytes = Buffer.from(base64, 'base64')
-    const pngImage = await pdfDoc.embedPng(imageBytes)
+    const pngImage = await pdfDoc.embedPng(pngBytesFromDataUrl(input.layoutImageDataUrl))
     const imgDims = pngImage.size()
 
     // Sized from the capture itself, not from a layout record. Two reasons. The record this used
@@ -850,15 +841,12 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
   // renderer could afford to draw it.
   if (input.parts.patchbay && input.patchbayImage) {
     const { dataUrl, roomWidth, roomHeight } = input.patchbayImage
-    const pngImage = await pdfDoc.embedPng(Buffer.from(dataUrl.replace(/^data:image\/png;base64,/, ''), 'base64'))
+    const pngImage = await pdfDoc.embedPng(pngBytesFromDataUrl(dataUrl))
     const pageWidth = roomWidth / PATCHBAY_RENDER_SCALE
     const pageHeight = roomHeight / PATCHBAY_RENDER_SCALE
     pdfDoc.addPage([pageWidth, pageHeight]).drawImage(pngImage, { x: 0, y: 0, width: pageWidth, height: pageHeight })
 
-    // The names come from the same resolver the editor's tooltip uses, over the drawing's cached
-    // jacks — so the list says what the cursor said when hovering each cable.
-    const patchbay = await getPatchbayWithPoints(setup.studioId)
-    const rows = buildPatchCableRows(listCablesBySetup(setup.id), patchbay?.points ?? [])
+    const rows = await loadPatchCableRows(setup)
     if (rows.length > 0) {
       drawPatchCableTable(pdfDoc, rows, {
         font,
@@ -878,7 +866,7 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
 
   const saveResult = await dialog.showSaveDialog({
     title: 'Export Setup Sheet PDF',
-    defaultPath: `${setup.name.replace(/[^\w\- ]/g, '')}.pdf`,
+    defaultPath: `${exportFileName(setup.name)}.pdf`,
     filters: [{ name: 'PDF', extensions: ['pdf'] }]
   })
   if (saveResult.canceled || !saveResult.filePath) return { canceled: true }

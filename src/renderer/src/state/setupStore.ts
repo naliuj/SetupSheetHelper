@@ -9,6 +9,7 @@ import {
 } from '@shared/constants/setupColumns'
 import { useColumnPrefsStore } from './columnPrefsStore'
 import { useToastStore } from './toastStore'
+import { duplicateRows } from './pairRows'
 
 /** Why the last save failed. `at` exists so a repeat of the same failure is a NEW value, which
  *  is what lets a retry re-arm rather than sitting idle behind an unchanged state slice. */
@@ -106,14 +107,6 @@ interface SetupState {
    *  SetupEditorPane keys off this changing. */
   saveError: SaveError | null
 
-  startNewSetup(
-    studioId: number,
-    name: string,
-    sessionDate: string | null,
-    folderId?: number | null,
-    engineer?: string | null,
-    artist?: string | null
-  ): void
   loadFromSetup(setup: SetupWithItems): void
   setName(name: string): void
   setSessionDate(date: string | null): void
@@ -126,8 +119,9 @@ interface SetupState {
   setExportColumnOverrides(overrides: ExportColumnOverrides): void
   resetColumnsToDefault(): void
   addItem(instrumentType: string, defaults?: NewItemDefaults): string
-  addItemAt(instrumentType: string, defaults: NewItemDefaults): string
   updateItemFields(id: number | string, patch: Partial<SetupItemDraft>): void
+  /** Several rows' patches in one set(), so linking or unlinking a pair is one undo step. */
+  updateItemsFields(patches: Map<number | string, Partial<SetupItemDraft>>): void
   setItemsColor(ids: Array<number | string>, color: string | null): void
   updateItemOutboardSlot(
     id: number | string,
@@ -190,35 +184,6 @@ export function createSetupStore() {
   isDirty: false,
   isSaving: false,
   saveError: null,
-
-  startNewSetup: (studioId, name, sessionDate, folderId = null, engineer = null, artist = null) => {
-    loadSeq++
-    set({
-      setupId: null,
-      studioId,
-      name,
-      sessionDate,
-      engineer,
-      artist,
-      sessionNotes: null,
-      folderId,
-      facultyReserveEnabled: false,
-      items: [],
-      outboardColumnCount: 1,
-      // Snapshot the current global default so a brand-new (still-unsaved) sheet renders the right
-      // columns immediately; createSetup persists the same snapshot to the DB on first save.
-      visibleColumns: [...useColumnPrefsStore.getState().defaultVisibleColumns],
-      columnOrder: [...useColumnPrefsStore.getState().defaultColumnOrder],
-      exportColumnOverrides: {},
-      selectedItemIds: new Set(),
-      selectionAnchorId: null,
-      unresolvedGearHints: new Map(),
-      isDirty: false
-    })
-    // After the set, not before: zundo records the pre-set state on every set(), so clearing first
-    // left the previous setup as an undo step.
-    store.temporal.getState().clear()
-  },
 
   loadFromSetup: (setup) => {
     loadSeq++
@@ -291,9 +256,7 @@ export function createSetupStore() {
     }
   },
 
-  addItem: (instrumentType, defaults) => get().addItemAt(instrumentType, defaults ?? {}),
-
-  addItemAt: (instrumentType, defaults) => {
+  addItem: (instrumentType, defaults = {}) => {
     const id = newDraftId()
     const draft: SetupItemDraft = {
       id,
@@ -325,6 +288,15 @@ export function createSetupStore() {
   updateItemFields: (id, patch) =>
     set((state) => ({
       items: state.items.map((item) => (item.id === id ? { ...item, ...patch } : item)),
+      isDirty: true
+    })),
+
+  updateItemsFields: (patches) =>
+    set((state) => ({
+      items: state.items.map((item) => {
+        const patch = patches.get(item.id)
+        return patch ? { ...item, ...patch } : item
+      }),
       isDirty: true
     })),
 
@@ -428,25 +400,18 @@ export function createSetupStore() {
     }
   },
 
-  // Duplicates every listed row in place (right after its original), mirroring layoutStore's
-  // duplicateBlocks — selects the new copies afterward. Unlike blocks, rows have no x/y to
-  // offset; position in the list is what "in place" means here.
+  // Duplicates every listed row, mirroring layoutStore's duplicateBlocks, and selects the copies.
+  // See duplicateRows for where copies land and how pair links carry over.
   duplicateItems: (ids) =>
     set((state) => {
-      const idSet = new Set(ids)
-      const newSelected = new Set<number | string>()
-      const nextItems: SetupItemDraft[] = []
-      for (const item of state.items) {
-        nextItems.push(item)
-        if (idSet.has(item.id)) {
-          // A fresh rowKey (none) — sharing the original's would give two rows the same React key.
-          const { rowKey: _rowKey, ...copy } = item
-          const duplicate: SetupItemDraft = { ...copy, id: newDraftId() }
-          nextItems.push(duplicate)
-          newSelected.add(duplicate.id)
-        }
-      }
-      return { items: nextItems, selectedItemIds: newSelected, isDirty: true }
+      const { items, copyIds } = duplicateRows(
+        state.items,
+        ids,
+        // A fresh rowKey (none) — sharing the original's would give two rows the same React key.
+        ({ rowKey: _rowKey, ...item }, groupId) => ({ ...item, id: newDraftId(), groupId }),
+        () => crypto.randomUUID()
+      )
+      return { items, selectedItemIds: new Set(copyIds), isDirty: true }
     }),
 
   selectItem: (id) =>
@@ -585,44 +550,26 @@ export function createSetupStore() {
     }
     const run = (async () => {
     const state = get()
-    if (!state.studioId) return
+    // Setups are created in the main process before the editor opens, so there's always an id.
+    const setupId = state.setupId
+    if (!state.studioId || !setupId) return
     const seq = loadSeq
     set({ isSaving: true })
     try {
-      let setupId = state.setupId
-      if (!setupId) {
-        const created = await window.api.setups.create(
-          state.studioId,
-          state.name,
-          state.sessionDate,
-          state.folderId,
-          state.engineer,
-          state.artist,
-          state.facultyReserveEnabled,
-          state.sessionNotes
-        )
-        setupId = created.id
-        // Adopt the id straight away so the write-through actions (columns, outboard count) can
-        // persist edits made during the rest of this save. Not if a different setup has loaded since.
-        if (seq === loadSeq) set({ setupId })
-      } else {
-        await window.api.setups.rename(
-          setupId,
-          state.name,
-          state.sessionDate,
-          state.engineer,
-          state.artist,
-          state.facultyReserveEnabled,
-          state.sessionNotes
-        )
-      }
+      await window.api.setups.rename(
+        setupId,
+        state.name,
+        state.sessionDate,
+        state.engineer,
+        state.artist,
+        state.facultyReserveEnabled,
+        state.sessionNotes
+      )
 
       // Columns are re-asserted on EVERY save, read fresh via get() rather than from the
       // pre-await snapshot. Two failure modes this closes: (1) the Columns popover's own
       // write-throughs are fire-and-forget, so a single dropped IPC would silently resurrect a
-      // hidden column on reopen; (2) on a FIRST save, a toggle made while create() was in flight
-      // couldn't write through (setupId was still null) and the snapshot here predates it — the
-      // stale write then clobbered the toggle and isDirty:false below discarded the retry.
+      // hidden column on reopen; (2) undo/redo of a column change skips the write-through.
       // The outboard column count too: undo/redo restores it without going through its action's
       // write-through, so undoing "remove outboard column" otherwise never reached the database.
       // Once a different setup has loaded, the store holds ITS values, so fall back to the snapshot.

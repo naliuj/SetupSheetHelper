@@ -12,7 +12,6 @@ export function registerCatalogHandlers(): void {
       micsRepo.listAvailableForStudio(studioId, setupId, facultyReserveEnabledForSetup)
   )
   ipcMain.handle(IPC.mics.listStudioMics, (_e, studioId: number) => micsRepo.listStudioMics(studioId))
-  ipcMain.handle(IPC.mics.listBuildingPool, (_e, buildingId: number) => micsRepo.listBuildingPool(buildingId))
   ipcMain.handle(IPC.mics.listFacultyReserve, () => micsRepo.listFacultyReserve())
   ipcMain.handle(IPC.mics.listPersonalPool, () => micsRepo.listPersonalPool())
   ipcMain.handle(IPC.mics.listSetupGear, (_e, setupId: number) => micsRepo.listSetupGear(setupId))
@@ -27,7 +26,6 @@ export function registerCatalogHandlers(): void {
     (_e, studioId: number, setupId?: number | null, facultyReserveEnabledForSetup?: boolean) =>
       outboardRepo.listAvailableForStudio(studioId, setupId, facultyReserveEnabledForSetup)
   )
-  ipcMain.handle(IPC.outboard.listBuildingPool, (_e, buildingId: number) => outboardRepo.listBuildingPool(buildingId))
   ipcMain.handle(IPC.outboard.listFacultyReserve, () => outboardRepo.listFacultyReserve())
   ipcMain.handle(IPC.outboard.listPersonalOutboard, () => outboardRepo.listPersonalOutboard())
   ipcMain.handle(IPC.outboard.listSetupGear, (_e, setupId: number) => outboardRepo.listSetupGear(setupId))
@@ -41,9 +39,6 @@ export function registerCatalogHandlers(): void {
     IPC.preamps.listAvailableForStudio,
     (_e, studioId: number, setupId?: number | null, facultyReserveEnabledForSetup?: boolean) =>
       preampRepo.listAvailableForStudio(studioId, setupId, facultyReserveEnabledForSetup)
-  )
-  ipcMain.handle(IPC.preamps.listBuildingPreamps, (_e, buildingId: number) =>
-    preampRepo.listBuildingPreamps(buildingId)
   )
   ipcMain.handle(IPC.preamps.listFacultyReservePreamps, () => preampRepo.listFacultyReservePreamps())
   ipcMain.handle(IPC.preamps.listPersonalPreamps, () => preampRepo.listPersonalPreamps())

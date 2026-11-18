@@ -1,6 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import type Konva from 'konva'
-import { APP_SETTINGS_KEYS } from '@shared/types/entities'
 import type { EditorMode } from '@renderer/state/navigationStore'
 import { useSetupStoreApi, useSetupStoreState } from '@renderer/state/setupStoreContext'
 import { useLayoutStoreApi, useLayoutStoreState } from '@renderer/state/layoutStoreContext'
@@ -8,28 +7,13 @@ import { usePatchbayStoreApi, usePatchbayStoreState } from '@renderer/state/patc
 import { useCatalogStoreState } from '@renderer/state/catalogStoreContext'
 import { useLayoutWindowStore } from '@renderer/state/layoutWindowStore'
 import { registerFlusher } from '@renderer/state/flushRegistry'
+import { useAutosave } from '@renderer/hooks/useAutosave'
 import InstrumentPalette from './palette/InstrumentPalette'
 import SetupSheetTable from './table/SetupSheetTable'
 import TableModeToolbar from './table/TableModeToolbar'
 import SelectionActionBar from './table/SelectionActionBar'
 import SetupToolbar from './SetupToolbar'
 import SetupSettingsPage from './SetupSettingsPage'
-
-const AUTOSAVE_DELAY_MS = 1000
-
-/** Longest a dirty editor may go unsaved while the user keeps typing.
- *
- *  The debounce above re-arms on every keystroke, so a continuous burst never reached the timer
- *  at all: the exposure was not "the last second" but the entire uninterrupted burst, and quitting
- *  mid-burst lost all of it. The delay shrinks as the burst runs on, so a save lands at least
- *  this often no matter how fast the user types. */
-const AUTOSAVE_MAX_WAIT_MS = 5000
-
-/** How long to wait before trying again after a save fails. Slower than the normal debounce:
- *  whatever is wrong is unlikely to be fixed within a second, and each attempt is several IPC
- *  round trips. Retrying at all is new — a failed save used to sit dirty and untried until the
- *  user happened to edit something else. */
-const AUTOSAVE_RETRY_MS = 10_000
 
 /** The flushers' fresh read of `layoutPoppedOut`: they skip the layout while the pop-out window
  *  owns it, for the same reason autosave does, and run long after they were registered. */
@@ -89,7 +73,6 @@ export default function SetupEditorPane({
   const layoutStoreApi = useLayoutStoreApi()
   const patchbayStoreApi = usePatchbayStoreApi()
 
-  const startNewSetup = useSetupStoreState((s) => s.startNewSetup)
   const loadFromSetup = useSetupStoreState((s) => s.loadFromSetup)
   const loadLayoutBlocks = useLayoutStoreState((s) => s.loadForSetup)
   const loadCables = usePatchbayStoreState((s) => s.loadForSetup)
@@ -120,9 +103,6 @@ export default function SetupEditorPane({
 
   const stageRef = useRef<Konva.Stage>(null)
   const patchbayStageRef = useRef<Konva.Stage>(null)
-  /** When the current run of unsaved edits began, so the autosave below can cap how long a
-   *  continuous burst delays a save. Null whenever everything is saved. */
-  const dirtySinceRef = useRef<number | null>(null)
 
   // True while this exact setup's layout is open in the standalone Layout Mode window — see
   // layoutWindowStore.ts. Drives two things below: skipping the local LayoutStage mount (it has
@@ -179,18 +159,6 @@ export default function SetupEditorPane({
         }
         setSetupLoaded(true)
       })
-    } else {
-      window.api.settings.get(APP_SETTINGS_KEYS.defaultEngineerName).then((defaultEngineer) => {
-        startNewSetup(
-          studioId,
-          'Untitled Setup',
-          new Date().toISOString().slice(0, 10),
-          null,
-          defaultEngineer || null
-        )
-        onModeChange('table')
-        setSetupLoaded(true)
-      })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [studioId, buildingId, setupId])
@@ -205,59 +173,21 @@ export default function SetupEditorPane({
     loadCatalog(studioId, buildingId, setupId, facultyReserveEnabled)
   }, [studioId, buildingId, setupId, facultyReserveEnabled, setupLoaded, loadCatalog])
 
-  // Debounced autosave: any dirty change (re)starts a short timer that saves once things
-  // settle, instead of hammering a full items-table replace on every keystroke/drag. Table
-  // Mode's setupStore, Layout Mode's layoutStore and Patchbay Mode's patchbayStore are fully
-  // independent, but all flush on the same timer for simplicity — each only actually writes if
-  // its own isDirty is set.
-  useEffect(() => {
-    if (!isDirty && !layoutIsDirty && !cablesDirty) {
-      dirtySinceRef.current = null
-      return
-    }
-    if (dirtySinceRef.current == null) dirtySinceRef.current = Date.now()
-
-    // Normally the plain debounce, but never longer than AUTOSAVE_MAX_WAIT_MS after this edit
-    // burst first went dirty — see that constant. After a failure, back off instead: saveError
-    // is a fresh object each time, so a failed attempt re-runs this effect and schedules the
-    // next try without needing the user to touch anything.
-    const failed = saveError != null || layoutSaveError != null || cablesSaveError != null
-    const elapsed = Date.now() - dirtySinceRef.current
-    const delay = failed
-      ? AUTOSAVE_RETRY_MS
-      : Math.max(0, Math.min(AUTOSAVE_DELAY_MS, AUTOSAVE_MAX_WAIT_MS - elapsed))
-
-    const timer = setTimeout(() => {
-      // Open a fresh window before saving, so a run of failures cannot collapse the delay to 0.
-      dirtySinceRef.current = Date.now()
+  // Debounced autosave (see useAutosave). Table Mode's setupStore, Layout Mode's layoutStore and
+  // Patchbay Mode's patchbayStore are fully independent, but all flush on the same timer for
+  // simplicity — each only actually writes if its own isDirty is set.
+  useAutosave(
+    isDirty || layoutIsDirty || cablesDirty,
+    [saveError, layoutSaveError, cablesSaveError],
+    [items, name, sessionDate, engineer, artist, facultyReserveEnabled, sessionNotes, layoutBlocks, cables, layoutPoppedOut],
+    () => {
       if (isDirty) save()
       // The pop-out window owns this setup's layout; this window's copy is stale and must not
       // overwrite the blocks being edited over there.
       if (layoutIsDirty && !layoutPoppedOut) saveLayout()
       if (cablesDirty) saveCables()
-    }, delay)
-    return () => clearTimeout(timer)
-  }, [
-    items,
-    name,
-    sessionDate,
-    engineer,
-    artist,
-    facultyReserveEnabled,
-    sessionNotes,
-    isDirty,
-    saveError,
-    save,
-    layoutBlocks,
-    layoutIsDirty,
-    layoutSaveError,
-    saveLayout,
-    layoutPoppedOut,
-    cables,
-    cablesDirty,
-    cablesSaveError,
-    saveCables
-  ])
+    }
+  )
 
   // Register this pane's stores for the quit-time flush. Split View gives each pane its own
   // store instances, so registering from here covers both without the app root needing to know

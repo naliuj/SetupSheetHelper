@@ -94,13 +94,8 @@ export function listAvailableForStudio(
   return preamps
 }
 
-export function getPreampById(id: number): Preamp | null {
-  const row = getDb().prepare('SELECT * FROM preamps WHERE id = ?').get(id) as PreampRow | undefined
-  return row ? mapRow(row) : null
-}
-
 /** Batch id lookup in one query — for per-row resolution loops (e.g. PDF export), where calling
- *  getPreampById per row would issue one query per item. */
+ *  a single-id query per row would issue one query per item. */
 export function getPreampsByIds(ids: number[]): Map<number, Preamp> {
   const map = new Map<number, Preamp>()
   if (ids.length === 0) return map

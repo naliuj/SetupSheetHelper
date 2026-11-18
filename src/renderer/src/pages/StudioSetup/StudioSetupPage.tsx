@@ -9,7 +9,7 @@ import type {
   PreampWithStudio
 } from '@shared/types/entities'
 import { guessManufacturer, MANUFACTURER_PREFIXES } from '@shared/constants/manufacturers'
-import { gearIdentityKey, stripManufacturerPrefix } from '@shared/utils/manufacturerPrefix'
+import { byManufacturerThenModel, gearIdentityKey, stripManufacturerPrefix } from '@shared/utils/manufacturerPrefix'
 import { useNavigationStore } from '@renderer/state/navigationStore'
 import { useFolderPicker } from '@renderer/state/useFolderPicker'
 import { useModelSuggestions } from '@renderer/state/useModelSuggestions'
@@ -47,33 +47,6 @@ const GEAR_TABS: { id: GearTab; label: string }[] = [
   { id: 'preamps', label: 'Preamps' }
 ]
 
-/** Files gear the way an engineer reads a locker list: manufacturer A to Z, then model within it.
- *  `numeric` so an API 512c sorts before an API 3124 instead of "3" beating "5" character by
- *  character, and a base sensitivity so "dbx" and "DBX" don't split one manufacturer into two.
- *  Blank manufacturers go last, since there is no name to file them under. */
-function byManufacturerThenModel(
-  a: { name: string; manufacturer: string | null },
-  b: { name: string; manufacturer: string | null }
-): number {
-  const makeA = a.manufacturer?.trim() ?? ''
-  const makeB = b.manufacturer?.trim() ?? ''
-  const collate = { numeric: true, sensitivity: 'base' } as const
-
-  if ((makeA === '') !== (makeB === '')) return makeA === '' ? 1 : -1
-
-  const byMake = makeA.localeCompare(makeB, undefined, collate)
-  if (byMake !== 0) return byMake
-
-  // Compare the model, not the stored name: this catalogue is inconsistent about whether a name
-  // repeats its own manufacturer, so raw names file the same locker under two letters — "610"
-  // under 6 and "Universal Audio 1176" under U, with both makers reading "Universal Audio".
-  return stripManufacturerPrefix(a.name, makeA).localeCompare(
-    stripManufacturerPrefix(b.name, makeB),
-    undefined,
-    collate
-  )
-}
-
 /** The pending row already holding this model, if any. Compares on manufacturer + name through
  *  gearIdentityKey, the same normalization the rest of the app uses to decide two rows are the
  *  same box, so casing and stray spacing don't hide a match. */
@@ -96,7 +69,7 @@ function dedupeByNameAndManufacturer<T extends { name: string; manufacturer: str
   const seen = new Set<string>()
   const result: T[] = []
   for (const item of items) {
-    const key = `${item.manufacturer?.trim().toLowerCase() ?? ''}::${item.name.trim().toLowerCase()}`
+    const key = gearIdentityKey(item.name, item.manufacturer)
     if (seen.has(key)) continue
     seen.add(key)
     result.push(item)

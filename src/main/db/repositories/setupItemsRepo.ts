@@ -233,6 +233,27 @@ export function copyItemsToSetup(
         }
       }
     })
+    // Gear borrowed into the source setup's own pool belongs to that setup: the copy can't pick it
+    // (blank cells) and deleting the source would cascade the ids away. Keep the names as text,
+    // as removeMic does.
+    const params = { sourceSetupId, targetSetupId }
+    for (const [table, col] of [
+      ['mics', 'mic'],
+      ['preamps', 'preamp']
+    ]) {
+      db.prepare(
+        `UPDATE setup_items
+            SET ${col}_text = COALESCE(${col}_text, (SELECT name FROM ${table} WHERE id = ${col}_id)), ${col}_id = NULL
+          WHERE setup_id = @targetSetupId
+            AND ${col}_id IN (SELECT id FROM ${table} WHERE pool_type = 'setup' AND setup_id = @sourceSetupId)`
+      ).run(params)
+    }
+    db.prepare(
+      `UPDATE setup_item_outboards
+          SET outboard_text = COALESCE(outboard_text, (SELECT name FROM outboard_gear WHERE id = outboard_id)), outboard_id = NULL
+        WHERE setup_item_id IN (SELECT id FROM setup_items WHERE setup_id = @targetSetupId)
+          AND outboard_id IN (SELECT id FROM outboard_gear WHERE pool_type = 'setup' AND setup_id = @sourceSetupId)`
+    ).run(params)
   })
   copy()
 }

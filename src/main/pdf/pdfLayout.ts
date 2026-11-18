@@ -84,6 +84,16 @@ export function sanitizeForWinAnsi(text: string): string {
 
   let out = ''
   for (const ch of text) {
+    // Every caller runs the result through wrapText, which splits paragraphs on '\n' itself.
+    if (ch === '\n') {
+      out += ch
+      continue
+    }
+    if (ch === '\t') {
+      out += ' '
+      continue
+    }
+    if (ch === '\r') continue
     if (isWinAnsiEncodable(ch)) {
       out += ch
       continue

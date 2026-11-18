@@ -51,7 +51,8 @@ function exportLayoutOverride(setupId: number): ExportedRoomLayoutFile | null {
       extension: extname(override.filePath).toLowerCase(),
       pageWidthPt: override.pageWidthPt,
       pageHeightPt: override.pageHeightPt,
-      dataBase64: readFileSync(override.filePath).toString('base64')
+      dataBase64: readFileSync(override.filePath).toString('base64'),
+      ...(override.legacyPixelUnits ? { legacyPixelUnits: true } : {})
     }
   } catch {
     return null
@@ -284,7 +285,9 @@ export function importSetups(setups: ExportedSetup[], targetStudioId: number): v
           filePath: destPath,
           originalName: layoutOverride.originalName,
           pageWidthPt: layoutOverride.pageWidthPt,
-          pageHeightPt: layoutOverride.pageHeightPt
+          pageHeightPt: layoutOverride.pageHeightPt,
+          // Strict check: the file comes from another user.
+          legacyPixelUnits: layoutOverride.legacyPixelUnits === true
         })
       } else if (setup.layoutBlank === true) {
         upsertBlankLayoutOverride(created.id)

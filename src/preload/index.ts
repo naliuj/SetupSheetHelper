@@ -31,21 +31,14 @@ import {
 
 const api: RendererApi = {
   buildings: {
-    list: () => ipcRenderer.invoke(IPC.buildings.list),
-    create: (name) => ipcRenderer.invoke(IPC.buildings.create, name),
-    rename: (id, name) => ipcRenderer.invoke(IPC.buildings.rename, id, name),
-    remove: (id) => ipcRenderer.invoke(IPC.buildings.remove, id)
+    list: () => ipcRenderer.invoke(IPC.buildings.list)
   },
   studios: {
     listByBuilding: (buildingId) => ipcRenderer.invoke(IPC.studios.listByBuilding, buildingId),
     listCustom: () => ipcRenderer.invoke(IPC.studios.listCustom),
     get: (id) => ipcRenderer.invoke(IPC.studios.get, id),
-    create: (buildingId, name) => ipcRenderer.invoke(IPC.studios.create, buildingId, name),
     createCustom: (name, folderId) => ipcRenderer.invoke(IPC.studios.createCustom, name, folderId),
     createTemporary: () => ipcRenderer.invoke(IPC.studios.createTemporary),
-    updateCustomDetails: (id, name, folderId) =>
-      ipcRenderer.invoke(IPC.studios.updateCustomDetails, id, name, folderId),
-    rename: (id, name) => ipcRenderer.invoke(IPC.studios.rename, id, name),
     remove: (id) => ipcRenderer.invoke(IPC.studios.remove, id),
     removeMany: (ids) => ipcRenderer.invoke(IPC.studios.removeMany, ids),
     exportToFile: (studioIds) => ipcRenderer.invoke(IPC.studios.exportToFile, studioIds),
@@ -61,7 +54,6 @@ const api: RendererApi = {
     listAvailableForStudio: (studioId, setupId, facultyReserveEnabledForSetup) =>
       ipcRenderer.invoke(IPC.mics.listAvailableForStudio, studioId, setupId, facultyReserveEnabledForSetup),
     listStudioMics: (studioId) => ipcRenderer.invoke(IPC.mics.listStudioMics, studioId),
-    listBuildingPool: (buildingId) => ipcRenderer.invoke(IPC.mics.listBuildingPool, buildingId),
     listFacultyReserve: () => ipcRenderer.invoke(IPC.mics.listFacultyReserve),
     listPersonalPool: () => ipcRenderer.invoke(IPC.mics.listPersonalPool),
     listSetupGear: (setupId) => ipcRenderer.invoke(IPC.mics.listSetupGear, setupId),
@@ -74,7 +66,6 @@ const api: RendererApi = {
     listByStudio: (studioId) => ipcRenderer.invoke(IPC.outboard.listByStudio, studioId),
     listAvailableForStudio: (studioId, setupId, facultyReserveEnabledForSetup) =>
       ipcRenderer.invoke(IPC.outboard.listAvailableForStudio, studioId, setupId, facultyReserveEnabledForSetup),
-    listBuildingPool: (buildingId) => ipcRenderer.invoke(IPC.outboard.listBuildingPool, buildingId),
     listFacultyReserve: () => ipcRenderer.invoke(IPC.outboard.listFacultyReserve),
     listPersonalOutboard: () => ipcRenderer.invoke(IPC.outboard.listPersonalOutboard),
     listSetupGear: (setupId) => ipcRenderer.invoke(IPC.outboard.listSetupGear, setupId),
@@ -87,7 +78,6 @@ const api: RendererApi = {
     listByStudio: (studioId) => ipcRenderer.invoke(IPC.preamps.listByStudio, studioId),
     listAvailableForStudio: (studioId, setupId, facultyReserveEnabledForSetup) =>
       ipcRenderer.invoke(IPC.preamps.listAvailableForStudio, studioId, setupId, facultyReserveEnabledForSetup),
-    listBuildingPreamps: (buildingId) => ipcRenderer.invoke(IPC.preamps.listBuildingPreamps, buildingId),
     listFacultyReservePreamps: () => ipcRenderer.invoke(IPC.preamps.listFacultyReservePreamps),
     listPersonalPreamps: () => ipcRenderer.invoke(IPC.preamps.listPersonalPreamps),
     listSetupGear: (setupId) => ipcRenderer.invoke(IPC.preamps.listSetupGear, setupId),
@@ -144,7 +134,6 @@ const api: RendererApi = {
     list: () => ipcRenderer.invoke(IPC.presets.list),
     getWithItems: (id) => ipcRenderer.invoke(IPC.presets.getWithItems, id),
     create: (input) => ipcRenderer.invoke(IPC.presets.create, input),
-    update: (id, input) => ipcRenderer.invoke(IPC.presets.update, id, input),
     remove: (id) => ipcRenderer.invoke(IPC.presets.remove, id),
     removeMany: (ids) => ipcRenderer.invoke(IPC.presets.removeMany, ids),
     rename: (id, name, description) => ipcRenderer.invoke(IPC.presets.rename, id, name, description),

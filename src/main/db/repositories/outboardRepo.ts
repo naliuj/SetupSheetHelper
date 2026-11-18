@@ -94,13 +94,8 @@ export function listAvailableForStudio(
   return gear
 }
 
-export function getOutboardById(id: number): OutboardGear | null {
-  const row = getDb().prepare('SELECT * FROM outboard_gear WHERE id = ?').get(id) as OutboardRow | undefined
-  return row ? mapRow(row) : null
-}
-
 /** Batch id lookup in one query — for per-row resolution loops (e.g. PDF export), where calling
- *  getOutboardById per slot would issue one query per outboard cell. */
+ *  a single-id query per slot would issue one query per outboard cell. */
 export function getOutboardByIds(ids: number[]): Map<number, OutboardGear> {
   const map = new Map<number, OutboardGear>()
   if (ids.length === 0) return map

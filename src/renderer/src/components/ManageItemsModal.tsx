@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   DndContext,
   DragOverlay,
@@ -258,6 +258,9 @@ export default function ManageItemsModal({
   const [folderQuery, setFolderQuery] = useState('')
   const [activeDndId, setActiveDndId] = useState<string | null>(null)
   const [folderDialog, setFolderDialog] = useState<FolderDialog | null>(null)
+  /** Why "Move contents up" failed, shown in the delete dialog until it closes or is retried. */
+  const [moveUpError, setMoveUpError] = useState<string | null>(null)
+  useEffect(() => setMoveUpError(null), [folderDialog])
   const [dialogName, setDialogName] = useState('')
   const [itemDialog, setItemDialog] = useState<{
     item: ManagedItem
@@ -434,7 +437,18 @@ export default function ManageItemsModal({
 
   async function handleMoveContentsUp(): Promise<void> {
     if (folderDialog?.kind !== 'delete') return
-    await onDeleteFolderPromoteContents(folderDialog.id)
+    setMoveUpError(null)
+    try {
+      await onDeleteFolderPromoteContents(folderDialog.id)
+    } catch (err) {
+      // The move rolled back, so nothing changed. A name clash is the one cause a user can fix.
+      setMoveUpError(
+        err instanceof Error && /UNIQUE/i.test(err.message)
+          ? 'A folder inside has the same name as one where its contents would go. Rename one of them and try again.'
+          : 'Couldn’t move the contents up. Nothing was changed.'
+      )
+      return
+    }
     if (selectedFolderId === folderDialog.id) setSelectedFolderId(null)
     setFolderDialog(null)
   }
@@ -620,6 +634,11 @@ export default function ManageItemsModal({
           <div className="modal" {...folderDeleteDialog} onClick={(e) => e.stopPropagation()} style={{ width: 420 }}>
             <h2 style={{ marginTop: 0 }}>Delete "{folderDialog.name}"?</h2>
             <p className="card-sub">{describeFolderImpact(folderDialog.impact)}</p>
+            {moveUpError && (
+              <p role="alert" style={{ color: 'var(--color-danger)' }}>
+                {moveUpError}
+              </p>
+            )}
             <div className="modal-actions" style={{ justifyContent: 'flex-start', flexWrap: 'wrap' }}>
               <button className="btn" onClick={() => setFolderDialog(null)}>
                 Cancel

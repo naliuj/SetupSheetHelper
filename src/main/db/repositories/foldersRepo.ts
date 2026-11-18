@@ -51,12 +51,16 @@ export function renameFolder(id: number, name: string): void {
 }
 
 /** All descendant folder ids of `id` (not including `id` itself) — shared by delete/impact logic. */
-function collectDescendantFolderIds(db: ReturnType<typeof getDb>, id: number): number[] {
-  const direct = db.prepare('SELECT id FROM folders WHERE parent_folder_id = ?').all(id) as { id: number }[]
+export function collectDescendantFolderIds(
+  db: ReturnType<typeof getDb>,
+  table: 'folders' | 'preset_folders',
+  id: number
+): number[] {
+  const direct = db.prepare(`SELECT id FROM ${table} WHERE parent_folder_id = ?`).all(id) as { id: number }[]
   const result: number[] = []
   for (const { id: childId } of direct) {
     result.push(childId)
-    result.push(...collectDescendantFolderIds(db, childId))
+    result.push(...collectDescendantFolderIds(db, table, childId))
   }
   return result
 }
@@ -70,7 +74,7 @@ function collectDescendantFolderIds(db: ReturnType<typeof getDb>, id: number): n
  *  own, since a setup matching both is still one row. */
 export function getFolderDeleteImpact(id: number): FolderDeleteImpact {
   const db = getDb()
-  const subtreeIds = [id, ...collectDescendantFolderIds(db, id)]
+  const subtreeIds = [id, ...collectDescendantFolderIds(db, 'folders', id)]
   const placeholders = subtreeIds.map(() => '?').join(',')
 
   const studioCount = (
@@ -110,7 +114,7 @@ export function deleteFolderRecursive(id: number): void {
   const db = getDb()
   let files: StoredFiles = { layouts: [], patchbays: [] }
   const run = db.transaction(() => {
-    const subtreeIds = [id, ...collectDescendantFolderIds(db, id)]
+    const subtreeIds = [id, ...collectDescendantFolderIds(db, 'folders', id)]
     const placeholders = subtreeIds.map(() => '?').join(',')
 
     const studioIds = (
@@ -161,6 +165,9 @@ export function deleteFolderPromoteContents(id: number): void {
     if (!target) return
     const grandparentId = target.parent_folder_id
 
+    // Out of the way first: a child with this folder's own name would otherwise clash with it at
+    // the grandparent. A clash with another sibling there still throws and rolls back.
+    db.prepare('UPDATE folders SET name = char(0) || id WHERE id = ?').run(id)
     db.prepare('UPDATE folders SET parent_folder_id = ? WHERE parent_folder_id = ?').run(grandparentId, id)
     db.prepare('UPDATE studios SET folder_id = ? WHERE folder_id = ?').run(grandparentId, id)
     db.prepare('UPDATE setups SET folder_id = ? WHERE folder_id = ?').run(grandparentId, id)

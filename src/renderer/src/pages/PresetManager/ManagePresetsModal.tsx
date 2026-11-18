@@ -96,8 +96,12 @@ export default function ManagePresetsModal({ onClose }: { onClose: () => void })
           await reload()
         }}
         onDeleteFolderPromoteContents={async (id) => {
-          await window.api.presetFolders.deletePromoteContents(id)
-          await reload()
+          // A failure propagates to ManageItemsModal, which explains it inside the delete dialog.
+          try {
+            await window.api.presetFolders.deletePromoteContents(id)
+          } finally {
+            await reload()
+          }
         }}
         onEditItem={openEdit}
         disableEscapeClose={editing !== null}
