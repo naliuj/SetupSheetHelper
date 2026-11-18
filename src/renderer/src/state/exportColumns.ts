@@ -1,4 +1,5 @@
 import type { SetupItemDraft } from '@shared/types/setup'
+import { isBandDivider } from '@shared/utils/bands'
 import {
   COLUMN_LABELS,
   orderedVisibleColumns,
@@ -76,7 +77,8 @@ export function computeExportColumnStates(
     .filter((key) => key !== 'stereoLink')
     .map((key) => {
       const isVisible = visible.has(key)
-      const used = isColumnUsed(key, items)
+      // A band divider's notes are the band's, not the Notes column's.
+      const used = isColumnUsed(key, items.filter((item) => !isBandDivider(item)))
       const defaultOn = isVisible && used
       const override = overrides[key]
       const on = override ? override === 'show' : defaultOn

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { RotateCcw } from 'lucide-react'
+import { Layers, RotateCcw } from 'lucide-react'
+import { bandRanges } from '@shared/utils/bands'
 import { useSetupStoreState } from '@renderer/state/setupStoreContext'
 import { useKeybindPrefsStore } from '@renderer/state/keybindPrefsStore'
 import { formatCombo } from '@shared/constants/keybindActions'
@@ -22,6 +23,14 @@ export default function TableModeToolbar(): JSX.Element {
   const setColumnOrder = useSetupStoreState((s) => s.setColumnOrder)
   const resetColumnsToDefault = useSetupStoreState((s) => s.resetColumnsToDefault)
   const resolveKeybind = useKeybindPrefsStore((s) => s.resolve)
+  const items = useSetupStoreState((s) => s.items)
+  const addNextBand = useSetupStoreState((s) => s.addNextBand)
+  const scrollToBand = useSetupStoreState((s) => s.scrollToBand)
+  const focusedBand = useSetupStoreState((s) => s.focusedBand)
+  const setFocusedBand = useSetupStoreState((s) => s.setFocusedBand)
+  const bands = bandRanges(items).filter((r) => r.divider != null)
+  const [bandsOpen, setBandsOpen] = useState(false)
+  const bandsRef = useRef<HTMLDivElement>(null)
 
   const [sourceName, setSourceName] = useState('')
   const [presetsOpen, setPresetsOpen] = useState(false)
@@ -45,6 +54,16 @@ export default function TableModeToolbar(): JSX.Element {
     document.addEventListener('mousedown', onDown)
     return () => document.removeEventListener('mousedown', onDown)
   }, [presetsOpen])
+
+  // Close the Bands menu on an outside click.
+  useEffect(() => {
+    if (!bandsOpen) return
+    function onDown(e: MouseEvent): void {
+      if (bandsRef.current && !bandsRef.current.contains(e.target as Node)) setBandsOpen(false)
+    }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [bandsOpen])
 
   // Close the Columns menu on an outside click.
   useEffect(() => {
@@ -76,6 +95,59 @@ export default function TableModeToolbar(): JSX.Element {
       <button className="btn primary" onClick={handleAdd} title={formatCombo(resolveKeybind('add-source'))}>
         Add source
       </button>
+
+      <button
+        className="btn inline-icon-text"
+        onClick={() => addNextBand()}
+        title={['Copy the last band below a new divider', formatCombo(resolveKeybind('next-band'))].filter(Boolean).join(' · ')}
+      >
+        <Icon name="plus" size={14} /> Next band
+      </button>
+
+      {bands.length > 0 && (
+        <div ref={bandsRef} style={{ position: 'relative' }}>
+          <button
+            className="btn"
+            onClick={() => setBandsOpen((v) => !v)}
+            aria-haspopup="menu"
+            aria-expanded={bandsOpen}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+          >
+            <Layers size={15} aria-hidden="true" /> Bands <Icon name="chevron-down" size={14} />
+          </button>
+          {bandsOpen && (
+            <div className="picker-menu" role="menu" style={{ position: 'absolute', top: '100%', left: 0, marginTop: 4, minWidth: 220 }}>
+              {bands.map((band) => (
+                <div
+                  key={band.index}
+                  className="picker-menu-row"
+                  role="menuitem"
+                  onClick={() => {
+                    setBandsOpen(false)
+                    scrollToBand(band.index)
+                  }}
+                >
+                  {band.divider?.sourceName.trim() || `Band ${band.index + 1}`}
+                  {band.divider?.startTime ? <span className="card-sub"> · {band.divider.startTime}</span> : null}
+                </div>
+              ))}
+              {focusedBand != null && (
+                <div
+                  className="picker-menu-row"
+                  role="menuitem"
+                  style={{ borderTop: '1px solid var(--color-border)' }}
+                  onClick={() => {
+                    setBandsOpen(false)
+                    setFocusedBand(null)
+                  }}
+                >
+                  Show all bands
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }} title="Outboard columns">
         <button

@@ -591,6 +591,9 @@ export default function SetupToolbar({
     'toggle-mode': requestToggleMode,
     'toggle-patchbay-mode': requestPatchbayMode,
     'add-source': () => addItem(GENERIC_INSTRUMENT_TYPE),
+    'next-band': () => {
+      if (mode === 'table') setupStoreApi.getState().addNextBand()
+    },
     'select-all': handleSelectAll,
     'delete-selection': () => {
       if (mode === 'table' && selectedItemIds.size > 0) removeItems([...selectedItemIds])

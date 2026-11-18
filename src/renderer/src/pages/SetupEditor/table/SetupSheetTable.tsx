@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useMemo } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef } from 'react'
 import { STEREO_LANE_WIDTH } from '@shared/constants/stereoBrace'
 import { DndContext, type DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
@@ -9,13 +9,15 @@ import { useSetupStoreApi, useSetupStoreState } from '@renderer/state/setupStore
 import { useCatalogStoreApi, useCatalogStoreState } from '@renderer/state/catalogStoreContext'
 import { useGearCatalogueSuggestions } from '@renderer/state/useGearCatalogueSuggestions'
 import { computeTieLineConflicts } from '@renderer/state/tieLineConflicts'
-import { offsetTieLine, tieLineKey } from '@shared/utils/tieLine'
+import { offsetTieLine } from '@shared/utils/tieLine'
 import { computeUsageCounts, buildGearUsage } from '@renderer/state/usageCounts'
 import { formatGearLabel, gearIdentityKey, stripManufacturerPrefix } from '@shared/utils/manufacturerPrefix'
 import type { Suggestion } from '@renderer/components/SuggestInput'
 import SetupSheetRow, { SHEET_EDGE_INSET } from './SetupSheetRow'
 import { GENERIC_INSTRUMENT_TYPE } from './tableConstants'
 import { avoidSplittingPair } from '@shared/utils/pairRows'
+import { bandIndexes, bandRanges, isBandDivider } from '@shared/utils/bands'
+import BandDividerRow from './BandDividerRow'
 
 /** Quick Setup's free-text suggestions. Two things this has to get right, both of which used to
  *  produce what looked like duplicate entries:
@@ -60,6 +62,11 @@ export default function SetupSheetTable(): JSX.Element {
   const removeItem = useSetupStoreState((s) => s.removeItem)
   const unresolvedGearHints = useSetupStoreState((s) => s.unresolvedGearHints)
   const clearUnresolvedGearHint = useSetupStoreState((s) => s.clearUnresolvedGearHint)
+  const collapsedBands = useSetupStoreState((s) => s.collapsedBands)
+  const focusedBand = useSetupStoreState((s) => s.focusedBand)
+  const setFocusedBand = useSetupStoreState((s) => s.setFocusedBand)
+  const bandScrollRequest = useSetupStoreState((s) => s.bandScrollRequest)
+  const tableRef = useRef<HTMLTableElement>(null)
 
   const sensors = useSortableSensors()
   // Derived once here, not per row: every memoized SetupSheetRow gets these same two references,
@@ -131,13 +138,19 @@ export default function SetupSheetTable(): JSX.Element {
     const state = setupStoreApi.getState()
     const idx = state.items.findIndex((i) => i.id === itemId)
     if (idx === -1) return
-    const neighbor = state.items[e.key === 'ArrowDown' ? idx + 1 : idx - 1]
+    // Band divider rows have no select button; step over them to the next real row.
+    const step = e.key === 'ArrowDown' ? 1 : -1
+    let n = idx + step
+    while (state.items[n] && isBandDivider(state.items[n])) n += step
+    const neighbor = state.items[n]
     if (!neighbor) return
     // Only now — an arrow at either end should stay an ordinary arrow, not a swallowed one.
     e.preventDefault()
     if (e.shiftKey) state.selectRangeTo(neighbor.id)
-    const row = (e.currentTarget as HTMLElement).closest('tr')
-    const nextRow = e.key === 'ArrowDown' ? row?.nextElementSibling : row?.previousElementSibling
+    let nextRow = (e.currentTarget as HTMLElement).closest('tr')
+    do {
+      nextRow = (step === 1 ? nextRow?.nextElementSibling : nextRow?.previousElementSibling) as HTMLTableRowElement | null
+    } while (nextRow && !nextRow.querySelector('.gutter-select'))
     nextRow?.querySelector<HTMLButtonElement>('.gutter-select')?.focus()
   }, [])
 
@@ -341,14 +354,56 @@ export default function SetupSheetTable(): JSX.Element {
   // Memoized on items: these are O(rows) and produce fresh Map identities, so recomputing
   // them on unrelated re-renders (selection, hints, catalog loads) both wasted the work and
   // broke SetupSheetRow's memoization.
-  const conflicts = useMemo(() => computeTieLineConflicts(items), [items])
-  const micUsageCounts = useMemo(() => computeUsageCounts(items, 'micId'), [items])
+  //
+  // All three are counted per band: bands play one after another, so the same mic, outboard unit
+  // and tie line are meant to be reused across them. A sheet without dividers is one band.
+  const bands = useMemo(() => bandRanges(items), [items])
+  const bandOf = useMemo(() => bandIndexes(items), [items])
+  const bandSlices = useMemo(() => bands.map((r) => items.slice(r.start, r.end)), [bands, items])
+  const conflictIds = useMemo(() => {
+    const ids = new Set<number | string>()
+    for (const slice of bandSlices) for (const group of computeTieLineConflicts(slice).values()) group.forEach((id) => ids.add(id))
+    return ids
+  }, [bandSlices])
+  const micUsageByBand = useMemo(() => bandSlices.map((slice) => computeUsageCounts(slice, 'micId')), [bandSlices])
   // Outboard and preamp capacity are accounted for together: a few units (the UA 6176, the
   // Millennia STT-1) are in both catalogs on purpose, being a preamp AND a compressor. See
   // buildGearUsage — it shares one pool across rows while still letting a single box be both the
   // preamp and the compressor on the SAME row.
-  const gearUsage = useMemo(() => buildGearUsage(items, outboardGear, preamps), [items, outboardGear, preamps])
-  const sortableIds = useMemo(() => items.map((item) => item.id), [items])
+  const gearUsageByBand = useMemo(
+    () => bandSlices.map((slice) => buildGearUsage(slice, outboardGear, preamps)),
+    [bandSlices, outboardGear, preamps]
+  )
+
+  // Which rows are on screen: a focused band shows alone, and a folded band shows only its divider.
+  const visible = useMemo(
+    () =>
+      items.map((item, i) => {
+        const band = bandOf[i]
+        if (focusedBand != null && band !== focusedBand) return false
+        return isBandDivider(item) || !collapsedBands.has(band)
+      }),
+    [items, bandOf, focusedBand, collapsedBands]
+  )
+  const sortableIds = useMemo(() => items.filter((_, i) => visible[i]).map((item) => item.id), [items, visible])
+  const columnCount =
+    (showStereoLink ? 1 : 0) +
+    1 +
+    orderedColumns.reduce((n, key) => n + (key === 'outboard' ? outboardColumnCount : 1), 0) +
+    1
+
+  // The toolbar's Bands menu asks for a band by number; scroll its divider into view here, where the
+  // table element is (each Split View pane has its own table and store).
+  useEffect(() => {
+    if (!bandScrollRequest) return
+    const state = setupStoreApi.getState()
+    if (state.focusedBand != null && state.focusedBand !== bandScrollRequest.band) state.setFocusedBand(null)
+    requestAnimationFrame(() => {
+      tableRef.current
+        ?.querySelector(`tr[data-band-index="${bandScrollRequest.band}"]`)
+        ?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+    })
+  }, [bandScrollRequest])
 
   // Per-row link state, derived by adjacency (no odd/even bucket). Every row except the last hosts
   // a link button on its bottom seam (`hasSeamBelow`), so any adjacent pair can be linked wherever
@@ -364,7 +419,9 @@ export default function SetupSheetTable(): JSX.Element {
       let bracket: 'top' | 'bottom' | null = null
       if (item.groupId != null && below && below.groupId === item.groupId) bracket = 'top'
       else if (item.groupId != null && above && above.groupId === item.groupId) bracket = 'bottom'
-      return { hasSeamBelow: i < items.length - 1, bracket, seamZIndex: items.length - i }
+      // No link seam next to a band divider: a pair never spans two bands.
+      const hasSeamBelow = below != null && !isBandDivider(item) && !isBandDivider(below)
+      return { hasSeamBelow, bracket, seamZIndex: items.length - i }
     }
   )
 
@@ -383,13 +440,21 @@ export default function SetupSheetTable(): JSX.Element {
       <div className="section-title" style={{ marginTop: 0 }}>
         Setup sheet
       </div>
+      {focusedBand != null && bands[focusedBand] && (
+        <div className="band-focus-banner">
+          Showing only {bands[focusedBand].divider?.sourceName.trim() || `Band ${focusedBand + 1}`}.
+          <button className="btn small" onClick={() => setFocusedBand(null)}>
+            Show all bands
+          </button>
+        </div>
+      )}
       {items.length === 0 ? (
         <div className="empty-state" onDoubleClick={() => addItem(GENERIC_INSTRUMENT_TYPE)}>
           No sources yet — use Add source above, or switch to Layout Mode to drag instruments onto the room layout.
         </div>
       ) : (
         <DndContext sensors={sensors} onDragOver={onDragOverTick} onDragEnd={handleDragEnd}>
-          <table className="data-table">
+          <table className="data-table" ref={tableRef}>
             <thead>
               <tr>
                 {showStereoLink && <th scope="col" aria-label="Stereo pair link" style={{ width: STEREO_LANE_WIDTH }}></th>}
@@ -413,7 +478,19 @@ export default function SetupSheetTable(): JSX.Element {
             </thead>
             <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
               <tbody>
-                {items.map((item, i) => (
+                {items.map((item, i) =>
+                  !visible[i] ? null : isBandDivider(item) ? (
+                    <BandDividerRow
+                      key={item.rowKey ?? item.id}
+                      item={item}
+                      bandIndex={bandOf[i]}
+                      bandCount={bands.length}
+                      rowCount={bands[bandOf[i]].end - bands[bandOf[i]].start}
+                      collapsed={collapsedBands.has(bandOf[i])}
+                      colSpan={columnCount}
+                      onChange={updateItemFields}
+                    />
+                  ) : (
                   <SetupSheetRow
                     key={item.rowKey ?? item.id}
                     item={item}
@@ -436,19 +513,20 @@ export default function SetupSheetTable(): JSX.Element {
                     onSyncPairPreamp={handleSyncPairPreamp}
                     onSyncPairFields={handleSyncPairFields}
                     onSyncPairOutboardSlot={handleSyncPairOutboardSlot}
-                    conflict={item.tieLine != null && conflicts.has(tieLineKey(item.tieLine))}
+                    conflict={conflictIds.has(item.id)}
                     unresolvedGearHint={unresolvedGearHints.get(item.id)}
                     onClearUnresolvedGearHint={clearUnresolvedGearHint}
-                    micUsageCounts={micUsageCounts}
-                    gearUsage={gearUsage}
+                    micUsageCounts={micUsageByBand[bandOf[i]]}
+                    gearUsage={gearUsageByBand[bandOf[i]]}
                     onGutterClick={handleGutterClick}
                     onGutterKeyDown={handleGutterKeyDown}
-                    rowNumber={i + 1}
+                    rowNumber={i - bands[bandOf[i]].start + 1}
                     onChange={updateItemFields}
                     onOutboardSlotChange={updateItemOutboardSlot}
                     onDelete={removeItem}
                   />
-                ))}
+                  )
+                )}
               </tbody>
             </SortableContext>
           </table>

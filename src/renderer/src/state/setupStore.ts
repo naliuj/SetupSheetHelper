@@ -10,6 +10,7 @@ import {
 import { useColumnPrefsStore } from './columnPrefsStore'
 import { useToastStore } from './toastStore'
 import { duplicateRows } from '@shared/utils/pairRows'
+import { BAND_DIVIDER, appendNextBand, bandRanges, isBandDivider } from '@shared/utils/bands'
 
 /** Why the last save failed. `at` exists so a repeat of the same failure is a NEW value, which
  *  is what lets a retry re-arm rather than sitting idle behind an unchanged state slice. */
@@ -100,6 +101,12 @@ interface SetupState {
   /** Transient (not persisted) — set when a Channel Preset's captured mic/outboard couldn't be
    *  matched in the current studio's catalogue, cleared the moment the user picks a replacement. */
   unresolvedGearHints: Map<number | string, UnresolvedGearHint>
+  /** Band numbers folded in the table. View state only: not saved, not undoable. */
+  collapsedBands: Set<number>
+  /** When set, the table shows only this band. View state only. */
+  focusedBand: number | null
+  /** Asks the table to scroll a band's divider into view; the tick makes a repeat request fire. */
+  bandScrollRequest: { band: number; tick: number } | null
   isDirty: boolean
   isSaving: boolean
   /** The last save failure, or null when the last save succeeded. Carries a timestamp so two
@@ -143,6 +150,16 @@ interface SetupState {
   focusNumbering(): void
   clearUnresolvedGearHint(id: number | string, field: 'mic' | 'outboard' | 'preamp'): void
   applyChannelPreset(items: ResolvedChannelPresetItem[]): void
+  /** Appends the next band (a divider plus a copy of the last band's rows); returns the divider id. */
+  addNextBand(): number | string
+  /** Removes a band: its divider and every row in it (with the usual "Deleted N rows" undo toast). */
+  removeBand(dividerId: number | string): void
+  /** Removes a divider only, so its rows join the band above (or, for the first band, the sheet
+   *  goes back to having no dividers once it is the only band left). */
+  removeBandDivider(dividerId: number | string): void
+  toggleBandCollapsed(band: number): void
+  setFocusedBand(band: number | null): void
+  scrollToBand(band: number): void
   save(): Promise<void>
 }
 
@@ -181,6 +198,9 @@ export function createSetupStore() {
   selectionAnchorId: null,
   numberingFocusTick: 0,
   unresolvedGearHints: new Map(),
+  collapsedBands: new Set<number>(),
+  focusedBand: null,
+  bandScrollRequest: null,
   isDirty: false,
   isSaving: false,
   saveError: null,
@@ -205,6 +225,9 @@ export function createSetupStore() {
       selectedItemIds: new Set(),
       selectionAnchorId: null,
       unresolvedGearHints: new Map(),
+      collapsedBands: new Set(),
+      focusedBand: null,
+      bandScrollRequest: null,
       isDirty: false
     })
     store.temporal.getState().clear()
@@ -280,10 +303,20 @@ export function createSetupStore() {
     }
     // Deliberately doesn't select the new row — auto-selecting made the SelectionActionBar pop
     // up on every add even though the user hadn't selected anything themselves.
-    set((state) => ({
-      items: [...state.items, draft],
-      isDirty: true
-    }))
+    set((state) => {
+      // New rows go at the end of the sheet, which is the last band; while the table shows only
+      // one band they go at the end of that band instead, so the row appears where you're looking.
+      const ranges = bandRanges(state.items)
+      const band = state.focusedBand != null ? ranges[state.focusedBand] : ranges[ranges.length - 1]
+      const at = band ? band.end : state.items.length
+      const collapsedBands = new Set(state.collapsedBands)
+      if (band) collapsedBands.delete(band.index)
+      return {
+        items: [...state.items.slice(0, at), draft, ...state.items.slice(at)],
+        collapsedBands,
+        isDirty: true
+      }
+    })
     return id
   },
 
@@ -422,7 +455,7 @@ export function createSetupStore() {
 
   selectAll: () =>
     set((state) => ({
-      selectedItemIds: new Set(state.items.map((item) => item.id)),
+      selectedItemIds: new Set(state.items.filter((item) => !isBandDivider(item)).map((item) => item.id)),
       selectionAnchorId: null
     })),
 
@@ -461,17 +494,30 @@ export function createSetupStore() {
       return
     }
     const [from, to] = anchorIndex <= targetIndex ? [anchorIndex, targetIndex] : [targetIndex, anchorIndex]
-    set({ selectedItemIds: new Set(state.items.slice(from, to + 1).map((item) => item.id)) })
+    set({
+      selectedItemIds: new Set(
+        state.items
+          .slice(from, to + 1)
+          .filter((item) => !isBandDivider(item))
+          .map((item) => item.id)
+      )
+    })
   },
 
   // Fills the chosen field sequentially (start, start+1, ...) down the selected rows in
-  // visual order — or every row when nothing is selected (fast whole-sheet numbering).
+  // visual order — or every row when nothing is selected (fast whole-sheet numbering). Each band
+  // starts again from `start`: bands play one after another, so they reuse the same channels.
+  // Divider rows are never numbered.
   applySequentialNumbering: (field, start) =>
     set((state) => {
       const targetAll = state.selectedItemIds.size === 0
       let next = Math.max(1, start)
       return {
         items: state.items.map((item) => {
+          if (isBandDivider(item)) {
+            next = Math.max(1, start)
+            return item
+          }
           if (!targetAll && !state.selectedItemIds.has(item.id)) return item
           const value = next++
           // Cue box and tie line are free-text fields ("1-2", "PB1"), so numbering writes strings.
@@ -545,6 +591,75 @@ export function createSetupStore() {
       }
       return { items: [...state.items, ...newItems], unresolvedGearHints: hints, isDirty: true }
     }),
+
+  addNextBand: () => {
+    const makeDivider = (name: string): SetupItemDraft => ({
+      id: newDraftId(),
+      instrumentType: BAND_DIVIDER,
+      sourceName: name,
+      micId: null,
+      micText: null,
+      phantomPower: false,
+      channel: null,
+      tieLine: null,
+      cueBox: null,
+      outboards: [],
+      preampId: null,
+      preampText: null,
+      polarityFlip: false,
+      notes: null,
+      color: null,
+      groupId: null,
+      startTime: null,
+      copyKey: null
+    })
+    const { items, dividerId } = appendNextBand(
+      get().items,
+      makeDivider,
+      // A fresh id and no rowKey, as duplicateItems does; outboard slots copied, not shared.
+      ({ rowKey: _rowKey, ...item }, groupId, copyKey) => ({
+        ...item,
+        id: newDraftId(),
+        groupId,
+        copyKey,
+        outboards: item.outboards.map((slot) => ({ ...slot }))
+      }),
+      () => crypto.randomUUID()
+    )
+    set({ items, isDirty: true, selectedItemIds: new Set(), selectionAnchorId: null, focusedBand: null })
+    get().scrollToBand(bandRanges(items).length - 1)
+    return dividerId
+  },
+
+  removeBand: (dividerId) => {
+    const state = get()
+    const range = bandRanges(state.items).find((r) => r.divider?.id === dividerId)
+    if (!range) return
+    // Band numbers below this one shift up; simplest to unfold everything rather than guess.
+    set({ collapsedBands: new Set(), focusedBand: null })
+    state.removeItems([dividerId, ...state.items.slice(range.start, range.end).map((item) => item.id)])
+  },
+
+  removeBandDivider: (dividerId) =>
+    set((state) => {
+      let items = state.items.filter((item) => item.id !== dividerId)
+      // A lone leftover "Band 1" divider would make a one-band sheet look like a multi-band one.
+      if (items.filter(isBandDivider).length === 1 && isBandDivider(items[0])) items = items.slice(1)
+      return { items, isDirty: true, collapsedBands: new Set(), focusedBand: null }
+    }),
+
+  toggleBandCollapsed: (band) =>
+    set((state) => {
+      const next = new Set(state.collapsedBands)
+      if (next.has(band)) next.delete(band)
+      else next.add(band)
+      return { collapsedBands: next }
+    }),
+
+  setFocusedBand: (focusedBand) => set({ focusedBand }),
+
+  scrollToBand: (band) =>
+    set((state) => ({ bandScrollRequest: { band, tick: (state.bandScrollRequest?.tick ?? 0) + 1 } })),
 
   save: async () => {
     // A save that starts while another runs waits for it, then only goes ahead if there's still
