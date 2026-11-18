@@ -9,7 +9,7 @@ import {
 } from '@shared/constants/setupColumns'
 import { useColumnPrefsStore } from './columnPrefsStore'
 import { useToastStore } from './toastStore'
-import { duplicateRows } from './pairRows'
+import { duplicateRows } from '@shared/utils/pairRows'
 
 /** Why the last save failed. `at` exists so a repeat of the same failure is a NEW value, which
  *  is what lets a retry re-arm rather than sitting idle behind an unchanged state slice. */
@@ -274,7 +274,9 @@ export function createSetupStore() {
       polarityFlip: false,
       notes: defaults.notes ?? null,
       color: null,
-      groupId: null
+      groupId: null,
+      startTime: null,
+      copyKey: null
     }
     // Deliberately doesn't select the new row — auto-selecting made the SelectionActionBar pop
     // up on every add even though the user hadn't selected anything themselves.
@@ -408,7 +410,8 @@ export function createSetupStore() {
         state.items,
         ids,
         // A fresh rowKey (none) — sharing the original's would give two rows the same React key.
-        ({ rowKey: _rowKey, ...item }, groupId) => ({ ...item, id: newDraftId(), groupId }),
+        // No copyKey either: a Cmd+D copy is a new row in its band, not a later band's match.
+        ({ rowKey: _rowKey, ...item }, groupId) => ({ ...item, id: newDraftId(), groupId, copyKey: null }),
         () => crypto.randomUUID()
       )
       return { items, selectedItemIds: new Set(copyIds), isDirty: true }
@@ -528,7 +531,9 @@ export function createSetupStore() {
           polarityFlip: item.polarityFlip ?? false,
           notes: item.notes,
           color: item.color ?? null,
-          groupId
+          groupId,
+          startTime: null,
+          copyKey: null
         })
         if (item.unresolvedMicName || item.unresolvedOutboardName || item.unresolvedPreampName) {
           hints.set(id, {

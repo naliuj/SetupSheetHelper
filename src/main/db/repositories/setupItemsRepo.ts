@@ -21,6 +21,8 @@ interface SetupItemRow {
   notes: string | null
   color: string | null
   group_id: string | null
+  start_time: string | null
+  copy_key: string | null
   sort_order: number
 }
 
@@ -49,7 +51,9 @@ function mapRow(row: SetupItemRow, outboards: SetupItemOutboardSlot[]): SetupIte
     polarityFlip: row.polarity_flip === 1,
     notes: row.notes,
     color: row.color,
-    groupId: row.group_id
+    groupId: row.group_id,
+    startTime: row.start_time,
+    copyKey: row.copy_key
   }
 }
 
@@ -102,15 +106,15 @@ export function replaceItemsForSetup(setupId: number, items: SetupItemInput[]): 
   const db = getDb()
   const insert = db.prepare(
     `INSERT INTO setup_items
-      (setup_id, instrument_type, source_name, mic_id, mic_text, phantom_power, channel, tie_line, cue_box, preamp_id, preamp_text, polarity_flip, notes, color, group_id, sort_order)
-     VALUES (@setupId, @instrumentType, @sourceName, @micId, @micText, @phantomPower, @channel, @tieLine, @cueBox, @preampId, @preampText, @polarityFlip, @notes, @color, @groupId, @sortOrder)`
+      (setup_id, instrument_type, source_name, mic_id, mic_text, phantom_power, channel, tie_line, cue_box, preamp_id, preamp_text, polarity_flip, notes, color, group_id, start_time, copy_key, sort_order)
+     VALUES (@setupId, @instrumentType, @sourceName, @micId, @micText, @phantomPower, @channel, @tieLine, @cueBox, @preampId, @preampText, @polarityFlip, @notes, @color, @groupId, @startTime, @copyKey, @sortOrder)`
   )
   const update = db.prepare(
     `UPDATE setup_items SET
       instrument_type = @instrumentType, source_name = @sourceName, mic_id = @micId, mic_text = @micText,
       phantom_power = @phantomPower, channel = @channel, tie_line = @tieLine, cue_box = @cueBox,
       preamp_id = @preampId, preamp_text = @preampText,
-      polarity_flip = @polarityFlip, notes = @notes, color = @color, group_id = @groupId, sort_order = @sortOrder,
+      polarity_flip = @polarityFlip, notes = @notes, color = @color, group_id = @groupId, start_time = @startTime, copy_key = @copyKey, sort_order = @sortOrder,
       updated_at = datetime('now')
      WHERE id = @id AND setup_id = @setupId`
   )
@@ -154,6 +158,8 @@ export function replaceItemsForSetup(setupId: number, items: SetupItemInput[]): 
         notes: item.notes,
         color: item.color,
         groupId: item.groupId,
+        startTime: item.startTime,
+        copyKey: item.copyKey,
         sortOrder: index
       }
       let itemId: number
@@ -198,8 +204,8 @@ export function copyItemsToSetup(
   const items = listItemsBySetup(sourceSetupId)
   const insert = db.prepare(
     `INSERT INTO setup_items
-      (setup_id, instrument_type, source_name, mic_id, mic_text, phantom_power, channel, tie_line, cue_box, preamp_id, preamp_text, polarity_flip, notes, color, group_id)
-     VALUES (@setupId, @instrumentType, @sourceName, @micId, @micText, @phantomPower, @channel, @tieLine, @cueBox, @preampId, @preampText, @polarityFlip, @notes, @color, @groupId)`
+      (setup_id, instrument_type, source_name, mic_id, mic_text, phantom_power, channel, tie_line, cue_box, preamp_id, preamp_text, polarity_flip, notes, color, group_id, start_time, copy_key)
+     VALUES (@setupId, @instrumentType, @sourceName, @micId, @micText, @phantomPower, @channel, @tieLine, @cueBox, @preampId, @preampText, @polarityFlip, @notes, @color, @groupId, @startTime, @copyKey)`
   )
   const insertOutboard = db.prepare(
     `INSERT INTO setup_item_outboards (setup_item_id, slot_index, outboard_id, outboard_text)
@@ -223,7 +229,9 @@ export function copyItemsToSetup(
         polarityFlip: options.blankRoomSpecificFields ? 0 : item.polarityFlip ? 1 : 0,
         notes: options.blankRoomSpecificFields ? null : item.notes,
         color: options.blankRoomSpecificFields ? null : item.color,
-        groupId: options.blankRoomSpecificFields ? null : item.groupId
+        groupId: options.blankRoomSpecificFields ? null : item.groupId,
+        startTime: options.blankRoomSpecificFields ? null : item.startTime,
+        copyKey: item.copyKey
       })
       if (!options.blankRoomSpecificFields) {
         const newItemId = Number(info.lastInsertRowid)

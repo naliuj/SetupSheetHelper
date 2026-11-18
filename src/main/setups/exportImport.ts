@@ -102,7 +102,9 @@ export async function exportSetupsToFile(setupIds: number[]): Promise<ExportSetu
         polarityFlip: item.polarityFlip,
         notes: item.notes,
         color: item.color,
-        groupId: item.groupId
+        groupId: item.groupId,
+        startTime: item.startTime,
+        copyKey: item.copyKey
       }
     })
 
@@ -269,7 +271,9 @@ export function importSetups(setups: ExportedSetup[], targetStudioId: number): v
           polarityFlip: item.polarityFlip,
           notes: item.notes,
           color: item.color,
-          groupId: item.groupId
+          groupId: item.groupId,
+          startTime: item.startTime ?? null,
+          copyKey: item.copyKey ?? null
         }
       })
       replaceItemsForSetup(created.id, items)

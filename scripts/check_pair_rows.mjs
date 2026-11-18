@@ -1,4 +1,4 @@
-// Checks the stereo-pair row rules (src/renderer/src/state/pairRows.ts): duplicating rows never
+// Checks the stereo-pair row rules (src/shared/utils/pairRows.ts): duplicating rows never
 // chains or splits a linked pair, and a dragged row never lands between a pair's two halves.
 // Run with `node scripts/check_pair_rows.mjs`; exits non-zero on any failure.
 
@@ -11,7 +11,7 @@ import { buildSync } from 'esbuild'
 const root = fileURLToPath(new URL('..', import.meta.url))
 const dir = mkdtempSync(join(tmpdir(), 'pair-rows-'))
 const out = join(dir, 'pairRows.mjs')
-buildSync({ entryPoints: [join(root, 'src/renderer/src/state/pairRows.ts')], bundle: true, format: 'esm', outfile: out, logLevel: 'error' })
+buildSync({ entryPoints: [join(root, 'src/shared/utils/pairRows.ts')], bundle: true, format: 'esm', outfile: out, logLevel: 'error' })
 const { duplicateRows, avoidSplittingPair } = await import(pathToFileURL(out).href)
 rmSync(dir, { recursive: true, force: true })
 

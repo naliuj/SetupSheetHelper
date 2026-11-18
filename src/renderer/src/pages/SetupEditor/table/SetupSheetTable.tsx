@@ -15,7 +15,7 @@ import { formatGearLabel, gearIdentityKey, stripManufacturerPrefix } from '@shar
 import type { Suggestion } from '@renderer/components/SuggestInput'
 import SetupSheetRow, { SHEET_EDGE_INSET } from './SetupSheetRow'
 import { GENERIC_INSTRUMENT_TYPE } from './tableConstants'
-import { avoidSplittingPair } from '@renderer/state/pairRows'
+import { avoidSplittingPair } from '@shared/utils/pairRows'
 
 /** Quick Setup's free-text suggestions. Two things this has to get right, both of which used to
  *  produce what looked like duplicate entries:
