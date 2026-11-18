@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type Konva from 'konva'
 import { Check, ExternalLink, FileText, Keyboard } from 'lucide-react'
 import { APP_SETTINGS_KEYS } from '@shared/types/entities'
-import type { MenuAction, PatchbayExportImage, PdfExportParts } from '@shared/types/ipc'
+import type { BandExportLayout, MenuAction, PatchbayExportImage, PdfExportParts } from '@shared/types/ipc'
 import { parsePdfExportParts, serializePdfExportParts } from '@shared/constants/pdfLayout'
 import {
   KEYBIND_ACTIONS,
@@ -203,7 +203,8 @@ export default function SetupToolbar({
     coloredRows,
     orientation,
     density,
-    includeColumns
+    includeColumns,
+    bandLayout
   }: ExportOptions): Promise<void> {
     setExporting(true)
     setExportMessage(null)
@@ -264,7 +265,8 @@ export default function SetupToolbar({
         coloredRows,
         orientation,
         density,
-        includeColumns
+        includeColumns,
+        bandLayout
       })
       if (result.canceled) {
         setExportMessage(null)
@@ -319,7 +321,8 @@ export default function SetupToolbar({
   async function performSpreadsheetExport(
     includeColumns: SetupColumnKey[],
     includeLayout: boolean,
-    includePatchbay: boolean
+    includePatchbay: boolean,
+    bandLayout?: BandExportLayout
   ): Promise<void> {
     setExporting(true)
     setExportMessage(null)
@@ -367,7 +370,8 @@ export default function SetupToolbar({
         patchbayImage:
           patchbay !== 'failed' && patchbay.status === 'ok'
             ? { dataUrl: patchbay.dataUrl, roomWidth: patchbay.roomWidth, roomHeight: patchbay.roomHeight }
-            : null
+            : null,
+        bandLayout
       })
       if (!result.canceled) {
         await window.api.settings.set(

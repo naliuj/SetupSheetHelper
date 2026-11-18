@@ -11,9 +11,7 @@ import {
 } from '@shared/constants/pdfLayout'
 import type { BandExportLayout } from '@shared/types/ipc'
 
-// shortcut: a literal key because APP_SETTINGS_KEYS lives in src/shared, outside the exports track;
-// move it there (as bandExportLayout) when the band work is merged.
-const BAND_EXPORT_LAYOUT_KEY = 'band_export_layout'
+const BAND_EXPORT_LAYOUT_KEY = APP_SETTINGS_KEYS.bandExportLayout
 const parseBandExportLayout = (raw: string | null): BandExportLayout =>
   raw === 'pagePerBand' ? 'pagePerBand' : 'continuous'
 
