@@ -46,10 +46,13 @@ export default function SpreadsheetExportModal({
   const [includePatchbay, setIncludePatchbay] = useState(hasPatchbay && defaultIncludePatchbay)
   const sheetHasBands = useSetupStoreState((s) => hasBands(s.items))
   const [bandLayout, setBandLayout] = useState(usePdfLayoutPrefsStore.getState().bandExportLayout)
+  const [markBandChanges, setMarkBandChanges] = useState(usePdfLayoutPrefsStore.getState().markBandChanges)
 
   async function handleExport(): Promise<void> {
     setExporting(true)
     try {
+      // Saved first: SetupToolbar reads this pref when it builds the export.
+      if (sheetHasBands) await usePdfLayoutPrefsStore.getState().setMarkBandChanges(markBandChanges)
       await onExport(chips.included, includeLayout, includePatchbay, sheetHasBands ? bandLayout : undefined)
       if (sheetHasBands) await usePdfLayoutPrefsStore.getState().setBandExportLayout(bandLayout)
       onClose()
@@ -88,6 +91,11 @@ export default function SpreadsheetExportModal({
               <option value="pagePerBand">A sheet per band</option>
             </select>
           </label>
+        )}
+        {sheetHasBands && (
+          <div style={{ marginBottom: 10 }}>
+            <ToggleSwitch checked={markBandChanges} onChange={setMarkBandChanges} label="Mark changes between bands" />
+          </div>
         )}
         <ExportColumnChips states={chips.states} onToggle={chips.toggle} />
         <div className="modal-actions">

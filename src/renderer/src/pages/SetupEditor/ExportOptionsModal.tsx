@@ -61,6 +61,7 @@ export default function ExportOptionsModal({
   const chips = useExportColumnChips()
   const sheetHasBands = useSetupStoreState((s) => hasBands(s.items))
   const [bandLayout, setBandLayout] = useState(usePdfLayoutPrefsStore.getState().bandExportLayout)
+  const [markBandChanges, setMarkBandChanges] = useState(usePdfLayoutPrefsStore.getState().markBandChanges)
 
   const goToSettings = useNavigationStore((s) => s.goToSettings)
 
@@ -76,6 +77,8 @@ export default function ExportOptionsModal({
     const parts: PdfExportParts = { sheet: includeSheet, layout: includeLayout, patchbay: includePatchbay }
     setExporting(true)
     try {
+      // Saved first: SetupToolbar reads this pref when it builds the export.
+      if (sheetHasBands) await usePdfLayoutPrefsStore.getState().setMarkBandChanges(markBandChanges)
       await onExport({
         parts,
         coloredRows,
@@ -170,6 +173,16 @@ export default function ExportOptionsModal({
               <option value="pagePerBand">New page per band</option>
             </select>
           </label>
+        )}
+        {sheetHasBands && (
+          <div style={{ marginBottom: 8, opacity: includeSheet ? 1 : 0.5 }}>
+            <ToggleSwitch
+              checked={markBandChanges}
+              onChange={setMarkBandChanges}
+              disabled={!includeSheet}
+              label="Mark changes between bands"
+            />
+          </div>
         )}
 
         <div className="modal-actions">

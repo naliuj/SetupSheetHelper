@@ -1,6 +1,7 @@
 import type { Mic, OutboardGear, Preamp } from '@shared/types/entities'
 import type { SetupItem } from '@shared/types/setup'
 import { buildPatchCableRows, type PatchCableRow } from '@shared/utils/patchCableRows'
+import { FIELD_COLUMN, allBandChanges, bandRanges, changedOutboardSlots, rowLabel } from '@shared/utils/bands'
 import { getMicsByIds } from './repositories/micsRepo'
 import { getOutboardByIds } from './repositories/outboardRepo'
 import { getPreampsByIds } from './repositories/preampRepo'
@@ -66,4 +67,48 @@ export function bandTitle(divider: Pick<SetupItem, 'sourceName' | 'startTime'>, 
   const name = divider.sourceName.trim() || `Band ${bandIndex + 1}`
   const time = divider.startTime?.trim()
   return time ? `${name} \u00b7 ${time}` : name
+}
+
+/** What both exports mark when "Mark changes between bands" is on, against the band before. */
+export interface BandChangeMarks {
+  /** Row id -> the column keys to mark: SetupColumnKeys, plus `outboard:N` for each changed slot
+   *  (the PDF's single Outboard column looks for 'outboard', the spreadsheet's per-slot ones for
+   *  `outboard:N`). Renamed-only rows are not here: a rename costs no changeover. */
+  cells: Map<number, Set<string>>
+  /** Rows with no match in the band before, whose source name gets "+ ". */
+  newRows: Set<number>
+  /** Item id -> the italic line printed right after it: "Removed: OH R (ch 3) · * changed from
+   *  Jazz Trio". Keyed by a band's last row, or its divider when the band has no rows. */
+  notes: Map<number, string>
+}
+
+export function bandChangeMarks(items: SetupItem[]): BandChangeMarks {
+  const ranges = bandRanges(items)
+  const marks: BandChangeMarks = { cells: new Map(), newRows: new Set(), notes: new Map() }
+  for (const [index, changes] of allBandChanges(items)) {
+    for (const { item, status, previous, fields } of changes.rows) {
+      if (status === 'new') marks.newRows.add(item.id)
+      if (status !== 'changed' || !previous) continue
+      const keys = new Set<string>(fields.map((field) => FIELD_COLUMN[field]))
+      if (fields.includes('outboards')) {
+        for (const slot of changedOutboardSlots(item, previous)) keys.add(`outboard:${slot}`)
+      }
+      marks.cells.set(item.id, keys)
+    }
+    const prev = ranges[index - 1]
+    const parts: string[] = []
+    if (changes.removed.length > 0) parts.push(`Removed: ${changes.removed.map(rowLabel).join(', ')}`)
+    if (changes.rows.some((row) => row.status === 'changed')) {
+      const prevName = prev.divider ? bandTitle({ ...prev.divider, startTime: null }, prev.index) : `Band ${prev.index + 1}`
+      parts.push(`* changed from ${prevName}`)
+    }
+    const band = ranges[index]
+    if (parts.length > 0) marks.notes.set(items[band.end > band.start ? band.end - 1 : band.start - 1].id, parts.join(' \u00b7 '))
+  }
+  return marks
+}
+
+/** A marked cell's text: " *" after it, or "*" alone in a cell that is now empty. */
+export function withChangeMark(text: string): string {
+  return text ? `${text} *` : '*'
 }

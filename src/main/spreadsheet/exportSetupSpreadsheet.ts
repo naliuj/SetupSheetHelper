@@ -10,12 +10,14 @@ import { resolveMicText, resolvePreampText } from '../db/resolveGearLabels'
 import type { SetupItem } from '@shared/types/setup'
 import { bandIndexes, bandRanges, hasBands, isBandDivider } from '@shared/utils/bands'
 import {
+  bandChangeMarks,
   bandTitle,
   exportFileName,
   loadPatchCableRows,
   loadSetupGear,
   outboardSlotTexts,
-  pngBytesFromDataUrl
+  pngBytesFromDataUrl,
+  withChangeMark
 } from '../db/exportShared'
 import { COLUMN_LABELS, orderedVisibleColumns } from '@shared/constants/setupColumns'
 import { isHexColor, readableTextColor } from '@shared/constants/swatches'
@@ -140,6 +142,15 @@ export async function exportSetupSpreadsheet(input: ExportSetupSpreadsheetInput)
   workbook.creator = 'Setup Sheet Helper'
   workbook.title = setup.name
   const bandOf = bandIndexes(setup.items)
+  const marks = input.markBandChanges && hasBands(setup.items) ? bandChangeMarks(setup.items) : null
+  const columnKeys = new Set(columns.map((c) => c.key))
+
+  /** A merged row across the whole width, as the band heading and notes use. */
+  const addWideRow = (sheet: ExcelJS.Worksheet, text: string, font: Partial<ExcelJS.Font>): void => {
+    const row = sheet.addRow([text])
+    row.getCell(1).font = font
+    if (columns.length > 1) sheet.mergeCells(row.number, 1, row.number, columns.length)
+  }
 
   /** A data sheet with the column headers frozen on row 1, then `items` (band dividers included). */
   const addDataSheet = (name: string, items: SetupItem[]): ExcelJS.Worksheet => {
@@ -147,7 +158,12 @@ export async function exportSetupSpreadsheet(input: ExportSetupSpreadsheetInput)
     sheet.columns = columns.map((c) => ({ header: c.header, key: c.key, width: c.width }))
     sheet.getRow(1).font = { bold: true }
     sheet.views = [{ state: 'frozen', ySplit: 1 }]
-    for (const item of items) addItemRow(sheet, item)
+    for (const item of items) {
+      addItemRow(sheet, item)
+      // The band's change note, after its last row.
+      const note = marks?.notes.get(item.id)
+      if (note) addWideRow(sheet, note, { italic: true })
+    }
     return sheet
   }
 
@@ -157,11 +173,7 @@ export async function exportSetupSpreadsheet(input: ExportSetupSpreadsheetInput)
       [bandTitle(divider, bandOf[setup.items.indexOf(divider)]), { bold: true }]
     ]
     if (divider.notes?.trim()) lines.push([divider.notes.trim(), { italic: true }])
-    for (const [text, font] of lines) {
-      const row = sheet.addRow([text])
-      row.getCell(1).font = font
-      if (columns.length > 1) sheet.mergeCells(row.number, 1, row.number, columns.length)
-    }
+    for (const [text, font] of lines) addWideRow(sheet, text, font)
   }
 
   const addItemRow = (worksheet: ExcelJS.Worksheet, item: SetupItem): void => {
@@ -186,6 +198,10 @@ export async function exportSetupSpreadsheet(input: ExportSetupSpreadsheetInput)
     if (shownColumns.has('polarity')) values.polarity = item.polarityFlip ? 'Yes' : ''
     if (shownColumns.has('notes')) values.notes = item.notes ?? ''
 
+    if (marks?.newRows.has(item.id)) values.sourceName = `+ ${values.sourceName}`
+    const marked = [...(marks?.cells.get(item.id) ?? [])].filter((key) => columnKeys.has(key))
+    for (const key of marked) values[key] = withChangeMark(values[key] ?? '')
+
     const row = worksheet.addRow(values)
     // Validated, not merely truthy: an imported .json can carry anything, and an unparseable value
     // used to land in xl/styles.xml as rgb="FFNOT-A-COLOR" — schema-invalid, tolerated by
@@ -203,6 +219,12 @@ export async function exportSetupSpreadsheet(input: ExportSetupSpreadsheetInput)
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb } }
         cell.font = { color: { argb: fontArgb } }
       })
+    }
+    // After the row color, so a changed cell reads as changed on a colored row too.
+    for (const key of marked) {
+      const cell = row.getCell(key)
+      cell.font = { ...cell.font, bold: true }
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } }
     }
   }
 
