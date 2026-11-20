@@ -19,6 +19,7 @@ import { avoidSplittingPair } from '@shared/utils/pairRows'
 import { allBandChanges, bandIndexes, bandRanges, isBandDivider, type RowChange } from '@shared/utils/bands'
 import BandDividerRow from './BandDividerRow'
 import BandChangeSummary from './BandChangeSummary'
+import { usePdfLayoutPrefsStore } from '@renderer/state/pdfLayoutPrefsStore'
 
 /** Quick Setup's free-text suggestions. Two things this has to get right, both of which used to
  *  produce what looked like duplicate entries:
@@ -378,6 +379,7 @@ export default function SetupSheetTable(): JSX.Element {
 
   // Change marks against the band before. A fresh RowChange per row on every edit would re-render
   // every memoized row, so a row whose item and match are both unchanged keeps its old object.
+  const showChanges = usePdfLayoutPrefsStore((s) => s.showBandChanges)
   const bandChangeMap = useMemo(() => allBandChanges(items), [items])
   const prevRowChanges = useRef(new Map<number | string, RowChange<SetupItemDraft>>())
   const changeByRow = useMemo(() => {
@@ -512,7 +514,7 @@ export default function SetupSheetTable(): JSX.Element {
                       <BandChangeSummary
                         bandIndex={bandOf[i]}
                         bandName={bandName(bandOf[i])}
-                        changes={bandChangeMap.get(bandOf[i])}
+                        changes={showChanges ? bandChangeMap.get(bandOf[i]) : undefined}
                         previousName={bandName(bandOf[i] - 1)}
                       />
                     </BandDividerRow>
@@ -547,7 +549,7 @@ export default function SetupSheetTable(): JSX.Element {
                     onGutterClick={handleGutterClick}
                     onGutterKeyDown={handleGutterKeyDown}
                     rowNumber={i - bands[bandOf[i]].start + 1}
-                    change={changeByRow.get(item.id)}
+                    change={showChanges ? changeByRow.get(item.id) : undefined}
                     onChange={updateItemFields}
                     onOutboardSlotChange={updateItemOutboardSlot}
                     onDelete={removeItem}

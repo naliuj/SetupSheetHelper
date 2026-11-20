@@ -7,6 +7,8 @@ import { useKeybindPrefsStore } from '@renderer/state/keybindPrefsStore'
 import { formatCombo } from '@shared/constants/keybindActions'
 import Icon from '@renderer/components/Icon'
 import ColumnOrderList from '@renderer/components/ColumnOrderList'
+import ToggleSwitch from '@renderer/components/ToggleSwitch'
+import { usePdfLayoutPrefsStore } from '@renderer/state/pdfLayoutPrefsStore'
 import LoadPresetModal from '../../PresetManager/LoadPresetModal'
 import ManagePresetsModal from '../../PresetManager/ManagePresetsModal'
 import { GENERIC_INSTRUMENT_TYPE } from './tableConstants'
@@ -42,6 +44,8 @@ export default function TableModeToolbar(): JSX.Element {
     }))
   const currentBand = Math.min(activeBand ?? focusedBand ?? bands.length - 1, bands.length - 1)
   const [bandsOpen, setBandsOpen] = useState(false)
+  const showBandChanges = usePdfLayoutPrefsStore((s) => s.showBandChanges)
+  const setShowBandChanges = usePdfLayoutPrefsStore((s) => s.setShowBandChanges)
   const [bandStep, setBandStep] = useState<'list' | 'add'>('list')
   const bandsRef = useRef<HTMLDivElement>(null)
 
@@ -150,6 +154,12 @@ export default function TableModeToolbar(): JSX.Element {
                     }}
                     onMove={moveBand}
                   />
+                )}
+                {bands.length > 1 && (
+                  // Not a .picker-menu-row: its hover would light the whole row while only the switch clicks.
+                  <div style={{ padding: '6px 8px', fontSize: 13, borderTop: '1px solid var(--color-border)' }}>
+                    <ToggleSwitch checked={showBandChanges} onChange={setShowBandChanges} label="Show changes between bands" />
+                  </div>
                 )}
                 {focusedBand != null && (
                   <div
