@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Layers, RotateCcw } from 'lucide-react'
 import { bandRanges } from '@shared/utils/bands'
+import BandOrderList from './BandOrderList'
 import { useSetupStoreState } from '@renderer/state/setupStoreContext'
 import { useKeybindPrefsStore } from '@renderer/state/keybindPrefsStore'
 import { formatCombo } from '@shared/constants/keybindActions'
@@ -24,13 +25,37 @@ export default function TableModeToolbar(): JSX.Element {
   const resetColumnsToDefault = useSetupStoreState((s) => s.resetColumnsToDefault)
   const resolveKeybind = useKeybindPrefsStore((s) => s.resolve)
   const items = useSetupStoreState((s) => s.items)
-  const addNextBand = useSetupStoreState((s) => s.addNextBand)
+  const addBand = useSetupStoreState((s) => s.addBand)
+  const moveBand = useSetupStoreState((s) => s.moveBand)
   const scrollToBand = useSetupStoreState((s) => s.scrollToBand)
   const focusedBand = useSetupStoreState((s) => s.focusedBand)
   const setFocusedBand = useSetupStoreState((s) => s.setFocusedBand)
-  const bands = bandRanges(items).filter((r) => r.divider != null)
+  const activeBand = useSetupStoreState((s) => s.activeBand)
+  const setActiveBand = useSetupStoreState((s) => s.setActiveBand)
+  const addBandMenuTick = useSetupStoreState((s) => s.addBandMenuTick)
+  const bands = bandRanges(items)
+    .filter((r) => r.divider != null)
+    .map((r) => ({
+      id: String(r.divider!.id),
+      label: r.divider!.sourceName.trim() || `Band ${r.index + 1}`,
+      startTime: r.divider!.startTime
+    }))
+  const currentBand = Math.min(activeBand ?? focusedBand ?? bands.length - 1, bands.length - 1)
   const [bandsOpen, setBandsOpen] = useState(false)
+  const [bandStep, setBandStep] = useState<'list' | 'add'>('list')
   const bandsRef = useRef<HTMLDivElement>(null)
+
+  // The Add Band shortcut opens the menu straight on the add step.
+  useEffect(() => {
+    if (addBandMenuTick === 0) return
+    setBandStep('add')
+    setBandsOpen(true)
+  }, [addBandMenuTick])
+
+  function pickAddSource(source: number | null): void {
+    setBandsOpen(false)
+    addBand(source)
+  }
 
   const [sourceName, setSourceName] = useState('')
   const [presetsOpen, setPresetsOpen] = useState(false)
@@ -96,58 +121,87 @@ export default function TableModeToolbar(): JSX.Element {
         Add source
       </button>
 
-      <button
-        className="btn inline-icon-text"
-        onClick={() => addNextBand()}
-        title={['Copy the last band below a new divider', formatCombo(resolveKeybind('next-band'))].filter(Boolean).join(' · ')}
-      >
-        <Icon name="plus" size={14} /> Next band
-      </button>
-
-      {bands.length > 0 && (
-        <div ref={bandsRef} style={{ position: 'relative' }}>
-          <button
-            className="btn"
-            onClick={() => setBandsOpen((v) => !v)}
-            aria-haspopup="menu"
-            aria-expanded={bandsOpen}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-          >
-            <Layers size={15} aria-hidden="true" /> Bands <Icon name="chevron-down" size={14} />
-          </button>
-          {bandsOpen && (
-            <div className="picker-menu" role="menu" style={{ position: 'absolute', top: '100%', left: 0, marginTop: 4, minWidth: 220 }}>
-              {bands.map((band) => (
+      <div ref={bandsRef} style={{ position: 'relative' }}>
+        <button
+          className="btn"
+          onClick={() => {
+            setBandStep('list')
+            setBandsOpen((v) => !v)
+          }}
+          aria-label="Bands"
+          title={['Bands: add, reorder, or pick the one you are adding to', formatCombo(resolveKeybind('next-band'))].filter(Boolean).join(' · ')}
+          aria-haspopup="menu"
+          aria-expanded={bandsOpen}
+          style={{ display: 'inline-flex', alignItems: 'center' }}
+        >
+          <Layers size={15} aria-hidden="true" />
+        </button>
+        {bandsOpen && (
+          <div className="picker-menu" role="menu" style={{ position: 'absolute', top: '100%', left: 0, marginTop: 4, minWidth: 240 }}>
+            {bandStep === 'list' ? (
+              <>
+                {bands.length > 0 && (
+                  <BandOrderList
+                    bands={bands}
+                    active={currentBand}
+                    onPick={(band) => {
+                      setActiveBand(band)
+                      scrollToBand(band)
+                    }}
+                    onMove={moveBand}
+                  />
+                )}
+                {focusedBand != null && (
+                  <div
+                    className="picker-menu-row"
+                    role="menuitem"
+                    style={{ borderTop: '1px solid var(--color-border)' }}
+                    onClick={() => {
+                      setBandsOpen(false)
+                      setFocusedBand(null)
+                    }}
+                  >
+                    Show all bands
+                  </div>
+                )}
                 <div
-                  key={band.index}
-                  className="picker-menu-row"
+                  className="picker-menu-row inline-icon-text"
                   role="menuitem"
-                  onClick={() => {
-                    setBandsOpen(false)
-                    scrollToBand(band.index)
-                  }}
+                  style={bands.length > 0 ? { borderTop: '1px solid var(--color-border)' } : undefined}
+                  onClick={() => setBandStep('add')}
                 >
-                  {band.divider?.sourceName.trim() || `Band ${band.index + 1}`}
-                  {band.divider?.startTime ? <span className="card-sub"> · {band.divider.startTime}</span> : null}
+                  <Icon name="plus" size={14} /> Add band
                 </div>
-              ))}
-              {focusedBand != null && (
+              </>
+            ) : (
+              <>
+                <div className="card-sub" style={{ padding: '6px 10px', margin: 0 }}>
+                  Start the new band from
+                </div>
+                {bands.length === 0 ? (
+                  <div className="picker-menu-row" role="menuitem" onClick={() => pickAddSource(0)}>
+                    Copy of this setup
+                  </div>
+                ) : (
+                  [...bands.keys()].reverse().map((i) => (
+                    <div key={bands[i].id} className="picker-menu-row" role="menuitem" onClick={() => pickAddSource(i)}>
+                      Copy of {bands[i].label}
+                    </div>
+                  ))
+                )}
                 <div
                   className="picker-menu-row"
                   role="menuitem"
                   style={{ borderTop: '1px solid var(--color-border)' }}
-                  onClick={() => {
-                    setBandsOpen(false)
-                    setFocusedBand(null)
-                  }}
+                  onClick={() => pickAddSource(null)}
                 >
-                  Show all bands
+                  Blank band
                 </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
+              </>
+            )}
+          </div>
+        )}
+      </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }} title="Outboard columns">
         <button

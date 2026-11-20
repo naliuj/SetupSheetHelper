@@ -2,7 +2,7 @@
  *  BAND_DIVIDER: sourceName is the band name, notes the band notes, startTime its start time) and
  *  runs to the next divider. A sheet with no dividers is one band, exactly as before bands existed.
  *
- *  "Next band" copies the last band's rows below a new divider. Each copy shares its source row's
+ *  "Add band" copies an existing band's rows below a new divider. Each copy shares its source row's
  *  copyKey, which is how a later band's row knows which earlier row it is (bandChanges,
  *  laterMatches) even after a rename, a channel change or a drag.
  *
@@ -79,34 +79,50 @@ export function bandIndexes<T extends Pick<BandItem, 'instrumentType'>>(items: T
   return out
 }
 
-/** Appends the next band: a divider named "Band N" and a copy of the last band's rows. A sheet
- *  without dividers first gets a "Band 1" divider on top. Source rows without a copyKey get one,
- *  shared with their copy; each copied stereo pair gets a fresh groupId so it isn't linked to the
- *  band above. Returns the new list and the new divider's id. */
-export function appendNextBand<T extends BandItem>(
+/** Appends a band at the end: a divider named "Band N", then a copy of band `source`'s rows, or
+ *  nothing for a blank band (`source` null). A sheet without dividers first gets a "Band 1"
+ *  divider on top, so its rows are band 0. Source rows without a copyKey get one, shared with
+ *  their copy; each copied stereo pair gets a fresh groupId so it isn't linked to the original.
+ *  Returns the new list and the new divider's id. */
+export function appendBand<T extends BandItem>(
   items: T[],
+  source: number | null,
   makeDivider: (name: string) => T,
   copy: (item: T, groupId: string | null, copyKey: string) => T,
   newKey: () => string
 ): { items: T[]; dividerId: T['id'] } {
   let next = hasBands(items) ? [...items] : [makeDivider('Band 1'), ...items]
   const ranges = bandRanges(next)
-  const last = ranges[ranges.length - 1]
+  const from = source == null ? null : ranges[Math.min(source, ranges.length - 1)]
 
-  next = next.map((item, i) =>
-    i >= last.start && i < last.end && item.copyKey == null ? { ...item, copyKey: newKey() } : item
-  )
-  const freshGroupIds = new Map<string, string>()
-  const copies = next.slice(last.start, last.end).map((item) => {
-    let groupId: string | null = null
-    if (item.groupId != null) {
-      groupId = freshGroupIds.get(item.groupId) ?? newKey()
-      freshGroupIds.set(item.groupId, groupId)
-    }
-    return copy(item, groupId, item.copyKey as string)
-  })
+  let copies: T[] = []
+  if (from) {
+    next = next.map((item, i) =>
+      i >= from.start && i < from.end && item.copyKey == null ? { ...item, copyKey: newKey() } : item
+    )
+    const freshGroupIds = new Map<string, string>()
+    copies = next.slice(from.start, from.end).map((item) => {
+      let groupId: string | null = null
+      if (item.groupId != null) {
+        groupId = freshGroupIds.get(item.groupId) ?? newKey()
+        freshGroupIds.set(item.groupId, groupId)
+      }
+      return copy(item, groupId, item.copyKey as string)
+    })
+  }
   const divider = makeDivider(`Band ${ranges.length + 1}`)
   return { items: [...next, divider, ...copies], dividerId: divider.id }
+}
+
+/** Moves band `from` (its divider and rows, as one block) to position `to` in the band order.
+ *  Only for a sheet whose bands all start with a divider; returns `items` unchanged otherwise. */
+export function moveBand<T extends Pick<BandItem, 'instrumentType'>>(items: T[], from: number, to: number): T[] {
+  const ranges = bandRanges(items)
+  if (from === to || !ranges[from] || !ranges[to] || ranges.some((r) => r.divider == null)) return items
+  const blocks = ranges.map((r) => items.slice(r.start - 1, r.end))
+  const [moved] = blocks.splice(from, 1)
+  blocks.splice(to, 0, moved)
+  return blocks.flat()
 }
 
 /** What has to be physically re-patched between bands. 'mic' and 'preamp' compare the id and the

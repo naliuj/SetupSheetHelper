@@ -29,6 +29,11 @@ function BandDividerRow({ item, bandIndex, bandCount, rowCount, collapsed, colSp
   const removeBand = useSetupStoreState((s) => s.removeBand)
   const removeBandDivider = useSetupStoreState((s) => s.removeBandDivider)
   const setFocusedBand = useSetupStoreState((s) => s.setFocusedBand)
+  const setActiveBand = useSetupStoreState((s) => s.setActiveBand)
+  // Same rule as the store's targetBand: the active band, else the focused one, else the last.
+  const isActive = useSetupStoreState(
+    (s) => Math.min(s.activeBand ?? s.focusedBand ?? bandCount - 1, bandCount - 1) === bandIndex
+  )
   const { setNodeRef, transform, transition } = useSortable({ id: item.id, disabled: true })
 
   const name = useBufferedField(item.sourceName, (v) => onChange(item.id, { sourceName: v }))
@@ -53,12 +58,24 @@ function BandDividerRow({ item, bandIndex, bandCount, rowCount, collapsed, colSp
   return (
     <tr
       ref={setNodeRef}
-      className="band-divider-row"
+      className={isActive ? 'band-divider-row is-active' : 'band-divider-row'}
       data-band-index={bandIndex}
+      aria-current={isActive ? 'true' : undefined}
       style={{ transform: CSS.Transform.toString(transform), transition }}
     >
       <td colSpan={colSpan}>
-        <div className="band-divider">
+        {/* Clicking the bar, or into its fields, picks the band new rows go into; its buttons
+            (fold, menu) keep doing only their own job. */}
+        <div
+          className="band-divider"
+          onClick={(e) => {
+            if (!(e.target as HTMLElement).closest('button, [role="menu"]')) setActiveBand(bandIndex)
+          }}
+          onFocus={(e) => {
+            if ((e.target as HTMLElement).tagName === 'INPUT') setActiveBand(bandIndex)
+          }}
+        >
+          {isActive && <span className="visually-hidden">Active band. New rows are added here.</span>}
           <button
             className="icon-btn"
             onClick={() => toggleBandCollapsed(bandIndex)}

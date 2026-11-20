@@ -106,7 +106,7 @@ export const KEYBIND_ACTIONS: KeybindActionDef[] = [
     defaultCombo: 'CmdOrCtrl+D'
   },
   // No default: Cmd+B and friends are taken or too easy to hit. Assign one in Settings → Keybinds.
-  { id: 'next-band', label: 'Next Band', category: 'Edit', scope: 'table', defaultCombo: '' },
+  { id: 'next-band', label: 'Add Band', category: 'Edit', scope: 'table', defaultCombo: '' },
   {
     id: 'open-setup-settings',
     label: 'Setup Settings…',

@@ -2252,8 +2252,15 @@ input[type='checkbox']:focus-visible {
 /* Band dividers: the full-width row that starts each band in a multi-band sheet. */
 table.data-table tr.band-divider-row td {
   padding: 10px 6px 6px;
-  border-top: 2px solid var(--color-accent);
-  background: color-mix(in srgb, var(--color-accent) 8%, transparent);
+  border-top: 2px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-text) 5%, transparent);
+  cursor: pointer;
+}
+/* The band new rows go into: picked by clicking its bar. */
+table.data-table tr.band-divider-row.is-active td {
+  border-top-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+  box-shadow: inset 4px 0 0 var(--color-accent);
 }
 .band-divider {
   display: flex;
@@ -2293,6 +2300,19 @@ table.data-table td .band-divider input.band-divider-notes {
   font-size: 12px;
   color: var(--color-text-dim);
   white-space: nowrap;
+}
+.band-order-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 .band-focus-banner {
   display: flex;

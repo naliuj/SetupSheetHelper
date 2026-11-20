@@ -1,4 +1,4 @@
-// Checks the band rules (src/shared/utils/bands.ts): band ranges, "Next band" copies, what counts
+// Checks the band rules (src/shared/utils/bands.ts): band ranges, "Add band" copies, what counts
 // as changeover work, and which later rows an edit can be carried into.
 // Run with `node scripts/check_bands.mjs`; exits non-zero on any failure.
 
@@ -34,7 +34,7 @@ const divider = (name) => row(name, { instrumentType: B.BAND_DIVIDER })
 let key = 0
 const newKey = () => `k${++key}`
 const next = (items) =>
-  B.appendNextBand(items, divider, (item, groupId, copyKey) => ({ ...item, id: `${item.id}'`, groupId, copyKey }), newKey).items
+  B.appendBand(items, B.bandRanges(items).length - 1, divider, (item, groupId, copyKey) => ({ ...item, id: `${item.id}'`, groupId, copyKey }), newKey).items
 const names = { mic: (r) => r.micText, preamp: (r) => r.preampText, outboards: () => null }
 const show = (items) => items.map((r) => (B.isBandDivider(r) ? `[${r.sourceName}]` : r.sourceName)).join(' ')
 
@@ -45,17 +45,17 @@ const two = [divider('Band 1'), row('A'), divider('Band 2'), row('B'), row('C')]
 check('two bands', B.bandRanges(two).map((r) => [r.index, r.start, r.end]), [[0, 1, 2], [1, 3, 5]])
 check('band indexes include dividers', B.bandIndexes(two), [0, 0, 1, 1, 1])
 
-// Next band
+// Add band (copy of the last band)
 const kick = row('Kick', { channel: 1, micText: 'D112' })
 const ohL = row('OH L', { channel: 2, micText: 'KM184', groupId: 'g1' })
 const ohR = row('OH R', { channel: 3, micText: 'KM184', groupId: 'g1' })
 const sheet = next([kick, ohL, ohR])
-check('first Next band adds Band 1 on top and Band 2 below', show(sheet), '[Band 1] Kick OH L OH R [Band 2] Kick OH L OH R')
+check('first Add band adds Band 1 on top and Band 2 below', show(sheet), '[Band 1] Kick OH L OH R [Band 2] Kick OH L OH R')
 check('copies share copyKeys with their source', sheet[1].copyKey === sheet[5].copyKey && sheet[1].copyKey != null, true)
 check('copied pair gets one fresh groupId', [sheet[6].groupId === sheet[7].groupId, sheet[6].groupId !== 'g1'], [true, true])
 check('source pair keeps its groupId', sheet[2].groupId, 'g1')
 const three = next(sheet)
-check('second Next band copies the last band', show(three), '[Band 1] Kick OH L OH R [Band 2] Kick OH L OH R [Band 3] Kick OH L OH R')
+check('second Add band copies the last band', show(three), '[Band 1] Kick OH L OH R [Band 2] Kick OH L OH R [Band 3] Kick OH L OH R')
 check('a band 3 copy shares the band 1 key', three[9].copyKey === three[1].copyKey, true)
 
 // Changes
@@ -97,6 +97,19 @@ check('field to column', [B.FIELD_COLUMN.polarityFlip, B.FIELD_COLUMN.outboards]
 const slots = (list) => row('x', { outboards: list.map(([slotIndex, outboardText]) => ({ slotIndex, outboardId: null, outboardText })) })
 check('changed outboard slots', B.changedOutboardSlots(slots([[0, '1176'], [2, 'LA-2A']]), slots([[0, '1176'], [1, 'Pultec']])), [1, 2])
 check('same outboards, no slots', B.changedOutboardSlots(slots([[0, '1176']]), slots([[0, ' 1176 ']])), [])
+
+// Add band from any band, a blank band, and reordering
+const add = (items, source) =>
+  B.appendBand(items, source, divider, (item, groupId, copyKey) => ({ ...item, id: `${item.id}+`, groupId, copyKey }), newKey).items
+const fromFirst = add([divider('Jazz'), row('Bass', { copyKey: 'b' }), divider('Folk'), row('Fiddle')], 0)
+check('copy an earlier band', show(fromFirst), '[Jazz] Bass [Folk] Fiddle [Band 3] Bass')
+check('earlier copy shares its copyKey', fromFirst[5].copyKey, 'b')
+check('blank band', show(add([row('A')], null)), '[Band 1] A [Band 2]')
+const order = [divider('One'), row('a'), divider('Two'), row('b'), row('c'), divider('Three')]
+check('move a band down', show(B.moveBand(order, 0, 2)), '[Two] b c [Three] [One] a')
+check('move a band up', show(B.moveBand(order, 2, 0)), '[Three] [One] a [Two] b c')
+check('move onto itself is a no-op', B.moveBand(order, 1, 1), order)
+check('sheet without dividers is left alone', B.moveBand([row('a')], 0, 0).length, 1)
 
 console.log(failures ? `\n${failures} check(s) failed.` : '\nAll checks passed.')
 process.exit(failures ? 1 : 0)

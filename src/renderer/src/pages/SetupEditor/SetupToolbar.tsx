@@ -600,7 +600,7 @@ export default function SetupToolbar({
     'toggle-patchbay-mode': requestPatchbayMode,
     'add-source': () => addItem(GENERIC_INSTRUMENT_TYPE),
     'next-band': () => {
-      if (mode === 'table') setupStoreApi.getState().addNextBand()
+      if (mode === 'table') setupStoreApi.getState().requestAddBand()
     },
     'select-all': handleSelectAll,
     'delete-selection': () => {

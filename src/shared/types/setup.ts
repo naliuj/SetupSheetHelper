@@ -63,7 +63,7 @@ export interface SetupItem {
   groupId: string | null
   /** Free text ("7:00 pm") on a band divider row (instrumentType BAND_DIVIDER); null elsewhere. */
   startTime: string | null
-  /** Shared by a row and every copy "Next band" made of it, so a later band's row knows which
+  /** Shared by a row and every copy "Add band" made of it, so a later band's row knows which
    *  earlier row it matches. Null on rows added fresh. See shared/utils/bands.ts. */
   copyKey: string | null
 }
