@@ -508,8 +508,8 @@ function SetupSheetRow({
     return cloneElement(
       td,
       { className: 'band-changed', title: changeTitle },
-      // Children go through unchanged (not toArray, which keys them) so the input isn't remounted, and keyboard focus kept, when the mark appears.
-      td.props.children,
+      // Children keep their positions (a lone child at index 0, an array's items spread one level) and stay unkeyed, so the input isn't remounted and keeps keyboard focus when the mark appears.
+      ...[td.props.children].flat(),
       <span key="was" className="band-was">{wasText(key)}</span>
     )
   }
