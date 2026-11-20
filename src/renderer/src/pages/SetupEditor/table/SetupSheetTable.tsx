@@ -16,7 +16,7 @@ import type { Suggestion } from '@renderer/components/SuggestInput'
 import SetupSheetRow, { SHEET_EDGE_INSET } from './SetupSheetRow'
 import { GENERIC_INSTRUMENT_TYPE } from './tableConstants'
 import { avoidSplittingPair } from '@shared/utils/pairRows'
-import { allBandChanges, bandIndexes, bandRanges, isBandDivider, rowChanges, type RowChange } from '@shared/utils/bands'
+import { allBandChanges, bandIndexes, bandRanges, isBandDivider, type RowChange } from '@shared/utils/bands'
 import BandDividerRow from './BandDividerRow'
 import BandChangeSummary from './BandChangeSummary'
 
@@ -381,14 +381,17 @@ export default function SetupSheetTable(): JSX.Element {
   const bandChangeMap = useMemo(() => allBandChanges(items), [items])
   const prevRowChanges = useRef(new Map<number | string, RowChange<SetupItemDraft>>())
   const changeByRow = useMemo(() => {
-    const next = rowChanges(items)
-    for (const [id, change] of next) {
-      const old = prevRowChanges.current.get(id)
-      if (old && old.item === change.item && old.previous === change.previous) next.set(id, old)
+    const next = new Map<number | string, RowChange<SetupItemDraft>>()
+    for (const { rows } of bandChangeMap.values()) {
+      for (const change of rows) {
+        const old = prevRowChanges.current.get(change.item.id)
+        const same = old && old.item === change.item && old.previous === change.previous
+        next.set(change.item.id, same ? old : change)
+      }
     }
     prevRowChanges.current = next
     return next
-  }, [items])
+  }, [bandChangeMap])
   const bandName = (index: number): string => bands[index]?.divider?.sourceName.trim() || `Band ${index + 1}`
 
   // Which rows are on screen: a focused band shows alone, and a folded band shows only its divider.
