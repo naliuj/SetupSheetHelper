@@ -4,6 +4,7 @@ import { Check, ExternalLink, FileText, Keyboard } from 'lucide-react'
 import { APP_SETTINGS_KEYS } from '@shared/types/entities'
 import type { BandExportLayout, MenuAction, PatchbayExportImage, PdfExportParts } from '@shared/types/ipc'
 import { parsePdfExportParts, serializePdfExportParts } from '@shared/constants/pdfLayout'
+import { usePdfLayoutPrefsStore } from '@renderer/state/pdfLayoutPrefsStore'
 import {
   KEYBIND_ACTIONS,
   MARKUP_TOOL_KEYBINDS,
@@ -266,7 +267,9 @@ export default function SetupToolbar({
         orientation,
         density,
         includeColumns,
-        bandLayout
+        bandLayout,
+        // The dialog saves its checkbox to prefs before calling onExport.
+        markBandChanges: usePdfLayoutPrefsStore.getState().markBandChanges
       })
       if (result.canceled) {
         setExportMessage(null)
@@ -371,7 +374,8 @@ export default function SetupToolbar({
           patchbay !== 'failed' && patchbay.status === 'ok'
             ? { dataUrl: patchbay.dataUrl, roomWidth: patchbay.roomWidth, roomHeight: patchbay.roomHeight }
             : null,
-        bandLayout
+        bandLayout,
+        markBandChanges: usePdfLayoutPrefsStore.getState().markBandChanges
       })
       if (!result.canceled) {
         await window.api.settings.set(

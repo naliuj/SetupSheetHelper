@@ -12,6 +12,7 @@
  *  way; scripts/check_bands.mjs tests them. */
 
 import type { SetupItemOutboardSlot } from '../types/setup'
+import type { SetupColumnKey } from '../constants/setupColumns'
 
 export const BAND_DIVIDER = 'band_divider'
 
@@ -203,6 +204,39 @@ export function allBandChanges<T extends BandItem>(items: T[]): Map<number, Band
     out.set(i, bandChanges(items.slice(prev.start, prev.end), items.slice(band.start, band.end)))
   }
   return out
+}
+
+/** Every row's change from the band before, by row id. Rows of the first band have no entry. */
+export function rowChanges<T extends BandItem>(items: T[]): Map<T['id'], RowChange<T>> {
+  const out = new Map<T['id'], RowChange<T>>()
+  for (const changes of allBandChanges(items).values()) {
+    for (const change of changes.rows) out.set(change.item.id, change)
+  }
+  return out
+}
+
+/** The table and export column each patch field shows in. */
+export const FIELD_COLUMN: Record<PatchField, SetupColumnKey> = {
+  channel: 'channel',
+  tieLine: 'tieLine',
+  cueBox: 'cueBox',
+  mic: 'mic',
+  preamp: 'preamp',
+  phantomPower: 'phantomPower',
+  polarityFlip: 'polarity',
+  outboards: 'outboard'
+}
+
+/** The outboard slot indexes whose contents differ between a row and its match in the band
+ *  before, so only those outboard cells are marked. */
+export function changedOutboardSlots(item: BandItem, previous: BandItem): number[] {
+  const slotValue = (row: BandItem, index: number): string => {
+    const slot = row.outboards.find((s) => s.slotIndex === index)
+    if (!slot) return ''
+    return slot.outboardId != null ? `#${slot.outboardId}` : (slot.outboardText?.trim() ?? '')
+  }
+  const indexes = new Set([...item.outboards, ...previous.outboards].map((s) => s.slotIndex))
+  return [...indexes].filter((i) => slotValue(item, i) !== slotValue(previous, i)).sort((a, b) => a - b)
 }
 
 /** Rows in bands after `row`'s band that match it by copyKey and still hold the value `before`

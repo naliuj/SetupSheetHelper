@@ -616,6 +616,9 @@ export interface ExportSetupPdfInput {
   /** For a sheet with bands: one continuous table, or each band starting on a new page.
    *  Absent means continuous. Ignored when the sheet has no band dividers. */
   bandLayout?: BandExportLayout
+  /** For a sheet with bands: mark what changed from the band before (bold gray cells with "*",
+   *  "+ " on new rows, a "Removed:" line per band). Absent means off. */
+  markBandChanges?: boolean
 }
 
 /** How a multi-band sheet exports: one continuous table with divider rows, or a page (PDF) or
@@ -648,6 +651,8 @@ export interface ExportSetupSpreadsheetInput {
   includeColumns?: SetupColumnKey[]
   /** See ExportSetupPdfInput.bandLayout; pagePerBand writes one worksheet per band. */
   bandLayout?: BandExportLayout
+  /** See ExportSetupPdfInput.markBandChanges. */
+  markBandChanges?: boolean
 }
 
 export interface ExportSetupSpreadsheetResult {

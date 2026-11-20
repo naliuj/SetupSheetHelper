@@ -23,6 +23,8 @@ interface PdfLayoutPrefsState {
   dateFormat: PdfDateFormat
   /** How a sheet with bands exports, shared by the PDF and spreadsheet dialogs. */
   bandExportLayout: BandExportLayout
+  /** Whether multi-band exports mark changes between bands; on unless turned off. */
+  markBandChanges: boolean
   load(): Promise<void>
   setGridStyle(style: PdfGridStyle): Promise<void>
   setZebraStripes(on: boolean): Promise<void>
@@ -30,6 +32,7 @@ interface PdfLayoutPrefsState {
   setAccentColor(color: string | null): Promise<void>
   setDateFormat(format: PdfDateFormat): Promise<void>
   setBandExportLayout(layout: BandExportLayout): Promise<void>
+  setMarkBandChanges(on: boolean): Promise<void>
 }
 
 export const usePdfLayoutPrefsStore = create<PdfLayoutPrefsState>((set) => ({
@@ -39,15 +42,17 @@ export const usePdfLayoutPrefsStore = create<PdfLayoutPrefsState>((set) => ({
   accentColor: null,
   dateFormat: 'us',
   bandExportLayout: 'continuous',
+  markBandChanges: true,
 
   load: async () => {
-    const [grid, zebra, header, accent, date, bandLayout] = await Promise.all([
+    const [grid, zebra, header, accent, date, bandLayout, markChanges] = await Promise.all([
       window.api.settings.get(APP_SETTINGS_KEYS.pdfGridStyle),
       window.api.settings.get(APP_SETTINGS_KEYS.pdfZebraStripes),
       window.api.settings.get(APP_SETTINGS_KEYS.pdfHeaderShaded),
       window.api.settings.get(APP_SETTINGS_KEYS.pdfAccentColor),
       window.api.settings.get(APP_SETTINGS_KEYS.pdfDateFormat),
-      window.api.settings.get(BAND_EXPORT_LAYOUT_KEY)
+      window.api.settings.get(BAND_EXPORT_LAYOUT_KEY),
+      window.api.settings.get(APP_SETTINGS_KEYS.markBandChanges)
     ])
     set({
       gridStyle: parsePdfGridStyle(grid),
@@ -55,7 +60,8 @@ export const usePdfLayoutPrefsStore = create<PdfLayoutPrefsState>((set) => ({
       headerShaded: parsePdfBoolSetting(header),
       accentColor: parsePdfAccentColor(accent),
       dateFormat: parsePdfDateFormat(date),
-      bandExportLayout: parseBandExportLayout(bandLayout)
+      bandExportLayout: parseBandExportLayout(bandLayout),
+      markBandChanges: markChanges !== '0'
     })
   },
 
@@ -87,5 +93,10 @@ export const usePdfLayoutPrefsStore = create<PdfLayoutPrefsState>((set) => ({
   setBandExportLayout: async (layout) => {
     set({ bandExportLayout: layout })
     await window.api.settings.set(BAND_EXPORT_LAYOUT_KEY, layout)
+  },
+
+  setMarkBandChanges: async (on) => {
+    set({ markBandChanges: on })
+    await window.api.settings.set(APP_SETTINGS_KEYS.markBandChanges, on ? '1' : '0')
   }
 }))

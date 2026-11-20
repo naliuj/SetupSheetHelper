@@ -88,5 +88,15 @@ check('a band that changed it on its own is left alone', B.laterMatches(diverged
 check('earlier bands are never offered', B.laterMatches(edited, edited[9], three[9], 'mic').length, 0)
 check('rows without a copyKey have no matches', B.laterMatches([row('A')], row('A'), row('A'), 'mic').length, 0)
 
+// Per-row lookups for the table and exports
+const removedSheet = [sheet[0], ...band1, sheet[4], ...removedBand2]
+const rc = B.rowChanges(removedSheet)
+check('rowChanges skips band 1', removedSheet.slice(1, 4).some((r) => rc.has(r.id)), false)
+check('rowChanges covers later bands', [...rc.values()].map((r) => r.status), ['renamed', 'changed', 'new'])
+check('field to column', [B.FIELD_COLUMN.polarityFlip, B.FIELD_COLUMN.outboards], ['polarity', 'outboard'])
+const slots = (list) => row('x', { outboards: list.map(([slotIndex, outboardText]) => ({ slotIndex, outboardId: null, outboardText })) })
+check('changed outboard slots', B.changedOutboardSlots(slots([[0, '1176'], [2, 'LA-2A']]), slots([[0, '1176'], [1, 'Pultec']])), [1, 2])
+check('same outboards, no slots', B.changedOutboardSlots(slots([[0, '1176']]), slots([[0, ' 1176 ']])), [])
+
 console.log(failures ? `\n${failures} check(s) failed.` : '\nAll checks passed.')
 process.exit(failures ? 1 : 0)
