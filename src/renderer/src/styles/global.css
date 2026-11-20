@@ -2302,3 +2302,62 @@ table.data-table td .band-divider input.band-divider-notes {
   font-size: 13px;
   color: var(--color-text-dim);
 }
+
+/* Band change marks (SetupSheetRow, BandChangeSummary, ChangeoverPanel). A changed cell is tinted
+   amber with an amber rule along its foot, so the mark doesn't rest on a faint tint alone; a row
+   new in this band is tinted green. The tints are washes over whatever the row already has (its
+   color, its selection), and the stereo lane keeps its own inline background, so the pair brace
+   and selection bar are untouched.
+
+   Measured, not eyeballed: .band-was (text mixed 25% into text-dim) is 6.0:1 on the dark amber
+   tint and 5.6:1 on the light one; plain text-dim would have been 4.7 and 4.2. The amber rule is
+   --color-warning, 7.2:1 (dark) and 4.2:1 (light) against the tint. On a light-mode colored row
+   the text follows the row's own --row-fg instead, like the warning badges do. */
+:root {
+  --band-changed-bg: color-mix(in srgb, #f5b544 16%, transparent);
+  --band-new-bg: color-mix(in srgb, #3fb950 16%, transparent);
+}
+:root[data-theme='light'] {
+  --band-changed-bg: color-mix(in srgb, #f5b544 30%, transparent);
+  --band-new-bg: color-mix(in srgb, #2da44e 20%, transparent);
+}
+table.data-table td.band-changed {
+  background: var(--band-changed-bg);
+  box-shadow: inset 0 -2px 0 var(--color-warning);
+}
+table.data-table tr.band-new td {
+  background: var(--band-new-bg);
+}
+.band-was {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  line-height: 1.2;
+  text-decoration: line-through;
+  color: var(--row-fg, color-mix(in srgb, var(--color-text) 25%, var(--color-text-dim)));
+  /* Wraps rather than ellipsizes: the cells are auto-width, so a nowrap name would widen its
+     column instead of being clipped. */
+  overflow-wrap: anywhere;
+}
+.band-change-summary {
+  border: 1px solid var(--color-warning);
+  border-radius: var(--radius);
+  background: var(--band-changed-bg);
+  color: var(--color-text);
+  font-size: 12px;
+  padding: 3px 8px;
+  white-space: nowrap;
+}
+.band-change-summary:hover {
+  background: color-mix(in srgb, var(--color-warning) 30%, transparent);
+}
+.changeover-panel h3 {
+  font-size: 13px;
+  margin: 12px 0 4px;
+}
+.changeover-panel ul {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 13px;
+  line-height: 1.5;
+}
