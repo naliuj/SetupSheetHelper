@@ -1,4 +1,4 @@
-import { Children, Fragment, cloneElement, memo, useMemo, useRef, useState, type CSSProperties, type ReactElement } from 'react'
+import { Fragment, cloneElement, memo, useMemo, useRef, useState, type CSSProperties, type ReactElement } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { readableTextColor, swatchName } from '@shared/constants/swatches'
@@ -26,7 +26,7 @@ import SuggestInput, { type Suggestion } from '@renderer/components/SuggestInput
 import CustomGearModal from '@renderer/components/CustomGearModal'
 import { applyMicPoolNotesTag } from '@renderer/state/micPoolNotesTag'
 import { useBufferedField } from './useBufferedField'
-import { changedOutboardSlots, describeRowChange, FIELD_COLUMN, type RowChange } from '@shared/utils/bands'
+import { changedOutboardSlots, describeRowChange, FIELD_COLUMN, shown, type RowChange } from '@shared/utils/bands'
 import { catalogGearNames, outboardSlotName } from './ChangeoverPanel'
 
 const POOL_LABELS: Record<Mic['poolType'], string> = {
@@ -498,26 +498,8 @@ function SetupSheetRow({
   const changeTitle = marked && gearNames ? describeRowChange(marked, gearNames) : ''
   const changedSlots = marked?.previous && changedColumns.has('outboard') ? changedOutboardSlots(marked.item, marked.previous) : []
   function wasText(key: SetupColumnKey): string {
-    const prev = marked?.previous
-    if (!prev || !gearNames) return ''
-    switch (key) {
-      case 'mic':
-        return gearNames.mic(prev) || 'none'
-      case 'preamp':
-        return gearNames.preamp(prev) || 'none'
-      case 'phantomPower':
-        return prev.phantomPower ? 'on' : 'off'
-      case 'polarity':
-        return prev.polarityFlip ? 'on' : 'off'
-      case 'channel':
-        return prev.channel != null ? String(prev.channel) : 'none'
-      case 'tieLine':
-        return prev.tieLine?.trim() || 'none'
-      case 'cueBox':
-        return prev.cueBox?.trim() || 'none'
-      default:
-        return ''
-    }
+    const field = marked?.fields.find((f) => FIELD_COLUMN[f] === key)
+    return field && marked?.previous && gearNames ? shown(marked.previous, field, gearNames) : ''
   }
   /** Adds the mark to a cell renderCell built. Outboard marks itself per slot (OutboardSlotCell). */
   function markCell(key: SetupColumnKey, cell: JSX.Element | null): JSX.Element | null {
@@ -526,8 +508,9 @@ function SetupSheetRow({
     return cloneElement(
       td,
       { className: 'band-changed', title: changeTitle },
-      ...Children.toArray(td.props.children),
-      <span className="band-was">{wasText(key)}</span>
+      // Children go through unchanged (not toArray, which keys them) so the input isn't remounted, and keyboard focus kept, when the mark appears.
+      td.props.children,
+      <span key="was" className="band-was">{wasText(key)}</span>
     )
   }
 

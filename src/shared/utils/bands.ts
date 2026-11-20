@@ -292,7 +292,8 @@ const FIELD_LABELS: Record<PatchField, string> = {
   outboards: 'outboard'
 }
 
-function shown<T extends BandItem>(item: T, field: PatchField, names: GearNames<T>): string {
+/** The text a field shows in a change description, 'none' when empty. */
+export function shown<T extends BandItem>(item: T, field: PatchField, names: GearNames<T>): string {
   switch (field) {
     case 'mic':
       return names.mic(item) || 'none'
