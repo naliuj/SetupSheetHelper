@@ -63,6 +63,11 @@ export default function ChangeoverPanel({ bandIndex, bandName, changes, onClose 
     try {
       // The PDF is built in main from the saved sheet, so unsaved edits have to land first.
       if (setupStoreApi.getState().isDirty) await setupStoreApi.getState().save()
+      // save() never throws; a failure leaves the sheet dirty, and printing would use stale data.
+      if (setupStoreApi.getState().isDirty) {
+        setMessage("Couldn't save the sheet, so nothing was printed.")
+        return
+      }
       const setupId = setupStoreApi.getState().setupId
       if (setupId == null) return
       const result = await window.api.exportPdf.exportChangeover({ setupId, bandIndex })
