@@ -220,10 +220,11 @@ export async function exportSetupSpreadsheet(input: ExportSetupSpreadsheetInput)
         cell.font = { color: { argb: fontArgb } }
       })
     }
-    // After the row color, so a changed cell reads as changed on a colored row too.
+    // After the row color, so a changed cell reads as changed on a colored row too. The font is
+    // replaced, not merged: a dark row's white text would be nearly unreadable on the light gray.
     for (const key of marked) {
       const cell = row.getCell(key)
-      cell.font = { ...cell.font, bold: true }
+      cell.font = { bold: true }
       cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } }
     }
   }

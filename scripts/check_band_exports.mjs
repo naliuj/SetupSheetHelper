@@ -279,7 +279,7 @@ for (const [label, make] of [['PDF', pdfBytes], ['spreadsheet', xlsxBytes]]) {
 }
 
 // Band 2 changes Kick's mic, keeps OH L (renamed only, so no mark), adds Vox and drops OH R.
-const kick = row({ sourceName: 'Kick', micText: 'D112', channel: 1, tieLine: '1', copyKey: 'k', color: '#ff0000' })
+const kick = row({ sourceName: 'Kick', micText: 'D112', channel: 1, tieLine: '1', copyKey: 'k', color: '#0f172a' })
 const ohL = row({ sourceName: 'OH L', micText: 'KM184', channel: 2, copyKey: 'l', outboards: [{ slotIndex: 0, outboardId: null, outboardText: '1176' }] })
 const ohR = row({ sourceName: 'OH R', micText: 'KM184', channel: 3, copyKey: 'r' })
 const kick2 = row({ ...kick, id: nextId++, micText: 'SM91' })
@@ -317,7 +317,7 @@ for (const bandLayout of ['continuous', 'pagePerBand']) {
   const kickRow = rows.filter((r) => r.getCell(1).value === 'Kick').pop()
   check(`spreadsheet ${bandLayout}: the changed mic gets "*"`, kickRow.getCell('B').value, 'SM91 *')
   check(`spreadsheet ${bandLayout}: in bold`, kickRow.getCell('B').font?.bold, true)
-  check(`spreadsheet ${bandLayout}: keeping the row's text color`, kickRow.getCell('B').font?.color?.argb != null, true)
+  check(`spreadsheet ${bandLayout}: no white text from a dark row on the gray`, kickRow.getCell('B').font?.color?.argb, undefined)
   check(`spreadsheet ${bandLayout}: on light gray`, kickRow.getCell('B').fill?.fgColor?.argb, 'FFD9D9D9')
   check(`spreadsheet ${bandLayout}: unchanged cells stay plain`, kickRow.getCell('A').font?.bold, undefined)
   check(`spreadsheet ${bandLayout}: the new row starts "+ "`, !!find('+ Vox'), true)
