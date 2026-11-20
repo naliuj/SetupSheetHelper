@@ -165,9 +165,15 @@ export default function TableModeToolbar(): JSX.Element {
                   </div>
                 )}
                 <div
-                  className="picker-menu-row inline-icon-text"
+                  className="picker-menu-row"
                   role="menuitem"
-                  style={bands.length > 0 ? { borderTop: '1px solid var(--color-border)' } : undefined}
+                  // Full-width flex, not .inline-icon-text (inline-flex), so the hover fills the row.
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    ...(bands.length > 0 ? { borderTop: '1px solid var(--color-border)' } : {})
+                  }}
                   onClick={() => setBandStep('add')}
                 >
                   <Icon name="plus" size={14} /> Add band
