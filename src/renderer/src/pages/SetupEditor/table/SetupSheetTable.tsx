@@ -16,8 +16,9 @@ import type { Suggestion } from '@renderer/components/SuggestInput'
 import SetupSheetRow, { SHEET_EDGE_INSET } from './SetupSheetRow'
 import { GENERIC_INSTRUMENT_TYPE } from './tableConstants'
 import { avoidSplittingPair } from '@shared/utils/pairRows'
-import { bandIndexes, bandRanges, isBandDivider } from '@shared/utils/bands'
+import { allBandChanges, bandIndexes, bandRanges, isBandDivider, rowChanges, type RowChange } from '@shared/utils/bands'
 import BandDividerRow from './BandDividerRow'
+import BandChangeSummary from './BandChangeSummary'
 
 /** Quick Setup's free-text suggestions. Two things this has to get right, both of which used to
  *  produce what looked like duplicate entries:
@@ -375,6 +376,21 @@ export default function SetupSheetTable(): JSX.Element {
     [bandSlices, outboardGear, preamps]
   )
 
+  // Change marks against the band before. A fresh RowChange per row on every edit would re-render
+  // every memoized row, so a row whose item and match are both unchanged keeps its old object.
+  const bandChangeMap = useMemo(() => allBandChanges(items), [items])
+  const prevRowChanges = useRef(new Map<number | string, RowChange<SetupItemDraft>>())
+  const changeByRow = useMemo(() => {
+    const next = rowChanges(items)
+    for (const [id, change] of next) {
+      const old = prevRowChanges.current.get(id)
+      if (old && old.item === change.item && old.previous === change.previous) next.set(id, old)
+    }
+    prevRowChanges.current = next
+    return next
+  }, [items])
+  const bandName = (index: number): string => bands[index]?.divider?.sourceName.trim() || `Band ${index + 1}`
+
   // Which rows are on screen: a focused band shows alone, and a folded band shows only its divider.
   const visible = useMemo(
     () =>
@@ -442,7 +458,7 @@ export default function SetupSheetTable(): JSX.Element {
       </div>
       {focusedBand != null && bands[focusedBand] && (
         <div className="band-focus-banner">
-          Showing only {bands[focusedBand].divider?.sourceName.trim() || `Band ${focusedBand + 1}`}.
+          Showing only {bandName(focusedBand)}.
           <button className="btn small" onClick={() => setFocusedBand(null)}>
             Show all bands
           </button>
@@ -489,7 +505,14 @@ export default function SetupSheetTable(): JSX.Element {
                       collapsed={collapsedBands.has(bandOf[i])}
                       colSpan={columnCount}
                       onChange={updateItemFields}
-                    />
+                    >
+                      <BandChangeSummary
+                        bandIndex={bandOf[i]}
+                        bandName={bandName(bandOf[i])}
+                        changes={bandChangeMap.get(bandOf[i])}
+                        previousName={bandName(bandOf[i] - 1)}
+                      />
+                    </BandDividerRow>
                   ) : (
                   <SetupSheetRow
                     key={item.rowKey ?? item.id}
@@ -521,6 +544,7 @@ export default function SetupSheetTable(): JSX.Element {
                     onGutterClick={handleGutterClick}
                     onGutterKeyDown={handleGutterKeyDown}
                     rowNumber={i - bands[bandOf[i]].start + 1}
+                    change={changeByRow.get(item.id)}
                     onChange={updateItemFields}
                     onOutboardSlotChange={updateItemOutboardSlot}
                     onDelete={removeItem}
