@@ -77,6 +77,8 @@ export interface BandChangeMarks {
   cells: Map<number, Set<string>>
   /** Rows with no match in the band before, whose source name gets "+ ". */
   newRows: Set<number>
+  /** Changed row id -> its match in the band before, for the PDF's struck-through old values. */
+  previous: Map<number, SetupItem>
   /** Item id -> the italic line printed right after it: "Removed: OH R (ch 3) · * changed from
    *  Jazz Trio". Keyed by a band's last row, or its divider when the band has no rows. */
   notes: Map<number, string>
@@ -84,7 +86,7 @@ export interface BandChangeMarks {
 
 export function bandChangeMarks(items: SetupItem[]): BandChangeMarks {
   const ranges = bandRanges(items)
-  const marks: BandChangeMarks = { cells: new Map(), newRows: new Set(), notes: new Map() }
+  const marks: BandChangeMarks = { cells: new Map(), newRows: new Set(), previous: new Map(), notes: new Map() }
   for (const [index, changes] of allBandChanges(items)) {
     for (const { item, status, previous, fields } of changes.rows) {
       if (status === 'new') marks.newRows.add(item.id)
@@ -94,6 +96,7 @@ export function bandChangeMarks(items: SetupItem[]): BandChangeMarks {
         for (const slot of changedOutboardSlots(item, previous)) keys.add(`outboard:${slot}`)
       }
       marks.cells.set(item.id, keys)
+      marks.previous.set(item.id, previous)
     }
     const prev = ranges[index - 1]
     const parts: string[] = []

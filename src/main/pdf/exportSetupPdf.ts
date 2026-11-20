@@ -66,6 +66,8 @@ const BRACE_MARGIN_GAP = 4
 
 /** Behind a cell that changed from the band before: darker than a zebra stripe (0.93). */
 const CHANGE_FILL = rgb(0.85, 0.85, 0.85)
+/** A changed cell's struck-through old value, the same gray as the band's change note. */
+const WAS_COLOR = rgb(0.35, 0.35, 0.35)
 
 /** Font size + spacing that vary with the chosen density. Compact packs more rows per page;
  *  normal stays larger and more legible. Sizes stay above a ~7pt legibility floor. */
@@ -444,6 +446,7 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
     // other export stays byte-for-byte what it was.
     const marks = input.markBandChanges && hasBands(setup.items) ? bandChangeMarks(setup.items) : null
     const noteFont = marks ? await pdfDoc.embedFont(StandardFonts.HelveticaOblique) : font
+    const wasSize = dens.bodySize - 1.5
 
     const resolvedValues = new Map<number, Record<string, string>>()
     for (const item of setup.items) {
@@ -804,15 +807,28 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
         return marked?.has(key) && key !== 'phantomPower' ? withChangeMark(text) : text
       }
       const noteLines = noteLinesAfter(item.id)
-
-      // Wrap every cell to its column width, then size the row to the tallest cell.
-      const wrappedByKey = new Map<string, string[]>()
-      let maxLines = 1
-      for (const col of visibleColumns) {
-        const lines = wrapText(cellText(col.key), cellFont(col.key), dens.bodySize, col.width - 2 * CELL_PAD)
-        wrappedByKey.set(col.key, lines)
-        if (lines.length > maxLines) maxLines = lines.length
+      const prev = marks?.previous.get(item.id)
+      /** What a changed cell held in the band before, worded the way the table's struck-through
+       *  line words it. */
+      const wasText = (key: string): string => {
+        if (!prev) return ''
+        if (key === 'phantomPower') return prev.phantomPower ? 'on' : 'off'
+        if (key === 'polarity') return prev.polarityFlip ? 'on' : 'off'
+        if (key === 'tieLine') return prev.tieLine != null ? String(prev.tieLine) : 'none'
+        return resolvedValues.get(prev.id)?.[key] || 'none'
       }
+
+      // Wrap every cell to its column width, then size the row to the tallest cell. A changed
+      // cell's old value goes on its own smaller lines under the new one.
+      const wrappedByKey = new Map<string, string[]>()
+      const wasByKey = new Map<string, string[]>()
+      for (const col of visibleColumns) {
+        wrappedByKey.set(col.key, wrapText(cellText(col.key), cellFont(col.key), dens.bodySize, col.width - 2 * CELL_PAD))
+        if (marked?.has(col.key)) wasByKey.set(col.key, wrapText(wasText(col.key), font, wasSize, col.width - 2 * CELL_PAD))
+      }
+      const tallestCell = (): number =>
+        Math.max(1, ...visibleColumns.map((col) => wrappedByKey.get(col.key)!.length + (wasByKey.get(col.key)?.length ?? 0)))
+      let maxLines = tallestCell()
       let rowHeight = maxLines * dens.lineHeight + dens.rowPadding
 
       // Page-break before drawing when this row won't fit (height-aware). A band's last row keeps
@@ -827,6 +843,12 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
       // outside the page box, so it vanished with nothing to say it had. Keep what fits and mark
       // every cell that lost lines, so the loss is visible rather than silent.
       const linesThatFit = Math.max(1, Math.floor((cursorY - MARGIN - dens.rowPadding) / dens.lineHeight))
+      // Old values are only a hint, so they go before any of the sheet's own text is cut.
+      if (maxLines > linesThatFit && wasByKey.size > 0) {
+        wasByKey.clear()
+        maxLines = tallestCell()
+        rowHeight = maxLines * dens.lineHeight + dens.rowPadding
+      }
       if (maxLines > linesThatFit) {
         for (const col of visibleColumns) {
           const lines = wrappedByKey.get(col.key)!
@@ -914,13 +936,24 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
         // Each cell centers on its OWN line count within the shared row box, rather than every
         // column sharing the row's top-most baseline — a 1-line cell in a 2-line row shouldn't
         // sit flush with the top, it should center in the same box the grid lines draw around it.
-        const firstLineY = centeredFirstBaselineY(colFont, dens.bodySize, dens.lineHeight, lines.length, rowTopY, rowBottomY)
+        const was = wasByKey.get(col.key) ?? []
+        const firstLineY = centeredFirstBaselineY(colFont, dens.bodySize, dens.lineHeight, lines.length + was.length, rowTopY, rowBottomY)
         lines.forEach((line, i) => {
           page.drawText(line, {
             x: x + CELL_PAD,
             y: firstLineY - i * dens.lineHeight,
             size: dens.bodySize,
             font: colFont
+          })
+        })
+        was.forEach((line, i) => {
+          const y = firstLineY - (lines.length + i) * dens.lineHeight
+          page.drawText(line, { x: x + CELL_PAD, y, size: wasSize, font, color: WAS_COLOR })
+          page.drawLine({
+            start: { x: x + CELL_PAD, y: y + wasSize * 0.3 },
+            end: { x: x + CELL_PAD + font.widthOfTextAtSize(line, wasSize), y: y + wasSize * 0.3 },
+            thickness: 0.5,
+            color: WAS_COLOR
           })
         })
         if (col.key === 'phantomPower' && marked?.has(col.key)) {

@@ -302,6 +302,7 @@ for (const bandLayout of ['continuous', 'pagePerBand']) {
   const last = pages[pages.length - 1]
   check(`PDF ${bandLayout}: page count unchanged by the note`, pages.length, bandLayout === 'continuous' ? 1 : 2)
   check(`PDF ${bandLayout}: the changed mic carries " *"`, last.includes('SM91 *'), true)
+  check(`PDF ${bandLayout}: the old mic follows it, to be struck through`, last[last.indexOf('SM91 *') + 1], 'D112')
   check(`PDF ${bandLayout}: the new row starts "+ "`, last.includes('+ Vox'), true)
   check(`PDF ${bandLayout}: the renamed row is unmarked`, last.includes('OH Left'), true)
   check(`PDF ${bandLayout}: the note is on its band's page`, last.includes(NOTE), true)
