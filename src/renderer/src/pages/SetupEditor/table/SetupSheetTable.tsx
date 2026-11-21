@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useMemo, useRef } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { STEREO_LANE_WIDTH } from '@shared/constants/stereoBrace'
 import { DndContext, type DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
@@ -19,6 +19,7 @@ import { avoidSplittingPair } from '@shared/utils/pairRows'
 import { allBandChanges, bandIndexes, bandRanges, isBandDivider, type RowChange } from '@shared/utils/bands'
 import BandDividerRow from './BandDividerRow'
 import BandChangeSummary from './BandChangeSummary'
+import ChangeoverPanel from './ChangeoverPanel'
 import { usePdfLayoutPrefsStore } from '@renderer/state/pdfLayoutPrefsStore'
 
 /** Quick Setup's free-text suggestions. Two things this has to get right, both of which used to
@@ -394,6 +395,8 @@ export default function SetupSheetTable(): JSX.Element {
     prevRowChanges.current = next
     return next
   }, [bandChangeMap])
+  // One panel for the whole table: opened from a divider's change count or its ⋯ menu.
+  const [changeoverBand, setChangeoverBand] = useState<number | null>(null)
   const bandName = (index: number): string => bands[index]?.divider?.sourceName.trim() || `Band ${index + 1}`
 
   // Which rows are on screen: a focused band shows alone, and a folded band shows only its divider.
@@ -509,13 +512,14 @@ export default function SetupSheetTable(): JSX.Element {
                       rowCount={bands[bandOf[i]].end - bands[bandOf[i]].start}
                       collapsed={collapsedBands.has(bandOf[i])}
                       colSpan={columnCount}
+                      onChangeover={setChangeoverBand}
                       onChange={updateItemFields}
                     >
                       <BandChangeSummary
                         bandIndex={bandOf[i]}
-                        bandName={bandName(bandOf[i])}
                         changes={showChanges ? bandChangeMap.get(bandOf[i]) : undefined}
                         previousName={bandName(bandOf[i] - 1)}
+                        onOpen={setChangeoverBand}
                       />
                     </BandDividerRow>
                   ) : (
@@ -560,6 +564,14 @@ export default function SetupSheetTable(): JSX.Element {
             </SortableContext>
           </table>
         </DndContext>
+      )}
+      {changeoverBand != null && changeoverBand > 0 && changeoverBand < bands.length && (
+        <ChangeoverPanel
+          bandIndex={changeoverBand}
+          bandName={bandName(changeoverBand)}
+          changes={bandChangeMap.get(changeoverBand) ?? { rows: [], removed: [] }}
+          onClose={() => setChangeoverBand(null)}
+        />
       )}
     </div>
   )

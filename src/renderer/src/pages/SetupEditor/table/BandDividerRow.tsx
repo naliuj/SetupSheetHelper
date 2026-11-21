@@ -18,13 +18,15 @@ interface Props {
   colSpan: number
   /** Extra content after the band fields (the changeover summary). */
   children?: ReactNode
+  /** Opens the changeover panel for a band; offered from the menu on every band but the first. */
+  onChangeover(band: number): void
   onChange(id: number | string, patch: Partial<SetupItemDraft>): void
 }
 
 /** The full-width row that starts a band: its name, start time and notes, a fold chevron and a
  *  menu. A sortable item like every row so the table's drag layout stays consistent, but disabled:
  *  rows are dragged across a divider, the divider itself doesn't move. */
-function BandDividerRow({ item, bandIndex, bandCount, rowCount, collapsed, colSpan, children, onChange }: Props): JSX.Element {
+function BandDividerRow({ item, bandIndex, bandCount, rowCount, collapsed, colSpan, children, onChangeover, onChange }: Props): JSX.Element {
   const toggleBandCollapsed = useSetupStoreState((s) => s.toggleBandCollapsed)
   const removeBand = useSetupStoreState((s) => s.removeBand)
   const removeBandDivider = useSetupStoreState((s) => s.removeBandDivider)
@@ -137,6 +139,18 @@ function BandDividerRow({ item, bandIndex, bandCount, rowCount, collapsed, colSp
                 >
                   Show only this band
                 </div>
+                {!isFirst && (
+                  <div
+                    className="picker-menu-row"
+                    role="menuitem"
+                    onClick={() => {
+                      setMenuOpen(false)
+                      onChangeover(bandIndex)
+                    }}
+                  >
+                    Changeover…
+                  </div>
+                )}
                 {!isFirst && (
                   <div
                     className="picker-menu-row"

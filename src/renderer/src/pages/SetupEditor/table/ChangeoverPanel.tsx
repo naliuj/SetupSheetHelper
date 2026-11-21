@@ -101,6 +101,7 @@ export default function ChangeoverPanel({ bandIndex, bandName, changes, onClose 
             </section>
           )
         )}
+        {sections.every(([, lines]) => lines.length === 0) && <p className="card-sub">Same patch as the band before.</p>}
         {message && (
           <p className="card-sub" role="status">
             {message}
