@@ -278,7 +278,7 @@ for (const [label, make] of [['PDF', pdfBytes], ['spreadsheet', xlsxBytes]]) {
   }
 }
 
-// Band 2 changes Kick's mic, keeps OH L (renamed only, so no mark), adds Vox and drops OH R.
+// Band 2 changes Kick's mic, renames OH L (marked, no changeover), adds Vox and drops OH R.
 const kick = row({ sourceName: 'Kick', micText: 'D112', channel: 1, tieLine: '1', copyKey: 'k', color: '#0f172a' })
 const ohL = row({ sourceName: 'OH L', micText: 'KM184', channel: 2, copyKey: 'l', outboards: [{ slotIndex: 0, outboardId: null, outboardText: '1176' }] })
 const ohR = row({ sourceName: 'OH R', micText: 'KM184', channel: 3, copyKey: 'r' })
@@ -289,7 +289,8 @@ const marked = sampleSetup([divider('Opener', { startTime: '7:00 pm' }), kick, o
 const NOTE = 'Removed: OH R (ch 3) \u00b7 * changed from Opener'
 {
   const m = bandChangeMarks(marked.items)
-  check('only the changed mic is marked', [...m.cells.entries()].map(([id, keys]) => [id, [...keys]]), [[kick2.id, ['mic']]])
+  check('the changed mic and the renamed source are marked', [...m.cells.entries()].map(([id, keys]) => [id, [...keys]]), [[kick2.id, ['mic']], [ohL2.id, ['sourceName']]])
+  check('the renamed row keeps its old name', m.previous.get(ohL2.id)?.sourceName, 'OH L')
   check('the new row', [...m.newRows], [vox.id])
   check('the note follows the band\'s last row', [...m.notes.entries()], [[vox.id, NOTE]])
   const outboard = sampleSetup([divider('A'), ohL, divider('B'), row({ ...ohL, id: nextId++, outboards: [{ slotIndex: 0, outboardId: null, outboardText: 'LA-2A' }] })])
@@ -304,9 +305,10 @@ for (const bandLayout of ['continuous', 'pagePerBand']) {
   check(`PDF ${bandLayout}: the changed mic carries " *"`, last.includes('SM91 *'), true)
   check(`PDF ${bandLayout}: the old mic follows it, to be struck through`, last[last.indexOf('SM91 *') + 1], 'D112')
   check(`PDF ${bandLayout}: the new row starts "+ "`, last.includes('+ Vox'), true)
-  check(`PDF ${bandLayout}: the renamed row is unmarked`, last.includes('OH Left'), true)
+  check(`PDF ${bandLayout}: the renamed source carries " *"`, last.includes('OH Left *'), true)
+  check(`PDF ${bandLayout}: the old name follows it, to be struck through`, last[last.indexOf('OH Left *') + 1], 'OH L')
   check(`PDF ${bandLayout}: the note is on its band's page`, last.includes(NOTE), true)
-  check(`PDF ${bandLayout}: the first band is unmarked`, pages.flat().filter((t) => t.includes('*')).length, 2)
+  check(`PDF ${bandLayout}: the first band is unmarked`, pages.flat().filter((t) => t.includes('*')).length, 3)
 }
 for (const bandLayout of ['continuous', 'pagePerBand']) {
   const wb = new ExcelJS.Workbook()
@@ -322,6 +324,7 @@ for (const bandLayout of ['continuous', 'pagePerBand']) {
   check(`spreadsheet ${bandLayout}: on light gray`, kickRow.getCell('B').fill?.fgColor?.argb, 'FFD9D9D9')
   check(`spreadsheet ${bandLayout}: unchanged cells stay plain`, kickRow.getCell('A').font?.bold, undefined)
   check(`spreadsheet ${bandLayout}: the new row starts "+ "`, !!find('+ Vox'), true)
+  check(`spreadsheet ${bandLayout}: the renamed source gets "*"`, !!find('OH Left *'), true)
   const note = find(NOTE)
   check(`spreadsheet ${bandLayout}: the note is the band's last row`, note?.number, sheet.rowCount)
   check(`spreadsheet ${bandLayout}: in italic`, note?.getCell(1).font?.italic, true)

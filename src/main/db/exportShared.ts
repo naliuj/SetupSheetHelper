@@ -73,11 +73,12 @@ export function bandTitle(divider: Pick<SetupItem, 'sourceName' | 'startTime'>, 
 export interface BandChangeMarks {
   /** Row id -> the column keys to mark: SetupColumnKeys, plus `outboard:N` for each changed slot
    *  (the PDF's single Outboard column looks for 'outboard', the spreadsheet's per-slot ones for
-   *  `outboard:N`). Renamed-only rows are not here: a rename costs no changeover. */
+   *  `outboard:N`). A renamed row marks 'sourceName'. */
   cells: Map<number, Set<string>>
   /** Rows with no match in the band before, whose source name gets "+ ". */
   newRows: Set<number>
-  /** Changed row id -> its match in the band before, for the PDF's struck-through old values. */
+  /** Changed or renamed row id -> its match in the band before, for the PDF's struck-through old
+   *  values. */
   previous: Map<number, SetupItem>
   /** Item id -> the italic line printed right after it: "Removed: OH R (ch 3) · * changed from
    *  Jazz Trio". Keyed by a band's last row, or its divider when the band has no rows. */
@@ -88,10 +89,11 @@ export function bandChangeMarks(items: SetupItem[]): BandChangeMarks {
   const ranges = bandRanges(items)
   const marks: BandChangeMarks = { cells: new Map(), newRows: new Set(), previous: new Map(), notes: new Map() }
   for (const [index, changes] of allBandChanges(items)) {
-    for (const { item, status, previous, fields } of changes.rows) {
+    for (const { item, status, previous, fields, renamed } of changes.rows) {
       if (status === 'new') marks.newRows.add(item.id)
-      if (status !== 'changed' || !previous) continue
+      if (status === 'same' || !previous) continue
       const keys = new Set<string>(fields.map((field) => FIELD_COLUMN[field]))
+      if (renamed) keys.add('sourceName')
       if (fields.includes('outboards')) {
         for (const slot of changedOutboardSlots(item, previous)) keys.add(`outboard:${slot}`)
       }
@@ -101,7 +103,7 @@ export function bandChangeMarks(items: SetupItem[]): BandChangeMarks {
     const prev = ranges[index - 1]
     const parts: string[] = []
     if (changes.removed.length > 0) parts.push(`Removed: ${changes.removed.map(rowLabel).join(', ')}`)
-    if (changes.rows.some((row) => row.status === 'changed')) {
+    if (changes.rows.some((row) => row.status === 'changed' || row.status === 'renamed')) {
       const prevName = prev.divider ? bandTitle({ ...prev.divider, startTime: null }, prev.index) : `Band ${prev.index + 1}`
       parts.push(`* changed from ${prevName}`)
     }

@@ -491,13 +491,15 @@ function SetupSheetRow({
   const colorName = swatchName(item.color)
 
   // Band change marks: the changed cells get an amber tint and the old value struck through under
-  // the input. Only 'changed' rows; a rename alone costs no changeover work and isn't marked.
-  const marked = change?.status === 'changed' && change.previous ? change : null
-  const changedColumns = new Set(marked?.fields.map((f) => FIELD_COLUMN[f]))
+  // the input, for patch changes and a renamed source alike.
+  const marked = (change?.status === 'changed' || change?.status === 'renamed') && change.previous ? change : null
+  const changedColumns = new Set<SetupColumnKey>(marked?.fields.map((f) => FIELD_COLUMN[f]))
+  if (marked?.renamed) changedColumns.add('sourceName')
   const gearNames = marked ? catalogGearNames(mics, preamps, outboardGear) : null
   const changeTitle = marked && gearNames ? describeRowChange(marked, gearNames) : ''
   const changedSlots = marked?.previous && changedColumns.has('outboard') ? changedOutboardSlots(marked.item, marked.previous) : []
   function wasText(key: SetupColumnKey): string {
+    if (key === 'sourceName') return marked?.previous?.sourceName.trim() || 'none'
     const field = marked?.fields.find((f) => FIELD_COLUMN[f] === key)
     return field && marked?.previous && gearNames ? shown(marked.previous, field, gearNames) : ''
   }

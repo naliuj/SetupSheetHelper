@@ -7,8 +7,8 @@
  *  laterMatches) even after a rename, a channel change or a drag.
  *
  *  Changeover is the patch and only the patch (PATCH_FIELDS): renaming a source on the same mic
- *  and channel is shown but costs no changeover work, the rule the retired Multi Setup's Compare
- *  settled on. Pure functions, shared by the renderer and main's PDF export so both read the same
+ *  and channel is marked (RowChange.renamed) but costs no changeover work, the rule the retired
+ *  Multi Setup's Compare settled on. Pure functions, shared by the renderer and main's PDF export so both read the same
  *  way; scripts/check_bands.mjs tests them. */
 
 import type { SetupItemOutboardSlot } from '../types/setup'
@@ -183,6 +183,9 @@ export interface RowChange<T> {
   previous: T | null
   /** The patch fields that differ ('changed' only). */
   fields: PatchField[]
+  /** The source name differs from the match's. True for 'renamed', and for a 'changed' row that
+   *  was also renamed. */
+  renamed: boolean
 }
 
 export interface BandChanges<T> {
@@ -200,12 +203,12 @@ export function bandChanges<T extends BandItem>(previousBand: T[], band: T[]): B
   const matched = new Set<T>()
   const rows = band.map((item): RowChange<T> => {
     const previous = item.copyKey != null ? (byKey.get(item.copyKey) ?? null) : null
-    if (!previous || matched.has(previous)) return { item, status: 'new', previous: null, fields: [] }
+    if (!previous || matched.has(previous)) return { item, status: 'new', previous: null, fields: [], renamed: false }
     matched.add(previous)
     const fields = PATCH_FIELDS.filter((f) => patchValue(item, f) !== patchValue(previous, f))
-    const status: RowChangeStatus =
-      fields.length > 0 ? 'changed' : item.sourceName.trim() !== previous.sourceName.trim() ? 'renamed' : 'same'
-    return { item, status, previous, fields }
+    const renamed = item.sourceName.trim() !== previous.sourceName.trim()
+    const status: RowChangeStatus = fields.length > 0 ? 'changed' : renamed ? 'renamed' : 'same'
+    return { item, status, previous, fields, renamed }
   })
   return { rows, removed: previousBand.filter((item) => !matched.has(item)) }
 }
@@ -318,15 +321,18 @@ export function rowLabel(item: Pick<BandItem, 'sourceName' | 'channel'>): string
   return name || (channel ? channel.replace('ch', 'Ch') : 'Unnamed row')
 }
 
-/** One changed row in words: "Fiddle (ch 3): mic KM184 → SM81; 48V off → on". */
+/** One changed row in words: "Fiddle (ch 3): mic KM184 → SM81; 48V off → on", led by
+ *  "name Violin → Fiddle" when the row was also renamed. */
 export function describeRowChange<T extends BandItem>(change: RowChange<T>, names: GearNames<T>): string {
+  const rename =
+    change.renamed && change.previous ? [`name ${change.previous.sourceName.trim() || 'none'} → ${change.item.sourceName.trim() || 'none'}`] : []
   const parts = change.fields.map((field) => {
     if (field === 'phantomPower' || field === 'polarityFlip') {
       return `${FIELD_LABELS[field]} ${shown(change.item, field, names)}`
     }
     return `${FIELD_LABELS[field]} ${change.previous ? shown(change.previous, field, names) : 'none'} → ${shown(change.item, field, names)}`
   })
-  return `${rowLabel(change.item)}: ${parts.join('; ')}`
+  return `${rowLabel(change.item)}: ${[...rename, ...parts].join('; ')}`
 }
 
 function describeAdded<T extends BandItem>(item: T, names: GearNames<T>): string {

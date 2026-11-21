@@ -68,6 +68,8 @@ const removedBand2 = [band2[0], band2[1], added] // OH R removed
 const c = B.bandChanges(band1, removedBand2)
 check('statuses', c.rows.map((r) => r.status), ['renamed', 'changed', 'new'])
 check('changed fields', c.rows[1].fields, ['mic'])
+check('renamed flags', c.rows.map((r) => r.renamed), [true, false, false])
+check('a rename leads the change text', B.describeRowChange({ ...c.rows[1], renamed: true, item: { ...c.rows[1].item, sourceName: 'Overhead L' } }, names), 'Overhead L (ch 2): name OH L → Overhead L; mic KM184 → SM81')
 check('removed rows', c.removed.map((r) => r.sourceName), ['OH R'])
 check('rename alone is not a move', B.changeCount(c), 3)
 check('describe', B.describeBandChanges(c, names), {
