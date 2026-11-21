@@ -68,7 +68,7 @@ const BRACE_MARGIN_GAP = 4
 const CHANGE_FILL = rgb(0.85, 0.85, 0.85)
 /** A changed cell's struck-through old value, the same gray as the band's change note. */
 const WAS_COLOR = rgb(0.35, 0.35, 0.35)
-/** A row that's off in its band: gray text over a fainter wash of its color. */
+/** A row that's off in its band: gray, struck-through text over a fainter wash of its color. */
 const OFF_COLOR = rgb(0.4, 0.4, 0.4)
 function hexToOffRgb(hex: string): ReturnType<typeof rgb> {
   const { r, g, b } = hexToComponents(hex)
@@ -956,6 +956,16 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
             font: colFont,
             ...(off ? { color: OFF_COLOR } : {})
           })
+          // An off row is struck through, line by line, the way the old values are.
+          if (off && line) {
+            const y = firstLineY - i * dens.lineHeight + dens.bodySize * 0.3
+            page.drawLine({
+              start: { x: x + CELL_PAD, y },
+              end: { x: x + CELL_PAD + colFont.widthOfTextAtSize(line, dens.bodySize), y },
+              thickness: 0.6,
+              color: OFF_COLOR
+            })
+          }
         })
         was.forEach((line, i) => {
           const y = firstLineY - (lines.length + i) * dens.lineHeight

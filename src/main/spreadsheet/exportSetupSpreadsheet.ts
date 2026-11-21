@@ -99,7 +99,7 @@ function hexToArgb(hex: string): string {
   return `FF${full}`
 }
 
-/** A row that's off in its band: gray text over its color mixed 85% toward white, so the gray
+/** A row that's off in its band: gray, struck-through text over its color mixed 85% toward white, so the gray
  *  stays readable (5:1 or better) even on the darkest swatch. */
 const OFF_FONT_ARGB = 'FF595959'
 function hexToOffArgb(hex: string): string {
@@ -225,7 +225,7 @@ export async function exportSetupSpreadsheet(input: ExportSetupSpreadsheetInput)
       const fill = isHexColor(item.color) ? hexToOffArgb(item.color) : null
       row.eachCell({ includeEmpty: true }, (cell) => {
         if (fill) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } }
-        cell.font = { color: { argb: OFF_FONT_ARGB } }
+        cell.font = { color: { argb: OFF_FONT_ARGB }, strike: true }
       })
     } else if (isHexColor(item.color)) {
       const argb = hexToArgb(item.color)

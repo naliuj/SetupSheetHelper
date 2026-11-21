@@ -353,6 +353,7 @@ console.log('\nRows off in a band')
     const offRow = rows.find((r) => r.getCell(1).value === 'Snare (off)')
     check(`spreadsheet ${bandLayout}: the off row reads "(off)"`, !!offRow, true)
     check(`spreadsheet ${bandLayout}: in gray`, offRow?.getCell(2).font?.color?.argb, 'FF595959')
+    check(`spreadsheet ${bandLayout}: struck through`, [offRow?.getCell(1).font?.strike, offRow?.getCell(2).font?.strike], [true, true])
     check(`spreadsheet ${bandLayout}: on a faint wash of its color`, offRow?.getCell(2).fill?.fgColor?.argb, 'FFDBDCDF')
   }
   const offNoBands = sampleSetup(bandRows().map((r) => ({ ...r, inactive: true })))
