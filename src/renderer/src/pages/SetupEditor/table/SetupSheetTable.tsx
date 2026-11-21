@@ -379,7 +379,7 @@ export default function SetupSheetTable(): JSX.Element {
   }
 
   return (
-    <div style={{ padding: SHEET_EDGE_INSET, height: '100%', boxSizing: 'border-box' }} onDoubleClick={handleBlankAreaDoubleClick}>
+    <div style={{ padding: SHEET_EDGE_INSET, height: '100%', boxSizing: 'border-box', isolation: 'isolate' }} onDoubleClick={handleBlankAreaDoubleClick}>
       <div className="section-title" style={{ marginTop: 0 }}>
         Setup sheet
       </div>

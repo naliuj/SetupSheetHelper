@@ -345,6 +345,8 @@ export default function ManufacturerPickerDropdown<T extends PickerItem>({
         placeholder="Search…"
         value={search}
         autoFocus
+        // Put the caret after a character typed on the closed trigger, so the next keystroke appends.
+        onFocus={(e) => e.currentTarget.setSelectionRange(search.length, search.length)}
         onChange={(e) => setSearch(e.target.value)}
         onClick={(e) => e.stopPropagation()}
       />
@@ -540,6 +542,13 @@ export default function ManufacturerPickerDropdown<T extends PickerItem>({
           } else {
             setOpen(true)
           }
+        }}
+        onKeyDown={(e) => {
+          // Type-to-search: a printable key on the closed, focused trigger opens straight into search.
+          if (open || e.key.length !== 1 || e.key === ' ' || e.metaKey || e.ctrlKey || e.altKey) return
+          e.preventDefault()
+          setSearch(e.key)
+          setOpen(true)
         }}
       >
         <span className="picker-trigger-label" title={triggerLabel}>

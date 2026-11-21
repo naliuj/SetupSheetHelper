@@ -249,8 +249,11 @@ export default function SetupEditorPane({
           display: mode === 'table' || layoutPoppedOut ? 'block' : 'none'
         }}
       >
-        <TableModeToolbar />
-        <SelectionActionBar />
+        {/* Pinned while the sheet scrolls; the table below isolates its own z-indexes so rows can't paint over this. */}
+        <div style={{ position: 'sticky', top: 0, zIndex: 1, background: 'var(--color-bg)', paddingBottom: 8 }}>
+          <TableModeToolbar />
+          <SelectionActionBar />
+        </div>
         <SetupSheetTable />
       </div>
       {/* Kept mounted (just hidden) in Table Mode, rather than unmounted, so its Konva stage stays
