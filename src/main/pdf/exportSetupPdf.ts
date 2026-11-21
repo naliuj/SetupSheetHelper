@@ -813,7 +813,6 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
       const cellText = (key: string): string => {
         let text = values[key] ?? ''
         if (key === 'sourceName' && marks?.newRows.has(item.id)) text = `+ ${text}`
-        if (key === 'sourceName' && off) text = `${text} (off)`
         return marked?.has(key) && key !== 'phantomPower' ? withChangeMark(text) : text
       }
       const noteLines = noteLinesAfter(item.id)

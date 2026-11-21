@@ -213,7 +213,6 @@ export async function exportSetupSpreadsheet(input: ExportSetupSpreadsheetInput)
 
     if (marks?.newRows.has(item.id)) values.sourceName = `+ ${values.sourceName}`
     const off = isOff(item, sheetHasBands)
-    if (off) values.sourceName = `${values.sourceName} (off)`
     const marked = [...(marks?.cells.get(item.id) ?? [])].filter((key) => columnKeys.has(key))
     for (const key of marked) values[key] = withChangeMark(values[key] ?? '')
 
