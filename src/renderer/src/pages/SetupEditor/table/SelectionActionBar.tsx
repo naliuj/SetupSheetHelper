@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useSetupStoreState } from '@renderer/state/setupStoreContext'
 import { useKeybindPrefsStore } from '@renderer/state/keybindPrefsStore'
 import { formatCombo } from '@shared/constants/keybindActions'
+import { hasBands, isBandDivider } from '@shared/utils/bands'
 import Icon from '@renderer/components/Icon'
 import SwatchPicker from '@renderer/components/SwatchPicker'
 import SaveChannelPresetModal from './SaveChannelPresetModal'
@@ -23,6 +24,7 @@ export default function SelectionActionBar(): JSX.Element | null {
   const applySequentialNumbering = useSetupStoreState((s) => s.applySequentialNumbering)
   const setItemsColor = useSetupStoreState((s) => s.setItemsColor)
   const removeItems = useSetupStoreState((s) => s.removeItems)
+  const toggleRowsOff = useSetupStoreState((s) => s.toggleRowsOff)
   const clearSelection = useSetupStoreState((s) => s.clearSelection)
   const numberingFocusTick = useSetupStoreState((s) => s.numberingFocusTick)
   const resolveKeybind = useKeybindPrefsStore((s) => s.resolve)
@@ -44,6 +46,8 @@ export default function SelectionActionBar(): JSX.Element | null {
   // color; a mixed selection shows the empty "no color" trigger but still applies on pick.
   const selectedColors = new Set(items.filter((i) => selectedItemIds.has(i.id)).map((i) => i.color))
   const sharedColor = selectedColors.size === 1 ? ([...selectedColors][0] ?? null) : null
+  const selectedRows = items.filter((i) => selectedItemIds.has(i.id) && !isBandDivider(i))
+  const allOff = selectedRows.length > 0 && selectedRows.every((i) => i.inactive)
   const start = Number(startText)
   const validStart = Number.isInteger(start) && startText.trim() !== '' && start >= 1
 
@@ -124,6 +128,16 @@ export default function SelectionActionBar(): JSX.Element | null {
       >
         <Icon name="bookmark" size={14} /> Save as preset
       </button>
+      {hasBands(items) && selectedRows.length > 0 && (
+        <button
+          className="btn small"
+          onClick={() => toggleRowsOff([...selectedItemIds])}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+          title={formatCombo(resolveKeybind('toggle-rows-off')) || undefined}
+        >
+          {allOff ? 'Turn on in this band' : 'Turn off in this band'}
+        </button>
+      )}
       <button
         className="btn small danger"
         onClick={() => removeItems([...selectedItemIds])}

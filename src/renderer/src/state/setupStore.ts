@@ -10,7 +10,7 @@ import {
 import { useColumnPrefsStore } from './columnPrefsStore'
 import { useToastStore } from './toastStore'
 import { duplicateRows } from '@shared/utils/pairRows'
-import { BAND_DIVIDER, appendBand, bandRanges, isBandDivider, moveBand, type BandRange } from '@shared/utils/bands'
+import { BAND_DIVIDER, appendBand, bandRanges, hasBands, isBandDivider, moveBand, type BandRange } from '@shared/utils/bands'
 
 /** Why the last save failed. `at` exists so a repeat of the same failure is a NEW value, which
  *  is what lets a retry re-arm rather than sitting idle behind an unchanged state slice. */
@@ -143,6 +143,9 @@ interface SetupState {
   /** Several rows' patches in one set(), so linking or unlinking a pair is one undo step. */
   updateItemsFields(patches: Map<number | string, Partial<SetupItemDraft>>): void
   setItemsColor(ids: Array<number | string>, color: string | null): void
+  /** Turns the listed rows off in their band, or back on when every one is already off. Dividers
+   *  are skipped; does nothing on a sheet without bands. Undoable. */
+  toggleRowsOff(ids: Array<number | string>): void
   updateItemOutboardSlot(
     id: number | string,
     slotIndex: number,
@@ -320,7 +323,8 @@ export function createSetupStore() {
       color: null,
       groupId: null,
       startTime: null,
-      copyKey: null
+      copyKey: null,
+      inactive: false
     }
     // Deliberately doesn't select the new row — auto-selecting made the SelectionActionBar pop
     // up on every add even though the user hadn't selected anything themselves.
@@ -360,6 +364,19 @@ export function createSetupStore() {
       const idSet = new Set(ids)
       return {
         items: state.items.map((item) => (idSet.has(item.id) ? { ...item, color } : item)),
+        isDirty: true
+      }
+    }),
+
+  toggleRowsOff: (ids) =>
+    set((state) => {
+      if (!hasBands(state.items)) return {}
+      const idSet = new Set(ids)
+      const targets = state.items.filter((item) => idSet.has(item.id) && !isBandDivider(item))
+      if (targets.length === 0) return {}
+      const inactive = !targets.every((item) => item.inactive)
+      return {
+        items: state.items.map((item) => (targets.includes(item) ? { ...item, inactive } : item)),
         isDirty: true
       }
     }),
@@ -597,7 +614,8 @@ export function createSetupStore() {
           color: item.color ?? null,
           groupId,
           startTime: null,
-          copyKey: null
+          copyKey: null,
+          inactive: false
         })
         if (item.unresolvedMicName || item.unresolvedOutboardName || item.unresolvedPreampName) {
           hints.set(id, {
@@ -634,7 +652,8 @@ export function createSetupStore() {
       color: null,
       groupId: null,
       startTime: null,
-      copyKey: null
+      copyKey: null,
+      inactive: false
     })
     const { items, dividerId } = appendBand(
       get().items,

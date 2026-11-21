@@ -130,6 +130,13 @@ export const KEYBIND_ACTIONS: KeybindActionDef[] = [
     defaultCombo: 'CmdOrCtrl+Shift+N'
   },
   {
+    id: 'toggle-rows-off',
+    label: 'Turn Selected Rows On or Off',
+    category: 'Table',
+    scope: 'table',
+    defaultCombo: ''
+  },
+  {
     id: 'delete-selection-table',
     label: 'Delete Selected Rows',
     category: 'Table',

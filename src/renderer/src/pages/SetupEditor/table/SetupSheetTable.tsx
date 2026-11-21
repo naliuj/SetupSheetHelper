@@ -16,7 +16,7 @@ import type { Suggestion } from '@renderer/components/SuggestInput'
 import SetupSheetRow, { SHEET_EDGE_INSET } from './SetupSheetRow'
 import { GENERIC_INSTRUMENT_TYPE } from './tableConstants'
 import { avoidSplittingPair } from '@shared/utils/pairRows'
-import { allBandChanges, bandIndexes, bandRanges, isBandDivider, type RowChange } from '@shared/utils/bands'
+import { allBandChanges, bandIndexes, bandRanges, hasBands, isBandDivider, type RowChange } from '@shared/utils/bands'
 import BandDividerRow from './BandDividerRow'
 import BandChangeSummary from './BandChangeSummary'
 import ChangeoverPanel from './ChangeoverPanel'
@@ -361,6 +361,7 @@ export default function SetupSheetTable(): JSX.Element {
   // All three are counted per band: bands play one after another, so the same mic, outboard unit
   // and tie line are meant to be reused across them. A sheet without dividers is one band.
   const bands = useMemo(() => bandRanges(items), [items])
+  const sheetHasBands = useMemo(() => hasBands(items), [items])
   const bandOf = useMemo(() => bandIndexes(items), [items])
   const bandSlices = useMemo(() => bands.map((r) => items.slice(r.start, r.end)), [bands, items])
   const conflictIds = useMemo(() => {
@@ -554,6 +555,7 @@ export default function SetupSheetTable(): JSX.Element {
                     onGutterKeyDown={handleGutterKeyDown}
                     rowNumber={i - bands[bandOf[i]].start + 1}
                     change={showChanges ? changeByRow.get(item.id) : undefined}
+                    off={sheetHasBands ? item.inactive : undefined}
                     onChange={updateItemFields}
                     onOutboardSlotChange={updateItemOutboardSlot}
                     onDelete={removeItem}

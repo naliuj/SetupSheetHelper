@@ -663,6 +663,9 @@ export default function SetupToolbar({
       else if (mode === 'patchbay') patchbayStoreApi.getState().clearSelection()
       else selectBlock(null)
     },
+    'toggle-rows-off': () => {
+      if (mode === 'table' && selectedItemIds.size > 0) setupStoreApi.getState().toggleRowsOff([...selectedItemIds])
+    },
     'delete-selection-table': () => {
       if (mode === 'table' && selectedItemIds.size > 0) removeItems([...selectedItemIds])
     },

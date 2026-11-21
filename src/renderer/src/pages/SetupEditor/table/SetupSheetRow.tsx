@@ -13,7 +13,7 @@ import {
   STEREO_LANE_WIDTH
 } from '@shared/constants/stereoBrace'
 import { useThemeStore } from '@renderer/state/themeStore'
-import { AlertTriangle, GripVertical, Link2, X } from 'lucide-react'
+import { AlertTriangle, GripVertical, Link2, Pause, Play, X } from 'lucide-react'
 import { computeUsedByOthers, type GearUsage } from '@renderer/state/usageCounts'
 import { buildGearSearchGroups } from '@renderer/state/gearSearchGroups'
 import type { SetupItemDraft, SetupItemOutboardSlot } from '@shared/types/setup'
@@ -209,6 +209,9 @@ interface Props {
   /** This row's change from its match in the band before; undefined in the first band. Kept the
    *  same object across edits to other rows (see SetupSheetTable), so it doesn't defeat memo. */
   change: RowChange<SetupItemDraft> | undefined
+  /** Whether the row is off in its band; undefined on a sheet without bands, where the switch is
+   *  hidden and every row reads as on (bands.ts isOff). */
+  off: boolean | undefined
   onChange: (id: number | string, patch: Partial<SetupItemDraft>) => void
   onOutboardSlotChange: (
     id: number | string,
@@ -260,6 +263,7 @@ function SetupSheetRow({
   onGutterKeyDown: onGutterKeyDownById,
   rowNumber,
   change,
+  off,
   onChange: onChangeById,
   onOutboardSlotChange: onOutboardSlotChangeById,
   onSyncPairMic,
@@ -318,8 +322,10 @@ function SetupSheetRow({
   // inset box-shadow) rather than by tinting the whole row — that way a colored row keeps its own
   // color intact when selected instead of clashing with the accent. Uncolored rows get a faint
   // accent wash in addition to the bar so selection still reads on a plain row.
+  // A row that's off in its band keeps a faint trace of its color (--row-off-tint-percent) under
+  // gray text, measured to stay at 4.5:1 or better on every palette swatch in both themes.
   const colorTint = item.color
-    ? `color-mix(in srgb, ${item.color} var(--row-color-tint-percent), var(--color-bg))`
+    ? `color-mix(in srgb, ${item.color} var(${off ? '--row-off-tint-percent' : '--row-color-tint-percent'}), var(--color-bg))`
     : null
   const selectedBg = colorTint ?? 'color-mix(in srgb, var(--color-accent) 12%, var(--color-surface-alt))'
   // A tinted row publishes its own foreground, and everything drawn ON the tint reads that instead
@@ -334,7 +340,7 @@ function SetupSheetRow({
   // lands 2.2:1 on a background that is actually dark. Dark mode has never had the problem this
   // solves: its 32% mix doubles as a contrast guarantee, and the existing foreground measures 6:1
   // or better on every swatch in the palette.
-  const rowFg = item.color && resolvedTheme === 'light' ? readableTextColor(item.color) : null
+  const rowFg = item.color && resolvedTheme === 'light' && !off ? readableTextColor(item.color) : null
   const rowStyle = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -532,7 +538,10 @@ function SetupSheetRow({
         // stays the first child so it isn't remounted (and keeps focus) when the mark comes or goes;
         // the gutter button's label carries "new in this band" for screen readers.
         return (
-          <td key={key} className={change?.status === 'new' ? 'band-new-source' : undefined}>
+          <td
+            key={key}
+            className={[change?.status === 'new' && 'band-new-source', off && 'row-off-source'].filter(Boolean).join(' ') || undefined}
+          >
             <input
               aria-label={`Source name, row ${rowNumber}`}
               value={sourceName.value}
@@ -546,6 +555,7 @@ function SetupSheetRow({
                 +
               </span>
             )}
+            {off && <span className="row-off-tag">Off in this band</span>}
           </td>
         )
       case 'mic':
@@ -752,7 +762,7 @@ function SetupSheetRow({
   }
 
   return (
-    <tr ref={setNodeRef} style={rowStyle}>
+    <tr ref={setNodeRef} style={rowStyle} className={off ? 'row-off' : undefined}>
       {/* Slim leftmost stereo-pair link column (toggleable via the Columns menu). Every row except
           the last hosts a link-icon toggle on its bottom seam (faint at rest, accent on hover), so
           any two adjacent rows can be paired regardless of position. When a pair is linked, an
@@ -898,13 +908,28 @@ function SetupSheetRow({
           className="gutter-select"
           aria-label={`Select row ${rowNumber}${sourceName.value ? `: ${sourceName.value}` : ''}${
             colorName ? `, ${colorName}` : ''
-          }${change?.status === 'new' ? ', new in this band' : marked ? `, changed: ${changeTitle}` : ''}`}
+          }${off ? ', off in this band' : change?.status === 'new' ? ', new in this band' : marked ? `, changed: ${changeTitle}` : ''}`}
           aria-pressed={selected}
           onKeyDown={(e) => onGutterKeyDownById(e, item.id)}
         />
         <span className="drag-handle" {...attributes} {...listeners} style={{ cursor: 'grab' }}>
           <GripVertical size={16} aria-hidden="true" />
         </span>
+        {off !== undefined && (
+          <button
+            type="button"
+            className="row-off-toggle"
+            aria-pressed={off}
+            aria-label={`Off in this band, ${sourceName.value || `row ${rowNumber}`}`}
+            title={off ? 'Turn on in this band' : 'Turn off in this band'}
+            onClick={(e) => {
+              e.stopPropagation()
+              onChangeById(item.id, { inactive: !off })
+            }}
+          >
+            {off ? <Pause size={14} aria-hidden="true" /> : <Play size={14} aria-hidden="true" />}
+          </button>
+        )}
       </td>
       {orderedColumns.map((key) => markCell(key, renderCell(key)))}
       <td>

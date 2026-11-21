@@ -91,7 +91,7 @@ export function bandChangeMarks(items: SetupItem[]): BandChangeMarks {
   for (const [index, changes] of allBandChanges(items)) {
     for (const { item, status, previous, fields, renamed } of changes.rows) {
       if (status === 'new') marks.newRows.add(item.id)
-      if (status === 'same' || !previous) continue
+      if ((status !== 'changed' && status !== 'renamed') || !previous) continue
       const keys = new Set<string>(fields.map((field) => FIELD_COLUMN[field]))
       if (renamed) keys.add('sourceName')
       if (fields.includes('outboards')) {
