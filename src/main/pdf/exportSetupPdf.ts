@@ -43,7 +43,7 @@ import {
   scaleBracePath
 } from '@shared/constants/stereoBrace'
 import { layoutPixelsToPoints } from '@shared/constants/roomLayout'
-import { bandIndexes, hasBands, isBandDivider, isOff } from '@shared/utils/bands'
+import { bandIndexes, hasBands, isBandDivider } from '@shared/utils/bands'
 
 /** Short alias for sanitizeForWinAnsi — applied to every user-supplied string before it is
  *  measured or drawn, so one unencodable character cannot abort the export. */
@@ -68,13 +68,6 @@ const BRACE_MARGIN_GAP = 4
 const CHANGE_FILL = rgb(0.85, 0.85, 0.85)
 /** A changed cell's struck-through old value, the same gray as the band's change note. */
 const WAS_COLOR = rgb(0.35, 0.35, 0.35)
-/** A row that's off in its band: gray, struck-through text over a fainter wash of its color. */
-const OFF_COLOR = rgb(0.4, 0.4, 0.4)
-function hexToOffRgb(hex: string): ReturnType<typeof rgb> {
-  const { r, g, b } = hexToComponents(hex)
-  const toward = (c: number): number => c * 0.08 + 0.92
-  return rgb(toward(r), toward(g), toward(b))
-}
 
 /** Font size + spacing that vary with the chosen density. Compact packs more rows per page;
  *  normal stays larger and more legible. Sizes stay above a ~7pt legibility floor. */
@@ -452,7 +445,6 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
     // Off (and the oblique font never embedded) unless asked for on a sheet with bands, so every
     // other export stays byte-for-byte what it was.
     const marks = input.markBandChanges && hasBands(setup.items) ? bandChangeMarks(setup.items) : null
-    const sheetHasBands = hasBands(setup.items)
     const noteFont = marks ? await pdfDoc.embedFont(StandardFonts.HelveticaOblique) : font
     const wasSize = dens.bodySize - 1.5
 
@@ -807,7 +799,6 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
       }
       const values = resolvedValues.get(item.id)!
       const marked = marks?.cells.get(item.id)
-      const off = isOff(item, sheetHasBands)
       // A changed cell is bold. The 48V check mark stays in ZapfDingbats; its "*" is drawn after it.
       const cellFont = (key: string): PDFFont => (key === 'phantomPower' ? dingbatsFont : marked?.has(key) ? boldFont : font)
       const cellText = (key: string): string => {
@@ -887,7 +878,7 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
           y: rowBottomY,
           width: tableWidth + ROW_FILL_INSET * 2,
           height: rowHeight,
-          color: off ? hexToOffRgb(item.color!) : isOddRow ? hexToPaleRgbDark(item.color!) : hexToPaleRgb(item.color!)
+          color: isOddRow ? hexToPaleRgbDark(item.color!) : hexToPaleRgb(item.color!)
         })
       } else if (isOddRow) {
         // Always neutral gray, independent of any accent color — zebra stays a subtle scan aid
@@ -952,19 +943,8 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
             x: x + CELL_PAD,
             y: firstLineY - i * dens.lineHeight,
             size: dens.bodySize,
-            font: colFont,
-            ...(off ? { color: OFF_COLOR } : {})
+            font: colFont
           })
-          // An off row is struck through, line by line, the way the old values are.
-          if (off && line) {
-            const y = firstLineY - i * dens.lineHeight + dens.bodySize * 0.3
-            page.drawLine({
-              start: { x: x + CELL_PAD, y },
-              end: { x: x + CELL_PAD + colFont.widthOfTextAtSize(line, dens.bodySize), y },
-              thickness: 0.6,
-              color: OFF_COLOR
-            })
-          }
         })
         was.forEach((line, i) => {
           const y = firstLineY - (lines.length + i) * dens.lineHeight

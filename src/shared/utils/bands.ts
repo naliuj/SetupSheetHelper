@@ -32,18 +32,10 @@ export interface BandItem {
   polarityFlip: boolean
   groupId: string | null
   copyKey: string | null
-  /** Off in its band: patched but unused, never a change. Only counts on a sheet with bands. */
-  inactive: boolean
 }
 
 export function isBandDivider(item: Pick<BandItem, 'instrumentType'>): boolean {
   return item.instrumentType === BAND_DIVIDER
-}
-
-/** Whether a row is off in its band. A sheet without bands shows and exports every row as on,
- *  so losing the last divider doesn't hide rows; the flag comes back if bands are added again. */
-export function isOff(item: Pick<BandItem, 'inactive'>, sheetHasBands: boolean): boolean {
-  return sheetHasBands && item.inactive
 }
 
 export function hasBands(items: Array<Pick<BandItem, 'instrumentType'>>): boolean {
@@ -182,8 +174,7 @@ export function patchValue(item: BandItem, field: PatchField): string {
   }
 }
 
-/** 'off': the row is off in this band. Never a change: it stays patched, so there's no work. */
-export type RowChangeStatus = 'same' | 'renamed' | 'changed' | 'new' | 'off'
+export type RowChangeStatus = 'same' | 'renamed' | 'changed' | 'new'
 
 export interface RowChange<T> {
   item: T
@@ -212,11 +203,8 @@ export function bandChanges<T extends BandItem>(previousBand: T[], band: T[]): B
   const matched = new Set<T>()
   const rows = band.map((item): RowChange<T> => {
     const previous = item.copyKey != null ? (byKey.get(item.copyKey) ?? null) : null
-    const taken = !previous || matched.has(previous)
-    if (!taken) matched.add(previous)
-    // Off before 'new': an off row needs nothing done, and its match still counts as kept.
-    if (item.inactive) return { item, status: 'off', previous: taken ? null : previous, fields: [], renamed: false }
-    if (taken) return { item, status: 'new', previous: null, fields: [], renamed: false }
+    if (!previous || matched.has(previous)) return { item, status: 'new', previous: null, fields: [], renamed: false }
+    matched.add(previous)
     const fields = PATCH_FIELDS.filter((f) => patchValue(item, f) !== patchValue(previous, f))
     const renamed = item.sourceName.trim() !== previous.sourceName.trim()
     const status: RowChangeStatus = fields.length > 0 ? 'changed' : renamed ? 'renamed' : 'same'

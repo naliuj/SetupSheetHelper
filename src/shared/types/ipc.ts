@@ -359,8 +359,6 @@ export interface SetupItemInput {
   groupId: string | null
   startTime: string | null
   copyKey: string | null
-  /** Off in its band (see SetupItem.inactive). */
-  inactive: boolean
 }
 
 /** What saving a layout hands back. `idMap` records the row id every INSERTED block received,
@@ -498,8 +496,6 @@ export interface ExportedSetupItem {
   startTime?: string | null
   /** Absent in files written before bands existed. */
   copyKey?: string | null
-  /** Absent in files written before rows could be turned off. */
-  inactive?: boolean
 }
 
 /** A patch cable in a setup file: PatchbayCable without its row ids. Ends are room pixels on the

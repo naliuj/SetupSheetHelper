@@ -28,7 +28,7 @@ let nextId = 0
 const row = (sourceName, over = {}) => ({
   id: `r${++nextId}`, instrumentType: 'custom_source', sourceName, micId: null, micText: null,
   phantomPower: false, channel: null, tieLine: null, cueBox: null, outboards: [], preampId: null,
-  preampText: null, polarityFlip: false, groupId: null, copyKey: null, inactive: false, ...over
+  preampText: null, polarityFlip: false, groupId: null, copyKey: null, ...over
 })
 const divider = (name) => row(name, { instrumentType: B.BAND_DIVIDER })
 let key = 0
@@ -80,24 +80,6 @@ check('describe', B.describeBandChanges(c, names), {
 check('empty text equals null', B.patchValue(row('x', { tieLine: ' ' }), 'tieLine') === B.patchValue(row('y'), 'tieLine'), true)
 check('48V toggle reads as on', B.describeRowChange({ item: { ...kick, phantomPower: true }, previous: kick, fields: ['phantomPower'], status: 'changed' }, names), 'Kick (ch 1): 48V on')
 check('allBandChanges skips band 1', [...B.allBandChanges(three).keys()], [1, 2])
-
-// Rows off in a band: never a change, and the match before stays kept
-{
-  // three = [Band 1] Kick OH L OH R [Band 2] Kick OH L OH R [Band 3] Kick OH L OH R
-  const offSheet = three.map((r, i) => (i === 6 ? { ...r, inactive: true, micText: 'C414' } : r))
-  const all = B.allBandChanges(offSheet)
-  const band2 = all.get(1)
-  check('a row off in band 2 is "off"', band2.rows.map((r) => r.status), ['same', 'off', 'same'])
-  check('its band 1 match is not removed', band2.removed.length, 0)
-  check('an off row is not counted', B.changeCount(band2), 0)
-  check('an off row is not in the changeover list', B.describeBandChanges(band2, names), { changed: [], added: [], removed: [] })
-  check('on again in band 3, compared with band 2: the mic differs', all.get(2).rows[1].status, 'changed')
-  const sameMic = three.map((r, i) => (i === 6 ? { ...r, inactive: true } : r))
-  check('on again in band 3 with the same patch is "same"', B.allBandChanges(sameMic).get(2).rows[1].status, 'same')
-  const fresh = [...three, { ...row('Shaker', { inactive: true }) }]
-  check('a fresh row that is off is "off", not "new"', B.allBandChanges(fresh).get(2).rows[3].status, 'off')
-  check('isOff needs a sheet with bands', [B.isOff({ inactive: true }, true), B.isOff({ inactive: true }, false), B.isOff({ inactive: false }, true)], [true, false, false])
-}
 
 // Carry an edit forward
 const before = three[1]

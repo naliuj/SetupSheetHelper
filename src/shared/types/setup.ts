@@ -66,9 +66,6 @@ export interface SetupItem {
   /** Shared by a row and every copy "Add band" made of it, so a later band's row knows which
    *  earlier row it matches. Null on rows added fresh. See shared/utils/bands.ts. */
   copyKey: string | null
-  /** Off in its band: still patched, unused for that band's set, so it costs no changeover
-   *  work. Counts only on a sheet with bands (bands.ts isOff). */
-  inactive: boolean
 }
 
 /** Layout Mode's canvas blocks — a purely spatial "where does everyone stand" visualization,

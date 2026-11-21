@@ -104,8 +104,7 @@ export async function exportSetupsToFile(setupIds: number[]): Promise<ExportSetu
         color: item.color,
         groupId: item.groupId,
         startTime: item.startTime,
-        copyKey: item.copyKey,
-        inactive: item.inactive
+        copyKey: item.copyKey
       }
     })
 
@@ -274,8 +273,7 @@ export function importSetups(setups: ExportedSetup[], targetStudioId: number): v
           color: item.color,
           groupId: item.groupId,
           startTime: item.startTime ?? null,
-          copyKey: item.copyKey ?? null,
-          inactive: item.inactive === true
+          copyKey: item.copyKey ?? null
         }
       })
       replaceItemsForSetup(created.id, items)

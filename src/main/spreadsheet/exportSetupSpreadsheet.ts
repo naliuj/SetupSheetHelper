@@ -8,7 +8,7 @@ import type { ExportSetupSpreadsheetInput, ExportSetupSpreadsheetResult } from '
 import { getSetupWithItems } from '../db/repositories/setupsRepo'
 import { resolveMicText, resolvePreampText } from '../db/resolveGearLabels'
 import type { SetupItem } from '@shared/types/setup'
-import { bandIndexes, bandRanges, hasBands, isBandDivider, isOff } from '@shared/utils/bands'
+import { bandIndexes, bandRanges, hasBands, isBandDivider } from '@shared/utils/bands'
 import {
   bandChangeMarks,
   bandTitle,
@@ -99,18 +99,6 @@ function hexToArgb(hex: string): string {
   return `FF${full}`
 }
 
-/** A row that's off in its band: gray, struck-through text over its color mixed 85% toward white, so the gray
- *  stays readable (5:1 or better) even on the darkest swatch. */
-const OFF_FONT_ARGB = 'FF595959'
-function hexToOffArgb(hex: string): string {
-  const full = hexToArgb(hex).slice(2)
-  const part = (i: number): string =>
-    Math.round(parseInt(full.slice(i, i + 2), 16) * 0.15 + 255 * 0.85)
-      .toString(16)
-      .padStart(2, '0')
-  return `FF${part(0)}${part(2)}${part(4)}`.toUpperCase()
-}
-
 const sheetNames = (workbook: ExcelJS.Workbook): string[] => workbook.worksheets.map((ws) => ws.name)
 
 export async function exportSetupSpreadsheet(input: ExportSetupSpreadsheetInput): Promise<ExportSetupSpreadsheetResult> {
@@ -155,7 +143,6 @@ export async function exportSetupSpreadsheet(input: ExportSetupSpreadsheetInput)
   workbook.title = setup.name
   const bandOf = bandIndexes(setup.items)
   const marks = input.markBandChanges && hasBands(setup.items) ? bandChangeMarks(setup.items) : null
-  const sheetHasBands = hasBands(setup.items)
   const columnKeys = new Set(columns.map((c) => c.key))
 
   /** A merged row across the whole width, as the band heading and notes use. */
@@ -212,7 +199,6 @@ export async function exportSetupSpreadsheet(input: ExportSetupSpreadsheetInput)
     if (shownColumns.has('notes')) values.notes = item.notes ?? ''
 
     if (marks?.newRows.has(item.id)) values.sourceName = `+ ${values.sourceName}`
-    const off = isOff(item, sheetHasBands)
     const marked = [...(marks?.cells.get(item.id) ?? [])].filter((key) => columnKeys.has(key))
     for (const key of marked) values[key] = withChangeMark(values[key] ?? '')
 
@@ -220,13 +206,7 @@ export async function exportSetupSpreadsheet(input: ExportSetupSpreadsheetInput)
     // Validated, not merely truthy: an imported .json can carry anything, and an unparseable value
     // used to land in xl/styles.xml as rgb="FFNOT-A-COLOR" — schema-invalid, tolerated by
     // LibreOffice, a repair prompt in Excel.
-    if (off) {
-      const fill = isHexColor(item.color) ? hexToOffArgb(item.color) : null
-      row.eachCell({ includeEmpty: true }, (cell) => {
-        if (fill) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } }
-        cell.font = { color: { argb: OFF_FONT_ARGB }, strike: true }
-      })
-    } else if (isHexColor(item.color)) {
+    if (isHexColor(item.color)) {
       const argb = hexToArgb(item.color)
       // The fill is full-strength, so the text has to move instead. Excel's default font is black
       // and nothing here used to set one, which made every `dark` and `darkest` swatch a row of

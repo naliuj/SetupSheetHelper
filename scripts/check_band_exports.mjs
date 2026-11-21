@@ -331,36 +331,6 @@ for (const bandLayout of ['continuous', 'pagePerBand']) {
   check(`spreadsheet ${bandLayout}: merged across the columns`, sheet.getCell(note.number, 2).isMerged, true)
 }
 
-console.log('\nRows off in a band')
-{
-  const a = row({ sourceName: 'Snare', micText: 'SM57', channel: 2, copyKey: 's', color: '#0f172a' })
-  const kickA = row({ sourceName: 'Kick', micText: 'D112', channel: 1, copyKey: 'k' })
-  const snareB = row({ ...a, id: nextId++, micText: 'C414', inactive: true })
-  const kickB = row({ ...kickA, id: nextId++ })
-  const offSheet = sampleSetup([divider('Opener'), kickA, a, divider('Headliner'), kickB, snareB])
-  const m = bandChangeMarks(offSheet.items)
-  check('an off row gets no marks and no note', [m.cells.size, m.newRows.size, m.notes.size], [0, 0, 0])
-  for (const bandLayout of ['continuous', 'pagePerBand']) {
-    const pages = await pdfTexts(await pdfBytes(offSheet, { bandLayout, markBandChanges: true }))
-    const all = pages.flat()
-    check(`PDF ${bandLayout}: the off row keeps its plain name`, all.filter((t) => t === 'Snare').length, 2)
-    check(`PDF ${bandLayout}: no change marks`, all.filter((t) => t.includes('*')).length, 0)
-    const wb = new ExcelJS.Workbook()
-    await wb.xlsx.load(await xlsxBytes(offSheet, { bandLayout, markBandChanges: true }))
-    const rows = []
-    for (const ws of wb.worksheets) ws.eachRow((r) => rows.push(r))
-    const offRow = rows.filter((r) => r.getCell(1).value === 'Snare').pop()
-    check(`spreadsheet ${bandLayout}: the off row keeps its plain name`, !!offRow, true)
-    check(`spreadsheet ${bandLayout}: in gray`, offRow?.getCell(2).font?.color?.argb, 'FF595959')
-    check(`spreadsheet ${bandLayout}: struck through`, [offRow?.getCell(1).font?.strike, offRow?.getCell(2).font?.strike], [true, true])
-    check(`spreadsheet ${bandLayout}: on a faint wash of its color`, offRow?.getCell(2).fill?.fgColor?.argb, 'FFDBDCDF')
-  }
-  const offNoBands = sampleSetup(bandRows().map((r) => ({ ...r, inactive: true })))
-  for (const [label, make] of [['PDF', pdfBytes], ['spreadsheet', xlsxBytes]]) {
-    await sameBytes(`${label}: off rows on a sheet without bands export as on`, (s) => make(s, {}), offNoBands, noBands)
-  }
-}
-
 globalThis.Date = RealDate
 rmSync(dir, { recursive: true, force: true })
 console.log(failures ? `\n${failures} check(s) failed.` : '\nAll checks passed.')
