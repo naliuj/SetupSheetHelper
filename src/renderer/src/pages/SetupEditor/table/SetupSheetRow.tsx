@@ -528,8 +528,11 @@ function SetupSheetRow({
       case 'stereoLink':
         return null
       case 'sourceName':
+        // A row new in this band gets "+ " before its name, the mark the exports print. The input
+        // stays the first child so it isn't remounted (and keeps focus) when the mark comes or goes;
+        // the gutter button's label carries "new in this band" for screen readers.
         return (
-          <td key={key}>
+          <td key={key} className={change?.status === 'new' ? 'band-new-source' : undefined}>
             <input
               aria-label={`Source name, row ${rowNumber}`}
               value={sourceName.value}
@@ -538,6 +541,11 @@ function SetupSheetRow({
               onBlur={sourceName.onBlur}
               onClick={(e) => e.stopPropagation()}
             />
+            {change?.status === 'new' && (
+              <span className="band-new-mark" aria-hidden="true" title="New in this band">
+                +
+              </span>
+            )}
           </td>
         )
       case 'mic':
@@ -744,7 +752,7 @@ function SetupSheetRow({
   }
 
   return (
-    <tr ref={setNodeRef} style={rowStyle} className={change?.status === 'new' ? 'band-new' : undefined}>
+    <tr ref={setNodeRef} style={rowStyle}>
       {/* Slim leftmost stereo-pair link column (toggleable via the Columns menu). Every row except
           the last hosts a link-icon toggle on its bottom seam (faint at rest, accent on hover), so
           any two adjacent rows can be paired regardless of position. When a pair is linked, an

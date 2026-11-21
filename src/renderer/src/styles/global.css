@@ -2336,10 +2336,11 @@ table.data-table td .band-divider input.band-divider-notes {
 }
 
 /* Band change marks (SetupSheetRow, BandChangeSummary, ChangeoverPanel). A changed cell is tinted
-   amber with an amber rule along its foot, so the mark doesn't rest on a faint tint alone; a row
-   new in this band is tinted green. The tints are washes over whatever the row already has (its
-   color, its selection), and the stereo lane keeps its own inline background, so the pair brace
-   and selection bar are untouched.
+   amber with an amber rule along its foot, so the mark doesn't rest on a faint tint alone. The
+   tint is a wash over whatever the row already has (its color, its selection), and the stereo
+   lane keeps its own inline background, so the pair brace and selection bar are untouched. A row
+   new in this band gets "+ " before its source name, the mark the exports print, rather than a
+   tint of its own: a green wash vanished on green rows and muddied every other row color.
 
    Measured, not eyeballed: .band-was (text mixed 25% into text-dim) is 6.0:1 on the dark amber
    tint and 5.6:1 on the light one; plain text-dim would have been 4.7 and 4.2. The amber rule is
@@ -2347,18 +2348,28 @@ table.data-table td .band-divider input.band-divider-notes {
    the text follows the row's own --row-fg instead, like the warning badges do. */
 :root {
   --band-changed-bg: color-mix(in srgb, #f5b544 16%, transparent);
-  --band-new-bg: color-mix(in srgb, #3fb950 16%, transparent);
 }
 :root[data-theme='light'] {
   --band-changed-bg: color-mix(in srgb, #f5b544 30%, transparent);
-  --band-new-bg: color-mix(in srgb, #2da44e 20%, transparent);
 }
 table.data-table td.band-changed {
   background: var(--band-changed-bg);
   box-shadow: inset 0 -2px 0 var(--color-warning);
 }
-table.data-table tr.band-new td {
-  background: var(--band-new-bg);
+table.data-table td.band-new-source {
+  position: relative;
+}
+table.data-table td.band-new-source input {
+  padding-left: 18px;
+}
+.band-new-mark {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-weight: 600;
+  color: var(--row-fg, var(--color-text));
+  pointer-events: none;
 }
 .band-was {
   display: block;
