@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useMenuKeyboard } from '@renderer/hooks/useMenuKeyboard'
 import { Layers, RotateCcw } from 'lucide-react'
 import { bandRanges } from '@shared/utils/bands'
 import BandOrderList from './BandOrderList'
@@ -47,7 +48,8 @@ export default function TableModeToolbar(): JSX.Element {
   const showBandChanges = usePdfLayoutPrefsStore((s) => s.showBandChanges)
   const setShowBandChanges = usePdfLayoutPrefsStore((s) => s.setShowBandChanges)
   const [bandStep, setBandStep] = useState<'list' | 'add'>('list')
-  const bandsRef = useRef<HTMLDivElement>(null)
+  const bandsMenu = useMenuKeyboard(bandsOpen, () => setBandsOpen(false), bandStep)
+  const bandsRef = bandsMenu.ref
 
   // The Add Band shortcut opens the menu straight on the add step.
   useEffect(() => {
@@ -125,7 +127,7 @@ export default function TableModeToolbar(): JSX.Element {
         Add source
       </button>
 
-      <div ref={bandsRef} style={{ position: 'relative' }}>
+      <div {...bandsMenu} style={{ position: 'relative' }}>
         <button
           className="btn"
           onClick={() => {
@@ -162,7 +164,7 @@ export default function TableModeToolbar(): JSX.Element {
                   </div>
                 )}
                 {focusedBand != null && (
-                  <div
+                  <button
                     className="picker-menu-row"
                     role="menuitem"
                     style={{ borderTop: '1px solid var(--color-border)' }}
@@ -172,9 +174,9 @@ export default function TableModeToolbar(): JSX.Element {
                     }}
                   >
                     Show all bands
-                  </div>
+                  </button>
                 )}
-                <div
+                <button
                   className="picker-menu-row"
                   role="menuitem"
                   // Full-width flex, not .inline-icon-text (inline-flex), so the hover fills the row.
@@ -187,7 +189,7 @@ export default function TableModeToolbar(): JSX.Element {
                   onClick={() => setBandStep('add')}
                 >
                   <Icon name="plus" size={14} /> Add band
-                </div>
+                </button>
               </>
             ) : (
               <>
@@ -195,24 +197,24 @@ export default function TableModeToolbar(): JSX.Element {
                   Start the new band from
                 </div>
                 {bands.length === 0 ? (
-                  <div className="picker-menu-row" role="menuitem" onClick={() => pickAddSource(0)}>
+                  <button className="picker-menu-row" role="menuitem" onClick={() => pickAddSource(0)}>
                     Copy of this setup
-                  </div>
+                  </button>
                 ) : (
                   [...bands.keys()].reverse().map((i) => (
-                    <div key={bands[i].id} className="picker-menu-row" role="menuitem" onClick={() => pickAddSource(i)}>
+                    <button key={bands[i].id} className="picker-menu-row" role="menuitem" onClick={() => pickAddSource(i)}>
                       Copy of {bands[i].label}
-                    </div>
+                    </button>
                   ))
                 )}
-                <div
+                <button
                   className="picker-menu-row"
                   role="menuitem"
                   style={{ borderTop: '1px solid var(--color-border)' }}
                   onClick={() => pickAddSource(null)}
                 >
                   Blank band
-                </div>
+                </button>
               </>
             )}
           </div>

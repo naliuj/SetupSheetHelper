@@ -1,10 +1,12 @@
-import { memo, useEffect, useRef, useState, type ReactNode } from 'react'
+import { memo, useEffect, useState, type ReactNode } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { ChevronDown, ChevronRight, MoreHorizontal } from 'lucide-react'
 import type { SetupItemDraft } from '@shared/types/setup'
 import { useSetupStoreState } from '@renderer/state/setupStoreContext'
 import { useModalDialog } from '@renderer/hooks/useModalDialog'
+import { useEscapeToClose } from '@renderer/hooks/useEscapeToClose'
+import { useMenuKeyboard } from '@renderer/hooks/useMenuKeyboard'
 import { useBufferedField } from './useBufferedField'
 
 interface Props {
@@ -44,11 +46,11 @@ function BandDividerRow({ item, bandIndex, bandCount, rowCount, collapsed, colSp
 
   const [menuOpen, setMenuOpen] = useState(false)
   const [confirmRemove, setConfirmRemove] = useState(false)
-  const menuRef = useRef<HTMLDivElement>(null)
+  const menu = useMenuKeyboard(menuOpen, () => setMenuOpen(false))
   useEffect(() => {
     if (!menuOpen) return
     function onDown(e: MouseEvent): void {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false)
+      if (menu.ref.current && !menu.ref.current.contains(e.target as Node)) setMenuOpen(false)
     }
     document.addEventListener('mousedown', onDown)
     return () => document.removeEventListener('mousedown', onDown)
@@ -117,7 +119,7 @@ function BandDividerRow({ item, bandIndex, bandCount, rowCount, collapsed, colSp
             </span>
           )}
           {children}
-          <div ref={menuRef} style={{ position: 'relative', marginLeft: 'auto' }}>
+          <div {...menu} style={{ position: 'relative', marginLeft: 'auto' }}>
             <button
               className="icon-btn"
               onClick={() => setMenuOpen((v) => !v)}
@@ -129,7 +131,7 @@ function BandDividerRow({ item, bandIndex, bandCount, rowCount, collapsed, colSp
             </button>
             {menuOpen && (
               <div className="picker-menu" role="menu" style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, minWidth: 220, zIndex: 20 }}>
-                <div
+                <button
                   className="picker-menu-row"
                   role="menuitem"
                   onClick={() => {
@@ -138,9 +140,9 @@ function BandDividerRow({ item, bandIndex, bandCount, rowCount, collapsed, colSp
                   }}
                 >
                   Show only this band
-                </div>
+                </button>
                 {!isFirst && (
-                  <div
+                  <button
                     className="picker-menu-row"
                     role="menuitem"
                     onClick={() => {
@@ -149,10 +151,10 @@ function BandDividerRow({ item, bandIndex, bandCount, rowCount, collapsed, colSp
                     }}
                   >
                     Changeover…
-                  </div>
+                  </button>
                 )}
                 {!isFirst && (
-                  <div
+                  <button
                     className="picker-menu-row"
                     role="menuitem"
                     onClick={() => {
@@ -161,10 +163,10 @@ function BandDividerRow({ item, bandIndex, bandCount, rowCount, collapsed, colSp
                     }}
                   >
                     Merge into previous band
-                  </div>
+                  </button>
                 )}
                 {isFirst && bandCount === 1 && (
-                  <div
+                  <button
                     className="picker-menu-row"
                     role="menuitem"
                     onClick={() => {
@@ -173,10 +175,10 @@ function BandDividerRow({ item, bandIndex, bandCount, rowCount, collapsed, colSp
                     }}
                   >
                     Remove divider
-                  </div>
+                  </button>
                 )}
                 {bandCount > 1 && (
-                  <div
+                  <button
                     className="picker-menu-row"
                     role="menuitem"
                     style={{ color: 'var(--color-danger)' }}
@@ -186,7 +188,7 @@ function BandDividerRow({ item, bandIndex, bandCount, rowCount, collapsed, colSp
                     }}
                   >
                     Remove band…
-                  </div>
+                  </button>
                 )}
               </div>
             )}
@@ -220,6 +222,7 @@ function RemoveBandDialog({
   onConfirm(): void
 }): JSX.Element {
   const dialog = useModalDialog(`Remove ${label}?`)
+  useEscapeToClose(onCancel)
   return (
     <div className="modal-overlay" onClick={onCancel}>
       <div className="modal" {...dialog} onClick={(e) => e.stopPropagation()} style={{ width: 380 }}>
