@@ -1,3 +1,4 @@
+import { isBandDivider } from '@shared/utils/bands'
 import { useEffect, useState } from 'react'
 import { Check } from 'lucide-react'
 import type { ChannelPresetItemInput } from '@shared/types/channelPreset'
@@ -66,7 +67,10 @@ export default function SaveChannelPresetModal({ onClose }: { onClose: () => voi
     return folder
   }
 
-  const targetItems = selectedItemIds.size > 0 ? items.filter((item) => selectedItemIds.has(item.id)) : items
+  // Band dividers are never saved into a preset: a preset is a channel list, not a running order.
+  const targetItems = (selectedItemIds.size > 0 ? items.filter((item) => selectedItemIds.has(item.id)) : items).filter(
+    (item) => !isBandDivider(item)
+  )
 
   // A pair stays linked only when both its rows are saved; one split by the selection saves unlinked.
   function savedPairKey(item: (typeof items)[number]): string | null {

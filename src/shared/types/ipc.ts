@@ -210,7 +210,8 @@ export const IPC = {
     deletePromoteContents: 'folders:deletePromoteContents'
   },
   exportPdf: {
-    exportSetup: 'exportPdf:exportSetup'
+    exportSetup: 'exportPdf:exportSetup',
+    exportChangeover: 'exportPdf:exportChangeover'
   },
   exportSpreadsheet: {
     exportSetup: 'exportSpreadsheet:exportSetup'
@@ -356,6 +357,8 @@ export interface SetupItemInput {
   notes: string | null
   color: string | null
   groupId: string | null
+  startTime: string | null
+  copyKey: string | null
 }
 
 /** What saving a layout hands back. `idMap` records the row id every INSERTED block received,
@@ -489,6 +492,10 @@ export interface ExportedSetupItem {
   notes: string | null
   color: string | null
   groupId: string | null
+  /** Band divider rows only. Absent in files written before bands existed. */
+  startTime?: string | null
+  /** Absent in files written before bands existed. */
+  copyKey?: string | null
 }
 
 /** A patch cable in a setup file: PatchbayCable without its row ids. Ends are room pixels on the
@@ -606,6 +613,23 @@ export interface ExportSetupPdfInput {
    *  auto-drop of blank columns is skipped, since the chips already showed the user what's empty
    *  and let them decide. Omitted by stale callers, which get the old visibility + auto-drop. */
   includeColumns?: SetupColumnKey[]
+  /** For a sheet with bands: one continuous table, or each band starting on a new page.
+   *  Absent means continuous. Ignored when the sheet has no band dividers. */
+  bandLayout?: BandExportLayout
+  /** For a sheet with bands: mark what changed from the band before (bold gray cells with "*",
+   *  "+ " on new rows, a "Removed:" line per band). Absent means off. */
+  markBandChanges?: boolean
+}
+
+/** How a multi-band sheet exports: one continuous table with divider rows, or a page (PDF) or
+ *  worksheet (spreadsheet) per band. */
+export type BandExportLayout = 'continuous' | 'pagePerBand'
+
+/** The printable changeover list between a band and the one before it. */
+export interface ExportChangeoverPdfInput {
+  setupId: number
+  /** 0-based band number (see bandRanges in shared/utils/bands.ts); must be 1 or more. */
+  bandIndex: number
 }
 
 export interface ExportSetupPdfResult {
@@ -625,6 +649,10 @@ export interface ExportSetupSpreadsheetInput {
    *  column order; 'outboard' expands to one column per slot). Omitted by stale callers,
    *  which fall back to the setup's own visible columns. */
   includeColumns?: SetupColumnKey[]
+  /** See ExportSetupPdfInput.bandLayout; pagePerBand writes one worksheet per band. */
+  bandLayout?: BandExportLayout
+  /** See ExportSetupPdfInput.markBandChanges. */
+  markBandChanges?: boolean
 }
 
 export interface ExportSetupSpreadsheetResult {
@@ -1069,6 +1097,7 @@ export interface RendererApi {
   }
   exportPdf: {
     exportSetup(input: ExportSetupPdfInput): Promise<ExportSetupPdfResult>
+    exportChangeover(input: ExportChangeoverPdfInput): Promise<ExportSetupPdfResult>
   }
   exportSpreadsheet: {
     exportSetup(input: ExportSetupSpreadsheetInput): Promise<ExportSetupSpreadsheetResult>

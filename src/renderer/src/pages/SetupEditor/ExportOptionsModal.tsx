@@ -1,11 +1,14 @@
 import { useState } from 'react'
-import type { PdfExportParts, PdfExportOrientation, PdfExportDensity } from '@shared/types/ipc'
+import type { BandExportLayout, PdfExportParts, PdfExportOrientation, PdfExportDensity } from '@shared/types/ipc'
 import { useEscapeToClose } from '@renderer/hooks/useEscapeToClose'
 import ToggleSwitch from '@renderer/components/ToggleSwitch'
 import ExportColumnChips, { useExportColumnChips } from '@renderer/components/ExportColumnChips'
 import { useNavigationStore } from '@renderer/state/navigationStore'
 import type { SetupColumnKey } from '@shared/constants/setupColumns'
 import { useModalDialog } from '@renderer/hooks/useModalDialog'
+import { useSetupStoreState } from '@renderer/state/setupStoreContext'
+import { usePdfLayoutPrefsStore } from '@renderer/state/pdfLayoutPrefsStore'
+import { hasBands } from '@shared/utils/bands'
 
 export interface ExportOptions {
   parts: PdfExportParts
@@ -13,6 +16,8 @@ export interface ExportOptions {
   orientation: PdfExportOrientation
   density: PdfExportDensity
   includeColumns: SetupColumnKey[]
+  /** Only set when the setup has bands. */
+  bandLayout?: BandExportLayout
 }
 
 interface Props {
@@ -54,6 +59,9 @@ export default function ExportOptionsModal({
   const [exporting, setExporting] = useState(false)
 
   const chips = useExportColumnChips()
+  const sheetHasBands = useSetupStoreState((s) => hasBands(s.items))
+  const [bandLayout, setBandLayout] = useState(usePdfLayoutPrefsStore.getState().bandExportLayout)
+  const [markBandChanges, setMarkBandChanges] = useState(usePdfLayoutPrefsStore.getState().markBandChanges)
 
   const goToSettings = useNavigationStore((s) => s.goToSettings)
 
@@ -69,7 +77,17 @@ export default function ExportOptionsModal({
     const parts: PdfExportParts = { sheet: includeSheet, layout: includeLayout, patchbay: includePatchbay }
     setExporting(true)
     try {
-      await onExport({ parts, coloredRows, orientation, density, includeColumns: chips.included })
+      // Saved first: SetupToolbar reads this pref when it builds the export.
+      if (sheetHasBands) await usePdfLayoutPrefsStore.getState().setMarkBandChanges(markBandChanges)
+      await onExport({
+        parts,
+        coloredRows,
+        orientation,
+        density,
+        includeColumns: chips.included,
+        bandLayout: sheetHasBands ? bandLayout : undefined
+      })
+      if (sheetHasBands) await usePdfLayoutPrefsStore.getState().setBandExportLayout(bandLayout)
       onClose()
     } finally {
       setExporting(false)
@@ -142,6 +160,30 @@ export default function ExportOptionsModal({
         <p className="card-sub" style={{ margin: '0 0 8px 0' }}>
           Landscape and Compact both fit more per page. Long text wraps onto extra lines either way.
         </p>
+
+        {sheetHasBands && (
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 8, opacity: includeSheet ? 1 : 0.5 }}>
+            <span className="card-sub" style={{ margin: 0 }}>Bands</span>
+            <select
+              value={bandLayout}
+              disabled={!includeSheet}
+              onChange={(e) => setBandLayout(e.target.value as BandExportLayout)}
+            >
+              <option value="continuous">Continuous</option>
+              <option value="pagePerBand">New page per band</option>
+            </select>
+          </label>
+        )}
+        {sheetHasBands && (
+          <div style={{ marginBottom: 8, opacity: includeSheet ? 1 : 0.5 }}>
+            <ToggleSwitch
+              checked={markBandChanges}
+              onChange={setMarkBandChanges}
+              disabled={!includeSheet}
+              label="Mark changes between bands"
+            />
+          </div>
+        )}
 
         <div className="modal-actions">
           <button className="btn" onClick={onClose}>

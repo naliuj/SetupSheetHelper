@@ -7,12 +7,17 @@ import { dialog } from 'electron'
 import type { ExportSetupSpreadsheetInput, ExportSetupSpreadsheetResult } from '@shared/types/ipc'
 import { getSetupWithItems } from '../db/repositories/setupsRepo'
 import { resolveMicText, resolvePreampText } from '../db/resolveGearLabels'
+import type { SetupItem } from '@shared/types/setup'
+import { bandIndexes, bandRanges, hasBands, isBandDivider } from '@shared/utils/bands'
 import {
+  bandChangeMarks,
+  bandTitle,
   exportFileName,
   loadPatchCableRows,
   loadSetupGear,
   outboardSlotTexts,
-  pngBytesFromDataUrl
+  pngBytesFromDataUrl,
+  withChangeMark
 } from '../db/exportShared'
 import { COLUMN_LABELS, orderedVisibleColumns } from '@shared/constants/setupColumns'
 import { isHexColor, readableTextColor } from '@shared/constants/swatches'
@@ -74,9 +79,9 @@ export function sanitizeSheetName(name: string): string {
 
 /** Excel sheet names must be unique, case-insensitively, and exceljs will happily write a
  *  duplicate that Excel then refuses to open. Reachable without contrivance: a setup actually
- *  named "Room layout". */
-function uniqueSheetName(workbook: ExcelJS.Workbook, desired: string): string {
-  const taken = new Set(workbook.worksheets.map((ws) => ws.name.toLowerCase()))
+ *  named "Room layout", or two bands with the same name. `existing` is the names already used. */
+export function uniqueSheetName(existing: string[], desired: string): string {
+  const taken = new Set(existing.map((name) => name.toLowerCase()))
   if (!taken.has(desired.toLowerCase())) return desired
   for (let n = 2; ; n++) {
     const suffix = ` (${n})`
@@ -93,6 +98,8 @@ function hexToArgb(hex: string): string {
   const full = clean.length === 3 ? clean.split('').map((c) => c + c).join('') : clean
   return `FF${full}`
 }
+
+const sheetNames = (workbook: ExcelJS.Workbook): string[] => workbook.worksheets.map((ws) => ws.name)
 
 export async function exportSetupSpreadsheet(input: ExportSetupSpreadsheetInput): Promise<ExportSetupSpreadsheetResult> {
   const setup = getSetupWithItems(input.setupId)
@@ -134,12 +141,46 @@ export async function exportSetupSpreadsheet(input: ExportSetupSpreadsheetInput)
   const workbook = new ExcelJS.Workbook()
   workbook.creator = 'Setup Sheet Helper'
   workbook.title = setup.name
-  const worksheet = workbook.addWorksheet(uniqueSheetName(workbook, sanitizeSheetName(setup.name)))
-  worksheet.columns = columns.map((c) => ({ header: c.header, key: c.key, width: c.width }))
-  worksheet.getRow(1).font = { bold: true }
-  worksheet.views = [{ state: 'frozen', ySplit: 1 }]
+  const bandOf = bandIndexes(setup.items)
+  const marks = input.markBandChanges && hasBands(setup.items) ? bandChangeMarks(setup.items) : null
+  const columnKeys = new Set(columns.map((c) => c.key))
 
-  for (const item of setup.items) {
+  /** A merged row across the whole width, as the band heading and notes use. */
+  const addWideRow = (sheet: ExcelJS.Worksheet, text: string, font: Partial<ExcelJS.Font>): void => {
+    const row = sheet.addRow([text])
+    row.getCell(1).font = font
+    if (columns.length > 1) sheet.mergeCells(row.number, 1, row.number, columns.length)
+  }
+
+  /** A data sheet with the column headers frozen on row 1, then `items` (band dividers included). */
+  const addDataSheet = (name: string, items: SetupItem[]): ExcelJS.Worksheet => {
+    const sheet = workbook.addWorksheet(uniqueSheetName(sheetNames(workbook), sanitizeSheetName(name)))
+    sheet.columns = columns.map((c) => ({ header: c.header, key: c.key, width: c.width }))
+    sheet.getRow(1).font = { bold: true }
+    sheet.views = [{ state: 'frozen', ySplit: 1 }]
+    for (const item of items) {
+      addItemRow(sheet, item)
+      // The band's change note, after its last row.
+      const note = marks?.notes.get(item.id)
+      if (note) addWideRow(sheet, note, { italic: true })
+    }
+    return sheet
+  }
+
+  /** A divider becomes a bold band heading across the whole width, its notes in a row under it. */
+  const addBandRows = (sheet: ExcelJS.Worksheet, divider: SetupItem): void => {
+    const lines: Array<[string, Partial<ExcelJS.Font>]> = [
+      [bandTitle(divider, bandOf[setup.items.indexOf(divider)]), { bold: true }]
+    ]
+    if (divider.notes?.trim()) lines.push([divider.notes.trim(), { italic: true }])
+    for (const [text, font] of lines) addWideRow(sheet, text, font)
+  }
+
+  const addItemRow = (worksheet: ExcelJS.Worksheet, item: SetupItem): void => {
+    if (isBandDivider(item)) {
+      addBandRows(worksheet, item)
+      return
+    }
     const values: Record<string, string> = {
       sourceName: item.sourceName || ''
     }
@@ -156,6 +197,10 @@ export async function exportSetupSpreadsheet(input: ExportSetupSpreadsheetInput)
     if (shownColumns.has('cueBox')) values.cueBox = item.cueBox ?? ''
     if (shownColumns.has('polarity')) values.polarity = item.polarityFlip ? 'Yes' : ''
     if (shownColumns.has('notes')) values.notes = item.notes ?? ''
+
+    if (marks?.newRows.has(item.id)) values.sourceName = `+ ${values.sourceName}`
+    const marked = [...(marks?.cells.get(item.id) ?? [])].filter((key) => columnKeys.has(key))
+    for (const key of marked) values[key] = withChangeMark(values[key] ?? '')
 
     const row = worksheet.addRow(values)
     // Validated, not merely truthy: an imported .json can carry anything, and an unparseable value
@@ -175,6 +220,26 @@ export async function exportSetupSpreadsheet(input: ExportSetupSpreadsheetInput)
         cell.font = { color: { argb: fontArgb } }
       })
     }
+    // After the row color, so a changed cell reads as changed on a colored row too. The font is
+    // replaced, not merged: a dark row's white text would be nearly unreadable on the light gray.
+    for (const key of marked) {
+      const cell = row.getCell(key)
+      cell.font = { bold: true }
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } }
+    }
+  }
+
+  if (input.bandLayout === 'pagePerBand' && hasBands(setup.items)) {
+    // One sheet per band, each opening with its own band heading under the column headers. Rows
+    // above the first divider (if any) keep the setup's name.
+    for (const range of bandRanges(setup.items)) {
+      const from = range.divider ? range.start - 1 : range.start
+      // The name only: a start time's colon is not allowed in a sheet name.
+      const name = range.divider ? bandTitle({ ...range.divider, startTime: null }, range.index) : setup.name
+      addDataSheet(name, setup.items.slice(from, range.end))
+    }
+  } else {
+    addDataSheet(setup.name, setup.items)
   }
 
   // Second sheet, after the data: a workbook opens on sheet 1, and the sheet is the document —
@@ -184,7 +249,7 @@ export async function exportSetupSpreadsheet(input: ExportSetupSpreadsheetInput)
     try {
       const bytes = pngBytesFromDataUrl(input.layoutImageDataUrl)
       const { width, height } = pngSize(bytes)
-      const layoutSheet = workbook.addWorksheet(uniqueSheetName(workbook, 'Room layout'), {
+      const layoutSheet = workbook.addWorksheet(uniqueSheetName(sheetNames(workbook), 'Room layout'), {
         // It is a figure, not a table; gridlines behind it just read as noise.
         views: [{ showGridLines: false }]
       })
@@ -209,7 +274,7 @@ export async function exportSetupSpreadsheet(input: ExportSetupSpreadsheetInput)
       pngSize(bytes) // throws on a malformed capture before the sheet is added
       const rows = await loadPatchCableRows(setup)
 
-      const patchbaySheet = workbook.addWorksheet(uniqueSheetName(workbook, 'Patchbay'), {
+      const patchbaySheet = workbook.addWorksheet(uniqueSheetName(sheetNames(workbook), 'Patchbay'), {
         views: [{ showGridLines: false }]
       })
       // No header row for a setup without cables: the picture then starts at the top on its own.

@@ -1,4 +1,4 @@
-import { Fragment, memo, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { Fragment, cloneElement, memo, useMemo, useRef, useState, type CSSProperties, type ReactElement } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { readableTextColor, swatchName } from '@shared/constants/swatches'
@@ -26,6 +26,8 @@ import SuggestInput, { type Suggestion } from '@renderer/components/SuggestInput
 import CustomGearModal from '@renderer/components/CustomGearModal'
 import { applyMicPoolNotesTag } from '@renderer/state/micPoolNotesTag'
 import { useBufferedField } from './useBufferedField'
+import { changedOutboardSlots, describeRowChange, FIELD_COLUMN, shown, type RowChange } from '@shared/utils/bands'
+import { catalogGearNames, outboardSlotName } from './ChangeoverPanel'
 
 const POOL_LABELS: Record<Mic['poolType'], string> = {
   studio: 'This Studio',
@@ -78,6 +80,7 @@ function OutboardSlotCell({
   slotIndex,
   outboardSuggestions,
   hintText,
+  mark,
   onSlotChange
 }: {
   slot: SetupItemOutboardSlot | undefined
@@ -90,6 +93,8 @@ function OutboardSlotCell({
   slotIndex: number
   outboardSuggestions: Suggestion[]
   hintText: string | undefined
+  /** Set when this slot changed from the band before: the old value and the row's change text. */
+  mark: { was: string; title: string } | undefined
   onSlotChange: (patch: Partial<Pick<SetupItemOutboardSlot, 'outboardId' | 'outboardText'>>) => void
 }): JSX.Element {
   // Hoisted to the component body: the picker below is behind an `isTemporary` branch, so a
@@ -110,7 +115,7 @@ function OutboardSlotCell({
   const [customOpen, setCustomOpen] = useState(false)
 
   return (
-    <td onClick={(e) => e.stopPropagation()}>
+    <td className={mark ? 'band-changed' : undefined} title={mark?.title} onClick={(e) => e.stopPropagation()}>
       {isTemporary ? (
         <SuggestInput
           value={outboardText.value}
@@ -142,6 +147,7 @@ function OutboardSlotCell({
           Preset expected: {hintText}
         </div>
       )}
+      {mark && <span className="band-was">{mark.was}</span>}
       {customOpen && (
         <CustomGearModal
           kind="Outboard"
@@ -200,6 +206,9 @@ interface Props {
   /** 1-based position, for the gutter select button's accessible name. Index-derived like
    *  seamZIndex, so it costs this memoized row nothing extra. */
   rowNumber: number
+  /** This row's change from its match in the band before; undefined in the first band. Kept the
+   *  same object across edits to other rows (see SetupSheetTable), so it doesn't defeat memo. */
+  change: RowChange<SetupItemDraft> | undefined
   onChange: (id: number | string, patch: Partial<SetupItemDraft>) => void
   onOutboardSlotChange: (
     id: number | string,
@@ -250,6 +259,7 @@ function SetupSheetRow({
   onGutterClick: onGutterClickById,
   onGutterKeyDown: onGutterKeyDownById,
   rowNumber,
+  change,
   onChange: onChangeById,
   onOutboardSlotChange: onOutboardSlotChangeById,
   onSyncPairMic,
@@ -480,6 +490,32 @@ function SetupSheetRow({
    *  reader can reach and a mouse can hover, without changing how the sheet looks. */
   const colorName = swatchName(item.color)
 
+  // Band change marks: the changed cells get an amber tint and the old value struck through under
+  // the input, for patch changes and a renamed source alike.
+  const marked = (change?.status === 'changed' || change?.status === 'renamed') && change.previous ? change : null
+  const changedColumns = new Set<SetupColumnKey>(marked?.fields.map((f) => FIELD_COLUMN[f]))
+  if (marked?.renamed) changedColumns.add('sourceName')
+  const gearNames = marked ? catalogGearNames(mics, preamps, outboardGear) : null
+  const changeTitle = marked && gearNames ? describeRowChange(marked, gearNames) : ''
+  const changedSlots = marked?.previous && changedColumns.has('outboard') ? changedOutboardSlots(marked.item, marked.previous) : []
+  function wasText(key: SetupColumnKey): string {
+    if (key === 'sourceName') return marked?.previous?.sourceName.trim() || 'none'
+    const field = marked?.fields.find((f) => FIELD_COLUMN[f] === key)
+    return field && marked?.previous && gearNames ? shown(marked.previous, field, gearNames) : ''
+  }
+  /** Adds the mark to a cell renderCell built. Outboard marks itself per slot (OutboardSlotCell). */
+  function markCell(key: SetupColumnKey, cell: JSX.Element | null): JSX.Element | null {
+    if (!cell || key === 'outboard' || !changedColumns.has(key)) return cell
+    const td = cell as ReactElement<{ children?: React.ReactNode; className?: string; title?: string }>
+    return cloneElement(
+      td,
+      { className: 'band-changed', title: changeTitle },
+      // Children keep their positions (a lone child at index 0, an array's items spread one level) and stay unkeyed, so the input isn't remounted and keeps keyboard focus when the mark appears.
+      ...[td.props.children].flat(),
+      <span key="was" className="band-was">{wasText(key)}</span>
+    )
+  }
+
   // One cell per column key, dispatched so the row can render in whatever order the user chose.
   // Deliberately a plain function called from a .map (not a component) — it closes over the
   // useBufferedField results above, which MUST stay unconditional at the top level of the
@@ -492,8 +528,11 @@ function SetupSheetRow({
       case 'stereoLink':
         return null
       case 'sourceName':
+        // A row new in this band gets "+ " before its name, the mark the exports print. The input
+        // stays the first child so it isn't remounted (and keeps focus) when the mark comes or goes;
+        // the gutter button's label carries "new in this band" for screen readers.
         return (
-          <td key={key}>
+          <td key={key} className={change?.status === 'new' ? 'band-new-source' : undefined}>
             <input
               aria-label={`Source name, row ${rowNumber}`}
               value={sourceName.value}
@@ -502,6 +541,11 @@ function SetupSheetRow({
               onBlur={sourceName.onBlur}
               onClick={(e) => e.stopPropagation()}
             />
+            {change?.status === 'new' && (
+              <span className="band-new-mark" aria-hidden="true" title="New in this band">
+                +
+              </span>
+            )}
           </td>
         )
       case 'mic':
@@ -573,6 +617,18 @@ function SetupSheetRow({
                 slotIndex={slotIndex}
                 outboardSuggestions={outboardSuggestions}
                 hintText={slotIndex === 0 ? unresolvedGearHint?.outboard : undefined}
+                mark={
+                  changedSlots.includes(slotIndex) && marked?.previous
+                    ? {
+                        was:
+                          outboardSlotName(
+                            marked.previous.outboards.find((s) => s.slotIndex === slotIndex),
+                            outboardGear
+                          ) || 'none',
+                        title: changeTitle
+                      }
+                    : undefined
+                }
                 onSlotChange={(patch) => handleOutboardSlotChange(slotIndex, patch)}
               />
             ))}
@@ -842,7 +898,7 @@ function SetupSheetRow({
           className="gutter-select"
           aria-label={`Select row ${rowNumber}${sourceName.value ? `: ${sourceName.value}` : ''}${
             colorName ? `, ${colorName}` : ''
-          }`}
+          }${change?.status === 'new' ? ', new in this band' : marked ? `, changed: ${changeTitle}` : ''}`}
           aria-pressed={selected}
           onKeyDown={(e) => onGutterKeyDownById(e, item.id)}
         />
@@ -850,7 +906,7 @@ function SetupSheetRow({
           <GripVertical size={16} aria-hidden="true" />
         </span>
       </td>
-      {orderedColumns.map((key) => renderCell(key))}
+      {orderedColumns.map((key) => markCell(key, renderCell(key)))}
       <td>
         <button
           className="btn small danger"

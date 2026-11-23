@@ -257,7 +257,8 @@ const api: RendererApi = {
     deletePromoteContents: (id) => ipcRenderer.invoke(IPC.folders.deletePromoteContents, id)
   },
   exportPdf: {
-    exportSetup: (input) => ipcRenderer.invoke(IPC.exportPdf.exportSetup, input)
+    exportSetup: (input) => ipcRenderer.invoke(IPC.exportPdf.exportSetup, input),
+    exportChangeover: (input) => ipcRenderer.invoke(IPC.exportPdf.exportChangeover, input)
   },
   exportSpreadsheet: {
     exportSetup: (input) => ipcRenderer.invoke(IPC.exportSpreadsheet.exportSetup, input)

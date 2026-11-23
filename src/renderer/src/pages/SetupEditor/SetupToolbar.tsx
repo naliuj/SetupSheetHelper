@@ -2,8 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import type Konva from 'konva'
 import { Check, ExternalLink, FileText, Keyboard } from 'lucide-react'
 import { APP_SETTINGS_KEYS } from '@shared/types/entities'
-import type { MenuAction, PatchbayExportImage, PdfExportParts } from '@shared/types/ipc'
+import type { BandExportLayout, MenuAction, PatchbayExportImage, PdfExportParts } from '@shared/types/ipc'
 import { parsePdfExportParts, serializePdfExportParts } from '@shared/constants/pdfLayout'
+import { usePdfLayoutPrefsStore } from '@renderer/state/pdfLayoutPrefsStore'
 import {
   KEYBIND_ACTIONS,
   MARKUP_TOOL_KEYBINDS,
@@ -203,7 +204,8 @@ export default function SetupToolbar({
     coloredRows,
     orientation,
     density,
-    includeColumns
+    includeColumns,
+    bandLayout
   }: ExportOptions): Promise<void> {
     setExporting(true)
     setExportMessage(null)
@@ -264,7 +266,10 @@ export default function SetupToolbar({
         coloredRows,
         orientation,
         density,
-        includeColumns
+        includeColumns,
+        bandLayout,
+        // The dialog saves its checkbox to prefs before calling onExport.
+        markBandChanges: usePdfLayoutPrefsStore.getState().markBandChanges
       })
       if (result.canceled) {
         setExportMessage(null)
@@ -319,7 +324,8 @@ export default function SetupToolbar({
   async function performSpreadsheetExport(
     includeColumns: SetupColumnKey[],
     includeLayout: boolean,
-    includePatchbay: boolean
+    includePatchbay: boolean,
+    bandLayout?: BandExportLayout
   ): Promise<void> {
     setExporting(true)
     setExportMessage(null)
@@ -367,7 +373,9 @@ export default function SetupToolbar({
         patchbayImage:
           patchbay !== 'failed' && patchbay.status === 'ok'
             ? { dataUrl: patchbay.dataUrl, roomWidth: patchbay.roomWidth, roomHeight: patchbay.roomHeight }
-            : null
+            : null,
+        bandLayout,
+        markBandChanges: usePdfLayoutPrefsStore.getState().markBandChanges
       })
       if (!result.canceled) {
         await window.api.settings.set(
@@ -591,6 +599,9 @@ export default function SetupToolbar({
     'toggle-mode': requestToggleMode,
     'toggle-patchbay-mode': requestPatchbayMode,
     'add-source': () => addItem(GENERIC_INSTRUMENT_TYPE),
+    'next-band': () => {
+      if (mode === 'table') setupStoreApi.getState().requestAddBand()
+    },
     'select-all': handleSelectAll,
     'delete-selection': () => {
       if (mode === 'table' && selectedItemIds.size > 0) removeItems([...selectedItemIds])

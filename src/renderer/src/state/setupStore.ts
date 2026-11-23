@@ -9,7 +9,8 @@ import {
 } from '@shared/constants/setupColumns'
 import { useColumnPrefsStore } from './columnPrefsStore'
 import { useToastStore } from './toastStore'
-import { duplicateRows } from './pairRows'
+import { duplicateRows } from '@shared/utils/pairRows'
+import { BAND_DIVIDER, appendBand, bandRanges, isBandDivider, moveBand, type BandRange } from '@shared/utils/bands'
 
 /** Why the last save failed. `at` exists so a repeat of the same failure is a NEW value, which
  *  is what lets a retry re-arm rather than sitting idle behind an unchanged state slice. */
@@ -53,6 +54,14 @@ export interface ResolvedChannelPresetItem {
 
 function newDraftId(): string {
   return crypto.randomUUID()
+}
+
+/** The band new rows go into: the active band, else the one the table is showing alone, else the
+ *  last band. Clamped, since an undo can leave the active band number past the end. */
+function targetBand(state: Pick<SetupState, 'items' | 'activeBand' | 'focusedBand'>): BandRange<SetupItemDraft> {
+  const ranges = bandRanges(state.items)
+  const pick = state.activeBand ?? state.focusedBand ?? ranges.length - 1
+  return ranges[Math.min(pick, ranges.length - 1)]
 }
 
 export interface NewItemDefaults {
@@ -100,6 +109,17 @@ interface SetupState {
   /** Transient (not persisted) — set when a Channel Preset's captured mic/outboard couldn't be
    *  matched in the current studio's catalogue, cleared the moment the user picks a replacement. */
   unresolvedGearHints: Map<number | string, UnresolvedGearHint>
+  /** Band numbers folded in the table. View state only: not saved, not undoable. */
+  collapsedBands: Set<number>
+  /** When set, the table shows only this band. View state only. */
+  focusedBand: number | null
+  /** The band new rows and loaded presets go into, picked by clicking its bar. Null means the
+   *  last band. View state only. */
+  activeBand: number | null
+  /** Bumped by the Add Band shortcut; the toolbar opens its band menu on the add step. */
+  addBandMenuTick: number
+  /** Asks the table to scroll a band's divider into view; the tick makes a repeat request fire. */
+  bandScrollRequest: { band: number; tick: number } | null
   isDirty: boolean
   isSaving: boolean
   /** The last save failure, or null when the last save succeeded. Carries a timestamp so two
@@ -143,6 +163,21 @@ interface SetupState {
   focusNumbering(): void
   clearUnresolvedGearHint(id: number | string, field: 'mic' | 'outboard' | 'preamp'): void
   applyChannelPreset(items: ResolvedChannelPresetItem[]): void
+  /** Appends a band at the end: a divider plus a copy of band `source`'s rows, or a blank band
+   *  for null. It becomes the active band. Returns the divider id. */
+  addBand(source: number | null): number | string
+  /** Moves a whole band to another position in the band order. */
+  moveBand(from: number, to: number): void
+  setActiveBand(band: number | null): void
+  requestAddBand(): void
+  /** Removes a band: its divider and every row in it (with the usual "Deleted N rows" undo toast). */
+  removeBand(dividerId: number | string): void
+  /** Removes a divider only, so its rows join the band above (or, for the first band, the sheet
+   *  goes back to having no dividers once it is the only band left). */
+  removeBandDivider(dividerId: number | string): void
+  toggleBandCollapsed(band: number): void
+  setFocusedBand(band: number | null): void
+  scrollToBand(band: number): void
   save(): Promise<void>
 }
 
@@ -181,6 +216,11 @@ export function createSetupStore() {
   selectionAnchorId: null,
   numberingFocusTick: 0,
   unresolvedGearHints: new Map(),
+  collapsedBands: new Set<number>(),
+  focusedBand: null,
+  activeBand: null,
+  addBandMenuTick: 0,
+  bandScrollRequest: null,
   isDirty: false,
   isSaving: false,
   saveError: null,
@@ -205,6 +245,10 @@ export function createSetupStore() {
       selectedItemIds: new Set(),
       selectionAnchorId: null,
       unresolvedGearHints: new Map(),
+      collapsedBands: new Set(),
+      focusedBand: null,
+      activeBand: null,
+      bandScrollRequest: null,
       isDirty: false
     })
     store.temporal.getState().clear()
@@ -274,14 +318,23 @@ export function createSetupStore() {
       polarityFlip: false,
       notes: defaults.notes ?? null,
       color: null,
-      groupId: null
+      groupId: null,
+      startTime: null,
+      copyKey: null
     }
     // Deliberately doesn't select the new row — auto-selecting made the SelectionActionBar pop
     // up on every add even though the user hadn't selected anything themselves.
-    set((state) => ({
-      items: [...state.items, draft],
-      isDirty: true
-    }))
+    set((state) => {
+      const band = targetBand(state)
+      const at = band.end
+      const collapsedBands = new Set(state.collapsedBands)
+      collapsedBands.delete(band.index)
+      return {
+        items: [...state.items.slice(0, at), draft, ...state.items.slice(at)],
+        collapsedBands,
+        isDirty: true
+      }
+    })
     return id
   },
 
@@ -408,7 +461,8 @@ export function createSetupStore() {
         state.items,
         ids,
         // A fresh rowKey (none) — sharing the original's would give two rows the same React key.
-        ({ rowKey: _rowKey, ...item }, groupId) => ({ ...item, id: newDraftId(), groupId }),
+        // No copyKey either: a Cmd+D copy is a new row in its band, not a later band's match.
+        ({ rowKey: _rowKey, ...item }, groupId) => ({ ...item, id: newDraftId(), groupId, copyKey: null }),
         () => crypto.randomUUID()
       )
       return { items, selectedItemIds: new Set(copyIds), isDirty: true }
@@ -419,7 +473,7 @@ export function createSetupStore() {
 
   selectAll: () =>
     set((state) => ({
-      selectedItemIds: new Set(state.items.map((item) => item.id)),
+      selectedItemIds: new Set(state.items.filter((item) => !isBandDivider(item)).map((item) => item.id)),
       selectionAnchorId: null
     })),
 
@@ -458,17 +512,30 @@ export function createSetupStore() {
       return
     }
     const [from, to] = anchorIndex <= targetIndex ? [anchorIndex, targetIndex] : [targetIndex, anchorIndex]
-    set({ selectedItemIds: new Set(state.items.slice(from, to + 1).map((item) => item.id)) })
+    set({
+      selectedItemIds: new Set(
+        state.items
+          .slice(from, to + 1)
+          .filter((item) => !isBandDivider(item))
+          .map((item) => item.id)
+      )
+    })
   },
 
   // Fills the chosen field sequentially (start, start+1, ...) down the selected rows in
-  // visual order — or every row when nothing is selected (fast whole-sheet numbering).
+  // visual order — or every row when nothing is selected (fast whole-sheet numbering). Each band
+  // starts again from `start`: bands play one after another, so they reuse the same channels.
+  // Divider rows are never numbered.
   applySequentialNumbering: (field, start) =>
     set((state) => {
       const targetAll = state.selectedItemIds.size === 0
       let next = Math.max(1, start)
       return {
         items: state.items.map((item) => {
+          if (isBandDivider(item)) {
+            next = Math.max(1, start)
+            return item
+          }
           if (!targetAll && !state.selectedItemIds.has(item.id)) return item
           const value = next++
           // Cue box and tie line are free-text fields ("1-2", "PB1"), so numbering writes strings.
@@ -528,7 +595,9 @@ export function createSetupStore() {
           polarityFlip: item.polarityFlip ?? false,
           notes: item.notes,
           color: item.color ?? null,
-          groupId
+          groupId,
+          startTime: null,
+          copyKey: null
         })
         if (item.unresolvedMicName || item.unresolvedOutboardName || item.unresolvedPreampName) {
           hints.set(id, {
@@ -538,8 +607,111 @@ export function createSetupStore() {
           })
         }
       }
-      return { items: [...state.items, ...newItems], unresolvedGearHints: hints, isDirty: true }
+      const at = targetBand(state).end
+      return {
+        items: [...state.items.slice(0, at), ...newItems, ...state.items.slice(at)],
+        unresolvedGearHints: hints,
+        isDirty: true
+      }
     }),
+
+  addBand: (source) => {
+    const makeDivider = (name: string): SetupItemDraft => ({
+      id: newDraftId(),
+      instrumentType: BAND_DIVIDER,
+      sourceName: name,
+      micId: null,
+      micText: null,
+      phantomPower: false,
+      channel: null,
+      tieLine: null,
+      cueBox: null,
+      outboards: [],
+      preampId: null,
+      preampText: null,
+      polarityFlip: false,
+      notes: null,
+      color: null,
+      groupId: null,
+      startTime: null,
+      copyKey: null
+    })
+    const { items, dividerId } = appendBand(
+      get().items,
+      source,
+      makeDivider,
+      // A fresh id and no rowKey, as duplicateItems does; outboard slots copied, not shared.
+      ({ rowKey: _rowKey, ...item }, groupId, copyKey) => ({
+        ...item,
+        id: newDraftId(),
+        groupId,
+        copyKey,
+        outboards: item.outboards.map((slot) => ({ ...slot }))
+      }),
+      () => crypto.randomUUID()
+    )
+    const last = bandRanges(items).length - 1
+    set({ items, isDirty: true, selectedItemIds: new Set(), selectionAnchorId: null, focusedBand: null, activeBand: last })
+    get().scrollToBand(last)
+    return dividerId
+  },
+
+  moveBand: (from, to) => {
+    const state = get()
+    const items = moveBand(state.items, from, to)
+    if (items === state.items) return
+    // The active band follows its own move; the others between shift by one.
+    const follow = (band: number | null): number | null => {
+      if (band == null) return null
+      if (band === from) return to
+      if (from < band && band <= to) return band - 1
+      if (to <= band && band < from) return band + 1
+      return band
+    }
+    set({
+      items,
+      isDirty: true,
+      collapsedBands: new Set(),
+      focusedBand: follow(state.focusedBand),
+      activeBand: follow(state.activeBand)
+    })
+  },
+
+  setActiveBand: (activeBand) => set({ activeBand }),
+
+  requestAddBand: () => set((state) => ({ addBandMenuTick: state.addBandMenuTick + 1 })),
+
+  removeBand: (dividerId) => {
+    const state = get()
+    const range = bandRanges(state.items).find((r) => r.divider?.id === dividerId)
+    if (!range) return
+    // Band numbers below this one shift up; simplest to unfold everything rather than guess.
+    set({ collapsedBands: new Set(), focusedBand: null, activeBand: null })
+    state.removeItems([dividerId, ...state.items.slice(range.start, range.end).map((item) => item.id)])
+  },
+
+  removeBandDivider: (dividerId) =>
+    set((state) => {
+      let items = state.items.filter((item) => item.id !== dividerId)
+      // A lone leftover "Band 1" divider would make a one-band sheet look like a multi-band one.
+      if (items.filter(isBandDivider).length === 1 && isBandDivider(items[0])) items = items.slice(1)
+      return { items, isDirty: true, collapsedBands: new Set(), focusedBand: null, activeBand: null }
+    }),
+
+  toggleBandCollapsed: (band) =>
+    set((state) => {
+      const next = new Set(state.collapsedBands)
+      if (next.has(band)) next.delete(band)
+      else next.add(band)
+      return { collapsedBands: next }
+    }),
+
+  // Showing only one band also makes it the band you're adding to.
+  setFocusedBand: (focusedBand) =>
+    set((state) => ({ focusedBand, activeBand: focusedBand ?? state.activeBand })),
+
+  scrollToBand: (band) =>
+    set((state) => ({ bandScrollRequest: { band, tick: (state.bandScrollRequest?.tick ?? 0) + 1 } })),
 
   save: async () => {
     // A save that starts while another runs waits for it, then only goes ahead if there's still

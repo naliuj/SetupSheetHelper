@@ -814,6 +814,17 @@ table.data-table td.data-table-text {
   white-space: nowrap;
 }
 
+/* Menu items that are real buttons (so the keyboard can reach them) keep the row's look. */
+button.picker-menu-row {
+  width: 100%;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+}
+
 /* The label must be allowed to shrink, or `white-space: nowrap` above lets a long one push the
    "n/m in use" badge clean out of the menu — which is exactly the number the row exists to show.
    flex children default to min-width:auto, so this needs saying explicitly. */
@@ -824,7 +835,8 @@ table.data-table td.data-table-text {
 }
 
 .picker-menu-row.hovered,
-.picker-menu-row:not(.disabled):hover {
+.picker-menu-row:not(.disabled):hover,
+button.picker-menu-row:focus-visible {
   background: var(--color-accent);
   color: var(--color-on-accent);
 }
@@ -2247,4 +2259,148 @@ input[type='checkbox']:focus-visible {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* Band dividers: the full-width row that starts each band in a multi-band sheet. */
+table.data-table tr.band-divider-row td {
+  padding: 10px 6px 6px;
+  border-top: 2px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-text) 5%, transparent);
+  cursor: pointer;
+}
+/* The band new rows go into: picked by clicking its bar. */
+table.data-table tr.band-divider-row.is-active td {
+  border-top-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+  box-shadow: inset 4px 0 0 var(--color-accent);
+}
+.band-divider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.band-divider .icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-text-dim);
+  cursor: pointer;
+}
+.band-divider .icon-btn:hover {
+  background: color-mix(in srgb, var(--color-text) 10%, transparent);
+  color: var(--color-text);
+}
+table.data-table td .band-divider input.band-divider-name {
+  font-weight: 600;
+  font-size: 14px;
+  width: 200px;
+}
+table.data-table td .band-divider input.band-divider-time {
+  width: 110px;
+}
+table.data-table td .band-divider input.band-divider-notes {
+  flex: 1;
+  min-width: 120px;
+}
+.band-divider-count {
+  font-size: 12px;
+  color: var(--color-text-dim);
+  white-space: nowrap;
+}
+.band-order-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.band-focus-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: var(--color-text-dim);
+}
+
+/* Band change marks (SetupSheetRow, BandChangeSummary, ChangeoverPanel). A changed cell is tinted
+   amber with an amber rule along its foot, so the mark doesn't rest on a faint tint alone. The
+   tint is a wash over whatever the row already has (its color, its selection), and the stereo
+   lane keeps its own inline background, so the pair brace and selection bar are untouched. A row
+   new in this band gets "+ " before its source name, the mark the exports print, rather than a
+   tint of its own: a green wash vanished on green rows and muddied every other row color.
+
+   Measured, not eyeballed: .band-was (text mixed 25% into text-dim) is 6.0:1 on the dark amber
+   tint and 5.6:1 on the light one; plain text-dim would have been 4.7 and 4.2. The amber rule is
+   --color-warning, 7.2:1 (dark) and 4.2:1 (light) against the tint. On a light-mode colored row
+   the text follows the row's own --row-fg instead, like the warning badges do. */
+:root {
+  --band-changed-bg: color-mix(in srgb, #f5b544 16%, transparent);
+}
+:root[data-theme='light'] {
+  --band-changed-bg: color-mix(in srgb, #f5b544 30%, transparent);
+}
+table.data-table td.band-changed {
+  background: var(--band-changed-bg);
+  box-shadow: inset 0 -2px 0 var(--color-warning);
+}
+table.data-table td.band-new-source {
+  position: relative;
+}
+table.data-table td.band-new-source input {
+  padding-left: 18px;
+}
+.band-new-mark {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-weight: 600;
+  color: var(--row-fg, var(--color-text));
+  pointer-events: none;
+}
+.band-was {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  line-height: 1.2;
+  text-decoration: line-through;
+  color: var(--row-fg, color-mix(in srgb, var(--color-text) 25%, var(--color-text-dim)));
+  /* Wraps rather than ellipsizes: the cells are auto-width, so a nowrap name would widen its
+     column instead of being clipped. */
+  overflow-wrap: anywhere;
+}
+.band-change-summary {
+  border: 1px solid var(--color-warning);
+  border-radius: var(--radius);
+  background: var(--band-changed-bg);
+  color: var(--color-text);
+  font-size: 12px;
+  padding: 3px 8px;
+  white-space: nowrap;
+}
+.band-change-summary:hover {
+  background: color-mix(in srgb, var(--color-warning) 30%, transparent);
+}
+.changeover-panel h3 {
+  font-size: 13px;
+  margin: 12px 0 4px;
+}
+.changeover-panel ul {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 13px;
+  line-height: 1.5;
 }

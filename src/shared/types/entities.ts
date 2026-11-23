@@ -130,6 +130,13 @@ export interface PreampWithStudio extends Preamp {
 
 export const APP_SETTINGS_KEYS = {
   defaultEngineerName: 'default_engineer_name',
+  /** 'continuous' | 'pagePerBand'. Remembered band layout from the PDF and spreadsheet export
+   *  dialogs, shown only for a sheet with bands. Absent → continuous. */
+  bandExportLayout: 'band_export_layout',
+  /** '1' | '0'. Whether exports of a sheet with bands mark what changed from the band before.
+   *  Absent → on. */
+  markBandChanges: 'mark_band_changes',
+  showBandChanges: 'show_band_changes',
   /** Remembered parts of the PDF export, as a comma list ("sheet,layout,patchbay"). Read through
    *  parsePdfExportParts, which also understands the 'both' | 'sheet' | 'layout' it used to hold. */
   defaultPdfExportInclude: 'default_pdf_export_include',

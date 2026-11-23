@@ -24,13 +24,16 @@ import { listBuildings } from '../db/repositories/buildingsRepo'
 import { getSetting } from '../db/repositories/settingsRepo'
 import { resolveMicText, resolvePreampText } from '../db/resolveGearLabels'
 import {
+  bandChangeMarks,
+  bandTitle,
   exportFileName,
   loadPatchCableRows,
   loadSetupGear,
   outboardSlotTexts,
-  pngBytesFromDataUrl
+  pngBytesFromDataUrl,
+  withChangeMark
 } from '../db/exportShared'
-import { fitColumns, sanitizeForWinAnsi, wrapText, type ColumnSpec } from './pdfLayout'
+import { fitColumns, sanitizeForWinAnsi, tieLineConflictIds, wrapText, type ColumnSpec } from './pdfLayout'
 import { orderedVisibleColumns, type SetupColumnKey } from '@shared/constants/setupColumns'
 import { isHexColor } from '@shared/constants/swatches'
 import {
@@ -40,7 +43,7 @@ import {
   scaleBracePath
 } from '@shared/constants/stereoBrace'
 import { layoutPixelsToPoints } from '@shared/constants/roomLayout'
-import { tieLineKey } from '@shared/utils/tieLine'
+import { bandIndexes, hasBands, isBandDivider } from '@shared/utils/bands'
 
 /** Short alias for sanitizeForWinAnsi — applied to every user-supplied string before it is
  *  measured or drawn, so one unencodable character cannot abort the export. */
@@ -60,6 +63,11 @@ const ROW_FILL_INSET = 2
  *  the room — it is 36pt and otherwise empty. */
 const BRACE_WIDTH_PT = 11
 const BRACE_MARGIN_GAP = 4
+
+/** Behind a cell that changed from the band before: darker than a zebra stripe (0.93). */
+const CHANGE_FILL = rgb(0.85, 0.85, 0.85)
+/** A changed cell's struck-through old value, the same gray as the band's change note. */
+const WAS_COLOR = rgb(0.35, 0.35, 0.35)
 
 /** Font size + spacing that vary with the chosen density. Compact packs more rows per page;
  *  normal stays larger and more legible. Sizes stay above a ~7pt legibility floor. */
@@ -95,16 +103,6 @@ const COLUMNS: ColumnSpec[] = [
  *  polarity are unrelated and each checked on its own). */
 function isColumnEmpty(key: string, itemIds: number[], resolvedValues: Map<number, Record<string, string>>): boolean {
   return itemIds.every((id) => !(resolvedValues.get(id)?.[key] ?? '').trim())
-}
-
-function findTieLineConflicts(items: { tieLine: string | null }[]): Set<string> {
-  const counts = new Map<string, number>()
-  for (const item of items) {
-    if (item.tieLine == null) continue
-    const key = tieLineKey(item.tieLine)
-    counts.set(key, (counts.get(key) ?? 0) + 1)
-  }
-  return new Set([...counts.entries()].filter(([, count]) => count > 1).map(([tieLine]) => tieLine))
 }
 
 /** `line` with a trailing ellipsis, shortened character by character until it fits `width`.
@@ -403,7 +401,7 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
   const setup = getSetupWithItems(input.setupId)
   if (!setup) return { canceled: true }
 
-  const conflicts = findTieLineConflicts(setup.items)
+  const conflictIds = tieLineConflictIds(setup.items)
 
   // Which room this sheet is for was never printed anywhere on it — the one thing a person
   // holding the paper in a corridor of near-identical control rooms most needs. Quick Setup's
@@ -434,7 +432,6 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
   // Helvetica's WinAnsi encoding can't represent a checkmark glyph — the 48V column's "✓" needs
   // ZapfDingbats specifically, for both wrapText's width measurement and the actual draw.
   const dingbatsFont = await pdfDoc.embedFont(StandardFonts.ZapfDingbats)
-  const fontForColumn = (key: string): typeof font => (key === 'phantomPower' ? dingbatsFont : font)
 
   // Table page(s) — skipped entirely for an export without the setup sheet.
   if (input.parts.sheet) {
@@ -445,10 +442,16 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
     const dens = DENSITY[input.density]
 
     const { micById, preampById, outboardById } = loadSetupGear(setup.items)
+    // Off (and the oblique font never embedded) unless asked for on a sheet with bands, so every
+    // other export stays byte-for-byte what it was.
+    const marks = input.markBandChanges && hasBands(setup.items) ? bandChangeMarks(setup.items) : null
+    const noteFont = marks ? await pdfDoc.embedFont(StandardFonts.HelveticaOblique) : font
+    const wasSize = dens.bodySize - 1.5
 
     const resolvedValues = new Map<number, Record<string, string>>()
     for (const item of setup.items) {
-      const isConflict = item.tieLine != null && conflicts.has(tieLineKey(item.tieLine))
+      if (isBandDivider(item)) continue // drawn as a band row of its own, not through the columns
+      const isConflict = conflictIds.has(item.id)
 
       // Consolidate every outboard slot into one comma-joined cell (empty slots skipped), in slot
       // order — the wrapping cell keeps it readable no matter how many pieces of gear a row has.
@@ -458,7 +461,7 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
 
       // Every value here is drawn in Helvetica (WinAnsi) and so must be sanitized — see
       // sanitizeForWinAnsi. The one exception is phantomPower: it is our own glyph, drawn in
-      // ZapfDingbats via fontForColumn, and sanitizing it would replace the check mark.
+      // ZapfDingbats via cellFont, and sanitizing it would replace the check mark.
       const values: Record<string, string> = {
         sourceName: safe(item.sourceName || ''),
         mic: safe(resolveMicText(item, micById)),
@@ -469,7 +472,7 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
         // '!' rather than a warning glyph: U+26A0 is absent from WinAnsi AND from ZapfDingbats,
         // and this column draws in Helvetica. Measuring it threw before a byte was written, so a
         // duplicated tie line — which is what this marker exists to flag — failed the whole
-        // export. See the note on the check mark above fontForColumn for the same hazard.
+        // export. See the note on the check mark above dingbatsFont for the same hazard.
         tieLine: item.tieLine != null ? safe(`${isConflict ? '! ' : ''}${item.tieLine}`) : '',
         cueBox: safe(item.cueBox ?? ''),
         polarity: item.polarityFlip ? 'Ø' : '',
@@ -497,7 +500,7 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
       // Fallback for callers that predate the chips: the setup's own visibility/order choice, with
       // 48V, Outboard, Preamp, Tie Line, Cue Box and Polarity additionally dropped when blank
       // across the whole sheet.
-      const itemIds = setup.items.map((item) => item.id)
+      const itemIds = setup.items.filter((item) => !isBandDivider(item)).map((item) => item.id)
       const omittableKeys = ['phantomPower', 'outboard', 'preamp', 'tieLine', 'cueBox', 'polarity']
       keptColumns = toSpecs(orderedVisibleColumns(setup.columnOrder, setup.visibleColumns)).filter(
         (col) => !omittableKeys.includes(col.key) || !isColumnEmpty(col.key, itemIds, resolvedValues)
@@ -520,32 +523,33 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
     // drawOuterFrameForCurrentPage() to bound the frame.
     let tableTopY = 0
 
+    // The title block (and a band's heading in page-per-band mode) is drawn before that page's
+    // table exists, so it needs its own page break: startNewPage() would stamp column headers onto
+    // what is still the heading area.
+    const titleNewPage = (): void => {
+      page = pdfDoc.addPage([pageWidth, pageHeight])
+      cursorY = pageHeight - MARGIN
+    }
+
+    /** Draws pre-wrapped lines, breaking to a new page rather than off the bottom of this one.
+     *  Without the bound, long session notes were drawn at a negative y — written to the file
+     *  but invisible — and, worse, left cursorY negative so the table's own column headers were
+     *  drawn off-page too and page one came out blank below the title. */
+    const drawBlockLines = (
+      lines: string[],
+      size: number,
+      lineGap: number,
+      lineFont: PDFFont,
+      color?: ReturnType<typeof rgb>
+    ): void => {
+      for (const line of lines) {
+        if (cursorY < MARGIN + size) titleNewPage()
+        page.drawText(line, { x: MARGIN, y: cursorY, size, font: lineFont, color })
+        cursorY -= lineGap
+      }
+    }
+
     const drawTitle = (): void => {
-      // The title block is drawn before any table exists, so it needs its own page break:
-      // startNewPage() would stamp column headers onto what is still the cover area.
-      const titleNewPage = (): void => {
-        page = pdfDoc.addPage([pageWidth, pageHeight])
-        cursorY = pageHeight - MARGIN
-      }
-
-      /** Draws pre-wrapped lines, breaking to a new page rather than off the bottom of this one.
-       *  Without the bound, long session notes were drawn at a negative y — written to the file
-       *  but invisible — and, worse, left cursorY negative so the table's own column headers were
-       *  drawn off-page too and page one came out blank below the title. */
-      const drawBlockLines = (
-        lines: string[],
-        size: number,
-        lineGap: number,
-        lineFont: PDFFont,
-        color?: ReturnType<typeof rgb>
-      ): void => {
-        for (const line of lines) {
-          if (cursorY < MARGIN + size) titleNewPage()
-          page.drawText(line, { x: MARGIN, y: cursorY, size, font: lineFont, color })
-          cursorY -= lineGap
-        }
-      }
-
       const formattedDate = setup.sessionDate ? formatPdfDate(setup.sessionDate, dateFormat) : null
       // Wrapped, not drawn blind: a setup name of ~55 characters plus an appended date runs past
       // the right margin, and this file has had a working wrapText all along.
@@ -654,6 +658,7 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
     for (let i = 0; i + 1 < setup.items.length; i++) {
       const top = setup.items[i]
       const bottom = setup.items[i + 1]
+      if (isBandDivider(top) || isBandDivider(bottom)) continue // a pair never spans bands
       // Skip the bottom row of a pair we just recorded, so a run of same-group rows doesn't
       // double-bracket (only pairs are supported; a groupId is shared by exactly two adjacent rows).
       if (pairRoleById.get(top.id) === 'bottom') continue
@@ -664,25 +669,171 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
     }
     const bracketColor = accentColor ? hexToAccentRgb(accentColor) : rgb(0.35, 0.35, 0.35)
 
+    const bandOf = bandIndexes(setup.items)
+    const pagePerBand = input.bandLayout === 'pagePerBand' && hasBands(setup.items)
+    const bandFill = accentColor ? hexToPaleRgb(accentColor) : rgb(0.85, 0.85, 0.85)
+    const minRowHeight = dens.lineHeight + dens.rowPadding
+
+    /** Page-per-band: the band's name and time, then its notes, above that page's column headers. */
+    const drawBandHeading = (divider: (typeof setup.items)[number]): void => {
+      drawBlockLines(
+        wrapText(safe(bandTitle(divider, bandOf[setup.items.indexOf(divider)])), boldFont, 12, usableWidth),
+        12,
+        16,
+        boldFont,
+        accentColor ? hexToAccentRgb(accentColor) : undefined
+      )
+      if (divider.notes?.trim()) {
+        drawBlockLines(wrapText(safe(divider.notes.trim()), font, 9, usableWidth), 9, 12, font, rgb(0.35, 0.35, 0.35))
+      }
+      cursorY -= 6
+    }
+
+    /** Continuous: a divider as one shaded row across the table, its title in bold and its notes
+     *  under it, kept on the same page as the band's first row. */
+    const drawBandRow = (divider: (typeof setup.items)[number]): void => {
+      const textWidth = tableWidth - 2 * CELL_PAD
+      const titleLines = wrapText(safe(bandTitle(divider, bandOf[setup.items.indexOf(divider)])), boldFont, dens.bodySize, textWidth)
+      let noteLines = divider.notes?.trim() ? wrapText(safe(divider.notes.trim()), font, dens.bodySize, textWidth) : []
+      const heightFor = (lines: number): number => lines * dens.lineHeight + dens.rowPadding
+      if (cursorY - heightFor(titleLines.length + noteLines.length) - minRowHeight < MARGIN) startNewPage()
+      // Same overflow rule as an ordinary row: keep what fits on a fresh page and mark the cut.
+      const fit = Math.max(titleLines.length, Math.floor((cursorY - MARGIN - dens.rowPadding - minRowHeight) / dens.lineHeight))
+      if (titleLines.length + noteLines.length > fit) {
+        noteLines = noteLines.slice(0, Math.max(0, fit - titleLines.length))
+        if (noteLines.length > 0) {
+          noteLines[noteLines.length - 1] = withEllipsis(noteLines[noteLines.length - 1], font, dens.bodySize, textWidth)
+        }
+      }
+      const rowHeight = heightFor(titleLines.length + noteLines.length)
+      const rowTopY = cursorY + dens.rowPadding
+      const rowBottomY = cursorY - rowHeight + dens.rowPadding
+      page.drawRectangle({
+        x: MARGIN - ROW_FILL_INSET,
+        y: rowBottomY,
+        width: tableWidth + ROW_FILL_INSET * 2,
+        height: rowHeight,
+        color: bandFill
+      })
+      const lines: Array<[string, PDFFont]> = [
+        ...titleLines.map((line): [string, PDFFont] => [line, boldFont]),
+        ...noteLines.map((line): [string, PDFFont] => [line, font])
+      ]
+      const firstLineY = centeredFirstBaselineY(font, dens.bodySize, dens.lineHeight, lines.length, rowTopY, rowBottomY)
+      lines.forEach(([line, lineFont], i) => {
+        page.drawText(line, { x: MARGIN + CELL_PAD, y: firstLineY - i * dens.lineHeight, size: dens.bodySize, font: lineFont })
+      })
+      if (gridStyle === 'full' || gridStyle === 'rows') {
+        page.drawLine({
+          start: { x: MARGIN - ROW_FILL_INSET, y: rowBottomY },
+          end: { x: MARGIN + tableWidth + ROW_FILL_INSET, y: rowBottomY },
+          thickness: 0.5,
+          color: gridLineColor
+        })
+      }
+      cursorY -= rowHeight
+    }
+
+    /** The band's change note ("Removed: ... · * changed from ..."), wrapped; [] when none. */
+    const noteLinesAfter = (itemId: number): string[] => {
+      const note = marks?.notes.get(itemId)
+      return note ? wrapText(safe(note), noteFont, dens.bodySize, tableWidth - 2 * CELL_PAD) : []
+    }
+    const noteHeight = (lines: string[]): number => (lines.length > 0 ? lines.length * dens.lineHeight + dens.rowPadding : 0)
+
+    /** The note as an unfilled, italic, full-width row under the band's last row. */
+    const drawBandNote = (lines: string[]): void => {
+      const rowHeight = noteHeight(lines)
+      if (cursorY - rowHeight < MARGIN) startNewPage()
+      const rowTopY = cursorY + dens.rowPadding
+      const rowBottomY = cursorY - rowHeight + dens.rowPadding
+      const firstLineY = centeredFirstBaselineY(noteFont, dens.bodySize, dens.lineHeight, lines.length, rowTopY, rowBottomY)
+      lines.forEach((line, i) => {
+        page.drawText(line, {
+          x: MARGIN + CELL_PAD,
+          y: firstLineY - i * dens.lineHeight,
+          size: dens.bodySize,
+          font: noteFont,
+          color: rgb(0.35, 0.35, 0.35)
+        })
+      })
+      if (gridStyle === 'full' || gridStyle === 'rows') {
+        page.drawLine({
+          start: { x: MARGIN - ROW_FILL_INSET, y: rowBottomY },
+          end: { x: MARGIN + tableWidth + ROW_FILL_INSET, y: rowBottomY },
+          thickness: 0.5,
+          color: gridLineColor
+        })
+      }
+      cursorY -= rowHeight
+    }
+
     drawTitle()
-    drawHeaderRow()
+    // Page-per-band with a divider on top: the first band's heading goes between the title and the
+    // column headers, so the header row waits for it.
+    let tableStarted = !(pagePerBand && isBandDivider(setup.items[0]))
+    if (tableStarted) drawHeaderRow()
 
     let visualRowIndex = 0
     for (const item of setup.items) {
-      const values = resolvedValues.get(item.id)!
-
-      // Wrap every cell to its column width, then size the row to the tallest cell.
-      const wrappedByKey = new Map<string, string[]>()
-      let maxLines = 1
-      for (const col of visibleColumns) {
-        const lines = wrapText(values[col.key] ?? '', fontForColumn(col.key), dens.bodySize, col.width - 2 * CELL_PAD)
-        wrappedByKey.set(col.key, lines)
-        if (lines.length > maxLines) maxLines = lines.length
+      if (isBandDivider(item)) {
+        if (pagePerBand) {
+          if (tableStarted) {
+            drawOuterFrameForCurrentPage()
+            titleNewPage()
+          }
+          drawBandHeading(item)
+          // Heading, column headers and one row together, or all on the next page.
+          if (cursorY - headerHeight - minRowHeight < MARGIN) titleNewPage()
+          drawHeaderRow()
+          tableStarted = true
+        } else {
+          drawBandRow(item)
+        }
+        // A band with no rows left has its note under its divider.
+        const dividerNote = noteLinesAfter(item.id)
+        if (dividerNote.length > 0) drawBandNote(dividerNote)
+        // Zebra striping restarts in each band, so every band opens on a plain row.
+        visualRowIndex = 0
+        continue
       }
+      const values = resolvedValues.get(item.id)!
+      const marked = marks?.cells.get(item.id)
+      // A changed cell is bold. The 48V check mark stays in ZapfDingbats; its "*" is drawn after it.
+      const cellFont = (key: string): PDFFont => (key === 'phantomPower' ? dingbatsFont : marked?.has(key) ? boldFont : font)
+      const cellText = (key: string): string => {
+        let text = values[key] ?? ''
+        if (key === 'sourceName' && marks?.newRows.has(item.id)) text = `+ ${text}`
+        return marked?.has(key) && key !== 'phantomPower' ? withChangeMark(text) : text
+      }
+      const noteLines = noteLinesAfter(item.id)
+      const prev = marks?.previous.get(item.id)
+      /** What a changed cell held in the band before, worded the way the table's struck-through
+       *  line words it. */
+      const wasText = (key: string): string => {
+        if (!prev) return ''
+        if (key === 'phantomPower') return prev.phantomPower ? 'on' : 'off'
+        if (key === 'polarity') return prev.polarityFlip ? 'on' : 'off'
+        if (key === 'tieLine') return prev.tieLine != null ? String(prev.tieLine) : 'none'
+        return resolvedValues.get(prev.id)?.[key] || 'none'
+      }
+
+      // Wrap every cell to its column width, then size the row to the tallest cell. A changed
+      // cell's old value goes on its own smaller lines under the new one.
+      const wrappedByKey = new Map<string, string[]>()
+      const wasByKey = new Map<string, string[]>()
+      for (const col of visibleColumns) {
+        wrappedByKey.set(col.key, wrapText(cellText(col.key), cellFont(col.key), dens.bodySize, col.width - 2 * CELL_PAD))
+        if (marked?.has(col.key)) wasByKey.set(col.key, wrapText(wasText(col.key), font, wasSize, col.width - 2 * CELL_PAD))
+      }
+      const tallestCell = (): number =>
+        Math.max(1, ...visibleColumns.map((col) => wrappedByKey.get(col.key)!.length + (wasByKey.get(col.key)?.length ?? 0)))
+      let maxLines = tallestCell()
       let rowHeight = maxLines * dens.lineHeight + dens.rowPadding
 
-      // Page-break before drawing when this row won't fit (height-aware).
-      if (cursorY - rowHeight < MARGIN) {
+      // Page-break before drawing when this row won't fit (height-aware). A band's last row keeps
+      // its change note with it.
+      if (cursorY - rowHeight - noteHeight(noteLines) < MARGIN) {
         startNewPage()
       }
 
@@ -692,6 +843,12 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
       // outside the page box, so it vanished with nothing to say it had. Keep what fits and mark
       // every cell that lost lines, so the loss is visible rather than silent.
       const linesThatFit = Math.max(1, Math.floor((cursorY - MARGIN - dens.rowPadding) / dens.lineHeight))
+      // Old values are only a hint, so they go before any of the sheet's own text is cut.
+      if (maxLines > linesThatFit && wasByKey.size > 0) {
+        wasByKey.clear()
+        maxLines = tallestCell()
+        rowHeight = maxLines * dens.lineHeight + dens.rowPadding
+      }
       if (maxLines > linesThatFit) {
         for (const col of visibleColumns) {
           const lines = wrappedByKey.get(col.key)!
@@ -699,7 +856,7 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
           const kept = lines.slice(0, linesThatFit)
           kept[kept.length - 1] = withEllipsis(
             kept[kept.length - 1],
-            fontForColumn(col.key),
+            cellFont(col.key),
             dens.bodySize,
             col.width - 2 * CELL_PAD
           )
@@ -763,11 +920,24 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
       let x = MARGIN
       for (const col of visibleColumns) {
         const lines = wrappedByKey.get(col.key)!
-        const colFont = fontForColumn(col.key)
+        const colFont = cellFont(col.key)
+        if (marked?.has(col.key)) {
+          // The table's outer columns reach the same inset as the row fills and frame.
+          const first = col === visibleColumns[0]
+          const last = col === visibleColumns[visibleColumns.length - 1]
+          page.drawRectangle({
+            x: first ? x - ROW_FILL_INSET : x,
+            y: rowBottomY,
+            width: col.width + (first ? ROW_FILL_INSET : 0) + (last ? ROW_FILL_INSET : 0),
+            height: rowHeight,
+            color: CHANGE_FILL
+          })
+        }
         // Each cell centers on its OWN line count within the shared row box, rather than every
         // column sharing the row's top-most baseline — a 1-line cell in a 2-line row shouldn't
         // sit flush with the top, it should center in the same box the grid lines draw around it.
-        const firstLineY = centeredFirstBaselineY(colFont, dens.bodySize, dens.lineHeight, lines.length, rowTopY, rowBottomY)
+        const was = wasByKey.get(col.key) ?? []
+        const firstLineY = centeredFirstBaselineY(colFont, dens.bodySize, dens.lineHeight, lines.length + was.length, rowTopY, rowBottomY)
         lines.forEach((line, i) => {
           page.drawText(line, {
             x: x + CELL_PAD,
@@ -776,6 +946,25 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
             font: colFont
           })
         })
+        was.forEach((line, i) => {
+          const y = firstLineY - (lines.length + i) * dens.lineHeight
+          page.drawText(line, { x: x + CELL_PAD, y, size: wasSize, font, color: WAS_COLOR })
+          page.drawLine({
+            start: { x: x + CELL_PAD, y: y + wasSize * 0.3 },
+            end: { x: x + CELL_PAD + font.widthOfTextAtSize(line, wasSize), y: y + wasSize * 0.3 },
+            thickness: 0.5,
+            color: WAS_COLOR
+          })
+        })
+        if (col.key === 'phantomPower' && marked?.has(col.key)) {
+          const check = lines[0] ?? ''
+          page.drawText(withChangeMark(check).slice(check.length), {
+            x: x + CELL_PAD + colFont.widthOfTextAtSize(check, dens.bodySize),
+            y: firstLineY,
+            size: dens.bodySize,
+            font: boldFont
+          })
+        }
         x += col.width
       }
 
@@ -802,6 +991,7 @@ export async function exportSetupPdf(input: ExportSetupPdfInput): Promise<Export
 
       cursorY -= rowHeight
       visualRowIndex++
+      if (noteLines.length > 0) drawBandNote(noteLines)
     }
 
     drawOuterFrameForCurrentPage()

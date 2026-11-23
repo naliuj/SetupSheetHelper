@@ -61,6 +61,11 @@ export interface SetupItem {
    *  Null means this row isn't linked to any others. No separate role/label field — use Notes
    *  for that; this only drives the bracket visual and the mic auto-fill convenience on link. */
   groupId: string | null
+  /** Free text ("7:00 pm") on a band divider row (instrumentType BAND_DIVIDER); null elsewhere. */
+  startTime: string | null
+  /** Shared by a row and every copy "Add band" made of it, so a later band's row knows which
+   *  earlier row it matches. Null on rows added fresh. See shared/utils/bands.ts. */
+  copyKey: string | null
 }
 
 /** Layout Mode's canvas blocks — a purely spatial "where does everyone stand" visualization,
