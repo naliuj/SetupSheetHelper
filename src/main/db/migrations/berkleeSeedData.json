@@ -4658,6 +4658,26 @@
     {
       "buildingName": "160",
       "studioName": "Studio 1",
+      "name": "Neve 1073",
+      "manufacturer": "Neve",
+      "category": null,
+      "notes": null,
+      "channels": 2,
+      "sortOrder": 0
+    },
+    {
+      "buildingName": "160",
+      "studioName": "Studio 1",
+      "name": "Neve 1084",
+      "manufacturer": "Neve",
+      "category": null,
+      "notes": null,
+      "channels": 2,
+      "sortOrder": 0
+    },
+    {
+      "buildingName": "160",
+      "studioName": "Studio 1",
       "name": "Universal Audio 6176",
       "manufacturer": "Universal Audio",
       "category": null,
@@ -4732,7 +4752,7 @@
       "manufacturer": "Neve",
       "category": null,
       "notes": null,
-      "channels": 1,
+      "channels": 2,
       "sortOrder": 0
     },
     {

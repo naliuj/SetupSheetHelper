@@ -56,6 +56,7 @@ import { run as textTieLineCueBox } from './049_text_tie_line_cue_box'
 import { run as channelPresetPairKey } from './050_channel_preset_pair_key'
 import { run as bands } from './051_bands'
 import { run as stereoMicQuantities } from './052_stereo_mic_quantities'
+import { run as nevePreamps } from './053_neve_preamps'
 
 import type { MigrationContext } from '../migrate'
 
@@ -132,5 +133,6 @@ export const MIGRATIONS: Migration[] = [
   { version: 49, run: textTieLineCueBox, rebuildsTables: true },
   { version: 50, run: channelPresetPairKey },
   { version: 51, run: bands },
-  { version: 52, run: stereoMicQuantities }
+  { version: 52, run: stereoMicQuantities },
+  { version: 53, run: nevePreamps }
 ]
