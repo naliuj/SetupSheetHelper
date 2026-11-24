@@ -457,5 +457,15 @@ export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
       'The cable list in PDF and spreadsheet exports now reads each cable from its higher end, whichever end you dragged from, so a cable from G2 up to A2 lists as A2 \u2192 G2, right after A1 \u2192 G1.',
       'Fixes: the editor\u2019s toolbar moves its buttons to a second row in narrow windows and Split View instead of cutting them off, tie lines and cue boxes keep exactly what you type (such as "01"), and an edit still being typed is included when you export. The app also runs on a newer, supported version of Electron with current security fixes.'
     ]
+  },
+  {
+    version: '1.24.0',
+    date: '2026-11-23',
+    highlights: [
+      'Setup sheets can now hold several bands. Open the new bands menu from the stack icon in the Table Mode toolbar (or press \u2318B) and add a band, either as a copy of another band or blank. Each band starts with a divider row for its name, start time and notes, and you can fold a band away when you\u2019re not working on it.',
+      'Each band shows what changed from the band before it. A changed cell is tinted amber with its old value struck through underneath, a new row gets a + before its name, and the band\u2019s divider counts the changes. Click that count, or Changeover\u2026 in the band\u2019s \u22ef menu, for a list of what to re-patch, add and remove, and print it as a one-page PDF.',
+      'PDF and spreadsheet exports print the bands one after another or start a new page (or sheet) for each band, and they can mark the changes between bands too.',
+      'Typing a letter on a gear dropdown now opens it with a search for that letter, and the gear lists are sorted by model number (KM 84 before KM 184). The add-source row stays at the top of the sheet while you scroll. Stereo mics such as the Royer SF-24 now count as 2 in the Berklee inventories, Studio 1 now lists its Neve 1073 and 1084 preamps, and Studio 3\u2019s Neve 1084 counts as 2 channels. Fixes: setups made in the evening get that day\u2019s date instead of the next day\u2019s, multi-line notes keep their line breaks in the PDF, duplicating or dragging rows keeps stereo pairs together, and choosing Later on an update prompt stops it from coming back every two hours.'
+    ]
   }
 ]
