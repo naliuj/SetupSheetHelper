@@ -105,7 +105,7 @@ export const KEYBIND_ACTIONS: KeybindActionDef[] = [
     scope: 'global',
     defaultCombo: 'CmdOrCtrl+D'
   },
-  // No default: Cmd+B and friends are taken or too easy to hit. Assign one in Settings → Keybinds.
+  // Cmd+B is free elsewhere in the app, and a stray press only opens the bands menu on its add step.
   { id: 'next-band', label: 'Add Band', category: 'Edit', scope: 'table', defaultCombo: 'CmdOrCtrl+B' },
   {
     id: 'open-setup-settings',
