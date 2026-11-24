@@ -58,6 +58,7 @@ export default function ChangeoverPanel({ bandIndex, bandName, changes, onClose 
   const [message, setMessage] = useState<string | null>(null)
 
   async function handlePrint(): Promise<void> {
+    if (printing) return
     setPrinting(true)
     setMessage(null)
     try {
@@ -102,16 +103,13 @@ export default function ChangeoverPanel({ bandIndex, bandName, changes, onClose 
           )
         )}
         {sections.every(([, lines]) => lines.length === 0) && <p className="card-sub">Same patch as the band before.</p>}
-        {message && (
-          <p className="card-sub" role="status">
-            {message}
-          </p>
-        )}
+        {/* Always mounted: screen readers announce text added to a live region, not one that appears with its text. */}
+        <div role="status">{message && <p className="card-sub">{message}</p>}</div>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
           <button className="btn" onClick={onClose}>
             Close
           </button>
-          <button className="btn primary" onClick={() => void handlePrint()} disabled={printing}>
+          <button className="btn primary" onClick={() => void handlePrint()} aria-disabled={printing}>
             Print…
           </button>
         </div>
