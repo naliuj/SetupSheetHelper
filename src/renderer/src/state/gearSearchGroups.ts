@@ -1,4 +1,4 @@
-import { formatGearLabel, gearIdentityKey } from '@shared/utils/manufacturerPrefix'
+import { byManufacturerThenModel, formatGearLabel, gearIdentityKey } from '@shared/utils/manufacturerPrefix'
 
 /** Which pool to spend first when the same model is stocked in more than one. Studio gear is the
  *  room you're actually in, session gear was borrowed for this date specifically, and the shared
@@ -77,5 +77,6 @@ export function buildGearSearchGroups<
       memberIds: members.map((m) => m.id)
     })
   }
-  return groups.sort((a, b) => a.label.localeCompare(b.label))
+  // Same order as the browse lists, so API 512c comes before API 3124 in search results too.
+  return groups.sort((a, b) => byManufacturerThenModel(a.pick, b.pick))
 }
