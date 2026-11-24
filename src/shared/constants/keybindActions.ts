@@ -70,7 +70,7 @@ export const KEYBIND_ACTIONS: KeybindActionDef[] = [
   },
   {
     id: 'toggle-mode',
-    label: 'Toggle Layout/Table Mode',
+    label: 'Next Mode (Table, Layout, Patchbay)',
     category: 'File',
     scope: 'global',
     defaultCombo: 'CmdOrCtrl+L'
