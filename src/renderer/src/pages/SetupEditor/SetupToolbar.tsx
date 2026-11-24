@@ -492,6 +492,19 @@ export default function SetupToolbar({
     else onToggleMode(next)
   }
 
+  /** Cmd+L: Table → Layout → Patchbay → Table. Layout is skipped when it can't open here (popped
+   *  out, or no room layout yet), so the shortcut never stalls on the upload prompt; the Layout
+   *  button still shows that prompt. */
+  async function requestNextMode(): Promise<void> {
+    if (mode === 'layout') return onToggleMode('patchbay')
+    if (mode === 'patchbay') return onToggleMode('table')
+    const currentSetupId = setupStoreApi.getState().setupId
+    if (!isPoppedOutNow(currentSetupId) && studioId) {
+      if (await window.api.layoutFile.getEffectiveForSetup(currentSetupId, studioId)) return onToggleMode('layout')
+    }
+    onToggleMode('patchbay')
+  }
+
   async function requestToggleMode(): Promise<void> {
     // Belt-and-suspenders alongside the disabled toggle button below: the keyboard shortcut
     // (Cmd+L) routes through this same function regardless of the button's disabled state, and
@@ -596,7 +609,7 @@ export default function SetupToolbar({
     'save-as-studio': () => setTemplateModalOpen(true),
     'export-pdf': handleExport,
     'export-spreadsheet': handleExportSpreadsheet,
-    'toggle-mode': requestToggleMode,
+    'toggle-mode': () => void requestNextMode(),
     'toggle-patchbay-mode': requestPatchbayMode,
     'add-source': () => addItem(GENERIC_INSTRUMENT_TYPE),
     'next-band': () => {
@@ -839,7 +852,12 @@ export default function SetupToolbar({
             Setup settings
           </button>
         )}
-        <div className="segmented" role="group" aria-label="Editor mode">
+        <div
+          className="segmented"
+          role="group"
+          aria-label="Editor mode"
+          title={resolveKeybind('toggle-mode') ? `Next mode: ${formatCombo(resolveKeybind('toggle-mode'))}` : undefined}
+        >
           <button
             className={mode === 'table' ? 'btn primary' : 'btn'}
             aria-pressed={mode === 'table'}
@@ -852,7 +870,7 @@ export default function SetupToolbar({
             aria-pressed={mode === 'layout'}
             onClick={() => requestMode('layout')}
             disabled={layoutPoppedOut}
-            title={layoutPoppedOut ? 'Open on your other display' : formatCombo(resolveKeybind('toggle-mode'))}
+            title={layoutPoppedOut ? 'Open on your other display' : undefined}
           >
             Layout
           </button>
