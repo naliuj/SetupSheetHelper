@@ -570,7 +570,14 @@ export default function SetupSheetTable(): JSX.Element {
           bandIndex={changeoverBand}
           bandName={bandName(changeoverBand)}
           changes={bandChangeMap.get(changeoverBand) ?? { rows: [], removed: [] }}
-          onClose={() => setChangeoverBand(null)}
+          onClose={() => {
+            setChangeoverBand(null)
+            // Opened from the band's menu, the item that had focus is gone; fall back to the menu button.
+            requestAnimationFrame(() => {
+              if (document.activeElement && document.activeElement !== document.body) return
+              document.querySelector<HTMLElement>(`tr[data-band-index="${changeoverBand}"] [data-band-options]`)?.focus()
+            })
+          }}
         />
       )}
     </div>

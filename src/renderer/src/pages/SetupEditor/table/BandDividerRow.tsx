@@ -56,6 +56,17 @@ function BandDividerRow({ item, bandIndex, bandCount, rowCount, collapsed, colSp
     return () => document.removeEventListener('mousedown', onDown)
   }, [menuOpen])
 
+  // The divider row unmounts with the removal, taking focus with it: hand it to the band above, or
+  // the toolbar's Bands button when there isn't one. Waits a frame so the new table has rendered.
+  function focusAfterRemoval(): void {
+    requestAnimationFrame(() =>
+      (
+        document.querySelector<HTMLElement>(`tr[data-band-index="${bandIndex - 1}"] [data-band-options]`) ??
+        document.querySelector<HTMLElement>('button[aria-label="Bands"]')
+      )?.focus()
+    )
+  }
+
   const label = item.sourceName.trim() || `Band ${bandIndex + 1}`
   const isFirst = bandIndex === 0
 
@@ -84,7 +95,7 @@ function BandDividerRow({ item, bandIndex, bandCount, rowCount, collapsed, colSp
             className="icon-btn"
             onClick={() => toggleBandCollapsed(bandIndex)}
             aria-expanded={!collapsed}
-            aria-label={collapsed ? `Show ${label}` : `Fold ${label}`}
+            aria-label={`${label} rows`}
             title={collapsed ? `Show ${rowCount} row${rowCount === 1 ? '' : 's'}` : 'Fold this band'}
           >
             {collapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
@@ -124,6 +135,7 @@ function BandDividerRow({ item, bandIndex, bandCount, rowCount, collapsed, colSp
               className="icon-btn"
               onClick={() => setMenuOpen((v) => !v)}
               aria-label={`${label} options`}
+              data-band-options
               aria-haspopup="menu"
               aria-expanded={menuOpen}
             >
@@ -160,6 +172,7 @@ function BandDividerRow({ item, bandIndex, bandCount, rowCount, collapsed, colSp
                     onClick={() => {
                       setMenuOpen(false)
                       removeBandDivider(item.id)
+                      focusAfterRemoval()
                     }}
                   >
                     Merge into previous band
@@ -172,6 +185,7 @@ function BandDividerRow({ item, bandIndex, bandCount, rowCount, collapsed, colSp
                     onClick={() => {
                       setMenuOpen(false)
                       removeBandDivider(item.id)
+                      focusAfterRemoval()
                     }}
                   >
                     Remove divider
@@ -202,6 +216,7 @@ function BandDividerRow({ item, bandIndex, bandCount, rowCount, collapsed, colSp
             onConfirm={() => {
               setConfirmRemove(false)
               removeBand(item.id)
+              focusAfterRemoval()
             }}
           />
         )}
