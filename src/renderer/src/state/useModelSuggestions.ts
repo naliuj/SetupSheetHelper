@@ -23,6 +23,6 @@ export function useModelSuggestions<T extends NamedManufacturedItem>(items: T[],
         set.add(stripManufacturerPrefix(item.name, item.manufacturer ?? ''))
       }
     }
-    return [...set].sort((a, b) => a.localeCompare(b))
+    return [...set].sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }))
   }, [items, manufacturer])
 }

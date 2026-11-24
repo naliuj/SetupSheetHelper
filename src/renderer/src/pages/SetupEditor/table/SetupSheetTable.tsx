@@ -11,7 +11,7 @@ import { useGearCatalogueSuggestions } from '@renderer/state/useGearCatalogueSug
 import { computeTieLineConflicts } from '@renderer/state/tieLineConflicts'
 import { offsetTieLine } from '@shared/utils/tieLine'
 import { computeUsageCounts, buildGearUsage } from '@renderer/state/usageCounts'
-import { formatGearLabel, gearIdentityKey, stripManufacturerPrefix } from '@shared/utils/manufacturerPrefix'
+import { byManufacturerThenModel, formatGearLabel, gearIdentityKey, stripManufacturerPrefix } from '@shared/utils/manufacturerPrefix'
 import type { Suggestion } from '@renderer/components/SuggestInput'
 import SetupSheetRow, { SHEET_EDGE_INSET } from './SetupSheetRow'
 import { GENERIC_INSTRUMENT_TYPE } from './tableConstants'
@@ -35,16 +35,15 @@ import { usePdfLayoutPrefsStore } from '@renderer/state/pdfLayoutPrefsStore'
  *  inconsistencies in the catalogue, and quietly merging them would hide a data problem instead of
  *  surfacing it. */
 function toSuggestions(items: { name: string; manufacturer: string | null }[]): Suggestion[] {
-  const byKey = new Map<string, Suggestion>()
+  const byKey = new Map<string, { name: string; manufacturer: string | null }>()
   for (const item of items) {
     const key = gearIdentityKey(item.name, item.manufacturer)
-    if (byKey.has(key)) continue
-    byKey.set(key, {
-      label: formatGearLabel(item.name, item.manufacturer),
-      value: stripManufacturerPrefix(item.name, item.manufacturer ?? '')
-    })
+    if (!byKey.has(key)) byKey.set(key, item)
   }
-  return [...byKey.values()].sort((a, b) => a.label.localeCompare(b.label))
+  return [...byKey.values()].sort(byManufacturerThenModel).map((item) => ({
+    label: formatGearLabel(item.name, item.manufacturer),
+    value: stripManufacturerPrefix(item.name, item.manufacturer ?? '')
+  }))
 }
 
 export default function SetupSheetTable(): JSX.Element {
