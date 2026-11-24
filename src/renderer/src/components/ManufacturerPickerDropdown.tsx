@@ -193,7 +193,7 @@ export default function ManufacturerPickerDropdown<T extends PickerItem>({
     function handleMouseDown(e: MouseEvent): void {
       const target = e.target as Node
       if (containerRef.current?.contains(target) || triggerRef.current?.contains(target)) return
-      close()
+      close(false)
     }
     function handleKeyDown(e: KeyboardEvent): void {
       if (e.key === 'Escape') {
@@ -219,7 +219,11 @@ export default function ManufacturerPickerDropdown<T extends PickerItem>({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, hoverPath, activeDepth, search])
 
-  function close(): void {
+  /** `restoreFocus`: the menu (and its search box) unmounts on close, so a keyboard close would
+   *  leave focus on the page body; hand it back to the trigger. Not for a click elsewhere, which
+   *  focuses what was clicked. */
+  function close(restoreFocus = true): void {
+    if (restoreFocus && containerRef.current?.contains(document.activeElement)) triggerRef.current?.focus()
     setOpen(false)
     setHoverPath([])
     setActiveDepth(0)
